@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { Providers } from '@/providers/Providers';
 import '@/styles/globals.css';
 import '@/styles/custom.scss';
 
@@ -14,7 +15,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ko" className="h-full antialiased">
-      <body className="flex min-h-full flex-col">{children}</body>
+      <body className="flex min-h-full flex-col">
+        <Providers>{children}</Providers>
+      </body>
     </html>
   );
 }
