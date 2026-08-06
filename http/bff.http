@@ -1,0 +1,486 @@
+@baseUrl = http://localhost:3000
+@contentType = application/json
+
+### ==============================
+### 헬스
+### ==============================
+
+### 헬스체크
+GET {{baseUrl}}/api/health
+
+### ==============================
+### 인증 · 유저
+### ==============================
+
+### 로그인
+POST {{baseUrl}}/api/auth/login
+Content-Type: {{contentType}}
+
+{
+  "loginId": "",
+  "password": ""
+}
+
+### 로그인 토큰 재발급
+POST {{baseUrl}}/api/auth/refresh
+Content-Type: {{contentType}}
+
+{
+  "refreshToken": ""
+}
+
+### 로그아웃
+POST {{baseUrl}}/api/auth/logout
+Content-Type: {{contentType}}
+
+{}
+
+### 내 회원정보 조회
+GET {{baseUrl}}/api/auth/me
+
+### 회원정보 변경
+PATCH {{baseUrl}}/api/auth/me
+Content-Type: {{contentType}}
+
+{
+  "nickname": "",
+  "bio": ""
+}
+
+### 회원탈퇴
+DELETE {{baseUrl}}/api/auth/me
+
+### 회원가입
+POST {{baseUrl}}/api/auth/signup
+Content-Type: {{contentType}}
+
+{
+  "loginId": "",
+  "password": "",
+  "nickname": ""
+}
+
+### 아이디 중복확인
+GET {{baseUrl}}/api/auth/login-id/check?loginId=
+
+### 휴대폰 인증
+POST {{baseUrl}}/api/auth/phone
+Content-Type: {{contentType}}
+
+{
+  "phone": ""
+}
+
+### 휴대폰 인증 확인
+POST {{baseUrl}}/api/auth/phone/verify
+Content-Type: {{contentType}}
+
+{
+  "phone": "",
+  "code": ""
+}
+
+### 비밀번호 변경 토큰 생성
+POST {{baseUrl}}/api/auth/password/token
+Content-Type: {{contentType}}
+
+{
+  "loginId": "",
+  "phone": ""
+}
+
+### 비밀번호 변경
+PUT {{baseUrl}}/api/auth/password
+Content-Type: {{contentType}}
+
+{
+  "token": "",
+  "password": ""
+}
+
+### 구글 소셜 로그인 시작
+GET {{baseUrl}}/api/auth/social/google
+
+### 구글 소셜 로그인 콜백
+GET {{baseUrl}}/api/auth/social/google/callback?code=
+
+### 카카오 소셜 로그인 시작
+GET {{baseUrl}}/api/auth/social/kakao
+
+### 카카오 소셜 로그인 콜백
+GET {{baseUrl}}/api/auth/social/kakao/callback?code=
+
+### 소셜 계정 연동
+POST {{baseUrl}}/api/auth/social/link
+Content-Type: {{contentType}}
+
+{
+  "provider": "KAKAO",
+  "code": ""
+}
+
+### 소셜 계정 연동 해제
+DELETE {{baseUrl}}/api/auth/social/unlink?provider=KAKAO
+
+### ==============================
+### 메인
+### ==============================
+
+### 주민 스토리 보유 목록 조회
+GET {{baseUrl}}/api/main/stories/owners
+
+### 주민 스토리 조회
+GET {{baseUrl}}/api/main/stories?userNo=
+
+### 주민 게시글 조회 (무한 스크롤)
+GET {{baseUrl}}/api/main/feeds?cursor=&size=20
+
+### 검색
+GET {{baseUrl}}/api/main/search?q=&type=
+
+### ==============================
+### 마이울타리
+### ==============================
+
+### 마이울타리 정보 조회
+GET {{baseUrl}}/api/my-ultary
+
+### MY 게시글 그리드 조회
+GET {{baseUrl}}/api/my-ultary/feeds?cursor=&size=21
+
+### MY 게시글 상세 조회
+GET {{baseUrl}}/api/my-ultary/feeds/1
+
+### 저장한 게시글 조회
+GET {{baseUrl}}/api/my-ultary/saved-feeds?cursor=&size=21
+
+### 태그된 게시글 조회
+GET {{baseUrl}}/api/my-ultary/tagged-feeds?cursor=&size=21
+
+### 프로필 사진 변경
+PATCH {{baseUrl}}/api/my-ultary/profile-image
+Content-Type: {{contentType}}
+
+{
+  "fileId": null
+}
+
+### 소개글 변경
+PATCH {{baseUrl}}/api/my-ultary/bio
+Content-Type: {{contentType}}
+
+{
+  "bio": ""
+}
+
+### 스토리 등록
+POST {{baseUrl}}/api/my-ultary/stories
+Content-Type: {{contentType}}
+
+{
+  "fileId": null
+}
+
+### 스토리 삭제
+DELETE {{baseUrl}}/api/my-ultary/stories/1
+
+### ==============================
+### 반려동물
+### ==============================
+
+### 반려동물 목록 조회
+GET {{baseUrl}}/api/pets
+
+### 반려동물 등록
+POST {{baseUrl}}/api/pets
+Content-Type: {{contentType}}
+
+{
+  "name": "",
+  "tagName": "",
+  "species": "DOG",
+  "breed": "",
+  "bio": ""
+}
+
+### 반려동물 수정
+PATCH {{baseUrl}}/api/pets/1
+Content-Type: {{contentType}}
+
+{
+  "name": "",
+  "tagName": "",
+  "species": "DOG",
+  "breed": "",
+  "bio": ""
+}
+
+### 반려동물 삭제
+DELETE {{baseUrl}}/api/pets/1
+
+### 피드 반려동물 태그 승인
+POST {{baseUrl}}/api/pets/tags/1/approve
+
+### 피드 반려동물 태그 거절
+POST {{baseUrl}}/api/pets/tags/1/reject
+
+### ==============================
+### 게시글
+### ==============================
+
+### 게시글 등록
+POST {{baseUrl}}/api/feeds
+Content-Type: {{contentType}}
+
+{
+  "content": "",
+  "visibility": "PUBLIC",
+  "imageFileIds": [],
+  "petIds": [],
+  "tagIds": []
+}
+
+### 게시글 상세 조회
+GET {{baseUrl}}/api/feeds/1
+
+### 게시글 수정
+PATCH {{baseUrl}}/api/feeds/1
+Content-Type: {{contentType}}
+
+{
+  "content": "",
+  "visibility": "PUBLIC"
+}
+
+### 게시글 삭제
+DELETE {{baseUrl}}/api/feeds/1
+
+### 게시글 좋아요
+POST {{baseUrl}}/api/feeds/1/like
+
+### 게시글 좋아요 취소
+DELETE {{baseUrl}}/api/feeds/1/like
+
+### 게시글 좋아요한 사람 목록
+GET {{baseUrl}}/api/feeds/1/likers?cursor=&size=20
+
+### 게시글 저장
+POST {{baseUrl}}/api/feeds/1/store
+
+### 게시글 저장 해제
+DELETE {{baseUrl}}/api/feeds/1/store
+
+### 게시글 공유
+POST {{baseUrl}}/api/feeds/1/share
+Content-Type: {{contentType}}
+
+{
+  "type": "DM",
+  "receiverUserNo": null
+}
+
+### 댓글 목록 조회
+GET {{baseUrl}}/api/feeds/1/comments?cursor=&size=20
+
+### 댓글 작성
+POST {{baseUrl}}/api/feeds/1/comments
+Content-Type: {{contentType}}
+
+{
+  "content": ""
+}
+
+### 댓글 수정
+PATCH {{baseUrl}}/api/feeds/1/comments/1
+Content-Type: {{contentType}}
+
+{
+  "content": ""
+}
+
+### 댓글 삭제
+DELETE {{baseUrl}}/api/feeds/1/comments/1
+
+### 답글 목록 조회
+GET {{baseUrl}}/api/feeds/1/comments/1/replies?cursor=&size=20
+
+### 답글 작성
+POST {{baseUrl}}/api/feeds/1/comments/1/replies
+Content-Type: {{contentType}}
+
+{
+  "content": ""
+}
+
+### 답글 수정
+PATCH {{baseUrl}}/api/feeds/1/comments/1/replies/1
+Content-Type: {{contentType}}
+
+{
+  "content": ""
+}
+
+### 답글 삭제
+DELETE {{baseUrl}}/api/feeds/1/comments/1/replies/1
+
+### ==============================
+### 태그
+### ==============================
+
+### 태그 등록
+POST {{baseUrl}}/api/tags
+Content-Type: {{contentType}}
+
+{
+  "name": "",
+  "title": "",
+  "content": ""
+}
+
+### 태그 검색
+GET {{baseUrl}}/api/tags/search?q=
+
+### 태그 추천
+GET {{baseUrl}}/api/tags/recommend?q=
+
+### 태그 정보 조회
+GET {{baseUrl}}/api/tags/1
+
+### ==============================
+### 다른 유저 울타리 · 관계
+### ==============================
+
+### 다른 유저 울타리 정보 조회
+GET {{baseUrl}}/api/users/1/ultary
+
+### 주민·이웃 목록 조회
+GET {{baseUrl}}/api/users/1/neighbors?type=
+
+### 주민 요청
+POST {{baseUrl}}/api/users/1/neighbors/request
+
+### 주민 요청 수락
+POST {{baseUrl}}/api/neighbors/1/accept
+
+### 주민 요청 거절
+POST {{baseUrl}}/api/neighbors/1/reject
+
+### 주민 요청 취소·이웃 해제
+DELETE {{baseUrl}}/api/neighbors/1
+
+### 유저 차단
+POST {{baseUrl}}/api/users/1/block
+
+### 유저 차단 해제
+DELETE {{baseUrl}}/api/users/1/block
+
+### 신고
+POST {{baseUrl}}/api/reports
+Content-Type: {{contentType}}
+
+{
+  "targetType": "USER",
+  "targetUserNo": null,
+  "targetFeedId": null,
+  "reason": ""
+}
+
+### ==============================
+### 게시글 작성 중
+### ==============================
+
+### 작성 사진 임시저장
+POST {{baseUrl}}/api/write/draft-photos
+Content-Type: {{contentType}}
+
+{
+  "fileIds": []
+}
+
+### 편집 사진 저장
+POST {{baseUrl}}/api/write/edited-photos
+Content-Type: {{contentType}}
+
+{
+  "fileId": null,
+  "edits": {}
+}
+
+### 사진 태그 저장
+POST {{baseUrl}}/api/write/photo-tags
+Content-Type: {{contentType}}
+
+{
+  "fileId": null,
+  "tags": []
+}
+
+### ==============================
+### DM
+### ==============================
+
+### DM 대화방 리스트 조회
+GET {{baseUrl}}/api/dm/rooms
+
+### DM 대화방 생성
+POST {{baseUrl}}/api/dm/rooms
+Content-Type: {{contentType}}
+
+{
+  "receiverUserNo": null
+}
+
+### DM 대화방 나가기
+DELETE {{baseUrl}}/api/dm/rooms/1
+
+### DM 읽음 처리
+POST {{baseUrl}}/api/dm/rooms/1/read
+
+### DM 메시지 조회
+GET {{baseUrl}}/api/dm/rooms/1/messages?cursor=&size=30
+
+### DM 메시지 전송
+POST {{baseUrl}}/api/dm/rooms/1/messages
+Content-Type: {{contentType}}
+
+{
+  "content": ""
+}
+
+### ==============================
+### 알림
+### ==============================
+
+### 알림 목록 조회
+GET {{baseUrl}}/api/notifications?cursor=&size=20
+
+### 알림 단건 읽음
+PATCH {{baseUrl}}/api/notifications/1/read
+
+### 알림 전체 읽음
+POST {{baseUrl}}/api/notifications/read-all
+
+### ==============================
+### 설정
+### ==============================
+
+### 설정 조회
+GET {{baseUrl}}/api/settings
+
+### 설정 변경
+PATCH {{baseUrl}}/api/settings
+Content-Type: {{contentType}}
+
+{
+  "profileVisibility": "PUBLIC"
+}
+
+### ==============================
+### 관리자
+### ==============================
+
+### 관리자 태그 승인
+POST {{baseUrl}}/api/admin/tags/1/approve
+
+### 관리자 태그 거절
+POST {{baseUrl}}/api/admin/tags/1/reject
