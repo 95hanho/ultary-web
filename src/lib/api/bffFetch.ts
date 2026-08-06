@@ -59,6 +59,20 @@ export function bffPutJson<TRes, TBody extends object = object>(
   });
 }
 
+/** PATCH JSON */
+export function bffPatchJson<TRes, TBody extends object = object>(
+  url: string,
+  body?: TBody,
+  headers?: RequestHeaders,
+) {
+  const [path, restBody] = applyPathParamsFromBody(url, body);
+  return withBff<TRes>(path, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...(headers ?? {}) },
+    body: JSON.stringify(restBody ?? {}),
+  });
+}
+
 /** DELETE + query */
 export function bffDelete<T>(
   url: string,

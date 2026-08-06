@@ -4,6 +4,7 @@ export type * from './http';
 export {
   bffDelete,
   bffGet,
+  bffPatchJson,
   bffPostJson,
   bffPutJson,
 } from './bffFetch';
