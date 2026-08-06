@@ -1,8 +1,25 @@
 /**
- * BE(Ultary API)에 현재 구현된 엔드포인트만 정의.
- * baseURL(예: http://localhost:9377)은 호출부에서 붙인다.
+ * 엔드포인트 경로 모음.
+ *
+ * - bffEndpoints   : 브라우저 → Next Route Handler
+ * - springEndpoints: Next 서버 → Spring
  */
-export const endpoints = {
+
+/** 브라우저 → Next BFF 경로 (Route Handler 추가 시 여기에 맞춤) */
+export const bffEndpoints = {
+  auth: {
+    login: '/api/auth/login',
+    refresh: '/api/auth/refresh',
+    logout: '/api/auth/logout',
+    me: '/api/auth/me',
+  },
+  health: {
+    check: '/api/health',
+  },
+} as const;
+
+/** Next 서버 → Spring 경로 */
+export const springEndpoints = {
   health: {
     /** GET — 서버 생존 확인. data: "OK" */
     check: '/api/v1/health',
@@ -10,7 +27,7 @@ export const endpoints = {
     db: '/api/v1/health/db',
   },
   auth: {
-    /** POST LoginRequest → TokenResponse */
+    /** POST LoginRequest → TokenResponse (현재 BE는 JSON) */
     login: '/api/v1/auth/login',
     /** POST RefreshTokenRequest → TokenResponse */
     refresh: '/api/v1/auth/refresh',
@@ -21,4 +38,9 @@ export const endpoints = {
   },
 } as const;
 
-export type Endpoints = typeof endpoints;
+export type BffEndpoints = typeof bffEndpoints;
+export type SpringEndpoints = typeof springEndpoints;
+
+/** @deprecated springEndpoints 사용 */
+export const endpoints = springEndpoints;
+export type Endpoints = SpringEndpoints;

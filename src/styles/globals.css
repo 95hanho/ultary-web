@@ -1,0 +1,142 @@
+@import 'tailwindcss';
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
+}
+
+/* ===============================
+   Fonts
+   - 폰트 파일 추가 후 아래 주석을 해제하고 경로를 맞춘다.
+   - 예: src/assets/fonts/
+=============================== */
+
+/*
+@font-face {
+  font-family: 'NotoSansKR';
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url('../assets/fonts/NotoSansKR-VariableFont_wght.ttf') format('truetype');
+}
+*/
+
+/* ===============================
+   Global base styles (RESET / ELEMENT)
+   - Tailwind utilities보다 우선순위가 낮은 base 레이어
+=============================== */
+
+@layer base {
+  *,
+  *::before,
+  *::after {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+
+  html {
+    height: 100%;
+  }
+
+  body {
+    min-height: 100%;
+    color: var(--foreground);
+    background-color: var(--background);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body,
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6,
+  input,
+  textarea,
+  select,
+  button {
+    font-family: var(--font-sans);
+  }
+
+  strong,
+  b {
+    line-height: 1;
+  }
+
+  ul,
+  ol,
+  li {
+    list-style: none;
+  }
+
+  a {
+    cursor: pointer;
+    color: inherit;
+    text-decoration: none;
+  }
+
+  p {
+    margin-bottom: 0;
+  }
+
+  button {
+    border: none;
+    cursor: pointer;
+    background-color: transparent;
+    font: inherit;
+  }
+
+  input,
+  textarea,
+  select {
+    font: inherit;
+  }
+
+  img {
+    border-style: none;
+    max-width: 100%;
+    height: auto;
+    -webkit-user-drag: none;
+    user-select: none;
+  }
+
+  audio,
+  canvas,
+  embed,
+  iframe,
+  img,
+  object,
+  video {
+    display: block;
+    max-width: 100%;
+  }
+
+  button > svg {
+    display: inline;
+  }
+}
+
+/* ===============================
+   Scrollbar
+=============================== */
+
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: var(--scrollbar-thumb);
+  border-radius: 999px;
+}
+
+::-webkit-scrollbar-track {
+  background-color: var(--scrollbar-track);
+  border-left: 1px solid var(--scrollbar-track-border);
+}
