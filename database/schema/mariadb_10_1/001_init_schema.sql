@@ -2,6 +2,10 @@
 -- Engine: InnoDB
 -- Charset / Collation: utf8 / utf8_general_ci
 -- Delete policy: 서비스 데이터는 기본적으로 is_deleted/status 값으로 소프트 삭제 관리
+-- Auth note:
+--   - 일반 사용자 login_id 없음 (소셜 우선, 이후 email/phone + password 로그인)
+--   - password는 최초 NULL, 사용자가 나중에 설정 가능
+--   - 소셜 가입 시 nickname = google_|kakao_ + 랜덤코드, is_default_nickname=1
 
 SET NAMES utf8;
 SET FOREIGN_KEY_CHECKS = 0;
@@ -23,6 +27,7 @@ DROP TABLE IF EXISTS `ultary_feed`;
 DROP TABLE IF EXISTS `ultary_user_block`;
 DROP TABLE IF EXISTS `ultary_neighbor`;
 DROP TABLE IF EXISTS `ultary_pet`;
+DROP TABLE IF EXISTS `ultary_user_social`;
 DROP TABLE IF EXISTS `ultary_token`;
 DROP TABLE IF EXISTS `ultary_file`;
 DROP TABLE IF EXISTS `ultary_admin`;
@@ -32,12 +37,12 @@ SET FOREIGN_KEY_CHECKS = 1;
 
 CREATE TABLE `ultary_user` (
   `user_no` INT(11) NOT NULL AUTO_INCREMENT,
-  `login_id` VARCHAR(20) NOT NULL COMMENT '사용자 로그인 ID',
-  `password` VARCHAR(200) NOT NULL,
+  `password` VARCHAR(200) NULL DEFAULT NULL COMMENT 'BCrypt 해시. 소셜만 사용 시 NULL, 이후 설정 가능',
   `name` VARCHAR(20) NULL DEFAULT NULL,
-  `nickname` VARCHAR(30) NOT NULL COMMENT '서비스 내 표시 이름',
-  `email` VARCHAR(50) NULL DEFAULT NULL,
-  `phone` VARCHAR(20) NULL DEFAULT NULL,
+  `nickname` VARCHAR(30) NOT NULL COMMENT '서비스 내 표시 이름. 소셜 가입 시 google_|kakao_ + 랜덤코드',
+  `is_default_nickname` TINYINT(1) NOT NULL DEFAULT 1 COMMENT '1=자동 생성 닉네임(변경 유도 대상), 0=사용자가 직접 변경함',
+  `email` VARCHAR(50) NULL DEFAULT NULL COMMENT '소셜에서 전달되거나 이후 등록. 비밀번호 로그인 식별자로 사용 가능',
+  `phone` VARCHAR(20) NULL DEFAULT NULL COMMENT '본인인증 후 등록. 비밀번호 로그인 식별자로 사용 가능',
   `profile_file_id` INT(11) NULL DEFAULT NULL,
   `bio` VARCHAR(300) NULL DEFAULT NULL COMMENT '프로필 소개글',
   `region_sido` VARCHAR(30) NULL DEFAULT NULL COMMENT '동네 기반 기능용 시/도',
@@ -48,12 +53,28 @@ CREATE TABLE `ultary_user` (
   `withdrawal_requested_at` DATETIME NULL DEFAULT NULL,
   `withdrawal_completed_at` DATETIME NULL DEFAULT NULL,
   PRIMARY KEY (`user_no`) USING BTREE,
-  UNIQUE KEY `UK_ultary_user_login_id` (`login_id`) USING BTREE,
   UNIQUE KEY `UK_ultary_user_nickname` (`nickname`) USING BTREE,
   UNIQUE KEY `UK_ultary_user_email` (`email`) USING BTREE,
+  UNIQUE KEY `UK_ultary_user_phone` (`phone`) USING BTREE,
   KEY `IDX_ultary_user_profile_file_id` (`profile_file_id`) USING BTREE,
+  KEY `IDX_ultary_user_is_default_nickname` (`is_default_nickname`) USING BTREE,
   KEY `IDX_ultary_user_withdrawal_status` (`withdrawal_status`) USING BTREE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_general_ci COMMENT='사용자 계정 및 보호자 프로필';
+
+CREATE TABLE `ultary_user_social` (
+  `user_social_id` INT(11) NOT NULL AUTO_INCREMENT,
+  `user_no` INT(11) NOT NULL COMMENT '연결된 ultary_user',
+  `provider` ENUM('GOOGLE','KAKAO') NOT NULL COMMENT '소셜 로그인 제공자',
+  `provider_user_id` VARCHAR(100) NOT NULL COMMENT '제공자 측 고유 사용자 ID (sub / id)',
+  `provider_email` VARCHAR(100) NULL DEFAULT NULL COMMENT '제공자에서 받은 이메일 스냅샷',
+  `linked_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`user_social_id`) USING BTREE,
+  UNIQUE KEY `UK_ultary_user_social_provider_uid` (`provider`, `provider_user_id`) USING BTREE,
+  UNIQUE KEY `UK_ultary_user_social_user_provider` (`user_no`, `provider`) USING BTREE,
+  KEY `IDX_ultary_user_social_user_no` (`user_no`) USING BTREE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_general_ci COMMENT='사용자-소셜 계정 연결 (Google/Kakao)';
 
 CREATE TABLE `ultary_admin` (
   `admin_no` INT(11) NOT NULL AUTO_INCREMENT,
@@ -394,6 +415,9 @@ CREATE TABLE `ultary_ai_request_log` (
 
 ALTER TABLE `ultary_user`
   ADD CONSTRAINT `FK_user_profile_file` FOREIGN KEY (`profile_file_id`) REFERENCES `ultary_file` (`file_id`) ON UPDATE CASCADE ON DELETE SET NULL;
+
+ALTER TABLE `ultary_user_social`
+  ADD CONSTRAINT `FK_user_social_user` FOREIGN KEY (`user_no`) REFERENCES `ultary_user` (`user_no`) ON UPDATE CASCADE ON DELETE CASCADE;
 
 ALTER TABLE `ultary_file`
   ADD CONSTRAINT `FK_file_uploaded_user` FOREIGN KEY (`uploaded_by_user_no`) REFERENCES `ultary_user` (`user_no`) ON UPDATE CASCADE ON DELETE SET NULL,
