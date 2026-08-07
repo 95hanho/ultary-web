@@ -5,6 +5,26 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-sans);
   --font-mono: var(--font-mono);
+
+  --color-brand-sky-400: var(--brand-sky-400);
+  --color-brand-sky-500: var(--brand-sky-500);
+  --color-brand-sky-600: var(--brand-sky-600);
+
+  --color-brand-grass-100: var(--brand-grass-100);
+  --color-brand-grass-200: var(--brand-grass-200);
+  --color-brand-grass-300: var(--brand-grass-300);
+  --color-brand-grass-400: var(--brand-grass-400);
+  --color-brand-grass-500: var(--brand-grass-500);
+  --color-brand-grass-600: var(--brand-grass-600);
+
+  --color-brand-gray-100: var(--brand-gray-100);
+  --color-brand-gray-200: var(--brand-gray-200);
+  --color-brand-gray-300: var(--brand-gray-300);
+  --color-brand-gray-400: var(--brand-gray-400);
+  --color-brand-gray-500: var(--brand-gray-500);
+  --color-brand-gray-600: var(--brand-gray-600);
+
+  --color-brand-black-700: var(--brand-black-700);
 }
 
 /* ===============================

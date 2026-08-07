@@ -4,7 +4,7 @@
 =============================== */
 
 :root {
-  --background: #ffffff;
+  --background: #f3feff;
   --foreground: rgba(0, 0, 0, 0.85);
 
   --font-sans: 'NotoSansKR', 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
@@ -13,6 +13,30 @@
   --scrollbar-thumb: #9ca3af;
   --scrollbar-track: #eaeaea;
   --scrollbar-track-border: #cccccc;
+
+  /* Brand / Sky */
+  --brand-sky-400: #d5fbff;
+  --brand-sky-500: #95d9e0;
+  --brand-sky-600: #72cad3;
+
+  /* Brand / Grass */
+  --brand-grass-100: #d5fadd;
+  --brand-grass-200: #b1eebe;
+  --brand-grass-300: #94e9a6;
+  --brand-grass-400: #69df83;
+  --brand-grass-500: #60c877;
+  --brand-grass-600: #6dc27f;
+
+  /* Brand / Gray */
+  --brand-gray-100: #e1e3e3;
+  --brand-gray-200: #c2c2c2;
+  --brand-gray-300: #a7a7a7;
+  --brand-gray-400: #9e9e9e;
+  --brand-gray-500: #656565;
+  --brand-gray-600: #707070;
+
+  /* Brand / Black */
+  --brand-black-700: #373737;
 }
 
 @layer utilities {
