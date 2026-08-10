@@ -168,3 +168,17 @@ export function springPostJson<TRes, TBody extends object = object>(
     body: JSON.stringify(restBody ?? {}),
   });
 }
+
+/** PATCH JSON — 예외용 */
+export function springPatchJson<TRes, TBody extends object = object>(
+  url: string,
+  body?: TBody,
+  headers?: RequestHeaders,
+) {
+  const [path, restBody] = applyPathParamsFromBody(url, body);
+  return springHttp<TRes>(path, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...(headers ?? {}) },
+    body: JSON.stringify(restBody ?? {}),
+  });
+}

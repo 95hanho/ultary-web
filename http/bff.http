@@ -12,22 +12,14 @@ GET {{baseUrl}}/api/health
 ### 인증 · 유저
 ### ==============================
 
-### 로그인
-POST {{baseUrl}}/api/auth/login
-Content-Type: {{contentType}}
+### 구글 소셜 로그인 시작 (브라우저에서 열기)
+GET {{baseUrl}}/api/auth/social/google
 
-{
-  "loginId": "",
-  "password": ""
-}
+### 카카오 소셜 로그인 시작 (브라우저에서 열기)
+GET {{baseUrl}}/api/auth/social/kakao
 
-### 로그인 토큰 재발급
-POST {{baseUrl}}/api/auth/refresh
-Content-Type: {{contentType}}
-
-{
-  "refreshToken": ""
-}
+### 내 회원정보 조회 (httpOnly 쿠키 필요)
+GET {{baseUrl}}/api/auth/me
 
 ### 로그아웃
 POST {{baseUrl}}/api/auth/logout
@@ -35,8 +27,20 @@ Content-Type: {{contentType}}
 
 {}
 
-### 내 회원정보 조회
-GET {{baseUrl}}/api/auth/me
+### 로그인 토큰 재발급
+POST {{baseUrl}}/api/auth/refresh
+Content-Type: {{contentType}}
+
+{}
+
+### 로그인 (email 또는 phone + password)
+POST {{baseUrl}}/api/auth/login
+Content-Type: {{contentType}}
+
+{
+  "email": "",
+  "password": ""
+}
 
 ### 회원정보 변경
 PATCH {{baseUrl}}/api/auth/me

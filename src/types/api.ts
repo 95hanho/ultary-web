@@ -52,10 +52,20 @@ export function isApiProblemDetail(value: unknown): value is ApiProblemDetail {
   return typeof body.status === 'number' && isApiErrorCode(body.code);
 }
 
-/** POST /api/v1/auth/login */
+export type SocialProvider = 'GOOGLE' | 'KAKAO';
+
+/** POST /api/v1/auth/login — email 또는 phone + password */
 export type LoginRequest = {
-  loginId: string;
+  email?: string;
+  phone?: string;
   password: string;
+};
+
+/** POST /api/v1/auth/signup */
+export type SignupRequest = {
+  phoneAuthCompleteToken: string;
+  password: string;
+  nickname: string;
 };
 
 /** POST /api/v1/auth/refresh */
@@ -63,7 +73,7 @@ export type RefreshTokenRequest = {
   refreshToken: string;
 };
 
-/** login / refresh 성공 data */
+/** login / refresh / social/login 공통 토큰 필드 */
 export type TokenResponse = {
   accessToken: string;
   refreshToken: string;
@@ -71,9 +81,43 @@ export type TokenResponse = {
   expiresIn: number;
 };
 
+/** POST /api/v1/auth/social/login · social/link */
+export type SocialLoginRequest = {
+  provider: SocialProvider;
+  providerUserId: string;
+  email?: string | null;
+  name?: string | null;
+};
+
+/** POST /api/v1/auth/social/login 성공 data */
+export type SocialLoginResponse = TokenResponse & {
+  newUser: boolean;
+  defaultNickname: boolean;
+};
+
+/** PATCH /api/v1/auth/me */
+export type UpdateMeRequest = {
+  name?: string | null;
+  nickname?: string;
+  bio?: string | null;
+  regionSido?: string | null;
+  regionSigungu?: string | null;
+  profileFileId?: number | null;
+};
+
 /** GET /api/v1/auth/me 성공 data */
 export type MeResponse = {
   userNo: number;
-  loginId: string;
+  name: string | null;
   nickname: string;
+  defaultNickname: boolean;
+  hasPassword: boolean;
+  email: string | null;
+  phone: string | null;
+  profileFileId: number | null;
+  bio: string | null;
+  regionSido: string | null;
+  regionSigungu: string | null;
+  withdrawalStatus: 'ACTIVE' | 'REQUESTED' | 'WITHDRAWN';
+  createdAt: string;
 };

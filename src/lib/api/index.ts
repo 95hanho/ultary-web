@@ -13,6 +13,7 @@ export {
   springDelete,
   springDownload,
   springGet,
+  springPatchJson,
   springPostForm,
   springPostFormData,
   springPostJson,

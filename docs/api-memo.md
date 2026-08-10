@@ -11,26 +11,48 @@ BFF: `/api/...` · Spring: `/api/v1/...`
 
 ## 1. 인증 · 유저
 
-| 기능 | Method | BFF |
-|------|--------|-----|
-| 로그인 | POST | `/api/auth/login` |
-| 로그인 토큰 재발급 | POST | `/api/auth/refresh` |
-| 로그아웃 | POST | `/api/auth/logout` |
-| 내 회원정보 조회 | GET | `/api/auth/me` |
-| 회원정보 변경 | PATCH | `/api/auth/me` |
-| 회원탈퇴 | DELETE | `/api/auth/me` |
-| 회원가입 | POST | `/api/auth/signup` |
-| 아이디 중복확인 | GET | `/api/auth/login-id/check` |
-| 휴대폰 인증 | POST | `/api/auth/phone` |
-| 휴대폰 인증 확인 | POST | `/api/auth/phone/verify` |
-| 비밀번호 변경 토큰 생성 | POST | `/api/auth/password/token` |
-| 비밀번호 변경 | PUT | `/api/auth/password` |
-| 구글 소셜 로그인 시작 | GET | `/api/auth/social/google` |
-| 구글 소셜 콜백 | GET | `/api/auth/social/google/callback` |
-| 카카오 소셜 로그인 시작 | GET | `/api/auth/social/kakao` |
-| 카카오 소셜 콜백 | GET | `/api/auth/social/kakao/callback` |
-| 소셜 계정 연동 | POST | `/api/auth/social/link` |
-| 소셜 계정 연동 해제 | DELETE | `/api/auth/social/unlink` |
+> 일반 유저 `loginId` 없음. 소셜 우선.  
+> BFF가 Google/Kakao OAuth 처리 후 Spring `POST /api/v1/auth/social/login` 호출.  
+> JWT는 Spring 발급, BFF는 httpOnly 쿠키(`accessToken`, `refreshToken`)로 보관.
+
+| 기능 | Method | BFF | Spring |
+|------|--------|-----|--------|
+| 로그인 (email\|phone + password) | POST | `/api/auth/login` | `/api/v1/auth/login` |
+| 로그인 토큰 재발급 | POST | `/api/auth/refresh` | `/api/v1/auth/refresh` |
+| 로그아웃 | POST | `/api/auth/logout` | `/api/v1/auth/logout` |
+| 내 회원정보 조회 | GET | `/api/auth/me` | `/api/v1/auth/me` |
+| 회원정보 변경 (닉네임 등) | PATCH | `/api/auth/me` | `/api/v1/auth/me` |
+| 회원탈퇴 | DELETE | `/api/auth/me` | `/api/v1/auth/me` |
+| 회원가입 | POST | `/api/auth/signup` | `/api/v1/auth/signup` |
+| 휴대폰 인증 | POST | `/api/auth/phone` | `/api/v1/auth/phone` |
+| 휴대폰 인증 확인 | POST | `/api/auth/phone/verify` | `/api/v1/auth/phone/verify` |
+| 비밀번호 변경 토큰 생성 | POST | `/api/auth/password/token` | `/api/v1/auth/password/token` |
+| 비밀번호 변경 | PUT | `/api/auth/password` | `/api/v1/auth/password` |
+| 구글 소셜 로그인 시작 (BFF OAuth) | GET | `/api/auth/social/google` | — |
+| 구글 소셜 콜백 (BFF→Spring) | GET | `/api/auth/social/google/callback` | `POST /api/v1/auth/social/login` |
+| 카카오 소셜 로그인 시작 (BFF OAuth) | GET | `/api/auth/social/kakao` | — |
+| 카카오 소셜 콜백 (BFF→Spring) | GET | `/api/auth/social/kakao/callback` | `POST /api/v1/auth/social/login` |
+| 소셜 계정 연동 | POST | `/api/auth/social/link` | `/api/v1/auth/social/link` |
+| 소셜 계정 연동 해제 | DELETE | `/api/auth/social/unlink` | `/api/v1/auth/social/unlink` |
+
+### 소셜 로그인 body (Spring)
+
+```json
+{
+  "provider": "GOOGLE" | "KAKAO",
+  "providerUserId": "<소셜 고유 ID>",
+  "email": "<optional>",
+  "name": "<optional>"
+}
+```
+
+응답 `data`: accessToken, refreshToken, tokenType, expiresIn, **newUser**, **defaultNickname**  
+`defaultNickname === true` → UI에서 「닉네임을 변경해주세요.」(마이울타리 안내 / 마이페이지에서 변경)
+
+### Redirect URI (로컬)
+
+- `http://localhost:3000/api/auth/social/google/callback`
+- `http://localhost:3000/api/auth/social/kakao/callback`
 
 ---
 

@@ -1,15 +1,23 @@
 import Image from 'next/image';
 import Link from 'next/link';
+import { bffEndpoints } from '@/lib/api/endpoints';
 import styles from './login.module.scss';
 
 const LOGO_SRC = encodeURI('/images/auth/ultary_logo 1.png');
 const GOOGLE_ICON_SRC = '/images/auth/google.social.png';
 const KAKAO_BTN_SRC = encodeURI('/images/auth/kakao_login_large_wide 1.png');
 
-export default function LoginPage() {
+type LoginPageProps = {
+  searchParams?: Promise<{ error?: string }>;
+};
+
+export default async function LoginPage({ searchParams }: LoginPageProps) {
+  const params = searchParams ? await searchParams : undefined;
+  const error = params?.error;
+
   return (
     <main className="relative z-10 flex min-h-full flex-1 flex-col">
-      <div className="mx-auto flex w-full max-w-[430px] flex-1 flex-col justify-center px-6">
+      <div className="mx-auto flex w-full max-w-[430px] flex-1 flex-col justify-center px-6 pt-10 pb-36">
         <div className="mb-10 flex justify-center">
           <Image
             src={LOGO_SRC}
@@ -21,6 +29,12 @@ export default function LoginPage() {
             style={{ height: 'auto' }}
           />
         </div>
+
+        {error ? (
+          <p className="mb-3 rounded-lg bg-red-50 px-3 py-2 text-center text-sm text-red-600">
+            소셜 로그인에 실패했습니다. 다시 시도해주세요.
+          </p>
+        ) : null}
 
         <form className="flex flex-col gap-3" action="#" method="post">
           <input
@@ -48,14 +62,14 @@ export default function LoginPage() {
 
         <Link
           href="/signup"
-          className="mt-3 flex h-10 w-full items-center justify-center rounded-lg text-sm text-brand-gray-500 hover:bg-amber-50 hover:underline"
+          className="mt-3 flex h-10 w-full items-center justify-center rounded-lg text-sm text-brand-gray-500 hover:bg-brand-gray-100 hover:underline"
         >
           계정이 없으신가요?
         </Link>
 
         <div className="mt-8 flex flex-col gap-3">
-          <button
-            type="button"
+          <a
+            href={bffEndpoints.auth.google}
             className="flex h-12 w-full items-center justify-center gap-2 rounded-lg border border-brand-gray-100 bg-white text-base text-brand-black-700 transition-opacity hover:opacity-90"
           >
             <Image
@@ -66,10 +80,10 @@ export default function LoginPage() {
               className="size-5 object-contain"
             />
             구글로그인
-          </button>
+          </a>
 
-          <button
-            type="button"
+          <a
+            href={bffEndpoints.auth.kakao}
             className="flex h-12 w-full items-center justify-center overflow-hidden rounded-lg border border-brand-gray-100 transition-opacity hover:opacity-90"
             aria-label="카카오 로그인"
           >
@@ -80,7 +94,7 @@ export default function LoginPage() {
               height={90}
               className="h-12 w-full object-cover"
             />
-          </button>
+          </a>
         </div>
       </div>
     </main>

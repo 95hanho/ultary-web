@@ -15,7 +15,7 @@ export const bffEndpoints = {
   },
 
   auth: {
-    /** POST 로그인 */
+    /** POST 로그인 (email|phone + password) */
     login: '/api/auth/login',
     /** POST 토큰 재발급 */
     refresh: '/api/auth/refresh',
@@ -29,8 +29,6 @@ export const bffEndpoints = {
     withdraw: '/api/auth/me',
     /** POST 회원가입 */
     signup: '/api/auth/signup',
-    /** GET 아이디 중복확인 ?loginId= */
-    checkLoginId: '/api/auth/login-id/check',
     /** POST 휴대폰 인증 요청 */
     phone: '/api/auth/phone',
     /** POST 휴대폰 인증 확인 */
@@ -39,13 +37,13 @@ export const bffEndpoints = {
     passwordToken: '/api/auth/password/token',
     /** PUT 비밀번호 변경 */
     password: '/api/auth/password',
-    /** GET 구글 소셜 로그인 시작 */
+    /** GET 구글 소셜 로그인 시작 (BFF OAuth) */
     google: '/api/auth/social/google',
-    /** GET 구글 콜백 */
+    /** GET 구글 콜백 (BFF OAuth → Spring social/login) */
     googleCallback: '/api/auth/social/google/callback',
-    /** GET 카카오 소셜 로그인 시작 */
+    /** GET 카카오 소셜 로그인 시작 (BFF OAuth) */
     kakao: '/api/auth/social/kakao',
-    /** GET 카카오 콜백 */
+    /** GET 카카오 콜백 (BFF OAuth → Spring social/login) */
     kakaoCallback: '/api/auth/social/kakao/callback',
     /** POST 소셜 계정 연동 */
     socialLink: '/api/auth/social/link',
@@ -203,7 +201,7 @@ export const springEndpoints = {
   },
 
   auth: {
-    /** POST */
+    /** POST email|phone + password */
     login: '/api/v1/auth/login',
     /** POST */
     refresh: '/api/v1/auth/refresh',
@@ -217,8 +215,6 @@ export const springEndpoints = {
     withdraw: '/api/v1/auth/me',
     /** POST */
     signup: '/api/v1/auth/signup',
-    /** GET */
-    checkLoginId: '/api/v1/auth/login-id/check',
     /** POST */
     phone: '/api/v1/auth/phone',
     /** POST */
@@ -227,17 +223,11 @@ export const springEndpoints = {
     passwordToken: '/api/v1/auth/password/token',
     /** PUT */
     password: '/api/v1/auth/password',
-    /** GET */
-    google: '/api/v1/auth/social/google',
-    /** GET */
-    googleCallback: '/api/v1/auth/social/google/callback',
-    /** GET */
-    kakao: '/api/v1/auth/social/kakao',
-    /** GET */
-    kakaoCallback: '/api/v1/auth/social/kakao/callback',
-    /** POST */
+    /** POST SocialLoginRequest → SocialLoginResponse */
+    socialLogin: '/api/v1/auth/social/login',
+    /** POST 소셜 계정 연동 (인증 필요) */
     socialLink: '/api/v1/auth/social/link',
-    /** DELETE */
+    /** DELETE ?provider=GOOGLE|KAKAO */
     socialUnlink: '/api/v1/auth/social/unlink',
   },
 

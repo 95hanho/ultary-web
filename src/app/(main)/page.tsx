@@ -1,3 +1,10 @@
+import { LogoutButton } from './LogoutButton';
+
 export default function HomePage() {
-  return <main>메인</main>;
+  return (
+    <main>
+      <h1>메인</h1>
+      <LogoutButton />
+    </main>
+  );
 }

@@ -1,12 +1,13 @@
-import type { DateTimeString, SoftDelete, Timestamps } from './common';
+import type { DateTimeString, Flag, SoftDelete, Timestamps } from './common';
 import type { WithdrawalStatus } from './enums';
+import type { SocialProvider } from './api';
 
-/** ultary_user — password는 클라이언트 엔티티에서 제외 */
+/** ultary_user — password / loginId 없음 (소셜 우선) */
 export type User = {
   userNo: number;
-  loginId: string;
   name: string | null;
   nickname: string;
+  isDefaultNickname: Flag;
   email: string | null;
   phone: string | null;
   profileFileId: number | null;
@@ -19,6 +20,16 @@ export type User = {
   withdrawalRequestedAt: DateTimeString | null;
   withdrawalCompletedAt: DateTimeString | null;
 };
+
+/** ultary_user_social */
+export type UserSocial = {
+  userSocialId: number;
+  userNo: number;
+  provider: SocialProvider;
+  providerUserId: string;
+  providerEmail: string | null;
+  linkedAt: DateTimeString;
+} & Timestamps;
 
 /** ultary_user_block */
 export type UserBlock = {
