@@ -1,0 +1,77 @@
+.shell {
+  position: relative;
+  display: flex;
+  width: 100%;
+  max-width: 430px;
+  min-height: 100%;
+  margin: 0 auto;
+  flex-direction: column;
+  padding-bottom: 72px;
+}
+
+.header {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px;
+  background: rgba(243, 254, 255, 0.92);
+  backdrop-filter: blur(6px);
+}
+
+.logo {
+  width: 75px;
+  max-width: 140px;
+}
+
+.settingBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.main {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.stories {
+}
+
+.storySwiper {
+  width: 100%;
+  padding: 0 10px;
+}
+
+.storySlide {
+  width: auto !important;
+}
+
+.storyItem {
+  display: flex;
+  width: 80px;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.storyNickname {
+  max-width: 100%;
+  overflow: hidden;
+  color: var(--brand-black-700);
+  font-size: 11px;
+  line-height: 1.2;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.feeds {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}

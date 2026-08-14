@@ -1,10 +1,5 @@
-import { LogoutButton } from './LogoutButton';
+import MainClient from './MainClient';
 
 export default function HomePage() {
-  return (
-    <main>
-      <h1>메인</h1>
-      <LogoutButton />
-    </main>
-  );
+  return <MainClient />;
 }

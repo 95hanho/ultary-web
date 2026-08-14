@@ -1,0 +1,23 @@
+.footer {
+  position: fixed;
+  bottom: 0;
+  left: 50%;
+  z-index: 40;
+  display: flex;
+  width: 100%;
+  max-width: 430px;
+  align-items: center;
+  justify-content: space-around;
+  padding: 10px 8px calc(10px + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--brand-gray-100);
+  background: rgba(255, 255, 255, 0.96);
+  transform: translateX(-50%);
+}
+
+.item {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+}

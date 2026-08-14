@@ -1,0 +1,104 @@
+.feed {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 10px;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.nickname {
+  color: var(--brand-black-700);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.content {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.media {
+  position: relative;
+  width: 100%;
+  background: #fff;
+  padding: 0 5px;
+}
+
+.photo {
+  display: block;
+  width: 100%;
+  height: auto;
+  object-fit: cover;
+  border-radius: 7px;
+}
+
+.dots {
+  position: absolute;
+  bottom: 12px;
+  left: 50%;
+  display: flex;
+  gap: 6px;
+  transform: translateX(-50%);
+}
+
+.dot {
+  width: 6px;
+  height: 6px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.55);
+  cursor: pointer;
+}
+
+.dotActive {
+  background: #111;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 5px;
+}
+
+.actionsLeft {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.actionBtn {
+  display: inline-flex;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  width: 23px;
+  height: 23px;
+  > img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+}
+
+.caption {
+  margin: 0;
+  padding: 0 16px;
+  color: var(--brand-black-700);
+  font-size: 14px;
+  line-height: 1.45;
+  word-break: break-word;
+}
+
+.captionNick {
+  margin-right: 4px;
+  font-weight: 700;
+}

@@ -1,6 +1,7 @@
+import { bffEndpoints } from '@/lib/api/endpoints';
+import clsx from 'clsx';
 import Image from 'next/image';
 import Link from 'next/link';
-import { bffEndpoints } from '@/lib/api/endpoints';
 import styles from './login.module.scss';
 
 const LOGO_SRC = encodeURI('/images/auth/ultary_logo 1.png');
@@ -54,7 +55,10 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
 
           <button
             type="submit"
-            className={`${styles.loginButton} mt-2 h-12 w-full rounded-lg text-lg font-semibold text-white transition-opacity hover:opacity-90`}
+            className={clsx(
+              styles.loginButton,
+              'mt-2 h-12 w-full rounded-lg text-lg font-semibold text-white transition-opacity hover:opacity-90',
+            )}
           >
             로그인
           </button>
