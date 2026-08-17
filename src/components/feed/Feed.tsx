@@ -3,7 +3,10 @@
 import { Profile } from '@/components/my-ultary/Profile';
 import clsx from 'clsx';
 import Image from 'next/image';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
+import type { Swiper as SwiperType } from 'swiper';
+import 'swiper/css';
+import { Swiper, SwiperSlide } from 'swiper/react';
 import styles from './Feed.module.scss';
 
 /** 피드 액션 아이콘 (public) */
@@ -12,6 +15,8 @@ const FavoriteFillIcon = '/images/icon/Favorite_fill.svg'; // 좋아요 ON — �
 const CommentIcon = '/images/icon/comment.svg';
 const ShareIcon = '/images/icon/share.svg';
 const PinIcon = '/images/icon/Pin.svg';
+const ArrowLeftIcon = '/images/icon/arrow_left.svg';
+const ArrowRightIcon = '/images/icon/arrow_right.svg';
 
 export type FeedProps = {
   nickname: string;
@@ -35,8 +40,11 @@ export function Feed({
   isFavorite = false,
 }: FeedProps) {
   const [index, setIndex] = useState(0);
+  const swiperRef = useRef<SwiperType | null>(null);
   const safeImages = images.length > 0 ? images : ['/images/mock/post_ex.jpg'];
-  const current = safeImages[Math.min(index, safeImages.length - 1)];
+  const hasMultiple = safeImages.length > 1;
+  const showPrev = hasMultiple && index > 0;
+  const showNext = hasMultiple && index < safeImages.length - 1;
 
   return (
     <article className={styles.feed}>
@@ -46,22 +54,59 @@ export function Feed({
       </header>
       <div className={styles.content}>
         <div className={styles.media}>
-          <Image
-            src={current}
-            alt=""
-            width={430}
-            height={430}
-            className={styles.photo}
-            style={{ height: 'auto' }}
-          />
-          {safeImages.length > 1 ? (
+          <Swiper
+            slidesPerView={1}
+            spaceBetween={0}
+            onSwiper={(swiper) => {
+              swiperRef.current = swiper;
+            }}
+            onSlideChange={(swiper) => setIndex(swiper.activeIndex)}
+            className={styles.swiper}
+          >
+            {safeImages.map((src, i) => (
+              <SwiperSlide key={`${src}-${i}`}>
+                <Image
+                  src={src}
+                  alt=""
+                  width={430}
+                  height={430}
+                  className={styles.photo}
+                  style={{ height: 'auto' }}
+                />
+              </SwiperSlide>
+            ))}
+          </Swiper>
+          {showPrev ? (
+            <button
+              type="button"
+              className={clsx(styles.navBtn, styles.navPrev)}
+              onClick={() => swiperRef.current?.slidePrev()}
+              aria-label="이전 사진"
+            >
+              <Image src={ArrowLeftIcon} alt="" width={16} height={16} />
+            </button>
+          ) : null}
+          {showNext ? (
+            <button
+              type="button"
+              className={clsx(styles.navBtn, styles.navNext)}
+              onClick={() => swiperRef.current?.slideNext()}
+              aria-label="다음 사진"
+            >
+              <Image src={ArrowRightIcon} alt="" width={16} height={16} />
+            </button>
+          ) : null}
+          {hasMultiple ? (
             <div className={styles.dots} aria-hidden>
               {safeImages.map((_, i) => (
                 <button
                   key={i}
                   type="button"
                   className={clsx(styles.dot, i === index && styles.dotActive)}
-                  onClick={() => setIndex(i)}
+                  onClick={() => {
+                    setIndex(i);
+                    swiperRef.current?.slideTo(i);
+                  }}
                   aria-label={`${i + 1}번째 사진`}
                 />
               ))}
@@ -75,19 +120,19 @@ export function Feed({
               <Image
                 src={isFavorite ? FavoriteFillIcon : FavoriteIcon}
                 alt=""
-                width={24}
-                height={24}
+                width={25}
+                height={25}
               />
             </button>
             <button type="button" className={styles.actionBtn} aria-label="댓글">
-              <Image src={CommentIcon} alt="" width={24} height={24} />
+              <Image src={CommentIcon} alt="" width={21} height={20} />
             </button>
             <button type="button" className={styles.actionBtn} aria-label="공유">
-              <Image src={ShareIcon} alt="" width={24} height={24} />
+              <Image src={ShareIcon} alt="" width={23} height={23} />
             </button>
           </div>
           <button type="button" className={styles.actionBtn} aria-label="저장">
-            <Image src={PinIcon} alt="" width={24} height={24} />
+            <Image src={PinIcon} alt="" width={25} height={25} />
           </button>
         </div>
 
