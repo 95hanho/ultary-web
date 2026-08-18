@@ -6,6 +6,8 @@
   --font-sans: var(--font-sans);
   --font-mono: var(--font-mono);
 
+  --color-brand-red-400: var(--brand-red-400);
+
   --color-brand-sky-400: var(--brand-sky-400);
   --color-brand-sky-500: var(--brand-sky-500);
   --color-brand-sky-600: var(--brand-sky-600);

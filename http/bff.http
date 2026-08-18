@@ -59,20 +59,19 @@ POST {{baseUrl}}/api/auth/signup
 Content-Type: {{contentType}}
 
 {
-  "loginId": "",
-  "password": "",
-  "nickname": ""
+  "phoneAuthCompleteToken": "",
+  "password": "Test1234!",
+  "nickname": "울타리닉네임",
+  "name": "",
+  "email": ""
 }
-
-### 아이디 중복확인
-GET {{baseUrl}}/api/auth/login-id/check?loginId=
 
 ### 휴대폰 인증
 POST {{baseUrl}}/api/auth/phone
 Content-Type: {{contentType}}
 
 {
-  "phone": ""
+  "phone": "01012345678"
 }
 
 ### 휴대폰 인증 확인
@@ -80,8 +79,8 @@ POST {{baseUrl}}/api/auth/phone/verify
 Content-Type: {{contentType}}
 
 {
-  "phone": "",
-  "code": ""
+  "code": "",
+  "phoneAuthToken": ""
 }
 
 ### 비밀번호 변경 토큰 생성

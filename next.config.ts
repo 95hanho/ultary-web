@@ -13,6 +13,8 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: projectRoot,
   },
+  // 개발 모드에서 상단 프로그레스 바 숨기기
+  devIndicators: false,
 };
 
 export default nextConfig;

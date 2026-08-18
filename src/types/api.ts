@@ -66,6 +66,27 @@ export type SignupRequest = {
   phoneAuthCompleteToken: string;
   password: string;
   nickname: string;
+  name?: string | null;
+  email?: string | null;
+};
+
+/** POST /api/v1/auth/phone */
+export type PhoneAuthRequest = {
+  phone: string;
+};
+
+export type PhoneAuthResponse = {
+  phoneAuthToken: string;
+};
+
+/** POST /api/v1/auth/phone/verify */
+export type PhoneVerifyRequest = {
+  code: string;
+  phoneAuthToken: string;
+};
+
+export type PhoneVerifyResponse = {
+  phoneAuthCompleteToken: string;
 };
 
 /** POST /api/v1/auth/refresh */
