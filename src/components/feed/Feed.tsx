@@ -1,9 +1,9 @@
 'use client';
 
-import { Profile } from '@/components/my-ultary/Profile';
+import { Profile, type StoryStatus } from '@/components/my-ultary/Profile';
 import clsx from 'clsx';
 import Image from 'next/image';
-import { useRef, useState } from 'react';
+import { useLayoutEffect, useRef, useState } from 'react';
 import type { Swiper as SwiperType } from 'swiper';
 import 'swiper/css';
 import { Swiper, SwiperSlide } from 'swiper/react';
@@ -15,6 +15,7 @@ const FavoriteFillIcon = '/images/icon/Favorite_fill.svg'; // 좋아요 ON — �
 const CommentIcon = '/images/icon/comment.svg';
 const ShareIcon = '/images/icon/share.svg';
 const PinIcon = '/images/icon/Pin.svg';
+const PinFillIcon = '/images/icon/Pin_fill.svg';
 const ArrowLeftIcon = '/images/icon/arrow_left.svg';
 const ArrowRightIcon = '/images/icon/arrow_right.svg';
 
@@ -24,10 +25,12 @@ export type FeedProps = {
   /** 캐러셀용. 목업은 같은 사진 여러 장도 OK */
   images: string[];
   caption: string;
-  /** 스토리 미확인 프로필 링 */
-  profileActive?: boolean;
+  /** 스토리 링 상태 */
+  story?: StoryStatus;
   /** 좋아요 여부 */
   isFavorite?: boolean;
+  /** 저장 여부 */
+  isStored?: boolean;
 };
 
 /** 메인 피드 게시글 카드 */
@@ -36,20 +39,44 @@ export function Feed({
   profileUrl,
   images,
   caption,
-  profileActive = false,
+  story = 'none',
   isFavorite = false,
+  isStored = false,
 }: FeedProps) {
   const [index, setIndex] = useState(0);
+  const [expanded, setExpanded] = useState(false);
+  const [needsMore, setNeedsMore] = useState(false);
   const swiperRef = useRef<SwiperType | null>(null);
+  const captionRef = useRef<HTMLParagraphElement>(null);
   const safeImages = images.length > 0 ? images : ['/images/mock/post_ex.jpg'];
   const hasMultiple = safeImages.length > 1;
   const showPrev = hasMultiple && index > 0;
   const showNext = hasMultiple && index < safeImages.length - 1;
 
+  useLayoutEffect(() => {
+    const el = captionRef.current;
+    if (!el) return;
+
+    if (expanded) {
+      // 이펙트에서 상태를 동기적으로 설정하지 마세요. expanded가 false일 때 needsMore가 아래에서 다시 계산됩니다.
+      return;
+    }
+
+    const measure = () => {
+      // max-height 클램프: scrollHeight > clientHeight 가 안정적으로 잡힘
+      setNeedsMore(el.scrollHeight > el.clientHeight + 1);
+    };
+
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [caption, nickname, expanded]);
+
   return (
     <article className={styles.feed}>
       <header className={styles.header}>
-        <Profile imageUrl={profileUrl} size={36} active={profileActive} />
+        <Profile imageUrl={profileUrl} size={36} story={story} />
         <span className={styles.nickname}>{nickname}</span>
       </header>
       <div className={styles.content}>
@@ -132,13 +159,22 @@ export function Feed({
             </button>
           </div>
           <button type="button" className={styles.actionBtn} aria-label="저장">
-            <Image src={PinIcon} alt="" width={25} height={25} />
+            <Image src={isStored ? PinFillIcon : PinIcon} alt="" width={25} height={25} />
           </button>
         </div>
 
-        <p className={styles.caption}>
-          <strong className={styles.captionNick}>{nickname}</strong> {caption}
-        </p>
+        <div className={styles.captionWrap}>
+          <p ref={captionRef} className={clsx(styles.caption, !expanded && styles.captionClamped)}>
+            <strong className={styles.captionNick}>{nickname}</strong> {caption}
+          </p>
+          {!expanded && needsMore ? (
+            <span className={styles.moreFade}>
+              <button type="button" className={styles.moreBtn} onClick={() => setExpanded(true)}>
+                ...더보기
+              </button>
+            </span>
+          ) : null}
+        </div>
       </div>
     </article>
   );

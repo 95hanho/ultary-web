@@ -2,12 +2,15 @@ import clsx from 'clsx';
 import Image from 'next/image';
 import styles from './Profile.module.scss';
 
+/** none: 스토리 없음 · read: 읽음 · unread: 안읽음 */
+export type StoryStatus = 'none' | 'read' | 'unread';
+
 export type ProfileProps = {
   imageUrl: string;
   /** 아바타 박스 한 변(px). 모양은 동일하고 크기만 다름 */
   size: number;
-  /** 스토리 미확인 등 초록 그라데이션 테두리 */
-  active?: boolean;
+  /** 스토리 링 상태 */
+  story?: StoryStatus;
   className?: string;
 };
 
@@ -15,12 +18,18 @@ export type ProfileProps = {
 export function Profile({
   imageUrl,
   size,
-  active = false,
+  story = 'none',
   className,
 }: ProfileProps) {
   return (
     <span
-      className={clsx(styles.avatarWrap, active && styles.active, className)}
+      className={clsx(
+        styles.avatarWrap,
+        story === 'unread' && styles.storyUnread,
+        story === 'read' && styles.storyRead,
+        story === 'none' && styles.storyNone,
+        className,
+      )}
       style={{ width: size, height: size }}
     >
       <Image

@@ -1,13 +1,24 @@
 .avatarWrap {
   display: block;
   overflow: hidden;
-  border: 2px solid #cecece;
   border-radius: 7px;
   padding: 3px;
   box-sizing: border-box;
+  border: 2px solid transparent;
 }
 
-.active {
+/** 스토리 없음 */
+.storyNone {
+  border-color: transparent;
+}
+
+/** 스토리 읽음 */
+.storyRead {
+  border-color: #cecece;
+}
+
+/** 스토리 안읽음 */
+.storyUnread {
   border-color: transparent;
   background-image:
     linear-gradient(var(--background), var(--background)),
