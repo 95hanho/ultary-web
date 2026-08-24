@@ -304,18 +304,21 @@ export default function MyUltaryClient() {
                       onClick={() => handlePetSelect(pet.id)}
                       aria-label={`${pet.name} 상세 보기`}
                     >
-                      <Image
-                        src={pet.imageUrl}
-                        alt=""
-                        width={80}
-                        height={80}
-                        className={styles.petCardImg}
-                      />
-                      {pet.isBirthday ? (
-                        <span className={styles.petBirthdayBadge} aria-hidden>
-                          <Image src={CakeIcon} alt="" width={30} height={30} />
-                        </span>
-                      ) : null}
+                      <span className={styles.petCardPhoto}>
+                        <Image
+                          src={pet.imageUrl}
+                          alt=""
+                          width={80}
+                          height={80}
+                          className={styles.petCardImg}
+                        />
+                        {pet.isBirthday ? (
+                          <span className={styles.petBirthdayBadge} aria-hidden>
+                            <Image src={CakeIcon} alt="" width={30} height={30} />
+                          </span>
+                        ) : null}
+                      </span>
+                      <span className={styles.petCardName}>{pet.name}</span>
                     </button>
                   </SwiperSlide>
                 ))}

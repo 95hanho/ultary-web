@@ -154,23 +154,44 @@
 }
 
 .petCardBtn {
+  display: flex;
+  width: 80px;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  transform-origin: top left;
+  transition:
+    width 0.28s ease 0.16s,
+    gap 0.28s ease 0.16s;
+}
+
+.petAreaDetail .petCardBtn {
+  width: 30px;
+  gap: 0;
+  transition:
+    width 0.28s ease,
+    gap 0.28s ease;
+}
+
+.petCardPhoto {
   position: relative;
   display: block;
   overflow: hidden;
   width: 80px;
   height: 80px;
-  padding: 0;
   border: 2px solid #f5a623;
   border-radius: 10px;
   background: #fff;
-  transform-origin: top left;
   transition:
     width 0.28s ease 0.16s,
     height 0.28s ease 0.16s,
     border-radius 0.28s ease 0.16s;
 }
 
-.petAreaDetail .petCardBtn {
+.petAreaDetail .petCardPhoto {
   width: 30px;
   height: 30px;
   border-radius: 8px;
@@ -180,7 +201,7 @@
     border-radius 0.28s ease;
 }
 
-.petCardBtnSelected {
+.petCardBtnSelected .petCardPhoto {
   outline: 2px solid var(--brand-black-700);
   outline-offset: 0;
 }
@@ -190,6 +211,23 @@
   width: 100%;
   height: 100%;
   object-fit: cover;
+}
+
+.petCardName {
+  display: block;
+  width: 100%;
+  overflow: hidden;
+  color: #000;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.2;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.petAreaDetail .petCardName {
+  display: none;
 }
 
 .petCarouselWrap .petBirthdayBadge {
@@ -214,7 +252,7 @@
 
 .petNavBtn {
   position: absolute;
-  top: 50%;
+  top: 42px;
   z-index: 2;
   display: inline-flex;
   align-items: center;
@@ -308,6 +346,7 @@
   color: var(--brand-black-700);
   font-size: 13px;
   line-height: 1.4;
+  padding: 3px 0;
 }
 
 .feedSection {
