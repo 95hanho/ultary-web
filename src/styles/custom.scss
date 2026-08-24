@@ -4,7 +4,7 @@
 =============================== */
 
 :root {
-  --background: #f3feff;
+  --background: var(--brand-sky-100);
   --foreground: rgba(0, 0, 0, 0.85);
 
   --font-sans: 'NotoSansKR', 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
@@ -15,9 +15,10 @@
   --scrollbar-track-border: #cccccc;
 
   /* Brand / Red */
-  --brand-red-400: #ff0101;
+  --brand-red-500: #ff0101;
 
   /* Brand / Sky */
+  --brand-sky-100: #f3feff;
   --brand-sky-400: #d5fbff;
   --brand-sky-500: #95d9e0;
   --brand-sky-600: #72cad3;
@@ -32,6 +33,7 @@
 
   /* Brand / Gray */
   --brand-gray-100: #e1e3e3;
+  --brand-gray-150: #cecece;
   --brand-gray-200: #c2c2c2;
   --brand-gray-300: #a7a7a7;
   --brand-gray-400: #9e9e9e;

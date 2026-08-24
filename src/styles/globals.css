@@ -6,8 +6,9 @@
   --font-sans: var(--font-sans);
   --font-mono: var(--font-mono);
 
-  --color-brand-red-400: var(--brand-red-400);
+  --color-brand-red-500: var(--brand-red-500);
 
+  --color-brand-sky-100: var(--brand-sky-100);
   --color-brand-sky-400: var(--brand-sky-400);
   --color-brand-sky-500: var(--brand-sky-500);
   --color-brand-sky-600: var(--brand-sky-600);
@@ -20,6 +21,7 @@
   --color-brand-grass-600: var(--brand-grass-600);
 
   --color-brand-gray-100: var(--brand-gray-100);
+  --color-brand-gray-150: var(--brand-gray-150);
   --color-brand-gray-200: var(--brand-gray-200);
   --color-brand-gray-300: var(--brand-gray-300);
   --color-brand-gray-400: var(--brand-gray-400);

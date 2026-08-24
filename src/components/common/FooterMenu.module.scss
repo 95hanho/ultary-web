@@ -21,3 +21,16 @@
   width: 44px;
   height: 44px;
 }
+
+.myUltaryAvatar {
+  display: block;
+  width: 35px;
+  height: 35px;
+  object-fit: cover;
+  border-radius: 4px;
+  border: 2px solid transparent;
+}
+
+.myUltaryAvatarActive {
+  border-color: #000;
+}

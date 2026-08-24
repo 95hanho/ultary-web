@@ -1,0 +1,23 @@
+.header {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  background: rgba(243, 254, 255, 0.92);
+  backdrop-filter: blur(6px);
+}
+
+.logo {
+  width: 75px;
+  max-width: 140px;
+  height: auto;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}

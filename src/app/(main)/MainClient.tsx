@@ -1,8 +1,10 @@
 'use client';
 
 import { FooterMenu } from '@/components/common/FooterMenu';
-import { Feed } from '@/components/feed/Feed';
+import { LogoHeader } from '@/components/common/LogoHeader';
+import { FeedList } from '@/components/feed/FeedList';
 import { Profile, type StoryStatus } from '@/components/my-ultary/Profile';
+import { MOCK_HOME_FEEDS } from '@/lib/mock/feeds';
 import clsx from 'clsx';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -14,13 +16,11 @@ import { FreeMode } from 'swiper/modules';
 import { Swiper, SwiperSlide } from 'swiper/react';
 import styles from './main.module.scss';
 
-const LogoIcon = '/images/icon/ultary_logo.png';
 const SettingIcon = '/images/icon/Setting_line.svg';
 const ArrowLeftIcon = '/images/icon/arrow_left.svg';
 const ArrowRightIcon = '/images/icon/arrow_right.svg';
 
 const MOCK_PROFILE = '/images/mock/profile.jpg';
-const MOCK_POST = '/images/mock/post_ex.jpg';
 
 const STORY_USERS: {
   nickname: string;
@@ -33,28 +33,6 @@ const STORY_USERS: {
   { nickname: 'HAN_HOSEONGS...', imageUrl: MOCK_PROFILE, story: 'unread' },
   { nickname: 'HAN_HOSEONGS...', imageUrl: MOCK_PROFILE, story: 'read' },
   { nickname: 'HAN_HOSEONGS...', imageUrl: MOCK_PROFILE, story: 'none' },
-];
-
-const FEEDS = [
-  {
-    nickname: 'HAN_HOSEONGS',
-    profileUrl: MOCK_PROFILE,
-    images: [MOCK_POST, MOCK_POST, MOCK_POST],
-    caption:
-      '내용내용내용내용내용내용내용내용내용내용내용내용내용내용내용내용내용내용내용내용내용내용내용내용내용내용내용내용내용내용내용내용',
-  },
-  {
-    nickname: 'HAN_HOSEONGS',
-    profileUrl: MOCK_PROFILE,
-    images: [MOCK_POST, MOCK_POST],
-    caption: '내용내용내용내용내용내용내용내용내용내용',
-  },
-  {
-    nickname: 'HAN_HOSEONGS',
-    profileUrl: MOCK_PROFILE,
-    images: [MOCK_POST],
-    caption: '내용내용내용내용내용내용내용내용',
-  },
 ];
 
 function syncStoryNav(
@@ -84,20 +62,13 @@ export default function MainClient() {
 
   return (
     <div className={styles.shell}>
-      <header className={styles.header}>
-        <Image
-          src={LogoIcon}
-          alt="ULTARY"
-          width={120}
-          height={36}
-          priority
-          className={styles.logo}
-          style={{ height: 'auto' }}
-        />
-        <Link href="/settings" className={styles.settingBtn} aria-label="설정">
-          <Image src={SettingIcon} alt="" width={35} height={35} />
-        </Link>
-      </header>
+      <LogoHeader
+        actions={
+          <Link href="/settings" className={styles.iconBtn} aria-label="설정">
+            <Image src={SettingIcon} alt="" width={35} height={35} />
+          </Link>
+        }
+      />
 
       <main className={styles.main}>
         <section className={styles.stories} aria-label="스토리">
@@ -165,11 +136,7 @@ export default function MainClient() {
           ) : null}
         </section>
 
-        <section className={styles.feeds} aria-label="게시글">
-          {FEEDS.map((feed, i) => (
-            <Feed key={i} {...feed} />
-          ))}
-        </section>
+        <FeedList feeds={MOCK_HOME_FEEDS} />
       </main>
 
       <FooterMenu />

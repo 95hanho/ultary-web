@@ -1,0 +1,23 @@
+.shell {
+  position: relative;
+  display: flex;
+  width: 100%;
+  max-width: 430px;
+  min-height: 100%;
+  margin: 0 auto;
+  flex-direction: column;
+  padding-bottom: 72px;
+}
+
+.main {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+}
+
+.bottomBg {
+  display: block;
+  width: 100%;
+  height: auto;
+  margin-top: auto;
+}

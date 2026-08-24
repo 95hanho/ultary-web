@@ -7,12 +7,12 @@
 ## 다음에 할 일 (UI 구현)
 
 아래 **첨부 목업 이미지(좌: 펫 슬라이드 / 우: 펫 상세)** 대로
-`src/app/(main)/my-ultary/` UI를 만들어줘.
+`src/app/(main)/myultary/` UI를 만들어줘.
 
 이미 되어 있는 것:
 
 - `page.tsx`(서버) + `MyUltaryClient.tsx`(`'use client'`) 분리
-- `/my-ultary`에서 **에셋 확인용 나열**만 되어 있음 → 이걸 실제 UI로 교체
+- `/myultary`에서 **에셋 확인용 나열**만 되어 있음 → 이걸 실제 UI로 교체
 
 너가 해준 거 디테일은 내가 수정할게. BE 연동은 나중(목업 데이터로 UI만).
 
@@ -126,7 +126,8 @@
 ## 참고 (프로젝트 컨벤션)
 
 - 페이지: `page.tsx` (서버) + `MyUltaryClient.tsx` (`'use client'`)
-- SCSS module: 페이지 `my-ultary.module.scss`(소문자), 컴포넌트 `PascalCase.module.scss`
+- SCSS module: 페이지 `myultary.module.scss`(소문자), 컴포넌트 `PascalCase.module.scss`
+- 페이지 URL: `/myultary` (내/타인 울타리 통합). BFF API는 `/api/my-ultary` 유지(백엔드 스펙)
 - 공통 프로필(스토리 링): `src/components/my-ultary/Profile.tsx` — `size`, `story` (`none` | `read` | `unread`)
   - 피드·스토리 아바타용. **Footer 마이울타리 버튼에는 쓰지 말 것**
 - 아이콘 경로: `/images/icon/...`

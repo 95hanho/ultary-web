@@ -1,0 +1,363 @@
+.shell {
+  position: relative;
+  display: flex;
+  width: 100%;
+  max-width: 430px;
+  min-height: 100%;
+  margin: 0 auto;
+  flex-direction: column;
+  padding-bottom: 72px;
+  background: #fff;
+}
+
+.iconBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.profileSection {
+  position: relative;
+  padding: 8px 12px 12px;
+  background: rgba(243, 254, 255, 0.92);
+}
+
+.profileMain {
+  padding-right: 44px;
+}
+
+.nickname {
+  margin: 0 0 8px;
+  color: var(--brand-black-700);
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 14px;
+  margin: 0 0 10px;
+  padding: 0;
+  list-style: none;
+}
+
+.statItem {
+  color: var(--brand-black-700);
+  font-size: 13px;
+  line-height: 1.2;
+}
+
+.statItem strong {
+  margin-right: 4px;
+  font-weight: 700;
+}
+
+.bioRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.bio {
+  margin: 0;
+  flex: 1;
+  color: var(--brand-black-700);
+  font-size: 13px;
+  line-height: 1.4;
+  display: flex;
+}
+
+.birthdayRow {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin: 0 0 12px;
+  color: var(--brand-red-500);
+  font-size: 12px;
+  line-height: 1.3;
+}
+
+.sideTabs {
+  position: absolute;
+  top: 37px;
+  right: 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sideTabBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 34px;
+  border: 2px solid #eeeeee;
+  border-radius: 45% 0 0 45%;
+  background: #fff;
+  padding-left: 3px;
+  border-right: none;
+}
+
+.sideTabActive {
+  border-color: #000000;
+}
+
+.sideTabStoryUnread {
+  border-color: var(--brand-grass-600);
+}
+
+.sideTabStoryRead {
+  border-color: var(--brand-grass-100);
+}
+
+.sideTabStoryNone {
+  border-color: #eeeeee;
+}
+
+.petArea {
+  display: flex;
+  flex-direction: column;
+  margin-top: 4px;
+}
+
+.petCarouselWrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  box-sizing: border-box;
+  transition:
+    min-height 0.28s ease 0.16s,
+    padding 0.28s ease 0.16s;
+}
+
+.petAreaDetail .petCarouselWrap {
+  min-height: 30px;
+  padding: 0;
+  align-items: flex-start;
+  transition:
+    min-height 0.28s ease,
+    padding 0.28s ease;
+}
+
+.petSwiper {
+  width: 100%;
+}
+
+.petSlide {
+  width: auto !important;
+  padding: 2px 0;
+}
+
+.petCardBtn {
+  position: relative;
+  display: block;
+  overflow: hidden;
+  width: 80px;
+  height: 80px;
+  padding: 0;
+  border: 2px solid #f5a623;
+  border-radius: 10px;
+  background: #fff;
+  transform-origin: top left;
+  transition:
+    width 0.28s ease 0.16s,
+    height 0.28s ease 0.16s,
+    border-radius 0.28s ease 0.16s;
+}
+
+.petAreaDetail .petCardBtn {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  transition:
+    width 0.28s ease,
+    height 0.28s ease,
+    border-radius 0.28s ease;
+}
+
+.petCardBtnSelected {
+  outline: 2px solid var(--brand-black-700);
+  outline-offset: 0;
+}
+
+.petCardImg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.petCarouselWrap .petBirthdayBadge {
+  opacity: 1;
+  transition: opacity 0.16s ease;
+}
+
+.petAreaDetail .petCarouselWrap .petBirthdayBadge {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.petBirthdayBadge {
+  position: absolute;
+  left: -2px;
+  bottom: -2px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+}
+
+.petNavBtn {
+  position: absolute;
+  top: 50%;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  background: #fff9;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
+  transform: translateY(-50%);
+  &:hover {
+    background: #fffffff2;
+  }
+  img {
+    width: 14px;
+    height: 14px;
+  }
+}
+
+.petNavPrev {
+  left: 2px;
+}
+
+.petNavNext {
+  right: 2px;
+}
+
+.petDetailCard {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  margin-top: 0;
+  max-height: 0;
+  overflow: hidden;
+  opacity: 0;
+  transform: translateY(-8px);
+  pointer-events: none;
+  transition:
+    max-height 0.22s ease,
+    opacity 0.22s ease,
+    transform 0.22s ease,
+    margin-top 0.22s ease;
+}
+
+.petAreaDetail .petDetailCard {
+  margin-top: 10px;
+  max-height: 98px;
+  opacity: 1;
+  transform: none;
+  pointer-events: auto;
+  transition-delay: 0.16s;
+}
+
+.petDetailPhotoWrap {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.petSettingBtn {
+  position: absolute;
+  right: -3px;
+  bottom: -3px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+}
+
+.petDetailInfo {
+  min-width: 0;
+  flex: 1;
+}
+
+.petName {
+  margin: 0 0 2px;
+  color: var(--brand-black-700);
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.petHandle {
+  margin: 0 0 6px;
+  color: var(--brand-gray-500);
+  font-size: 12px;
+  line-height: 1.2;
+}
+
+.petBio {
+  margin: 0;
+  color: var(--brand-black-700);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.feedSection {
+  flex: 1;
+  padding-top: 4px;
+}
+
+.feedGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.feedItem {
+  position: relative;
+  aspect-ratio: 1;
+  overflow: hidden;
+  background: var(--brand-gray-100);
+}
+
+.feedItemLink {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.feedImg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.multiBadge {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+}
+
+.bottomBg {
+  display: block;
+  width: 100%;
+  height: auto;
+  margin-top: auto;
+}

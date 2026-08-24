@@ -8,13 +8,6 @@
   padding-bottom: 160px;
 }
 
-.header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 12px 12px 8px;
-}
-
 .headerBtn {
   display: inline-flex;
   align-items: center;
@@ -30,13 +23,6 @@
     opacity: 0.35;
     cursor: not-allowed;
   }
-}
-
-.title {
-  margin: 0;
-  color: var(--brand-black-700);
-  font-size: 18px;
-  font-weight: 700;
 }
 
 .form {

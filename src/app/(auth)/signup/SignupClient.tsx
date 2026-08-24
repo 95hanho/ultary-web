@@ -1,5 +1,6 @@
 'use client';
 
+import { PageHeader } from '@/components/common/PageHeader';
 import { bffPostJson } from '@/lib/api/bffFetch';
 import { bffEndpoints } from '@/lib/api/endpoints';
 import { isHttpError } from '@/lib/api/error';
@@ -18,12 +19,10 @@ import { getSigunguOptions, isSigunguDisabled, REGION_NONE, SIDO_OPTIONS } from 
 import type { PhoneAuthResponse, PhoneVerifyResponse, SignupRequest } from '@/types/api';
 import clsx from 'clsx';
 import Image from 'next/image';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useRef, useState, useTransition } from 'react';
 import styles from './signup.module.scss';
 
-const ArrowLeftIcon = '/images/icon/arrow_left.svg';
 const SubmitIcon = '/images/icon/Send.svg';
 
 /**
@@ -82,7 +81,7 @@ const FIELD_ORDER: (keyof FieldErrors)[] = [
 
 function FieldHint({ message }: { message?: string }) {
   if (!message) return null;
-  return <p className="text-sm text-brand-red-400">* {message}</p>;
+  return <p className="text-sm text-brand-red-500">* {message}</p>;
 }
 
 export default function SignupClient() {
@@ -279,20 +278,20 @@ export default function SignupClient() {
 
   return (
     <div className={styles.shell}>
-      <header className={styles.header}>
-        <Link href="/login" className={styles.headerBtn} aria-label="뒤로">
-          <Image src={ArrowLeftIcon} alt="" width={16} height={16} />
-        </Link>
-        <h1 className={styles.title}>회원가입</h1>
-        <button
-          type="button"
-          className={styles.headerBtn}
-          aria-label="회원가입 완료"
-          onClick={submitSignup}
-        >
-          <Image src={SubmitIcon} alt="" width={38} height={38} />
-        </button>
-      </header>
+      <PageHeader
+        title="회원가입"
+        backHref="/login"
+        right={
+          <button
+            type="button"
+            className={styles.headerBtn}
+            aria-label="회원가입 완료"
+            onClick={submitSignup}
+          >
+            <Image src={SubmitIcon} alt="" width={38} height={38} />
+          </button>
+        }
+      />
 
       <div className={styles.form}>
         {formError ? <p className={styles.errorBanner}>{formError}</p> : null}

@@ -1,6 +1,6 @@
 'use client';
 
-import { Profile } from '@/components/my-ultary/Profile';
+import clsx from 'clsx';
 import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -23,7 +23,8 @@ export function FooterMenu() {
   const isSearch = pathname.startsWith('/search');
   const isNotifications = pathname.startsWith('/notifications');
   const isDm = pathname.startsWith('/dm');
-  const isMyUltary = pathname.startsWith('/my-ultary');
+  /** 울타리 페이지(/myultary). 타 계정 구분 시 isOwnAccount로 on/off 제어 예정 */
+  const isMyUltary = pathname.startsWith('/myultary');
 
   return (
     <nav className={styles.footer} aria-label="하단 메뉴">
@@ -64,12 +65,21 @@ export function FooterMenu() {
       </Link>
 
       <Link
-        href="/my-ultary"
+        href="/myultary"
         className={styles.item}
         aria-label="마이울타리"
         aria-current={isMyUltary ? 'page' : undefined}
       >
-        <Profile imageUrl={PROFILE_SRC} size={35} />
+        <Image
+          src={PROFILE_SRC}
+          alt=""
+          width={35}
+          height={35}
+          className={clsx(
+            styles.myUltaryAvatar,
+            isMyUltary && styles.myUltaryAvatarActive,
+          )}
+        />
       </Link>
     </nav>
   );

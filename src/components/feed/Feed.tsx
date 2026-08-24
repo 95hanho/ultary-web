@@ -19,7 +19,8 @@ const PinFillIcon = '/images/icon/Pin_fill.svg';
 const ArrowLeftIcon = '/images/icon/arrow_left.svg';
 const ArrowRightIcon = '/images/icon/arrow_right.svg';
 
-export type FeedProps = {
+export type FeedData = {
+  id: string;
   nickname: string;
   profileUrl: string;
   /** 캐러셀용. 목업은 같은 사진 여러 장도 OK */
@@ -35,6 +36,7 @@ export type FeedProps = {
 
 /** 메인 피드 게시글 카드 */
 export function Feed({
+  id,
   nickname,
   profileUrl,
   images,
@@ -42,7 +44,7 @@ export function Feed({
   story = 'none',
   isFavorite = false,
   isStored = false,
-}: FeedProps) {
+}: FeedData) {
   const [index, setIndex] = useState(0);
   const [expanded, setExpanded] = useState(false);
   const [needsMore, setNeedsMore] = useState(false);
@@ -74,7 +76,7 @@ export function Feed({
   }, [caption, nickname, expanded]);
 
   return (
-    <article className={styles.feed}>
+    <article id={`feed-${id}`} className={styles.feed}>
       <header className={styles.header}>
         <Profile imageUrl={profileUrl} size={36} story={story} />
         <span className={styles.nickname}>{nickname}</span>
