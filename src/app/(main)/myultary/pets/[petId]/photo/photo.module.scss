@@ -1,0 +1,51 @@
+.shell {
+  position: relative;
+  z-index: 10;
+  display: flex;
+  width: 100%;
+  max-width: 430px;
+  min-height: 100%;
+  margin: 0 auto;
+  flex-direction: column;
+  padding-bottom: 72px;
+}
+
+.main {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  /* 선택한 사진 범위를 명확히 보이도록 */
+  padding: 16px;
+}
+
+.devActions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 12px;
+}
+
+.previewBtn {
+  padding: 8px 12px;
+  border: 1px solid var(--brand-gray-200);
+  border-radius: 6px;
+  background: #fff;
+  color: var(--brand-black-700);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+
+  &:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+
+  &:hover:not(:disabled) {
+    background: var(--brand-sky-100);
+  }
+}
+
+.empty {
+  margin: 24px 16px;
+  color: var(--brand-gray-500);
+  font-size: 14px;
+}

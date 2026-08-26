@@ -1,0 +1,72 @@
+.frame {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+  user-select: none;
+  touch-action: none;
+  background: transparent;
+}
+
+.image {
+  display: block;
+  width: 100%;
+  height: auto;
+  pointer-events: none;
+}
+
+.overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 2;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.cropBox {
+  position: absolute;
+  box-sizing: border-box;
+  border: 2px dashed #fff;
+  border-radius: 5px;
+  background: transparent;
+  /* overlay(overflow:hidden) 안에서만 퍼지므로 이미지 밖은 안 덮음 + radius 반영 */
+  box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.5);
+  cursor: move;
+  pointer-events: auto;
+  touch-action: none;
+}
+
+.handle {
+  position: absolute;
+  z-index: 3;
+  width: 18px;
+  height: 18px;
+  border: 2px solid #fff;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.55);
+  touch-action: none;
+}
+
+.handleNw {
+  top: -9px;
+  left: -9px;
+  cursor: nwse-resize;
+}
+
+.handleNe {
+  top: -9px;
+  right: -9px;
+  cursor: nesw-resize;
+}
+
+.handleSw {
+  bottom: -9px;
+  left: -9px;
+  cursor: nesw-resize;
+}
+
+.handleSe {
+  right: -9px;
+  bottom: -9px;
+  cursor: nwse-resize;
+}

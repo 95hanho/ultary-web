@@ -4,10 +4,12 @@ import { FooterMenu } from '@/components/common/FooterMenu';
 import { LogoHeader } from '@/components/common/LogoHeader';
 import { Profile } from '@/components/my-ultary/Profile';
 import { MOCK_MY_FEEDS, MOCK_SAVED_FEEDS } from '@/lib/mock/feeds';
+import { readFileAsDataUrl, setPendingPetPhoto } from '@/lib/pending-pet-photo';
 import clsx from 'clsx';
 import Image from 'next/image';
 import Link from 'next/link';
-import { useRef, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { useRef, useState, type ChangeEvent } from 'react';
 import type { Swiper as SwiperType } from 'swiper';
 import 'swiper/css';
 import 'swiper/css/free-mode';
@@ -32,8 +34,6 @@ const FeedOnIcon = '/images/icon/Order_on.svg';
 const SavedOffIcon = '/images/icon/pin_off.svg';
 const SavedOnIcon = '/images/icon/Pin_on.svg';
 const GroupOffIcon = '/images/icon/Group_light.svg';
-
-const BOTTOM_BG = '/images/ultary_bg_bt.png';
 
 type AccountStoryStatus = 'none' | 'read' | 'unread';
 type ContentTab = 'feed' | 'saved';
@@ -161,13 +161,7 @@ function FeedGrid({ posts }: { posts: FeedPost[] }) {
       {posts.map((post) => (
         <li key={post.id} className={styles.feedItem}>
           <Link href={post.href} className={styles.feedItemLink} aria-label="게시글 보기">
-            <Image
-              src={post.imageUrl}
-              alt=""
-              width={200}
-              height={200}
-              className={styles.feedImg}
-            />
+            <Image src={post.imageUrl} alt="" width={200} height={200} className={styles.feedImg} />
             {post.isMulti ? (
               <span className={styles.multiBadge} aria-hidden>
                 <Image src={MultiIcon} alt="" width={18} height={18} />
@@ -182,12 +176,15 @@ function FeedGrid({ posts }: { posts: FeedPost[] }) {
 
 /** 마이울타리 메인 */
 export default function MyUltaryClient() {
+  const router = useRouter();
   const petSwiperRef = useRef<SwiperType | null>(null);
+  const petPhotoInputRef = useRef<HTMLInputElement>(null);
   const [canPetPrev, setCanPetPrev] = useState(false);
   const [canPetNext, setCanPetNext] = useState(false);
   const [petViewMode, setPetViewMode] = useState<'carousel' | 'detail'>('carousel');
   const [selectedPetId, setSelectedPetId] = useState(MOCK_PETS[0]?.id ?? '');
   const [contentTab, setContentTab] = useState<ContentTab>('feed');
+  const [photoTargetPetId, setPhotoTargetPetId] = useState<string | null>(null);
 
   const selectedPet = MOCK_PETS.find((pet) => pet.id === selectedPetId) ?? MOCK_PETS[0];
   const birthdayPet = MOCK_PETS.find((pet) => pet.isBirthday);
@@ -205,6 +202,32 @@ export default function MyUltaryClient() {
     window.setTimeout(() => {
       petSwiperRef.current?.update();
     }, 320);
+  };
+
+  const openPetPhotoPicker = (petId: string) => {
+    setPhotoTargetPetId(petId);
+    petPhotoInputRef.current?.click();
+  };
+
+  const handlePetPhotoChange = async (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    const petId = photoTargetPetId;
+    e.target.value = '';
+    if (!file || !petId) return;
+    if (!file.type.startsWith('image/')) return;
+
+    try {
+      const dataUrl = await readFileAsDataUrl(file);
+      setPendingPetPhoto({
+        petId,
+        dataUrl,
+        fileName: file.name,
+        mimeType: file.type,
+      });
+      router.push(`/myultary/pets/${petId}/photo`);
+    } catch (err) {
+      console.error('[pet-photo] file read failed', err);
+    }
   };
 
   return (
@@ -258,12 +281,7 @@ export default function MyUltaryClient() {
             </p>
           ) : null}
 
-          <div
-            className={clsx(
-              styles.petArea,
-              petViewMode === 'detail' && styles.petAreaDetail,
-            )}
-          >
+          <div className={clsx(styles.petArea, petViewMode === 'detail' && styles.petAreaDetail)}>
             <div className={styles.petCarouselWrap}>
               <Swiper
                 modules={[FreeMode]}
@@ -360,8 +378,9 @@ export default function MyUltaryClient() {
                     <button
                       type="button"
                       className={styles.petSettingBtn}
-                      aria-label={`${selectedPet.name} 설정`}
+                      aria-label={`${selectedPet.name} 프로필 사진 설정`}
                       tabIndex={petViewMode === 'detail' ? 0 : -1}
+                      onClick={() => openPetPhotoPicker(selectedPet.id)}
                     >
                       <Image src={SettingFillIcon} alt="" width={30} height={30} />
                     </button>
@@ -439,7 +458,13 @@ export default function MyUltaryClient() {
         <FeedGrid posts={posts} />
       </section>
 
-      <Image src={BOTTOM_BG} alt="" width={430} height={120} className={styles.bottomBg} />
+      <input
+        ref={petPhotoInputRef}
+        type="file"
+        accept="image/*"
+        className={styles.hiddenFileInput}
+        onChange={handlePetPhotoChange}
+      />
 
       <FooterMenu />
     </div>

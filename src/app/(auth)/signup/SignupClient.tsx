@@ -18,12 +18,9 @@ import {
 import { getSigunguOptions, isSigunguDisabled, REGION_NONE, SIDO_OPTIONS } from '@/lib/region';
 import type { PhoneAuthResponse, PhoneVerifyResponse, SignupRequest } from '@/types/api';
 import clsx from 'clsx';
-import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useRef, useState, useTransition } from 'react';
 import styles from './signup.module.scss';
-
-const SubmitIcon = '/images/icon/Send.svg';
 
 /**
  * 개발 전용: 휴대폰 인증요청/확인 API를 호출하지 않고 무조건 성공.
@@ -281,16 +278,7 @@ export default function SignupClient() {
       <PageHeader
         title="회원가입"
         backHref="/login"
-        right={
-          <button
-            type="button"
-            className={styles.headerBtn}
-            aria-label="회원가입 완료"
-            onClick={submitSignup}
-          >
-            <Image src={SubmitIcon} alt="" width={38} height={38} />
-          </button>
-        }
+        onSubmit={submitSignup}
       />
 
       <div className={styles.form}>
