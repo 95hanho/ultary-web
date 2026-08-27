@@ -45,3 +45,12 @@ export const MOCK_SAVED_FEEDS: FeedData[] = Array.from({ length: 6 }, (_, i) => 
   images: i % 2 === 0 ? [MOCK_POST, MOCK_POST] : [MOCK_POST],
   caption: '저장한 게시글 내용내용내용내용내용내용',
 }));
+
+/** 검색 페이지 추천 게시글 */
+export const MOCK_RECOMMENDED_FEEDS: FeedData[] = Array.from({ length: 9 }, (_, i) => ({
+  id: `rec-${i + 1}`,
+  nickname: 'HAN_HOSEONGS',
+  profileUrl: MOCK_PROFILE,
+  images: [MOCK_POST, MOCK_POST],
+  caption: LONG_CAPTION,
+}));

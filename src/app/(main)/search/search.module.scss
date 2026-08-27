@@ -1,0 +1,228 @@
+.shell {
+  position: relative;
+  z-index: 10;
+  display: flex;
+  width: 100%;
+  max-width: 430px;
+  min-height: 100%;
+  margin: 0 auto;
+  flex-direction: column;
+  padding-bottom: 72px;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 55px;
+  padding: 15px 10px;
+  box-sizing: border-box;
+}
+
+.searchBarIdle,
+.searchBar {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  height: 100%;
+  padding: 0 14px;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  box-sizing: border-box;
+}
+
+.searchBarIdle {
+  background: rgba(0, 0, 0, 0.1);
+  cursor: pointer;
+  text-align: left;
+}
+
+.searchBar {
+  background: rgba(0, 0, 0, 0.1);
+}
+
+.searchBarFocus {
+  background: #fff;
+  border-color: var(--brand-black-700);
+}
+
+.searchIcon {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+}
+
+.searchPlaceholder {
+  color: var(--brand-gray-500);
+  font-size: 15px;
+  line-height: 1;
+}
+
+.searchInput {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--brand-black-700);
+  font-size: 15px;
+  outline: none;
+
+  &::placeholder {
+    color: var(--brand-gray-500);
+  }
+
+  &::-webkit-search-cancel-button {
+    -webkit-appearance: none;
+  }
+}
+
+.cancelBtn {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 100%;
+  padding: 10px 0;
+  border: 0;
+  background: transparent;
+  color: var(--brand-black-700);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.main {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+}
+
+.searchPanel {
+  display: flex;
+  flex-direction: column;
+  padding: 0 10px;
+}
+
+.recentHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px;
+}
+
+.recentTitle {
+  color: var(--brand-black-700);
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.clearAllBtn {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--brand-red-500);
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 1.2;
+  cursor: pointer;
+}
+
+.accountList {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0 5px;
+  list-style: none;
+}
+
+.accountItem {
+  margin: 0;
+  padding: 0;
+}
+
+.accountBtn {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.accountImageWrap {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+}
+
+.accountImage {
+  display: block;
+  width: 47px;
+  height: 47px;
+  object-fit: cover;
+  border-radius: 5px;
+}
+
+.accountText {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  padding: 4px 5px;
+}
+
+.accountNick {
+  overflow: hidden;
+  color: var(--brand-black-700);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.accountTags {
+  overflow: hidden;
+  color: var(--brand-black-700);
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hit {
+  color: var(--brand-grass-600);
+}
+
+.hashtagList {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0 5px;
+  list-style: none;
+}
+
+.hashtagItem {
+  display: block;
+  width: 100%;
+  padding: 12px 5px;
+  border: 0;
+  background: transparent;
+  color: var(--brand-black-700);
+  font-size: 15px;
+  font-weight: 700;
+  text-align: left;
+  cursor: pointer;
+}

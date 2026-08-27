@@ -2,6 +2,7 @@
 
 import { FooterMenu } from '@/components/common/FooterMenu';
 import { LogoHeader } from '@/components/common/LogoHeader';
+import { FeedGrid } from '@/components/feed/FeedGrid';
 import { Profile } from '@/components/my-ultary/Profile';
 import { MOCK_MY_FEEDS, MOCK_SAVED_FEEDS } from '@/lib/mock/feeds';
 import { readFileAsDataUrl, setPendingPetPhoto } from '@/lib/pending-pet-photo';
@@ -24,7 +25,6 @@ const CakeIcon = '/images/icon/cake.svg';
 const SettingFillIcon = '/images/icon/Setting_fill.svg';
 const ArrowLeftIcon = '/images/icon/arrow_left.svg';
 const ArrowRightIcon = '/images/icon/arrow_right.svg';
-const MultiIcon = '/images/icon/multi.svg';
 
 const StoryOffIcon = '/images/icon/Book_open_alt-off.svg';
 const StoryOnIcon = '/images/icon/Book_open_alt-on.svg';
@@ -46,13 +46,6 @@ type Pet = {
   bio: string;
   imageUrl: string;
   isBirthday?: boolean;
-};
-
-type FeedPost = {
-  id: string;
-  imageUrl: string;
-  isMulti: boolean;
-  href: string;
 };
 
 const MOCK_ACCOUNT = {
@@ -110,14 +103,14 @@ const MOCK_PETS: Pet[] = [
   },
 ];
 
-const MOCK_FEED_POSTS: FeedPost[] = MOCK_MY_FEEDS.map((feed) => ({
+const MOCK_FEED_POSTS = MOCK_MY_FEEDS.map((feed) => ({
   id: feed.id,
   imageUrl: feed.images[0] ?? '/images/mock/post_ex.jpg',
   isMulti: feed.images.length > 1,
   href: `/myultary/posts/${feed.id}`,
 }));
 
-const MOCK_SAVED_POSTS: FeedPost[] = MOCK_SAVED_FEEDS.map((feed) => ({
+const MOCK_SAVED_POSTS = MOCK_SAVED_FEEDS.map((feed) => ({
   id: feed.id,
   imageUrl: feed.images[0] ?? '/images/mock/post_ex.jpg',
   isMulti: feed.images.length > 1,
@@ -153,25 +146,6 @@ function slidePetsByHalf(swiper: SwiperType, direction: 'prev' | 'next') {
   const max = swiper.minTranslate();
   const clamped = Math.max(min, Math.min(max, target));
   swiper.translateTo(clamped, 300);
-}
-
-function FeedGrid({ posts }: { posts: FeedPost[] }) {
-  return (
-    <ul className={styles.feedGrid}>
-      {posts.map((post) => (
-        <li key={post.id} className={styles.feedItem}>
-          <Link href={post.href} className={styles.feedItemLink} aria-label="게시글 보기">
-            <Image src={post.imageUrl} alt="" width={200} height={200} className={styles.feedImg} />
-            {post.isMulti ? (
-              <span className={styles.multiBadge} aria-hidden>
-                <Image src={MultiIcon} alt="" width={18} height={18} />
-              </span>
-            ) : null}
-          </Link>
-        </li>
-      ))}
-    </ul>
-  );
 }
 
 /** 마이울타리 메인 */

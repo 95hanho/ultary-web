@@ -1,3 +1,5 @@
+import SearchClient from './SearchClient';
+
 export default function SearchPage() {
-  return <main>검색</main>;
+  return <SearchClient />;
 }
