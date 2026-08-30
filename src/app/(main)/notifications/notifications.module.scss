@@ -1,0 +1,137 @@
+.shell {
+  position: relative;
+  z-index: 10;
+  display: flex;
+  width: 100%;
+  max-width: 430px;
+  height: 100dvh;
+  max-height: 100dvh;
+  margin: 0 auto;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--brand-sky-100);
+}
+
+.main {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+  overflow-y: auto;
+  padding-bottom: 72px;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 10px 0;
+  list-style: none;
+}
+
+.item {
+  margin: 0;
+  padding: 0;
+}
+
+.itemBody {
+  display: flex;
+  width: 100%;
+  align-items: flex-start;
+  padding: 0 5px;
+}
+
+.imageWrap {
+  display: flex;
+  flex-shrink: 0;
+  align-items: flex-start;
+  justify-content: center;
+  width: 55px;
+  padding: 4px;
+  box-sizing: border-box;
+}
+
+.image {
+  display: block;
+  width: 47px;
+  height: 47px;
+  flex-shrink: 0;
+  object-fit: cover;
+  border-radius: 5px;
+}
+
+.text {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  padding: 4px 5px;
+}
+
+.message {
+  margin: 0;
+  color: var(--brand-black-700);
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.35;
+  word-break: break-word;
+}
+
+.nickname {
+  margin-right: 0;
+  font-weight: 700;
+}
+
+.time {
+  margin: 0;
+  color: var(--brand-gray-500);
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.35;
+  word-break: break-word;
+}
+
+.actionWrap {
+  display: flex;
+  flex-shrink: 0;
+  align-items: flex-start;
+  justify-content: center;
+  align-items: center;
+  width: 63px;
+  padding: 4px 0 4px 4px;
+  box-sizing: border-box;
+  align-self: center;
+}
+
+.actionBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 58px;
+  height: 27px;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.actionAccept {
+  background: var(--brand-blue-600);
+  color: #fff;
+}
+
+.actionCancel {
+  background: var(--brand-gray-100);
+  color: var(--brand-black-700);
+}
+
+.bottomBg {
+  display: block;
+  width: 100%;
+  height: auto;
+  margin-top: auto;
+}

@@ -110,12 +110,15 @@ export default function SearchClient() {
     MOCK_SEARCH_ACCOUNTS[0],
   ]);
 
+  const [isInputFocused, setIsInputFocused] = useState(false);
+
   const parsed = useMemo(() => parseQuery(query), [query]);
-  const isFocusedStyle = phase === 'active';
 
   useEffect(() => {
     if (phase === 'active') {
       inputRef.current?.focus();
+    } else {
+      setIsInputFocused(false);
     }
   }, [phase]);
 
@@ -193,7 +196,7 @@ export default function SearchClient() {
         ) : (
           <>
             <label
-              className={clsx(styles.searchBar, isFocusedStyle && styles.searchBarFocus)}
+              className={clsx(styles.searchBar, isInputFocused && styles.searchBarFocus)}
             >
               <Image src={SearchIcon} alt="" width={20} height={20} className={styles.searchIcon} />
               <input
@@ -203,6 +206,8 @@ export default function SearchClient() {
                 placeholder="검색"
                 value={query}
                 onChange={(e) => onChangeQuery(e.target.value)}
+                onFocus={() => setIsInputFocused(true)}
+                onBlur={() => setIsInputFocused(false)}
                 aria-label="검색"
               />
             </label>
