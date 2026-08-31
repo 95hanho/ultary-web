@@ -1,5 +1,7 @@
 # Ultary API 메모
 
+> BFF 아키텍처·구현 가이드·명세(구현 상태): [`docs/bff/`](./bff/README.md)
+
 > 인스타 벤치마킹 · 반려동물 전용 SNS  
 > 팔로우 = **주민**, 팔로워 = **이웃**  
 > 계정마다 반려동물 등록 및 태그명 생성 (태그명, 이름, 종, 부가설명 등)
@@ -213,7 +215,8 @@ BFF: `/api/...` · Spring: `/api/v1/...`
 
 ## 참고
 
+- BFF 문서: [`docs/bff/README.md`](./bff/README.md) · [api-spec.md](./bff/api-spec.md) · [development.md](./bff/development.md)
 - 코드 상수: `src/lib/api/endpoints.ts` (`bffEndpoints` / `springEndpoints`)
-- BFF 스켈레톤: `src/app/api/**/route.ts`
-- REST Client 틀: `http/bff.http`
-- DB 스키마: `database/schema/mariadb_10_1/001_init_schema.sql`
+- BFF Route Handler: `src/app/api/**/route.ts`
+- REST Client: `http/bff.http`
+- DB 스키마: `ultary-api` 레포 `database/schema/mariadb_10_1/001_init_schema.sql`
