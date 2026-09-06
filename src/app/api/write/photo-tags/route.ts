@@ -1,11 +1,27 @@
-import { handleBffError, notImplemented } from '@/lib/api/bffRoute';
+import { NextRequest } from 'next/server';
+import { springEndpoints } from '@/lib/api/endpoints';
+import {
+  bearer,
+  handleBffError,
+  isUnauthorized,
+  ok,
+  requireAccessToken,
+} from '@/lib/api/bffRoute';
+import { springPostMultipart } from '@/lib/api/springFetch';
 
-/** BFF /api/write/photo-tags — POST */
-export async function POST() {
+/** BFF write/photo-tags/route.ts — POST */
+export async function POST(request: NextRequest) {
   console.log('[API] 사진 태그 저장');
   try {
-    // TODO: springFetch 연동
-    return notImplemented('write/photo-tags POST');
+    const accessToken = await requireAccessToken();
+    if (isUnauthorized(accessToken)) return accessToken;
+    const formData = await request.formData();
+    const data = await springPostMultipart(
+      springEndpoints.write.photoTags,
+      formData,
+      bearer(accessToken),
+    );
+    return ok(data);
   } catch (err) {
     return handleBffError(err);
   }

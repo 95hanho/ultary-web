@@ -1,21 +1,46 @@
-import { handleBffError, notImplemented } from '@/lib/api/bffRoute';
+import { springEndpoints } from '@/lib/api/endpoints';
+import {
+  bearer,
+  handleBffError,
+  isUnauthorized,
+  ok,
+  requireAccessToken,
+} from '@/lib/api/bffRoute';
+import { springDelete, springPostForm } from '@/lib/api/springFetch';
 
-/** BFF /api/feeds/[feedId]/store — POST/DELETE */
-export async function POST() {
+type Ctx = { params: Promise<{ feedId: string }> };
+
+/** BFF /api/feeds/[feedId]/store — POST */
+export async function POST(_request: Request, { params }: Ctx) {
   console.log('[API] 게시글 저장');
   try {
-    // TODO: springFetch 연동
-    return notImplemented('feeds/:feedId:/store POST');
+    const accessToken = await requireAccessToken();
+    if (isUnauthorized(accessToken)) return accessToken;
+    const { feedId } = await params;
+    const data = await springPostForm(
+      springEndpoints.feeds.store,
+      { feedId },
+      bearer(accessToken),
+    );
+    return ok(data);
   } catch (err) {
     return handleBffError(err);
   }
 }
 
-export async function DELETE() {
+/** BFF /api/feeds/[feedId]/store — DELETE */
+export async function DELETE(_request: Request, { params }: Ctx) {
   console.log('[API] 게시글 저장 해제');
   try {
-    // TODO: springFetch 연동
-    return notImplemented('feeds/:feedId:/store DELETE');
+    const accessToken = await requireAccessToken();
+    if (isUnauthorized(accessToken)) return accessToken;
+    const { feedId } = await params;
+    const data = await springDelete(
+      springEndpoints.feeds.store,
+      { feedId },
+      bearer(accessToken),
+    );
+    return ok(data);
   } catch (err) {
     return handleBffError(err);
   }

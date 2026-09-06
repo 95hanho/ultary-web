@@ -1,21 +1,46 @@
-import { handleBffError, notImplemented } from '@/lib/api/bffRoute';
+import { springEndpoints } from '@/lib/api/endpoints';
+import {
+  bearer,
+  handleBffError,
+  isUnauthorized,
+  ok,
+  requireAccessToken,
+} from '@/lib/api/bffRoute';
+import { springDelete, springPostForm } from '@/lib/api/springFetch';
 
-/** BFF /api/users/[userNo]/block — POST/DELETE */
-export async function POST() {
+type Ctx = { params: Promise<{ userNo: string }> };
+
+/** BFF /api/users/[userNo]/block — POST */
+export async function POST(_request: Request, { params }: Ctx) {
   console.log('[API] 유저 차단');
   try {
-    // TODO: springFetch 연동
-    return notImplemented('users/:userNo:/block POST');
+    const accessToken = await requireAccessToken();
+    if (isUnauthorized(accessToken)) return accessToken;
+    const { userNo } = await params;
+    const data = await springPostForm(
+      springEndpoints.users.block,
+      { userNo },
+      bearer(accessToken),
+    );
+    return ok(data);
   } catch (err) {
     return handleBffError(err);
   }
 }
 
-export async function DELETE() {
+/** BFF /api/users/[userNo]/block — DELETE */
+export async function DELETE(_request: Request, { params }: Ctx) {
   console.log('[API] 유저 차단 해제');
   try {
-    // TODO: springFetch 연동
-    return notImplemented('users/:userNo:/block DELETE');
+    const accessToken = await requireAccessToken();
+    if (isUnauthorized(accessToken)) return accessToken;
+    const { userNo } = await params;
+    const data = await springDelete(
+      springEndpoints.users.block,
+      { userNo },
+      bearer(accessToken),
+    );
+    return ok(data);
   } catch (err) {
     return handleBffError(err);
   }

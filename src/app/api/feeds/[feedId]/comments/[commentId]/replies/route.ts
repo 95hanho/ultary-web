@@ -1,21 +1,50 @@
-import { handleBffError, notImplemented } from '@/lib/api/bffRoute';
+import { NextRequest } from 'next/server';
+import { springEndpoints } from '@/lib/api/endpoints';
+import {
+  bearer,
+  handleBffError,
+  isUnauthorized,
+  ok,
+  queryParams,
+  readJsonBody,
+  requireAccessToken,
+} from '@/lib/api/bffRoute';
+import { springGet, springPostForm } from '@/lib/api/springFetch';
 
-/** BFF /api/feeds/[feedId]/comments/[commentId]/replies — GET/POST */
-export async function GET() {
-  console.log('[API] 답글 목록 조회');
+type Ctx = { params: Promise<{ feedId: string; commentId: string }> };
+
+/** BFF replies — GET */
+export async function GET(request: NextRequest, { params }: Ctx) {
+  console.log('[API] 답글 목록');
   try {
-    // TODO: springFetch 연동
-    return notImplemented('feeds/:feedId:/comments/:commentId:/replies GET');
+    const accessToken = await requireAccessToken();
+    if (isUnauthorized(accessToken)) return accessToken;
+    const { feedId, commentId } = await params;
+    const data = await springGet(
+      springEndpoints.feeds.replies,
+      { feedId, commentId, ...queryParams(request) },
+      bearer(accessToken),
+    );
+    return ok(data);
   } catch (err) {
     return handleBffError(err);
   }
 }
 
-export async function POST() {
+/** BFF replies — POST */
+export async function POST(request: NextRequest, { params }: Ctx) {
   console.log('[API] 답글 작성');
   try {
-    // TODO: springFetch 연동
-    return notImplemented('feeds/:feedId:/comments/:commentId:/replies POST');
+    const accessToken = await requireAccessToken();
+    if (isUnauthorized(accessToken)) return accessToken;
+    const { feedId, commentId } = await params;
+    const body = await readJsonBody(request);
+    const data = await springPostForm(
+      springEndpoints.feeds.replies,
+      { feedId, commentId, ...body },
+      bearer(accessToken),
+    );
+    return ok(data);
   } catch (err) {
     return handleBffError(err);
   }

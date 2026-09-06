@@ -108,6 +108,50 @@ export function springPutForm<T>(
   });
 }
 
+/** PATCH application/x-www-form-urlencoded */
+export function springPatchForm<T>(
+  url: string,
+  params: Params,
+  headers?: RequestHeaders,
+) {
+  const [path, body] = applyPathParams(url, cloneParams(params));
+  return springHttp<T>(path, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+      ...(headers ?? {}),
+    },
+    body: toUrlEncodedBody(body),
+  });
+}
+
+/** PATCH FormData (이미 만든 FormData) */
+export function springPatchMultipart<T>(
+  url: string,
+  formData: FormData,
+  headers?: RequestHeaders,
+) {
+  return springHttp<T>(url, {
+    method: 'PATCH',
+    headers,
+    body: formData,
+  });
+}
+
+/** PUT JSON — 예외용 */
+export function springPutJson<TRes, TBody extends object = object>(
+  url: string,
+  body?: TBody,
+  headers?: RequestHeaders,
+) {
+  const [path, restBody] = applyPathParamsFromBody(url, body);
+  return springHttp<TRes>(path, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...(headers ?? {}) },
+    body: JSON.stringify(restBody ?? {}),
+  });
+}
+
 /** POST FormData (단순 필드/파일) — Content-Type 수동 설정 금지 */
 export function springPostFormData<T>(
   url: string,

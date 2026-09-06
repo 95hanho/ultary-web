@@ -1,21 +1,46 @@
-import { handleBffError, notImplemented } from '@/lib/api/bffRoute';
+import { NextRequest } from 'next/server';
+import { springEndpoints } from '@/lib/api/endpoints';
+import {
+  bearer,
+  handleBffError,
+  isUnauthorized,
+  ok,
+  queryParams,
+  readJsonBody,
+  requireAccessToken,
+} from '@/lib/api/bffRoute';
+import { springGet, springPostForm } from '@/lib/api/springFetch';
 
-/** BFF /api/dm/rooms — GET/POST */
-export async function GET() {
-  console.log('[API] DM 대화방 리스트 조회');
+/** BFF /api/dm/rooms — GET */
+export async function GET(request: NextRequest) {
+  console.log('[API] DM 방 목록');
   try {
-    // TODO: springFetch 연동
-    return notImplemented('dm/rooms GET');
+    const accessToken = await requireAccessToken();
+    if (isUnauthorized(accessToken)) return accessToken;
+    const data = await springGet(
+      springEndpoints.dm.rooms,
+      queryParams(request),
+      bearer(accessToken),
+    );
+    return ok(data);
   } catch (err) {
     return handleBffError(err);
   }
 }
 
-export async function POST() {
-  console.log('[API] DM 대화방 생성');
+/** BFF /api/dm/rooms — POST */
+export async function POST(request: NextRequest) {
+  console.log('[API] DM 방 생성');
   try {
-    // TODO: springFetch 연동
-    return notImplemented('dm/rooms POST');
+    const accessToken = await requireAccessToken();
+    if (isUnauthorized(accessToken)) return accessToken;
+    const body = await readJsonBody(request);
+    const data = await springPostForm(
+      springEndpoints.dm.rooms,
+      body,
+      bearer(accessToken),
+    );
+    return ok(data);
   } catch (err) {
     return handleBffError(err);
   }

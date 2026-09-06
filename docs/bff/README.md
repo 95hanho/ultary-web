@@ -37,8 +37,8 @@ npm run dev
 
 | 구분 | 상태 |
 |------|------|
-| 인증 (login/refresh/logout/me/signup/phone) | ✅ Spring 연동 |
+| 인증 (login/refresh/logout/me/signup/phone/password/social link) | ✅ Spring 연동 |
 | 소셜 OAuth (Google/Kakao 시작·콜백) | ✅ Spring 연동 |
-| 그 외 도메인 (main, feed, pet, tag …) | 🚧 스켈레톤 (501) |
+| 도메인 (health, main, my-ultary, pets, feeds, tags, users, dm, …) | ✅ Spring 프록시 |
 
 상세 목록은 [api-spec.md](./api-spec.md) 참고.

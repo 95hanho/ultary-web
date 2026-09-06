@@ -1,11 +1,28 @@
-import { handleBffError, notImplemented } from '@/lib/api/bffRoute';
+import { NextRequest } from 'next/server';
+import { springEndpoints } from '@/lib/api/endpoints';
+import {
+  bearer,
+  handleBffError,
+  isUnauthorized,
+  ok,
+  queryParams,
+  requireAccessToken,
+} from '@/lib/api/bffRoute';
+import { springGet } from '@/lib/api/springFetch';
 
-/** BFF /api/my-ultary/saved-feeds — GET */
-export async function GET() {
-  console.log('[API] 저장한 게시글 조회');
+/** ?�?�한 게시글 조회 */
+export async function GET(request: NextRequest) {
+  console.log('[API] ?�?�한 게시글 조회');
   try {
-    // TODO: springFetch 연동
-    return notImplemented('my-ultary/saved-feeds GET');
+    const accessToken = await requireAccessToken();
+    if (isUnauthorized(accessToken)) return accessToken;
+
+    const data = await springGet(
+      springEndpoints.myUltary.savedFeeds,
+      { ...queryParams(request) },
+      bearer(accessToken),
+    );
+    return ok(data);
   } catch (err) {
     return handleBffError(err);
   }

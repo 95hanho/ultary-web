@@ -1,11 +1,28 @@
-import { handleBffError, notImplemented } from '@/lib/api/bffRoute';
+import { NextRequest } from 'next/server';
+import { springEndpoints } from '@/lib/api/endpoints';
+import {
+  bearer,
+  handleBffError,
+  isUnauthorized,
+  ok,
+  queryParams,
+  requireAccessToken,
+} from '@/lib/api/bffRoute';
+import { springGet } from '@/lib/api/springFetch';
 
-/** BFF /api/main/feeds — GET */
-export async function GET() {
-  console.log('[API] 주민 게시글 조회');
+/** 주�? 게시글 조회 */
+export async function GET(request: NextRequest) {
+  console.log('[API] 주�? 게시글 조회');
   try {
-    // TODO: springFetch 연동
-    return notImplemented('main/feeds GET');
+    const accessToken = await requireAccessToken();
+    if (isUnauthorized(accessToken)) return accessToken;
+
+    const data = await springGet(
+      springEndpoints.main.feeds,
+      { ...queryParams(request) },
+      bearer(accessToken),
+    );
+    return ok(data);
   } catch (err) {
     return handleBffError(err);
   }

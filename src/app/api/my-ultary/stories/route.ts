@@ -1,11 +1,27 @@
-import { handleBffError, notImplemented } from '@/lib/api/bffRoute';
+import { NextRequest } from 'next/server';
+import { springEndpoints } from '@/lib/api/endpoints';
+import {
+  bearer,
+  handleBffError,
+  isUnauthorized,
+  ok,
+  requireAccessToken,
+} from '@/lib/api/bffRoute';
+import { springPostMultipart } from '@/lib/api/springFetch';
 
 /** BFF /api/my-ultary/stories — POST */
-export async function POST() {
+export async function POST(request: NextRequest) {
   console.log('[API] 스토리 등록');
   try {
-    // TODO: springFetch 연동
-    return notImplemented('my-ultary/stories POST');
+    const accessToken = await requireAccessToken();
+    if (isUnauthorized(accessToken)) return accessToken;
+    const formData = await request.formData();
+    const data = await springPostMultipart(
+      springEndpoints.myUltary.stories,
+      formData,
+      bearer(accessToken),
+    );
+    return ok(data);
   } catch (err) {
     return handleBffError(err);
   }

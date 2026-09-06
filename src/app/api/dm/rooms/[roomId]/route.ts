@@ -1,11 +1,29 @@
-import { handleBffError, notImplemented } from '@/lib/api/bffRoute';
+import { springEndpoints } from '@/lib/api/endpoints';
+import {
+  bearer,
+  handleBffError,
+  isUnauthorized,
+  ok,
+  requireAccessToken,
+} from '@/lib/api/bffRoute';
+import { springDelete } from '@/lib/api/springFetch';
 
 /** BFF /api/dm/rooms/[roomId] — DELETE */
-export async function DELETE() {
-  console.log('[API] DM 대화방 나가기');
+export async function DELETE(
+  _request: Request,
+  { params }: { params: Promise<{ roomId: string }> },
+) {
+  console.log('[API] DM 방 나가기');
   try {
-    // TODO: springFetch 연동
-    return notImplemented('dm/rooms/:roomId: DELETE');
+    const accessToken = await requireAccessToken();
+    if (isUnauthorized(accessToken)) return accessToken;
+    const { roomId } = await params;
+    const data = await springDelete(
+      springEndpoints.dm.room,
+      { roomId },
+      bearer(accessToken),
+    );
+    return ok(data);
   } catch (err) {
     return handleBffError(err);
   }
