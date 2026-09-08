@@ -3,6 +3,7 @@
 import { FooterMenu } from '@/components/common/FooterMenu';
 import { ImageCropper, type CropResult } from '@/components/common/ImageCropper';
 import { PageHeader } from '@/components/common/PageHeader';
+import { myUltaryPath } from '@/lib/mock/ultary-accounts';
 import {
   clearPendingPetPhoto,
   getPendingPetPhoto,
@@ -14,8 +15,10 @@ import styles from './photo.module.scss';
 
 export default function PetPhotoClient() {
   const router = useRouter();
-  const params = useParams<{ petId: string }>();
+  const params = useParams<{ nickname: string; petId: string }>();
+  const nickname = typeof params.nickname === 'string' ? params.nickname : params.nickname?.[0];
   const petId = typeof params.petId === 'string' ? params.petId : params.petId?.[0];
+  const backHref = myUltaryPath(nickname);
 
   const cropperRef = useRef<{ getResult: () => Promise<CropResult | null> } | null>(null);
   const [photo, setPhoto] = useState<PendingPetPhoto | null>(null);
@@ -25,15 +28,13 @@ export default function PetPhotoClient() {
   useEffect(() => {
     const pending = getPendingPetPhoto();
     if (!pending || (petId && pending.petId !== petId)) {
-      router.replace('/myultary');
+      router.replace(backHref);
       return;
     }
-    // Effect에서 setState() 직접 호출 대신, 값이 있으면 mount 직후에 초기화
-    // 권장: useEffect cleanup 또는 mount flag 체크, 여기선 안전한 상황이므로 아래 방식으로 대체
     setTimeout(() => {
       setPhoto(pending);
     }, 0);
-  }, [petId, router]);
+  }, [petId, router, backHref]);
 
   const handleSubmit = async () => {
     if (submitting) return;
@@ -45,7 +46,6 @@ export default function PetPhotoClient() {
         return;
       }
 
-      // API 준비 전: 전송할 페이로드만 콘솔 확인
       console.log('[pet-photo] submit payload', {
         petId: photo.petId,
         fileName: photo.fileName,
@@ -63,7 +63,7 @@ export default function PetPhotoClient() {
       });
 
       clearPendingPetPhoto();
-      router.push('/myultary');
+      router.push(backHref);
     } catch (err) {
       console.error('[pet-photo] submit failed', err);
     } finally {
@@ -77,7 +77,6 @@ export default function PetPhotoClient() {
       console.warn('[pet-photo] preview empty');
       return;
     }
-    // 서버 저장 없이 blob URL로 새 탭 미리보기
     const url = URL.createObjectURL(result.blob);
     window.open(url, '_blank', 'noopener,noreferrer');
     window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
@@ -86,7 +85,7 @@ export default function PetPhotoClient() {
   if (!photo) {
     return (
       <div className={styles.shell}>
-        <PageHeader title="프로필 사진 설정" backHref="/myultary" />
+        <PageHeader title="프로필 사진 설정" backHref={backHref} />
         <main className={styles.main}>
           <p className={styles.empty}>이미지를 불러오는 중…</p>
         </main>
@@ -99,7 +98,7 @@ export default function PetPhotoClient() {
     <div className={styles.shell}>
       <PageHeader
         title="프로필 사진 설정"
-        backHref="/myultary"
+        backHref={backHref}
         onSubmit={handleSubmit}
         submitDisabled={!ready || submitting}
       />

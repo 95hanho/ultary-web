@@ -6,8 +6,6 @@ import clsx from 'clsx';
 import Image from 'next/image';
 import styles from './notifications.module.scss';
 
-const BOTTOM_BG = '/images/ultary_bg_bt.png';
-
 type NotificationAction = 'accept' | 'cancel';
 
 type NotificationItem = {
@@ -112,8 +110,6 @@ export default function NotificationsClient() {
             </li>
           ))}
         </ul>
-
-        <Image src={BOTTOM_BG} alt="" width={430} height={120} className={styles.bottomBg} />
       </main>
 
       <FooterMenu />

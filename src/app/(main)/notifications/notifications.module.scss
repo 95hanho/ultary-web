@@ -9,7 +9,6 @@
   margin: 0 auto;
   flex-direction: column;
   overflow: hidden;
-  background: var(--brand-sky-100);
 }
 
 .main {
@@ -127,11 +126,4 @@
 .actionCancel {
   background: var(--brand-gray-100);
   color: var(--brand-black-700);
-}
-
-.bottomBg {
-  display: block;
-  width: 100%;
-  height: auto;
-  margin-top: auto;
 }

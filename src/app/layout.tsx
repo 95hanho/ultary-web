@@ -18,7 +18,7 @@ export default function RootLayout({
       <body className="relative flex min-h-full flex-col">
         <Providers>{children}</Providers>
 
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 z-0 overflow-hidden">
+        <div className="ultary-bg pointer-events-none absolute inset-x-0 bottom-0 z-0 overflow-hidden">
           <div className="relative left-1/2 w-[120%] -translate-x-1/2">
             <Image
               src="/images/ultary_bg_bt.png"

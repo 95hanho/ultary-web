@@ -5,12 +5,13 @@ import { LogoHeader } from '@/components/common/LogoHeader';
 import { FeedGrid } from '@/components/feed/FeedGrid';
 import { Profile } from '@/components/my-ultary/Profile';
 import { MOCK_MY_FEEDS, MOCK_SAVED_FEEDS } from '@/lib/mock/feeds';
+import { getUltaryAccount, myUltaryPath } from '@/lib/mock/ultary-accounts';
 import { readFileAsDataUrl, setPendingPetPhoto } from '@/lib/pending-pet-photo';
 import clsx from 'clsx';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useRef, useState, type ChangeEvent } from 'react';
+import { useMemo, useRef, useState, type ChangeEvent } from 'react';
 import type { Swiper as SwiperType } from 'swiper';
 import 'swiper/css';
 import 'swiper/css/free-mode';
@@ -46,17 +47,6 @@ type Pet = {
   bio: string;
   imageUrl: string;
   isBirthday?: boolean;
-};
-
-const MOCK_ACCOUNT = {
-  nickname: 'HAN_HOSEONGS',
-  postCount: 4,
-  residentCount: 125,
-  neighborCount: 128,
-  bio: '오늘 공유한 나의 울타리 동물',
-  storyStatus: 'unread' as AccountStoryStatus,
-  isOwnAccount: true,
-  groupTaggedUrl: '/myultary/tagged',
 };
 
 const MOCK_PETS: Pet[] = [
@@ -103,20 +93,6 @@ const MOCK_PETS: Pet[] = [
   },
 ];
 
-const MOCK_FEED_POSTS = MOCK_MY_FEEDS.map((feed) => ({
-  id: feed.id,
-  imageUrl: feed.images[0] ?? '/images/mock/post_ex.jpg',
-  isMulti: feed.images.length > 1,
-  href: `/myultary/posts/${feed.id}`,
-}));
-
-const MOCK_SAVED_POSTS = MOCK_SAVED_FEEDS.map((feed) => ({
-  id: feed.id,
-  imageUrl: feed.images[0] ?? '/images/mock/post_ex.jpg',
-  isMulti: feed.images.length > 1,
-  href: `/myultary/saved/${feed.id}`,
-}));
-
 function getStoryIcon(status: AccountStoryStatus) {
   if (status === 'unread') return StoryOnIcon;
   if (status === 'read') return StoryReadIcon;
@@ -148,9 +124,17 @@ function slidePetsByHalf(swiper: SwiperType, direction: 'prev' | 'next') {
   swiper.translateTo(clamped, 300);
 }
 
-/** 마이울타리 메인 */
-export default function MyUltaryClient() {
+type MyUltaryClientProps = {
+  nickname: string;
+};
+
+/** 마이울타리 (/myultary/[nickname]) — 내/타인 공용 */
+export default function MyUltaryClient({ nickname }: MyUltaryClientProps) {
   const router = useRouter();
+  const account = getUltaryAccount(nickname);
+  const isOwnAccount = account?.isOwnAccount ?? false;
+  const basePath = myUltaryPath(nickname);
+
   const petSwiperRef = useRef<SwiperType | null>(null);
   const petPhotoInputRef = useRef<HTMLInputElement>(null);
   const [canPetPrev, setCanPetPrev] = useState(false);
@@ -163,7 +147,32 @@ export default function MyUltaryClient() {
   const selectedPet = MOCK_PETS.find((pet) => pet.id === selectedPetId) ?? MOCK_PETS[0];
   const birthdayPet = MOCK_PETS.find((pet) => pet.isBirthday);
   const showPetNav = MOCK_PETS.length > 4;
-  const posts = contentTab === 'feed' ? MOCK_FEED_POSTS : MOCK_SAVED_POSTS;
+
+  const feedPosts = useMemo(
+    () =>
+      MOCK_MY_FEEDS.map((feed) => ({
+        id: feed.id,
+        imageUrl: feed.images[0] ?? '/images/mock/post_ex.jpg',
+        isMulti: feed.images.length > 1,
+        href: `${basePath}/posts/${feed.id}`,
+      })),
+    [basePath],
+  );
+
+  const savedPosts = useMemo(
+    () =>
+      MOCK_SAVED_FEEDS.map((feed) => ({
+        id: feed.id,
+        imageUrl: feed.images[0] ?? '/images/mock/post_ex.jpg',
+        isMulti: feed.images.length > 1,
+        href: `${basePath}/saved/${feed.id}`,
+      })),
+    [basePath],
+  );
+
+  const posts = contentTab === 'feed' ? feedPosts : savedPosts;
+
+  if (!account) return null;
 
   const handlePetSelect = (petId: string) => {
     if (petViewMode === 'detail' && petId === selectedPetId) {
@@ -198,7 +207,7 @@ export default function MyUltaryClient() {
         fileName: file.name,
         mimeType: file.type,
       });
-      router.push(`/myultary/pets/${petId}/photo`);
+      router.push(`${basePath}/pets/${petId}/photo`);
     } catch (err) {
       console.error('[pet-photo] file read failed', err);
     }
@@ -208,40 +217,42 @@ export default function MyUltaryClient() {
     <div className={styles.shell}>
       <LogoHeader
         actions={
-          <>
-            <Link href="/myultary/write" className={styles.iconBtn} aria-label="글쓰기">
-              <Image src={AddIcon} alt="" width={32} height={32} />
-            </Link>
-            <Link href="/settings" className={styles.iconBtn} aria-label="설정">
-              <Image src={SettingIcon} alt="" width={32} height={32} />
-            </Link>
-          </>
+          isOwnAccount ? (
+            <>
+              <Link href={`${basePath}/write`} className={styles.iconBtn} aria-label="글쓰기">
+                <Image src={AddIcon} alt="" width={32} height={32} />
+              </Link>
+              <Link href="/settings" className={styles.iconBtn} aria-label="설정">
+                <Image src={SettingIcon} alt="" width={32} height={32} />
+              </Link>
+            </>
+          ) : undefined
         }
       />
 
       <section className={styles.profileSection} aria-label="프로필">
         <div className={styles.profileMain}>
-          <h1 className={styles.nickname}>{MOCK_ACCOUNT.nickname}</h1>
+          <h1 className={styles.nickname}>{account.nickname}</h1>
 
           <ul className={styles.stats}>
             <li className={styles.statItem}>
               <strong>게시물</strong>
-              {MOCK_ACCOUNT.postCount}
+              {account.postCount}
             </li>
             <li className={styles.statItem}>
               <strong>주민</strong>
-              {MOCK_ACCOUNT.residentCount}
+              {account.residentCount}
             </li>
             <li className={styles.statItem}>
               <strong>이웃</strong>
-              {MOCK_ACCOUNT.neighborCount}
+              {account.neighborCount}
             </li>
           </ul>
 
           <div className={styles.bioRow}>
             <p className={styles.bio}>
-              {MOCK_ACCOUNT.bio}
-              {MOCK_ACCOUNT.isOwnAccount ? (
+              {account.bio}
+              {isOwnAccount ? (
                 <button type="button" className={styles.iconBtn} aria-label="소개글 수정">
                   <Image src={EditIcon} alt="" width={18} height={18} />
                 </button>
@@ -348,7 +359,7 @@ export default function MyUltaryClient() {
               <div className={styles.petDetailCard} aria-hidden={petViewMode !== 'detail'}>
                 <div className={styles.petDetailPhotoWrap}>
                   <Profile imageUrl={selectedPet.imageUrl} size={88} />
-                  {MOCK_ACCOUNT.isOwnAccount ? (
+                  {isOwnAccount ? (
                     <button
                       type="button"
                       className={styles.petSettingBtn}
@@ -380,10 +391,10 @@ export default function MyUltaryClient() {
         <nav className={styles.sideTabs} aria-label="콘텐츠 메뉴">
           <Link
             href="/stories"
-            className={clsx(styles.sideTabBtn, getStoryTabClass(MOCK_ACCOUNT.storyStatus))}
+            className={clsx(styles.sideTabBtn, getStoryTabClass(account.storyStatus))}
             aria-label="스토리"
           >
-            <Image src={getStoryIcon(MOCK_ACCOUNT.storyStatus)} alt="" width={20} height={20} />
+            <Image src={getStoryIcon(account.storyStatus)} alt="" width={20} height={20} />
           </Link>
 
           <button
@@ -422,7 +433,7 @@ export default function MyUltaryClient() {
             />
           </button>
 
-          <Link href={MOCK_ACCOUNT.groupTaggedUrl} className={styles.sideTabBtn} aria-label="그룹">
+          <Link href={`${basePath}/tagged`} className={styles.sideTabBtn} aria-label="그룹">
             <Image src={GroupOffIcon} alt="" width={20} height={20} />
           </Link>
         </nav>
@@ -432,13 +443,15 @@ export default function MyUltaryClient() {
         <FeedGrid posts={posts} />
       </section>
 
-      <input
-        ref={petPhotoInputRef}
-        type="file"
-        accept="image/*"
-        className={styles.hiddenFileInput}
-        onChange={handlePetPhotoChange}
-      />
+      {isOwnAccount ? (
+        <input
+          ref={petPhotoInputRef}
+          type="file"
+          accept="image/*"
+          className={styles.hiddenFileInput}
+          onChange={handlePetPhotoChange}
+        />
+      ) : null}
 
       <FooterMenu />
     </div>

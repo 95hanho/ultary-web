@@ -1,13 +1,15 @@
 'use client';
 
 import { Profile, type StoryStatus } from '@/components/my-ultary/Profile';
+import { getTagExplain, splitCaptionTags, type TagExplain } from '@/lib/mock/tags';
 import clsx from 'clsx';
 import Image from 'next/image';
-import { useLayoutEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { Swiper as SwiperType } from 'swiper';
 import 'swiper/css';
 import { Swiper, SwiperSlide } from 'swiper/react';
 import styles from './Feed.module.scss';
+import { TagExplainPopover, type TagExplainMode } from './TagExplainPopover';
 
 /** 피드 액션 아이콘 (public) */
 const FavoriteIcon = '/images/icon/Favorite.svg';
@@ -50,22 +52,103 @@ export function Feed({
   const [needsMore, setNeedsMore] = useState(false);
   const swiperRef = useRef<SwiperType | null>(null);
   const captionRef = useRef<HTMLParagraphElement>(null);
+  const leaveTimerRef = useRef<number | null>(null);
+  /** 프리뷰 오픈 직후 가짜 leave로 바로 닫히지 않게 */
+  const ignoreLeaveUntilRef = useRef(0);
+  /** 터치 탭 후 합성 mouseenter로 프리뷰가 열리는 것 방지 */
+  const lastPointerTypeRef = useRef<string>('mouse');
+
+  const [tagOpen, setTagOpen] = useState<{
+    data: TagExplain;
+    rect: DOMRect;
+    mode: TagExplainMode;
+    closeRequested?: boolean;
+  } | null>(null);
+
+  useEffect(() => {
+    const onPointerDown = (e: PointerEvent) => {
+      lastPointerTypeRef.current = e.pointerType || 'mouse';
+    };
+    const onPointerMove = (e: PointerEvent) => {
+      if (e.pointerType === 'mouse') lastPointerTypeRef.current = 'mouse';
+    };
+    window.addEventListener('pointerdown', onPointerDown, true);
+    window.addEventListener('pointermove', onPointerMove, true);
+    return () => {
+      window.removeEventListener('pointerdown', onPointerDown, true);
+      window.removeEventListener('pointermove', onPointerMove, true);
+    };
+  }, []);
+
   const safeImages = images.length > 0 ? images : ['/images/mock/post_ex.jpg'];
   const hasMultiple = safeImages.length > 1;
   const showPrev = hasMultiple && index > 0;
   const showNext = hasMultiple && index < safeImages.length - 1;
+  const captionParts = splitCaptionTags(caption);
+
+  const clearLeaveTimer = () => {
+    if (leaveTimerRef.current != null) {
+      window.clearTimeout(leaveTimerRef.current);
+      leaveTimerRef.current = null;
+    }
+  };
+
+  const closeTag = useCallback(() => {
+    clearLeaveTimer();
+    setTagOpen(null);
+  }, []);
+
+  /** 클릭 등으로 모달 100% 오픈 */
+  const openTagActive = (tagText: string, el: HTMLElement) => {
+    const data = getTagExplain(tagText);
+    if (!data) return;
+    clearLeaveTimer();
+    setTagOpen({
+      data,
+      rect: el.getBoundingClientRect(),
+      mode: 'active',
+    });
+  };
+
+  /**
+   * 호버 프리뷰 — 모달이 완전히 꺼져 있을 때만.
+   * 이미 preview/active면 건드리지 않음 (active→흐림 금지).
+   */
+  const openTagPreviewIfClosed = (tagText: string, el: HTMLElement) => {
+    const data = getTagExplain(tagText);
+    if (!data) return;
+    clearLeaveTimer();
+    setTagOpen((prev) => {
+      if (prev && !prev.closeRequested) return prev;
+      ignoreLeaveUntilRef.current = Date.now() + 320;
+      return {
+        data,
+        rect: el.getBoundingClientRect(),
+        mode: 'preview',
+      };
+    });
+  };
+
+  const scheduleCloseIfPreview = () => {
+    if (Date.now() < ignoreLeaveUntilRef.current) return;
+    clearLeaveTimer();
+    leaveTimerRef.current = window.setTimeout(() => {
+      setTagOpen((prev) => {
+        if (!prev || prev.mode === 'active') return prev;
+        return { ...prev, closeRequested: true };
+      });
+    }, 200);
+  };
 
   useLayoutEffect(() => {
     const el = captionRef.current;
     if (!el) return;
 
     if (expanded) {
-      // 이펙트에서 상태를 동기적으로 설정하지 마세요. expanded가 false일 때 needsMore가 아래에서 다시 계산됩니다.
       return;
     }
 
     const measure = () => {
-      // max-height 클램프: scrollHeight > clientHeight 가 안정적으로 잡힘
       setNeedsMore(el.scrollHeight > el.clientHeight + 1);
     };
 
@@ -167,7 +250,40 @@ export function Feed({
 
         <div className={styles.captionWrap}>
           <p ref={captionRef} className={clsx(styles.caption, !expanded && styles.captionClamped)}>
-            <strong className={styles.captionNick}>{nickname}</strong> {caption}
+            <strong className={styles.captionNick}>{nickname}</strong>{' '}
+            {captionParts.map((part, i) => {
+              if (part.type !== 'tag') {
+                return <span key={`t-${i}`}>{part.value}</span>;
+              }
+              return (
+                <button
+                  key={`tag-${i}-${part.value}`}
+                  type="button"
+                  data-tag-trigger="true"
+                  className={styles.captionTag}
+                  onMouseDown={(e) => {
+                    // 버튼 포커스 스크롤이 모달 scroll-close를 유발하지 않게
+                    e.preventDefault();
+                  }}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    openTagActive(part.value, e.currentTarget);
+                  }}
+                  onMouseEnter={(e) => {
+                    // 터치 기기의 sticky hover / 합성 mouseenter 무시
+                    if (lastPointerTypeRef.current !== 'mouse') return;
+                    openTagPreviewIfClosed(part.value, e.currentTarget);
+                  }}
+                  onMouseLeave={() => {
+                    if (lastPointerTypeRef.current !== 'mouse') return;
+                    scheduleCloseIfPreview();
+                  }}
+                >
+                  {part.value}
+                </button>
+              );
+            })}
           </p>
           {!expanded && needsMore ? (
             <span className={styles.moreFade}>
@@ -178,6 +294,25 @@ export function Feed({
           ) : null}
         </div>
       </div>
+
+      {tagOpen ? (
+        <TagExplainPopover
+          key={tagOpen.data.tag}
+          data={tagOpen.data}
+          anchorRect={tagOpen.rect}
+          mode={tagOpen.mode}
+          closeRequested={tagOpen.closeRequested}
+          onModeChange={(next) =>
+            setTagOpen((prev) => (prev ? { ...prev, mode: next, closeRequested: false } : prev))
+          }
+          onClose={closeTag}
+          onPopoverEnter={clearLeaveTimer}
+          onPopoverLeave={() => {
+            // active(클릭으로 연 상태)는 태그/모달 leave로 닫지 않음
+            scheduleCloseIfPreview();
+          }}
+        />
+      ) : null}
     </article>
   );
 }

@@ -3,6 +3,7 @@
 import { FooterMenu } from '@/components/common/FooterMenu';
 import { FeedGrid } from '@/components/feed/FeedGrid';
 import { MOCK_RECOMMENDED_FEEDS } from '@/lib/mock/feeds';
+import { MY_NICKNAME, OTHER_NICKNAME, myUltaryPath } from '@/lib/mock/ultary-accounts';
 import { MOCK_HASHTAGS, MOCK_SEARCH_ACCOUNTS, type SearchAccount } from '@/lib/mock/search';
 import { highlightMatch, sortPetTagsByMatch } from '@/lib/search/highlight';
 import clsx from 'clsx';
@@ -16,14 +17,14 @@ const RECOMMENDED_POSTS = MOCK_RECOMMENDED_FEEDS.map((feed) => ({
   id: feed.id,
   imageUrl: feed.images[0] ?? '/images/mock/post_ex.jpg',
   isMulti: feed.images.length > 1,
-  href: `/myultary/posts/${feed.id}`,
+  href: `${myUltaryPath(MY_NICKNAME)}/posts/${feed.id}`,
 }));
 
 const HASHTAG_RESULT_POSTS = MOCK_RECOMMENDED_FEEDS.map((feed) => ({
   id: `tag-${feed.id}`,
   imageUrl: feed.images[0] ?? '/images/mock/post_ex.jpg',
   isMulti: true,
-  href: `/myultary/posts/${feed.id}`,
+  href: `${myUltaryPath(OTHER_NICKNAME)}/posts/${feed.id}`,
 }));
 
 type SearchPhase = 'idle' | 'active';

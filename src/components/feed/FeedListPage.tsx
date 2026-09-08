@@ -4,11 +4,8 @@ import { FooterMenu } from '@/components/common/FooterMenu';
 import { PageHeader } from '@/components/common/PageHeader';
 import { FeedList } from '@/components/feed/FeedList';
 import type { FeedData } from '@/components/feed/Feed';
-import Image from 'next/image';
 import { useEffect } from 'react';
 import styles from './FeedListPage.module.scss';
-
-const BOTTOM_BG = '/images/ultary_bg_bt.png';
 
 type FeedListPageProps = {
   title: string;
@@ -32,7 +29,6 @@ export function FeedListPage({ title, backHref, feeds, focusId }: FeedListPagePr
       <main className={styles.main}>
         <FeedList feeds={feeds} />
       </main>
-      <Image src={BOTTOM_BG} alt="" width={430} height={120} className={styles.bottomBg} />
       <FooterMenu />
     </div>
   );

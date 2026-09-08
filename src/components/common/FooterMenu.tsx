@@ -1,5 +1,6 @@
 'use client';
 
+import { MY_NICKNAME, myUltaryPath } from '@/lib/mock/ultary-accounts';
 import clsx from 'clsx';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -19,12 +20,13 @@ const PROFILE_SRC = '/images/mock/profile.jpg';
 /** 하단 공통 메뉴바 */
 export function FooterMenu() {
   const pathname = usePathname();
+  const myPath = myUltaryPath(MY_NICKNAME);
   const isHome = pathname === '/';
   const isSearch = pathname.startsWith('/search');
   const isNotifications = pathname.startsWith('/notifications');
   const isDm = pathname.startsWith('/dm');
-  /** 울타리 페이지(/myultary). 타 계정 구분 시 isOwnAccount로 on/off 제어 예정 */
-  const isMyUltary = pathname.startsWith('/myultary');
+  /** 내 울타리(/myultary/{내닉네임})일 때만 활성 — 타인 울타리 조회 시 off */
+  const isMyUltary = pathname === myPath || pathname.startsWith(`${myPath}/`);
 
   return (
     <nav className={styles.footer} aria-label="하단 메뉴">
@@ -65,7 +67,7 @@ export function FooterMenu() {
       </Link>
 
       <Link
-        href="/myultary"
+        href={myPath}
         className={styles.item}
         aria-label="마이울타리"
         aria-current={isMyUltary ? 'page' : undefined}

@@ -149,6 +149,28 @@
   font-weight: 700;
 }
 
+.captionTag {
+  display: inline-block;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--brand-grass-600);
+  font: inherit;
+  font-weight: 500;
+  line-height: inherit;
+  cursor: pointer;
+  vertical-align: baseline;
+  -webkit-tap-highlight-color: transparent;
+  text-decoration: none;
+
+  @media (hover: hover) and (pointer: fine) {
+    &:hover {
+      text-decoration: underline;
+    }
+  }
+}
+
 /** 3줄째 약 2/3 지점부터 ...더보기 */
 .moreFade {
   position: absolute;
