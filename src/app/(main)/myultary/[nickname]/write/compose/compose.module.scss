@@ -1,0 +1,169 @@
+.shell {
+  position: relative;
+  z-index: 10;
+  display: flex;
+  width: 100%;
+  max-width: 430px;
+  min-height: 100%;
+  margin: 0 auto;
+  flex-direction: column;
+  padding-bottom: 72px;
+}
+
+.main {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.empty {
+  margin: 24px 16px;
+  color: var(--brand-gray-500);
+  font-size: 14px;
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+}
+
+.label,
+.labelInline {
+  margin: 0;
+  padding: 10px 15px;
+  color: var(--brand-black-700);
+  font-size: 16px;
+  font-weight: 400;
+  letter-spacing: -0.02em;
+  line-height: 1.35;
+}
+
+.label {
+  display: flex;
+  align-items: center;
+}
+
+.tagLabel {
+  padding: 0;
+}
+
+.photoRow {
+  display: flex;
+  gap: 5px;
+  padding: 5px 5px 10px;
+  overflow-x: auto;
+}
+
+.photoThumb {
+  position: relative;
+  flex-shrink: 0;
+  width: 80px;
+  height: 80px;
+  overflow: hidden;
+  border-radius: 7px;
+  background: var(--brand-gray-100);
+}
+
+.photoImg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.multiBadge {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  display: flex;
+  line-height: 0;
+}
+
+.videoBadge {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 7px 2px 2px 2px;
+  background: rgba(0, 0, 0, 0.2);
+  color: #fff;
+}
+
+.tagRow {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  padding: 15px;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+}
+
+.tagChevron {
+  flex-shrink: 0;
+  color: var(--brand-black-700);
+}
+
+.textareaWrap {
+  padding: 5px 14px 15px;
+}
+
+.editorShell {
+  position: relative;
+  min-height: 140px;
+}
+
+.editorBackdrop,
+.textarea {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 140px;
+  padding: 10px;
+  border: 1px solid #dddddd;
+  border-radius: 0;
+  background: #fff8f5;
+  font-size: 16px;
+  font-weight: 400;
+  letter-spacing: -0.02em;
+  border-radius: 7px;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.editorBackdrop {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  color: #000;
+  pointer-events: none;
+}
+
+.hashtag {
+  color: var(--brand-grass-600);
+}
+
+.textarea {
+  position: relative;
+  z-index: 1;
+  resize: vertical;
+  color: transparent;
+  caret-color: #000;
+  background: transparent;
+  resize: none;
+
+  &::placeholder {
+    color: var(--brand-gray-400);
+  }
+
+  &:focus {
+    outline: 1px solid var(--brand-sky-600);
+  }
+}

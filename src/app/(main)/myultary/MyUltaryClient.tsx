@@ -7,6 +7,8 @@ import { Profile } from '@/components/my-ultary/Profile';
 import { MOCK_MY_FEEDS, MOCK_SAVED_FEEDS } from '@/lib/mock/feeds';
 import { getUltaryAccount, myUltaryPath } from '@/lib/mock/ultary-accounts';
 import { readFileAsDataUrl, setPendingPetPhoto } from '@/lib/pending-pet-photo';
+import { useWriteDraftStore } from '@/stores/write-draft.store';
+import { useModalStore } from '@/stores/modal.store';
 import clsx from 'clsx';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -144,9 +146,63 @@ export default function MyUltaryClient({ nickname }: MyUltaryClientProps) {
   const [contentTab, setContentTab] = useState<ContentTab>('feed');
   const [photoTargetPetId, setPhotoTargetPetId] = useState<string | null>(null);
 
+  const openModal = useModalStore((s) => s.open);
+  const setWriteItems = useWriteDraftStore((s) => s.setItems);
+  const clearWriteDraft = useWriteDraftStore((s) => s.clear);
+  const writeFileInputRef = useRef<HTMLInputElement>(null);
+
   const selectedPet = MOCK_PETS.find((pet) => pet.id === selectedPetId) ?? MOCK_PETS[0];
   const birthdayPet = MOCK_PETS.find((pet) => pet.isBirthday);
   const showPetNav = MOCK_PETS.length > 4;
+
+  const openCreateMenu = () => {
+    openModal({
+      variant: 'action',
+      items: [
+        {
+          label: '스토리 업',
+          onClick: () => {
+            router.push('/stories');
+          },
+        },
+        {
+          label: '게시글 작성',
+          onClick: () => {
+            writeFileInputRef.current?.click();
+          },
+        },
+      ],
+    });
+  };
+
+  const handleWriteFilesChange = async (e: ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? []).slice(0, 9);
+    e.target.value = '';
+    if (files.length === 0) return;
+
+    try {
+      clearWriteDraft();
+      const items = await Promise.all(
+        files.map(async (file, i) => {
+          const isVideo = file.type.startsWith('video/');
+          const sourceUrl = isVideo
+            ? URL.createObjectURL(file)
+            : await readFileAsDataUrl(file);
+          return {
+            id: `media-${Date.now()}-${i}`,
+            kind: (isVideo ? 'video' : 'image') as 'image' | 'video',
+            fileName: file.name,
+            mimeType: file.type || (isVideo ? 'video/mp4' : 'image/jpeg'),
+            sourceUrl,
+          };
+        }),
+      );
+      setWriteItems(items);
+      router.push(`${basePath}/write/crop`);
+    } catch (err) {
+      console.error('[write] file read failed', err);
+    }
+  };
 
   const feedPosts = useMemo(
     () =>
@@ -219,9 +275,14 @@ export default function MyUltaryClient({ nickname }: MyUltaryClientProps) {
         actions={
           isOwnAccount ? (
             <>
-              <Link href={`${basePath}/write`} className={styles.iconBtn} aria-label="글쓰기">
+              <button
+                type="button"
+                className={styles.iconBtn}
+                aria-label="글쓰기"
+                onClick={openCreateMenu}
+              >
                 <Image src={AddIcon} alt="" width={32} height={32} />
-              </Link>
+              </button>
               <Link href="/settings" className={styles.iconBtn} aria-label="설정">
                 <Image src={SettingIcon} alt="" width={32} height={32} />
               </Link>
@@ -452,6 +513,14 @@ export default function MyUltaryClient({ nickname }: MyUltaryClientProps) {
           onChange={handlePetPhotoChange}
         />
       ) : null}
+      <input
+        ref={writeFileInputRef}
+        type="file"
+        accept="image/*,video/*"
+        multiple
+        className={styles.hiddenFileInput}
+        onChange={(e) => void handleWriteFilesChange(e)}
+      />
 
       <FooterMenu />
     </div>

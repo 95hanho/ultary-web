@@ -11,8 +11,10 @@ const SubmitIcon = '/images/icon/Send.svg';
 
 type PageHeaderProps = {
   title: string;
-  /** 있으면 Link, 없으면 router.back() */
+  /** 있으면 Link, 없으면 onBack 또는 router.back() */
   backHref?: string;
+  /** backHref보다 우선. 커스텀 뒤로 동작 */
+  onBack?: () => void;
   /** 커스텀 우측 영역. 있으면 onSubmit보다 우선 */
   right?: ReactNode;
   /** 있으면 우측 완료(전송) 버튼 생성 */
@@ -25,6 +27,7 @@ type PageHeaderProps = {
 export function PageHeader({
   title,
   backHref,
+  onBack,
   right,
   onSubmit,
   submitLabel = '완료',
@@ -48,22 +51,28 @@ export function PageHeader({
       <span className={styles.headerBtn} aria-hidden />
     ));
 
+  const backButton = onBack ? (
+    <button type="button" className={styles.headerBtn} aria-label="뒤로" onClick={onBack}>
+      <Image src={ArrowLeftIcon} alt="" width={16} height={16} />
+    </button>
+  ) : backHref ? (
+    <Link href={backHref} className={styles.headerBtn} aria-label="뒤로">
+      <Image src={ArrowLeftIcon} alt="" width={16} height={16} />
+    </Link>
+  ) : (
+    <button
+      type="button"
+      className={styles.headerBtn}
+      aria-label="뒤로"
+      onClick={() => router.back()}
+    >
+      <Image src={ArrowLeftIcon} alt="" width={16} height={16} />
+    </button>
+  );
+
   return (
     <header className={styles.header}>
-      {backHref ? (
-        <Link href={backHref} className={styles.headerBtn} aria-label="뒤로">
-          <Image src={ArrowLeftIcon} alt="" width={16} height={16} />
-        </Link>
-      ) : (
-        <button
-          type="button"
-          className={styles.headerBtn}
-          aria-label="뒤로"
-          onClick={() => router.back()}
-        >
-          <Image src={ArrowLeftIcon} alt="" width={16} height={16} />
-        </button>
-      )}
+      {backButton}
       <h1 className={styles.title}>{title}</h1>
       {rightSlot}
     </header>
