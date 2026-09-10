@@ -43,9 +43,10 @@ export function ModalHost() {
 
   if (!mounted || !isOpen) return null;
 
+  const isDialog = variant === 'alert' || variant === 'confirm';
   const showHeader = Boolean(title) || showCloseButton;
   const showFooter =
-    variant !== 'action' && (!okButton.hidden || !cancelButton.hidden);
+    variant === 'confirm' && (!okButton.hidden || !cancelButton.hidden);
 
   return createPortal(
     <div
@@ -56,15 +57,34 @@ export function ModalHost() {
       }}
     >
       <div
-        className={styles.panel}
+        className={clsx(
+          styles.panel,
+          isDialog ? styles.panelDialog : styles.panelAction,
+        )}
         role="dialog"
         aria-modal="true"
         aria-label={title || '모달'}
         onClick={(e) => e.stopPropagation()}
       >
         {showHeader ? (
-          <div className={styles.header}>
-            {title ? <h2 className={styles.title}>{title}</h2> : <span />}
+          <div
+            className={clsx(
+              styles.header,
+              isDialog ? styles.headerDialog : styles.headerAction,
+            )}
+          >
+            {title ? (
+              <h2
+                className={clsx(
+                  styles.title,
+                  isDialog ? styles.titleDialog : styles.titleAction,
+                )}
+              >
+                {title}
+              </h2>
+            ) : (
+              <span />
+            )}
             {showCloseButton ? (
               <button
                 type="button"
@@ -96,17 +116,19 @@ export function ModalHost() {
             ))}
           </ul>
         ) : (
-          <>
+          <div
+            className={clsx(
+              styles.main,
+              variant === 'alert' && styles.mainAlert,
+            )}
+          >
             {content ? <div className={styles.content}>{content}</div> : null}
             {showFooter ? (
               <div className={styles.footer}>
                 {!cancelButton.hidden ? (
                   <button
                     type="button"
-                    className={clsx(
-                      styles.footerBtn,
-                      toneClass(cancelButton.tone),
-                    )}
+                    className={clsx(styles.footerBtn, toneClass(cancelButton.tone))}
                     onClick={confirmCancel}
                   >
                     {cancelButton.label}
@@ -123,7 +145,7 @@ export function ModalHost() {
                 ) : null}
               </div>
             ) : null}
-          </>
+          </div>
         )}
       </div>
     </div>,

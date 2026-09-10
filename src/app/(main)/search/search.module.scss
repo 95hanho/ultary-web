@@ -206,24 +206,3 @@
 .hit {
   color: var(--brand-grass-600);
 }
-
-.hashtagList {
-  display: flex;
-  flex-direction: column;
-  margin: 0;
-  padding: 0 5px;
-  list-style: none;
-}
-
-.hashtagItem {
-  display: block;
-  width: 100%;
-  padding: 12px 5px;
-  border: 0;
-  background: transparent;
-  color: var(--brand-black-700);
-  font-size: 15px;
-  font-weight: 700;
-  text-align: left;
-  cursor: pointer;
-}

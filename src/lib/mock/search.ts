@@ -5,6 +5,12 @@ export type SearchAccount = {
   petTags: string[];
 };
 
+export type MockHashtag = {
+  /** `#` 포함 */
+  tag: string;
+  postCount: number;
+};
+
 const PROFILE = '/images/mock/profile.jpg';
 
 /** 검색용 계정 목업 */
@@ -36,14 +42,30 @@ export const MOCK_SEARCH_ACCOUNTS: SearchAccount[] = [
 ];
 
 /** 해시태그 목업 */
-export const MOCK_HASHTAGS = [
-  '#푸들',
-  '#푸들그램',
-  '#푸들스타그램',
-  '#푸들미용',
-  '#푸들산책',
-  '#푸들일상',
-  '#고양이',
-  '#강아지',
-  '#산책',
+export const MOCK_HASHTAGS: MockHashtag[] = [
+  { tag: '#푸들', postCount: 1250 },
+  { tag: '#푸들그램', postCount: 320 },
+  { tag: '#푸들스타그램', postCount: 15 },
+  { tag: '#푸들미용', postCount: 12500 },
+  { tag: '#푸들산책', postCount: 84 },
+  { tag: '#푸들일상', postCount: 3 },
+  { tag: '#고양이', postCount: 5400 },
+  { tag: '#강아지', postCount: 21000 },
+  { tag: '#산책', postCount: 890 },
 ];
+
+/** `1000+ POST` / `15 POST` 표기 */
+export function formatTagPostCount(count: number): string {
+  if (count >= 1000) return `${Math.floor(count / 1000) * 1000}+ POST`;
+  if (count >= 100) return `${Math.floor(count / 100) * 100}+ POST`;
+  return `${count} POST`;
+}
+
+export function filterMockHashtags(term: string): MockHashtag[] {
+  const q = term.trim().toLowerCase().replace(/^#/, '');
+  if (!q) return [];
+  return MOCK_HASHTAGS.filter((item) => {
+    const name = item.tag.toLowerCase();
+    return name.includes(q) || name.includes(`#${q}`);
+  });
+}

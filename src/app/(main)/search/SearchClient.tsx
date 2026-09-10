@@ -2,9 +2,15 @@
 
 import { FooterMenu } from '@/components/common/FooterMenu';
 import { FeedGrid } from '@/components/feed/FeedGrid';
+import { HashtagResultList } from '@/components/search/HashtagResultList';
 import { MOCK_RECOMMENDED_FEEDS } from '@/lib/mock/feeds';
 import { MY_NICKNAME, OTHER_NICKNAME, myUltaryPath } from '@/lib/mock/ultary-accounts';
-import { MOCK_HASHTAGS, MOCK_SEARCH_ACCOUNTS, type SearchAccount } from '@/lib/mock/search';
+import {
+  filterMockHashtags,
+  MOCK_SEARCH_ACCOUNTS,
+  type MockHashtag,
+  type SearchAccount,
+} from '@/lib/mock/search';
 import { highlightMatch, sortPetTagsByMatch } from '@/lib/search/highlight';
 import clsx from 'clsx';
 import Image from 'next/image';
@@ -51,12 +57,6 @@ function filterAccounts(mode: 'plain' | 'pet', term: string): SearchAccount[] {
     const tagHit = acc.petTags.some((tag) => tag.toLowerCase().includes(q));
     return nickHit || tagHit;
   });
-}
-
-function filterHashtags(term: string): string[] {
-  const q = term.trim().toLowerCase();
-  if (!q) return [];
-  return MOCK_HASHTAGS.filter((tag) => tag.toLowerCase().includes(q) || tag.toLowerCase().includes(`#${q}`));
 }
 
 function AccountRow({
@@ -130,10 +130,10 @@ export default function SearchClient() {
     return filterAccounts(parsed.mode === 'pet' ? 'pet' : 'plain', parsed.term);
   }, [phase, parsed, selectedHashtag]);
 
-  const hashtagResults = useMemo(() => {
+  const hashtagResults: MockHashtag[] = useMemo(() => {
     if (phase !== 'active' || selectedHashtag) return [];
     if (parsed.mode !== 'hashtag') return [];
-    return filterHashtags(parsed.term);
+    return filterMockHashtags(parsed.term);
   }, [phase, parsed, selectedHashtag]);
 
   const showRecent =
@@ -260,19 +260,11 @@ export default function SearchClient() {
 
         {showHashtagList ? (
           <div className={styles.searchPanel}>
-            <ul className={styles.hashtagList}>
-              {hashtagResults.map((tag) => (
-                <li key={tag}>
-                  <button
-                    type="button"
-                    className={styles.hashtagItem}
-                    onClick={() => selectHashtag(tag)}
-                  >
-                    {tag}
-                  </button>
-                </li>
-              ))}
-            </ul>
+            <HashtagResultList
+              items={hashtagResults}
+              onSelect={selectHashtag}
+              variant="page"
+            />
           </div>
         ) : null}
 

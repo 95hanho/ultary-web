@@ -2,17 +2,27 @@
 
 import { FooterMenu } from '@/components/common/FooterMenu';
 import { PageHeader } from '@/components/common/PageHeader';
+import { TagSearchPanel } from '@/components/search/TagSearchPanel';
+import { TagSuggestPreview } from '@/components/write/TagSuggestPreview';
 import { splitCaptionTags } from '@/lib/mock/tags';
 import { myUltaryPath } from '@/lib/mock/ultary-accounts';
+import {
+  getActiveHashtag,
+  replaceActiveHashtag,
+  type ActiveHashtag,
+} from '@/lib/search/hashtag-input';
+import { getTextareaCaretRect } from '@/lib/search/textarea-caret';
 import { useWriteDraftStore } from '@/stores/write-draft.store';
 import clsx from 'clsx';
 import { ChevronRight, Play } from 'lucide-react';
 import Image from 'next/image';
 import { useParams, useRouter } from 'next/navigation';
-import { useEffect } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import styles from './compose.module.scss';
 
 const MultiIcon = '/images/icon/multi.svg';
+
+type SuggestAnchor = { top: number; left: number; bottom: number };
 
 /** 게시글 작성 — 사진 태그·내용 */
 export default function WriteComposeClient() {
@@ -26,12 +36,75 @@ export default function WriteComposeClient() {
   const caption = useWriteDraftStore((s) => s.caption);
   const setCaption = useWriteDraftStore((s) => s.setCaption);
   const clear = useWriteDraftStore((s) => s.clear);
+  const backdropRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const [activeTag, setActiveTag] = useState<ActiveHashtag | null>(null);
+  const [suggestAnchor, setSuggestAnchor] = useState<SuggestAnchor | null>(null);
+  const [suggestOpen, setSuggestOpen] = useState(false);
+  const [tagSearchOpen, setTagSearchOpen] = useState(false);
+  const activeTagRef = useRef<ActiveHashtag | null>(null);
+  activeTagRef.current = activeTag;
+
+  const syncBackdropScroll = () => {
+    const backdrop = backdropRef.current;
+    const textarea = textareaRef.current;
+    if (!backdrop || !textarea) return;
+    backdrop.scrollTop = textarea.scrollTop;
+  };
+
+  const updateSuggest = useCallback((value: string, caret: number) => {
+    const textarea = textareaRef.current;
+    const active = getActiveHashtag(value, caret);
+    if (!textarea || !active || active.term.length === 0) {
+      setActiveTag(null);
+      setSuggestOpen(false);
+      setSuggestAnchor(null);
+      return;
+    }
+
+    const rect = getTextareaCaretRect(textarea, active.start);
+    setActiveTag(active);
+    setSuggestAnchor({
+      top: rect.top,
+      left: rect.left,
+      bottom: rect.top + rect.height,
+    });
+    setSuggestOpen(true);
+  }, []);
+
+  const applyTag = useCallback(
+    (tag: string) => {
+      const textarea = textareaRef.current;
+      const caret = textarea?.selectionStart ?? caption.length;
+      const active = getActiveHashtag(caption, caret) ?? activeTagRef.current;
+      if (!active) return;
+
+      const { next, caret: nextCaret } = replaceActiveHashtag(caption, active, tag);
+      setCaption(next);
+      setSuggestOpen(false);
+      setTagSearchOpen(false);
+      setActiveTag(null);
+      setSuggestAnchor(null);
+
+      requestAnimationFrame(() => {
+        const el = textareaRef.current;
+        if (!el) return;
+        el.focus();
+        el.setSelectionRange(nextCaret, nextCaret);
+        syncBackdropScroll();
+      });
+    },
+    [caption, setCaption],
+  );
 
   useEffect(() => {
-    if (items.length === 0) {
+    if (useWriteDraftStore.getState().items.length === 0) {
       router.replace(basePath);
     }
-  }, [items.length, router, basePath]);
+    // 진입 시에만 — 이탈 시 clear와 footer 이동이 겹치지 않게
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleSubmit = () => {
     console.log('[write-compose] submit', {
@@ -49,6 +122,7 @@ export default function WriteComposeClient() {
   };
 
   const captionParts = splitCaptionTags(caption);
+  const suggestQuery = activeTag?.raw ?? '#';
 
   if (items.length === 0) {
     return (
@@ -123,7 +197,7 @@ export default function WriteComposeClient() {
           <h2 className={styles.label}>내용</h2>
           <div className={styles.textareaWrap}>
             <div className={styles.editorShell}>
-              <div className={styles.editorBackdrop} aria-hidden>
+              <div ref={backdropRef} className={styles.editorBackdrop} aria-hidden>
                 {caption
                   ? captionParts.map((part, i) => {
                       if (part.type === 'tag') {
@@ -143,9 +217,32 @@ export default function WriteComposeClient() {
                   : null}
               </div>
               <textarea
+                ref={textareaRef}
                 className={styles.textarea}
                 value={caption}
-                onChange={(e) => setCaption(e.target.value)}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  const caret = e.target.selectionStart ?? value.length;
+                  setCaption(value);
+                  requestAnimationFrame(() => {
+                    syncBackdropScroll();
+                    updateSuggest(value, caret);
+                  });
+                }}
+                onScroll={() => {
+                  syncBackdropScroll();
+                  const el = textareaRef.current;
+                  if (!el || !suggestOpen) return;
+                  updateSuggest(el.value, el.selectionStart ?? el.value.length);
+                }}
+                onClick={(e) => {
+                  const el = e.currentTarget;
+                  updateSuggest(el.value, el.selectionStart ?? el.value.length);
+                }}
+                onKeyUp={(e) => {
+                  const el = e.currentTarget;
+                  updateSuggest(el.value, el.selectionStart ?? el.value.length);
+                }}
                 placeholder="내용을 입력하세요. #태그"
                 rows={6}
               />
@@ -155,6 +252,29 @@ export default function WriteComposeClient() {
       </main>
 
       <FooterMenu />
+
+      <TagSuggestPreview
+        open={suggestOpen && !tagSearchOpen}
+        queryLabel={suggestQuery}
+        term={activeTag?.term ?? ''}
+        anchor={suggestAnchor}
+        onSelect={applyTag}
+        onOpenSearch={() => {
+          setSuggestOpen(false);
+          setTagSearchOpen(true);
+        }}
+        onClose={() => setSuggestOpen(false)}
+      />
+
+      <TagSearchPanel
+        open={tagSearchOpen}
+        initialQuery={suggestQuery}
+        onSelect={applyTag}
+        onClose={() => {
+          setTagSearchOpen(false);
+          requestAnimationFrame(() => textareaRef.current?.focus());
+        }}
+      />
     </div>
   );
 }

@@ -4,6 +4,7 @@ import { FooterMenu } from '@/components/common/FooterMenu';
 import { ImageCropper, type CropResult } from '@/components/common/ImageCropper';
 import { PageHeader } from '@/components/common/PageHeader';
 import { myUltaryPath } from '@/lib/mock/ultary-accounts';
+import { confirmLeaveWrite } from '@/lib/write/confirm-leave';
 import { useWriteDraftStore } from '@/stores/write-draft.store';
 import { Play } from 'lucide-react';
 import { useParams, useRouter } from 'next/navigation';
@@ -20,7 +21,6 @@ export default function WriteCropClient() {
 
   const items = useWriteDraftStore((s) => s.items);
   const updateCrop = useWriteDraftStore((s) => s.updateCrop);
-  const clear = useWriteDraftStore((s) => s.clear);
 
   const [index, setIndex] = useState(0);
   const [ready, setReady] = useState(false);
@@ -31,10 +31,12 @@ export default function WriteCropClient() {
   const total = items.length;
 
   useEffect(() => {
-    if (items.length === 0) {
+    if (useWriteDraftStore.getState().items.length === 0) {
       router.replace(basePath);
     }
-  }, [items.length, router, basePath]);
+    // 진입 시에만 — 이탈 시 clear와 footer 이동이 겹치지 않게
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     setReady(current?.kind === 'video');
@@ -89,14 +91,22 @@ export default function WriteCropClient() {
       void goPrev();
       return;
     }
-    clear();
-    router.push(basePath);
+    confirmLeaveWrite(() => {
+      router.push(basePath);
+    });
   };
 
   if (!current || total === 0) {
     return (
       <div className={styles.shell}>
-        <PageHeader title="사진 설정" backHref={basePath} />
+        <PageHeader
+          title="사진 설정"
+          onBack={() => {
+            confirmLeaveWrite(() => {
+              router.push(basePath);
+            });
+          }}
+        />
         <main className={styles.main}>
           <p className={styles.empty}>미디어를 불러오는 중…</p>
         </main>

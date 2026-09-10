@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import type { ReactNode } from 'react';
 
-/** 모달 종류 — alert/confirm UI는 추후 */
+/** 모달 종류 */
 export type ModalVariant = 'action' | 'alert' | 'confirm';
 
 /** 액션시트 메뉴 항목 */
@@ -10,13 +10,13 @@ export type ModalActionItem = {
   onClick?: () => void;
 };
 
-/** 하단/확인 버튼 (alert·confirm용, 추후 UI) */
+/** confirm 하단 버튼 */
 export type ModalButtonConfig = {
   label?: string;
   onClick?: () => void;
   /** 숨김 */
   hidden?: boolean;
-  /** 추후 색상 등 */
+  /** success=grass-500, danger=red-500 */
   tone?: 'default' | 'primary' | 'danger' | 'success';
 };
 
@@ -58,13 +58,13 @@ type ModalState = {
 const defaultOk: ModalButtonConfig = {
   label: '확인',
   hidden: false,
-  tone: 'primary',
+  tone: 'danger',
 };
 
 const defaultCancel: ModalButtonConfig = {
   label: '취소',
   hidden: false,
-  tone: 'default',
+  tone: 'success',
 };
 
 export const useModalStore = create<ModalState>((set, get) => ({

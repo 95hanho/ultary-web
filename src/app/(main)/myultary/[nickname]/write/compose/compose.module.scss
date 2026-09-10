@@ -33,8 +33,8 @@
   margin: 0;
   padding: 10px 15px;
   color: var(--brand-black-700);
-  font-size: 16px;
-  font-weight: 400;
+  font-size: 17px;
+  font-weight: 500;
   letter-spacing: -0.02em;
   line-height: 1.35;
 }
@@ -117,22 +117,31 @@
 
 .editorShell {
   position: relative;
-  min-height: 140px;
+  height: 140px;
+  overflow: hidden;
+  border: 1px solid #dddddd;
+  border-radius: 7px;
+  background: #fff8f5;
+
+  &:focus-within {
+    border-color: var(--brand-sky-600);
+    box-shadow: 0 0 0 1px var(--brand-sky-600);
+  }
 }
 
 .editorBackdrop,
 .textarea {
   box-sizing: border-box;
   width: 100%;
-  min-height: 140px;
+  height: 100%;
   padding: 10px;
-  border: 1px solid #dddddd;
-  border-radius: 0;
-  background: #fff8f5;
+  border: 0;
+  border-radius: 7px;
+  overflow-y: auto;
+  scrollbar-gutter: stable;
   font-size: 16px;
   font-weight: 400;
   letter-spacing: -0.02em;
-  border-radius: 7px;
   line-height: 1.45;
   white-space: pre-wrap;
   word-break: break-word;
@@ -141,9 +150,19 @@
 .editorBackdrop {
   position: absolute;
   inset: 0;
-  overflow: hidden;
   color: #000;
   pointer-events: none;
+  /* Keep the same scrollbar gutter as textarea; hide the thumb only. */
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+
+  &::-webkit-scrollbar {
+    width: 12px;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: transparent;
+  }
 }
 
 .hashtag {
@@ -153,17 +172,22 @@
 .textarea {
   position: relative;
   z-index: 1;
-  resize: vertical;
+  display: block;
+  resize: none;
   color: transparent;
   caret-color: #000;
   background: transparent;
-  resize: none;
+  outline: none;
+  box-shadow: none;
+  -webkit-appearance: none;
+  appearance: none;
 
   &::placeholder {
     color: var(--brand-gray-400);
   }
 
   &:focus {
-    outline: 1px solid var(--brand-sky-600);
+    outline: none;
+    box-shadow: none;
   }
 }
