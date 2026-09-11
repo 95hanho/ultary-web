@@ -100,10 +100,10 @@ export default function MainClient() {
           >
             {STORY_USERS.map((user, i) => (
               <SwiperSlide key={`${user.nickname}-${i}`} className={styles.storySlide}>
-                <div className={styles.storyItem}>
+                <Link href="/stories" className={styles.storyItem}>
                   <Profile imageUrl={user.imageUrl} size={80} story={user.story} />
                   <span className={styles.storyNickname}>{user.nickname}</span>
-                </div>
+                </Link>
               </SwiperSlide>
             ))}
           </Swiper>

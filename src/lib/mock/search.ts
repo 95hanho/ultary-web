@@ -69,3 +69,23 @@ export function filterMockHashtags(term: string): MockHashtag[] {
     return name.includes(q) || name.includes(`#${q}`);
   });
 }
+
+/** 닉네임·펫언급 검색 (`#` 해시태그는 대상 아님) */
+export function filterMockAccounts(
+  term: string,
+  mode: 'plain' | 'pet' = 'plain',
+): SearchAccount[] {
+  const q = term.trim().toLowerCase().replace(/^@/, '');
+  if (!q) return [];
+
+  return MOCK_SEARCH_ACCOUNTS.filter((acc) => {
+    if (mode === 'pet') {
+      return acc.petTags.some(
+        (tag) => tag.toLowerCase().includes(`@${q}`) || tag.toLowerCase().includes(q),
+      );
+    }
+    const nickHit = acc.nickname.toLowerCase().includes(q);
+    const tagHit = acc.petTags.some((tag) => tag.toLowerCase().includes(q));
+    return nickHit || tagHit;
+  });
+}

@@ -9,6 +9,18 @@ export type WriteDraftItem = {
   sourceUrl: string;
   /** 이미지 크롭 결과 data URL */
   croppedDataUrl?: string;
+  /** 사진 위 펫언급 태그 (좌표 0~1) */
+  petTags?: WritePhotoPetTag[];
+};
+
+export type WritePhotoPetTag = {
+  id: string;
+  /** `@choco_01` */
+  petTag: string;
+  /** 이미지 기준 가로 비율 0~1 */
+  x: number;
+  /** 이미지 기준 세로 비율 0~1 */
+  y: number;
 };
 
 type WriteDraftState = {
@@ -17,6 +29,8 @@ type WriteDraftState = {
   setItems: (items: WriteDraftItem[]) => void;
   updateCrop: (id: string, croppedDataUrl: string) => void;
   setCaption: (caption: string) => void;
+  addPetTag: (itemId: string, tag: Omit<WritePhotoPetTag, 'id'> & { id?: string }) => void;
+  removePetTag: (itemId: string, tagId: string) => void;
   clear: () => void;
 };
 
@@ -32,5 +46,26 @@ export const useWriteDraftStore = create<WriteDraftState>((set) => ({
       ),
     })),
   setCaption: (caption) => set({ caption }),
+  addPetTag: (itemId, tag) =>
+    set((state) => ({
+      items: state.items.map((item) => {
+        if (item.id !== itemId) return item;
+        const next: WritePhotoPetTag = {
+          id: tag.id ?? `pt-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+          petTag: tag.petTag,
+          x: tag.x,
+          y: tag.y,
+        };
+        return { ...item, petTags: [...(item.petTags ?? []), next] };
+      }),
+    })),
+  removePetTag: (itemId, tagId) =>
+    set((state) => ({
+      items: state.items.map((item) =>
+        item.id !== itemId
+          ? item
+          : { ...item, petTags: (item.petTags ?? []).filter((t) => t.id !== tagId) },
+      ),
+    })),
   clear: () => set({ items: [], caption: '' }),
 }));

@@ -1,0 +1,138 @@
+.shell {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: flex;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.3);
+}
+
+.inner {
+  position: relative;
+  display: flex;
+  width: 100%;
+  max-width: 430px;
+  height: 100%;
+  flex-direction: column;
+}
+
+.header {
+  position: relative;
+  z-index: 5;
+  flex-shrink: 0;
+}
+
+.progressWrap {
+  display: flex;
+  gap: 4px;
+  padding: 10px 10px 0;
+}
+
+.progressItem {
+  flex: 1;
+  height: 3px;
+  overflow: hidden;
+  border: 1px solid #ededed;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.2);
+  box-sizing: border-box;
+}
+
+.progressFill {
+  width: 100%;
+  height: 100%;
+  background: #fff;
+  transform: scaleX(0);
+  transform-origin: left center;
+  will-change: transform;
+}
+
+.profileWrap {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 10px 0;
+}
+
+.profileLeft {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  align-items: center;
+  gap: 10px;
+}
+
+.nickname {
+  overflow: hidden;
+  color: #fff;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+}
+
+.actions {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 4px;
+}
+
+.iconBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #fff;
+  cursor: pointer;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.35));
+}
+
+.stage {
+  position: relative;
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  min-height: 0;
+  padding: 16px 16px 24px;
+}
+
+.media {
+  display: block;
+  width: 100%;
+  max-height: 100%;
+  aspect-ratio: 1 / 1;
+  object-fit: cover;
+  border-radius: 7px;
+  background: #111;
+  pointer-events: none;
+  user-select: none;
+}
+
+.tapLeft,
+.tapRight {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  z-index: 2;
+  width: 40%;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.tapLeft {
+  left: 0;
+}
+
+.tapRight {
+  right: 0;
+}

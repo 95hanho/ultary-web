@@ -1,0 +1,86 @@
+.list {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0 5px;
+  list-style: none;
+}
+
+.item {
+  margin: 0;
+  padding: 0;
+}
+
+.row {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  text-align: left;
+}
+
+.imageWrap {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+}
+
+.image {
+  display: block;
+  width: 47px;
+  height: 47px;
+  object-fit: cover;
+  border-radius: 5px;
+}
+
+.text {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  padding: 4px 5px;
+}
+
+.nickBtn {
+  display: block;
+  overflow: hidden;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--brand-black-700);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.2;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.tags {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  gap: 0 4px;
+  overflow: hidden;
+}
+
+.petBtn {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--brand-black-700);
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.2;
+  cursor: pointer;
+}
+
+.hit {
+  color: var(--brand-grass-600);
+}

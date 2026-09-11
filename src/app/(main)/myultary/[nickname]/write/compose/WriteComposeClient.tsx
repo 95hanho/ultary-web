@@ -31,6 +31,7 @@ export default function WriteComposeClient() {
   const nickname = typeof params.nickname === 'string' ? params.nickname : params.nickname?.[0];
   const basePath = myUltaryPath(nickname);
   const cropHref = `${basePath}/write/crop`;
+  const tagsHref = `${basePath}/write/tags`;
 
   const items = useWriteDraftStore((s) => s.items);
   const caption = useWriteDraftStore((s) => s.caption);
@@ -185,9 +186,7 @@ export default function WriteComposeClient() {
         <button
           type="button"
           className={styles.tagRow}
-          onClick={() => {
-            console.log('[write-compose] photo tags — TODO');
-          }}
+          onClick={() => router.push(tagsHref)}
         >
           <span className={clsx(styles.labelInline, styles.tagLabel)}>사진 태그</span>
           <ChevronRight size={20} className={styles.tagChevron} aria-hidden />

@@ -1,0 +1,63 @@
+.shell {
+  position: relative;
+  z-index: 10;
+  display: flex;
+  width: 100%;
+  max-width: 430px;
+  min-height: 100%;
+  margin: 0 auto;
+  flex-direction: column;
+  padding-bottom: 72px;
+}
+
+.main {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  padding: 16px;
+}
+
+.empty {
+  margin: 24px 16px;
+  color: var(--brand-gray-500);
+  font-size: 14px;
+}
+
+.photoStage {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  overflow: hidden;
+  border-radius: 7px;
+  background: var(--brand-gray-100);
+  cursor: crosshair;
+}
+
+.photo {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  pointer-events: none;
+  user-select: none;
+}
+
+.petTagBox {
+  position: absolute;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  max-width: calc(100% - 16px);
+  padding: 5px;
+  border: 0;
+  border-radius: 7px;
+  background: rgba(0, 0, 0, 0.3);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.2;
+  white-space: nowrap;
+  transform: translate(-50%, -50%);
+  cursor: pointer;
+}
