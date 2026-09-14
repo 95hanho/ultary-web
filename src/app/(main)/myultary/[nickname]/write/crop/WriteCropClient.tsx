@@ -129,6 +129,7 @@ export default function WriteCropClient() {
           <ImageCropper
             key={current.id}
             src={current.sourceUrl}
+            aspect="free"
             cropperRef={cropperRef}
             onReadyChange={setReady}
           />

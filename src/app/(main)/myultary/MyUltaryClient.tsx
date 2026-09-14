@@ -8,6 +8,7 @@ import { MOCK_MY_FEEDS, MOCK_SAVED_FEEDS } from '@/lib/mock/feeds';
 import { getUltaryAccount, myUltaryPath } from '@/lib/mock/ultary-accounts';
 import { readFileAsDataUrl, setPendingPetPhoto } from '@/lib/pending-pet-photo';
 import { useWriteDraftStore } from '@/stores/write-draft.store';
+import { useStoryDraftStore } from '@/stores/story-draft.store';
 import { useModalStore } from '@/stores/modal.store';
 import clsx from 'clsx';
 import Image from 'next/image';
@@ -149,7 +150,10 @@ export default function MyUltaryClient({ nickname }: MyUltaryClientProps) {
   const openModal = useModalStore((s) => s.open);
   const setWriteItems = useWriteDraftStore((s) => s.setItems);
   const clearWriteDraft = useWriteDraftStore((s) => s.clear);
+  const setStoryMedia = useStoryDraftStore((s) => s.setMedia);
+  const clearStoryDraft = useStoryDraftStore((s) => s.clear);
   const writeFileInputRef = useRef<HTMLInputElement>(null);
+  const storyFileInputRef = useRef<HTMLInputElement>(null);
 
   const selectedPet = MOCK_PETS.find((pet) => pet.id === selectedPetId) ?? MOCK_PETS[0];
   const birthdayPet = MOCK_PETS.find((pet) => pet.isBirthday);
@@ -162,7 +166,7 @@ export default function MyUltaryClient({ nickname }: MyUltaryClientProps) {
         {
           label: '스토리 업',
           onClick: () => {
-            router.push('/stories');
+            storyFileInputRef.current?.click();
           },
         },
         {
@@ -201,6 +205,26 @@ export default function MyUltaryClient({ nickname }: MyUltaryClientProps) {
       router.push(`${basePath}/write/crop`);
     } catch (err) {
       console.error('[write] file read failed', err);
+    }
+  };
+
+  const handleStoryFileChange = async (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+
+    try {
+      clearStoryDraft();
+      const isVideo = file.type.startsWith('video/');
+      const sourceUrl = isVideo ? URL.createObjectURL(file) : await readFileAsDataUrl(file);
+      setStoryMedia({
+        sourceUrl,
+        kind: isVideo ? 'video' : 'image',
+        fileName: file.name,
+      });
+      router.push('/stories/up/crop');
+    } catch (err) {
+      console.error('[story-up] file read failed', err);
     }
   };
 
@@ -520,6 +544,13 @@ export default function MyUltaryClient({ nickname }: MyUltaryClientProps) {
         multiple
         className={styles.hiddenFileInput}
         onChange={(e) => void handleWriteFilesChange(e)}
+      />
+      <input
+        ref={storyFileInputRef}
+        type="file"
+        accept="image/*,video/*"
+        className={styles.hiddenFileInput}
+        onChange={(e) => void handleStoryFileChange(e)}
       />
 
       <FooterMenu />

@@ -103,7 +103,12 @@ export default function PetPhotoClient() {
         submitDisabled={!ready || submitting}
       />
       <main className={styles.main}>
-        <ImageCropper src={photo.dataUrl} cropperRef={cropperRef} onReadyChange={setReady} />
+        <ImageCropper
+          src={photo.dataUrl}
+          aspect="square"
+          cropperRef={cropperRef}
+          onReadyChange={setReady}
+        />
         {process.env.NODE_ENV === 'development' ? (
           <div className={styles.devActions}>
             <button

@@ -1,4 +1,5 @@
 import { useModalStore } from '@/stores/modal.store';
+import { useStoryDraftStore } from '@/stores/story-draft.store';
 import { useWriteDraftStore } from '@/stores/write-draft.store';
 
 /** 게시글 작성 중 이탈 확인 (confirm) */
@@ -17,14 +18,15 @@ export function confirmLeaveWrite(onLeave: () => void) {
       tone: 'danger',
       onClick: () => {
         useWriteDraftStore.getState().clear();
+        useStoryDraftStore.getState().clear();
         onLeave();
       },
     },
   });
 }
 
-/** `/…/write/…` 작성 플로우 경로 여부 */
+/** 게시글 작성 또는 스토리 업 편집 중 */
 export function isWriteFlowPath(pathname: string | null): boolean {
   if (!pathname) return false;
-  return /\/write(\/|$)/.test(pathname);
+  return /\/write(\/|$)/.test(pathname) || /\/stories\/up(\/|$)/.test(pathname);
 }

@@ -13,11 +13,12 @@ import styles from './ImageCropper.module.scss';
 export type CropRect = {
   x: number;
   y: number;
-  size: number;
+  width: number;
+  height: number;
 };
 
 export type CropResult = {
-  source: { x: number; y: number; size: number };
+  source: { x: number; y: number; width: number; height: number };
   display: CropRect;
   natural: { width: number; height: number };
   displaySize: { width: number; height: number };
@@ -27,6 +28,8 @@ export type CropResult = {
 
 type ImageCropperProps = {
   src: string;
+  /** square: 정사각형 고정 / free: 직사각형 자유 비율 */
+  aspect?: 'square' | 'free';
   className?: string;
   onReadyChange?: (ready: boolean) => void;
   cropperRef?: MutableRefObject<{ getResult: () => Promise<CropResult | null> } | null>;
@@ -35,14 +38,59 @@ type ImageCropperProps = {
 type DragMode = 'move' | 'resize-nw' | 'resize-ne' | 'resize-sw' | 'resize-se';
 
 const MIN_CROP = 80;
+/** 휴대폰 세로·가로 최대 비율 (이보다 길쭉하게 자르지 않음) */
+const PHONE_ASPECT = 16 / 9;
 
 function clamp(n: number, min: number, max: number) {
   return Math.max(min, Math.min(max, n));
 }
 
-/** 정사각형 크롭 영역 (이동·리사이즈). 초기: (0,0) + min(w,h) */
-export function ImageCropper({ src, className, onReadyChange, cropperRef }: ImageCropperProps) {
-  const frameRef = useRef<HTMLDivElement>(null);
+function clampCrop(rect: CropRect, maxW: number, maxH: number): CropRect {
+  let { x, y, width, height } = rect;
+  width = clamp(width, MIN_CROP, maxW);
+  height = clamp(height, MIN_CROP, maxH);
+  x = clamp(x, 0, maxW - width);
+  y = clamp(y, 0, maxH - height);
+  return { x, y, width, height };
+}
+
+/** free 크롭: 프레임 안 + 휴대폰 비율(9:16~16:9) 제한 */
+function clampFreeCrop(rect: CropRect, maxW: number, maxH: number): CropRect {
+  let { x, y, width, height } = rect;
+
+  width = Math.max(width, MIN_CROP);
+  height = Math.max(height, MIN_CROP);
+
+  if (height / width > PHONE_ASPECT) {
+    height = width * PHONE_ASPECT;
+  }
+  if (width / height > PHONE_ASPECT) {
+    width = height * PHONE_ASPECT;
+  }
+
+  width = clamp(width, MIN_CROP, maxW);
+  height = clamp(height, MIN_CROP, maxH);
+
+  if (height / width > PHONE_ASPECT) {
+    height = Math.min(height, width * PHONE_ASPECT);
+  }
+  if (width / height > PHONE_ASPECT) {
+    width = Math.min(width, height * PHONE_ASPECT);
+  }
+
+  x = clamp(x, 0, Math.max(0, maxW - width));
+  y = clamp(y, 0, Math.max(0, maxH - height));
+  return { x, y, width, height };
+}
+
+/** 크롭 영역 (이동·리사이즈). aspect=square면 정사각 유지 */
+export function ImageCropper({
+  src,
+  aspect = 'square',
+  className,
+  onReadyChange,
+  cropperRef,
+}: ImageCropperProps) {
   const imgRef = useRef<HTMLImageElement>(null);
   const dragRef = useRef<{
     mode: DragMode;
@@ -51,10 +99,12 @@ export function ImageCropper({ src, className, onReadyChange, cropperRef }: Imag
     origin: CropRect;
   } | null>(null);
   const didInitCrop = useRef(false);
+  const aspectRef = useRef(aspect);
+  aspectRef.current = aspect;
 
   const [displaySize, setDisplaySize] = useState({ width: 0, height: 0 });
   const [natural, setNatural] = useState({ width: 0, height: 0 });
-  const [crop, setCrop] = useState<CropRect>({ x: 0, y: 0, size: 0 });
+  const [crop, setCrop] = useState<CropRect>({ x: 0, y: 0, width: 0, height: 0 });
   const [ready, setReady] = useState(false);
 
   const applyMeasure = useCallback(
@@ -70,17 +120,31 @@ export function ImageCropper({ src, className, onReadyChange, cropperRef }: Imag
       setNatural({ width: img.naturalWidth, height: img.naturalHeight });
 
       if (resetCrop || !didInitCrop.current) {
-        const size = Math.min(width, height) * (2 / 3);
-        setCrop({ x: 0, y: 0, size });
+        if (aspectRef.current === 'square') {
+          const size = Math.min(width, height) * (2 / 3);
+          setCrop({ x: 0, y: 0, width: size, height: size });
+        } else {
+          setCrop(
+            clampFreeCrop(
+              {
+                x: 0,
+                y: 0,
+                width: width * (2 / 3),
+                height: height * (2 / 3),
+              },
+              width,
+              height,
+            ),
+          );
+        }
         didInitCrop.current = true;
       } else {
         setCrop((prev) => {
-          const size = clamp(prev.size, MIN_CROP, Math.min(width, height));
-          return {
-            x: clamp(prev.x, 0, width - size),
-            y: clamp(prev.y, 0, height - size),
-            size,
-          };
+          if (aspectRef.current === 'square') {
+            const size = clamp(Math.min(prev.width, prev.height), MIN_CROP, Math.min(width, height));
+            return clampCrop({ x: prev.x, y: prev.y, width: size, height: size }, width, height);
+          }
+          return clampFreeCrop(prev, width, height);
         });
       }
 
@@ -94,7 +158,7 @@ export function ImageCropper({ src, className, onReadyChange, cropperRef }: Imag
   useEffect(() => {
     didInitCrop.current = false;
     setReady(false);
-    setCrop({ x: 0, y: 0, size: 0 });
+    setCrop({ x: 0, y: 0, width: 0, height: 0 });
     onReadyChange?.(false);
 
     const img = imgRef.current;
@@ -126,20 +190,23 @@ export function ImageCropper({ src, className, onReadyChange, cropperRef }: Imag
       img.removeEventListener('load', onLoad);
       ro.disconnect();
     };
-  }, [src, applyMeasure, onReadyChange]);
+  }, [src, aspect, applyMeasure, onReadyChange]);
 
   const getResult = useCallback(async (): Promise<CropResult | null> => {
-    if (!ready || !crop.size || !natural.width || !displaySize.width) return null;
+    if (!ready || !crop.width || !crop.height || !natural.width || !displaySize.width) {
+      return null;
+    }
 
     const scaleX = natural.width / displaySize.width;
     const scaleY = natural.height / displaySize.height;
-    const sourceSize = Math.round(crop.size * scaleX);
+    const sourceW = Math.round(crop.width * scaleX);
+    const sourceH = Math.round(crop.height * scaleY);
     const sourceX = Math.round(crop.x * scaleX);
     const sourceY = Math.round(crop.y * scaleY);
 
     const canvas = document.createElement('canvas');
-    canvas.width = sourceSize;
-    canvas.height = sourceSize;
+    canvas.width = sourceW;
+    canvas.height = sourceH;
     const ctx = canvas.getContext('2d');
     if (!ctx) return null;
 
@@ -154,28 +221,18 @@ export function ImageCropper({ src, className, onReadyChange, cropperRef }: Imag
       image.onerror = () => reject(new Error('crop image load failed'));
     });
 
+    const displayScale = sourceW / crop.width;
+    const r = Math.min(5 * displayScale, sourceW / 2, sourceH / 2);
     ctx.beginPath();
-    const r = Math.min(5 * (sourceSize / crop.size), sourceSize / 2);
-    const s = sourceSize;
     ctx.moveTo(r, 0);
-    ctx.arcTo(s, 0, s, s, r);
-    ctx.arcTo(s, s, 0, s, r);
-    ctx.arcTo(0, s, 0, 0, r);
-    ctx.arcTo(0, 0, s, 0, r);
+    ctx.arcTo(sourceW, 0, sourceW, sourceH, r);
+    ctx.arcTo(sourceW, sourceH, 0, sourceH, r);
+    ctx.arcTo(0, sourceH, 0, 0, r);
+    ctx.arcTo(0, 0, sourceW, 0, r);
     ctx.closePath();
     ctx.clip();
 
-    ctx.drawImage(
-      image,
-      sourceX,
-      sourceY,
-      sourceSize,
-      sourceSize,
-      0,
-      0,
-      sourceSize,
-      sourceSize,
-    );
+    ctx.drawImage(image, sourceX, sourceY, sourceW, sourceH, 0, 0, sourceW, sourceH);
 
     const blob = await new Promise<Blob | null>((resolve) =>
       canvas.toBlob((b) => resolve(b), 'image/png'),
@@ -183,7 +240,7 @@ export function ImageCropper({ src, className, onReadyChange, cropperRef }: Imag
     if (!blob) return null;
 
     return {
-      source: { x: sourceX, y: sourceY, size: sourceSize },
+      source: { x: sourceX, y: sourceY, width: sourceW, height: sourceH },
       display: { ...crop },
       natural: { ...natural },
       displaySize: { ...displaySize },
@@ -222,55 +279,115 @@ export function ImageCropper({ src, className, onReadyChange, cropperRef }: Imag
       if (!maxW || !maxH) return;
 
       if (dragMode === 'move') {
-        setCrop({
-          x: clamp(origin.x + dx, 0, maxW - origin.size),
-          y: clamp(origin.y + dy, 0, maxH - origin.size),
-          size: origin.size,
-        });
+        setCrop(
+          clampCrop(
+            {
+              x: origin.x + dx,
+              y: origin.y + dy,
+              width: origin.width,
+              height: origin.height,
+            },
+            maxW,
+            maxH,
+          ),
+        );
+        return;
+      }
+
+      const lockSquare = aspectRef.current === 'square';
+
+      if (lockSquare) {
+        let nextX = origin.x;
+        let nextY = origin.y;
+        let nextSize = origin.width;
+
+        if (dragMode === 'resize-se') {
+          nextSize = origin.width + Math.max(dx, dy);
+        } else if (dragMode === 'resize-nw') {
+          nextSize = origin.width - Math.max(dx, dy);
+        } else if (dragMode === 'resize-ne') {
+          nextSize = origin.width + Math.max(dx, -dy);
+        } else if (dragMode === 'resize-sw') {
+          nextSize = origin.width + Math.max(-dx, dy);
+        }
+
+        nextSize = clamp(nextSize, MIN_CROP, Math.min(maxW, maxH));
+
+        if (dragMode === 'resize-nw') {
+          nextX = origin.x + origin.width - nextSize;
+          nextY = origin.y + origin.height - nextSize;
+        } else if (dragMode === 'resize-ne') {
+          nextY = origin.y + origin.height - nextSize;
+        } else if (dragMode === 'resize-sw') {
+          nextX = origin.x + origin.width - nextSize;
+        }
+
+        if (nextX < 0) {
+          nextSize += nextX;
+          nextX = 0;
+        }
+        if (nextY < 0) {
+          nextSize += nextY;
+          nextY = 0;
+        }
+        if (nextX + nextSize > maxW) nextSize = maxW - nextX;
+        if (nextY + nextSize > maxH) nextSize = maxH - nextY;
+
+        nextSize = Math.max(MIN_CROP, nextSize);
+        setCrop(
+          clampCrop({ x: nextX, y: nextY, width: nextSize, height: nextSize }, maxW, maxH),
+        );
         return;
       }
 
       let nextX = origin.x;
       let nextY = origin.y;
-      let nextSize = origin.size;
+      let nextW = origin.width;
+      let nextH = origin.height;
 
       if (dragMode === 'resize-se') {
-        nextSize = origin.size + Math.max(dx, dy);
+        nextW = origin.width + dx;
+        nextH = origin.height + dy;
       } else if (dragMode === 'resize-nw') {
-        nextSize = origin.size - Math.max(dx, dy);
+        nextW = origin.width - dx;
+        nextH = origin.height - dy;
+        nextX = origin.x + dx;
+        nextY = origin.y + dy;
       } else if (dragMode === 'resize-ne') {
-        nextSize = origin.size + Math.max(dx, -dy);
+        nextW = origin.width + dx;
+        nextH = origin.height - dy;
+        nextY = origin.y + dy;
       } else if (dragMode === 'resize-sw') {
-        nextSize = origin.size + Math.max(-dx, dy);
+        nextW = origin.width - dx;
+        nextH = origin.height + dy;
+        nextX = origin.x + dx;
       }
 
-      nextSize = clamp(nextSize, MIN_CROP, Math.min(maxW, maxH));
-
-      if (dragMode === 'resize-nw') {
-        nextX = origin.x + origin.size - nextSize;
-        nextY = origin.y + origin.size - nextSize;
-      } else if (dragMode === 'resize-ne') {
-        nextY = origin.y + origin.size - nextSize;
-      } else if (dragMode === 'resize-sw') {
-        nextX = origin.x + origin.size - nextSize;
+      if (nextW < MIN_CROP) {
+        if (dragMode === 'resize-nw' || dragMode === 'resize-sw') {
+          nextX = origin.x + origin.width - MIN_CROP;
+        }
+        nextW = MIN_CROP;
+      }
+      if (nextH < MIN_CROP) {
+        if (dragMode === 'resize-nw' || dragMode === 'resize-ne') {
+          nextY = origin.y + origin.height - MIN_CROP;
+        }
+        nextH = MIN_CROP;
       }
 
       if (nextX < 0) {
-        nextSize += nextX;
+        nextW += nextX;
         nextX = 0;
       }
       if (nextY < 0) {
-        nextSize += nextY;
+        nextH += nextY;
         nextY = 0;
       }
-      if (nextX + nextSize > maxW) nextSize = maxW - nextX;
-      if (nextY + nextSize > maxH) nextSize = maxH - nextY;
+      if (nextX + nextW > maxW) nextW = maxW - nextX;
+      if (nextY + nextH > maxH) nextH = maxH - nextY;
 
-      nextSize = Math.max(MIN_CROP, nextSize);
-      nextX = clamp(nextX, 0, maxW - nextSize);
-      nextY = clamp(nextY, 0, maxH - nextSize);
-
-      setCrop({ x: nextX, y: nextY, size: nextSize });
+      setCrop(clampFreeCrop({ x: nextX, y: nextY, width: nextW, height: nextH }, maxW, maxH));
     };
 
     const onUp = () => {
@@ -286,11 +403,11 @@ export function ImageCropper({ src, className, onReadyChange, cropperRef }: Imag
   };
 
   return (
-    <div ref={frameRef} className={`${styles.frame} ${className ?? ''}`}>
+    <div className={`${styles.frame} ${className ?? ''}`}>
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img ref={imgRef} src={src} alt="" className={styles.image} draggable={false} />
 
-      {ready && crop.size > 0 ? (
+      {ready && crop.width > 0 && crop.height > 0 ? (
         <div
           className={styles.overlay}
           style={{ width: displaySize.width, height: displaySize.height }}
@@ -300,8 +417,8 @@ export function ImageCropper({ src, className, onReadyChange, cropperRef }: Imag
             style={{
               left: crop.x,
               top: crop.y,
-              width: crop.size,
-              height: crop.size,
+              width: crop.width,
+              height: crop.height,
             }}
             onPointerDown={onPointerDown('move')}
           >
