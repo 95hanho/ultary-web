@@ -18,23 +18,25 @@ export default function PetPhotoClient() {
   const params = useParams<{ nickname: string; petId: string }>();
   const nickname = typeof params.nickname === 'string' ? params.nickname : params.nickname?.[0];
   const petId = typeof params.petId === 'string' ? params.petId : params.petId?.[0];
-  const backHref = myUltaryPath(nickname);
 
   const cropperRef = useRef<{ getResult: () => Promise<CropResult | null> } | null>(null);
   const [photo, setPhoto] = useState<PendingPetPhoto | null>(null);
   const [ready, setReady] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
+  const defaultBackHref = myUltaryPath(nickname);
+  const backHref = photo?.returnHref ?? defaultBackHref;
+
   useEffect(() => {
     const pending = getPendingPetPhoto();
     if (!pending || (petId && pending.petId !== petId)) {
-      router.replace(backHref);
+      router.replace(pending?.returnHref ?? defaultBackHref);
       return;
     }
     setTimeout(() => {
       setPhoto(pending);
     }, 0);
-  }, [petId, router, backHref]);
+  }, [petId, router, defaultBackHref]);
 
   const handleSubmit = async () => {
     if (submitting) return;

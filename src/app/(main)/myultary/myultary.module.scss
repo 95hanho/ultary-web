@@ -54,19 +54,46 @@
 }
 
 .bioRow {
-  display: flex;
-  align-items: flex-start;
-  gap: 6px;
   margin-bottom: 6px;
+}
+
+.bioRowEditing {
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .bio {
   margin: 0;
-  flex: 1;
   color: var(--brand-black-700);
   font-size: 13px;
   line-height: 1.4;
-  display: flex;
+
+  .iconBtn {
+    display: inline-flex;
+    vertical-align: text-bottom;
+    margin-left: 4px;
+  }
+}
+
+.bioInput {
+  box-sizing: border-box;
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-bottom: 1px solid var(--brand-gray-200);
+  background: transparent;
+  color: var(--brand-black-700);
+  font: inherit;
+  font-size: 13px;
+  line-height: 1.4;
+  outline: none;
+
+  &:focus {
+    border-bottom-color: var(--brand-grass-600);
+  }
 }
 
 .birthdayRow {

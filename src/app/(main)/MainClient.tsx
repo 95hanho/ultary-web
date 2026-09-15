@@ -16,7 +16,6 @@ import { FreeMode } from 'swiper/modules';
 import { Swiper, SwiperSlide } from 'swiper/react';
 import styles from './main.module.scss';
 
-const SettingIcon = '/images/icon/Setting_line.svg';
 const ArrowLeftIcon = '/images/icon/arrow_left.svg';
 const ArrowRightIcon = '/images/icon/arrow_right.svg';
 
@@ -62,13 +61,7 @@ export default function MainClient() {
 
   return (
     <div className={styles.shell}>
-      <LogoHeader
-        actions={
-          <Link href="/settings" className={styles.iconBtn} aria-label="설정">
-            <Image src={SettingIcon} alt="" width={35} height={35} />
-          </Link>
-        }
-      />
+      <LogoHeader />
 
       <main className={styles.main}>
         <section className={styles.stories} aria-label="스토리">

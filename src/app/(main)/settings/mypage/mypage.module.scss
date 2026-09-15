@@ -8,8 +8,86 @@
   padding-bottom: 160px;
 }
 
+.main {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 8px 15px 0;
+  align-items: center;
+}
+
+.rows {
+  display: flex;
+  width: 100%;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.row {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 5px;
+  color: var(--brand-black-700);
+  font-size: 18px;
+  letter-spacing: 0.36px;
+  line-height: 1.2;
+}
+
+.rowLabel {
+  flex-shrink: 0;
+  font-weight: 400;
+}
+
+.rowValue {
+  min-width: 0;
+  font-weight: 700;
+  text-align: right;
+  word-break: break-all;
+}
+
+.passwordChangeBtn {
+  flex-shrink: 0;
+  padding: 7px 12px;
+  border: 0;
+  border-radius: 10px;
+  background: var(--brand-gray-150, #cecece);
+  color: var(--brand-black-700);
+  font-size: 18px;
+  font-weight: 400;
+  letter-spacing: 0.36px;
+  line-height: 1.2;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.primaryBtn {
+  display: flex;
+  width: 100%;
+  max-width: 344px;
+  height: 50px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--brand-gray-100);
+  border-radius: 15px;
+  background: linear-gradient(
+    90deg,
+    var(--brand-grass-400) 21%,
+    var(--brand-grass-500) 40%,
+    var(--brand-grass-600) 74%
+  );
+  color: #fff;
+  font-size: 20px;
+  font-weight: 700;
+  text-decoration: none;
+  cursor: pointer;
+}
+
 .form {
   display: flex;
+  width: 100%;
   flex-direction: column;
   gap: 15px;
   padding: 8px 15px 0;
@@ -81,7 +159,7 @@
   padding: 15px 32px 15px 15px;
 }
 
-.row {
+.regionRow {
   display: flex;
   gap: 5px;
   width: 100%;
@@ -125,6 +203,24 @@
   }
 }
 
+.fieldError {
+  margin: 0;
+  padding: 0 5px;
+  color: var(--brand-red-500);
+  font-size: 11px;
+  letter-spacing: -0.22px;
+  line-height: 1.35;
+}
+
+.fieldNote {
+  margin: 0;
+  padding: 0 5px;
+  color: var(--brand-gray-500);
+  font-size: 11px;
+  letter-spacing: -0.22px;
+  line-height: 1.35;
+}
+
 .errorBanner {
   margin: 0;
   padding: 10px 12px;
@@ -141,32 +237,4 @@
   background: #f0fff4;
   color: #237804;
   font-size: 13px;
-}
-
-/* 입력 검증 오류 (조건부) */
-.fieldError {
-  margin: 0;
-  padding: 0 5px;
-  color: var(--brand-red-500);
-  font-size: 12px;
-  letter-spacing: -0.22px;
-  line-height: 1.35;
-}
-
-/* 상시 정책 주석 (검증 메시지와 별도) */
-.fieldNote {
-  margin: 0;
-  padding: 0 5px;
-  color: var(--brand-gray-500);
-  font-size: 12px;
-  letter-spacing: -0.22px;
-  line-height: 1.35;
-}
-
-.hint {
-  margin: 0;
-  padding: 0 5px;
-  color: var(--brand-gray-400);
-  font-size: 12px;
-  line-height: 1.4;
 }

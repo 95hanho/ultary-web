@@ -7,29 +7,22 @@ import { isHttpError } from '@/lib/api/error';
 import {
   filterCode,
   filterEmail,
-  filterName,
   filterNickname,
   filterPhone,
   MSG,
   validateEmail,
   validateNickname,
-  validatePassword,
   validatePhone,
 } from '@/lib/auth/signup-rules';
+import { MOCK_MY_PROFILE } from '@/lib/mock/mypage';
 import { getSigunguOptions, isSigunguDisabled, REGION_NONE, SIDO_OPTIONS } from '@/lib/region';
-import type { PhoneAuthResponse, PhoneVerifyResponse, SignupRequest } from '@/types/api';
+import type { PhoneAuthResponse, PhoneVerifyResponse } from '@/types/api';
 import clsx from 'clsx';
 import { useRouter } from 'next/navigation';
 import { useRef, useState, useTransition } from 'react';
-import styles from './signup.module.scss';
+import styles from '../mypage.module.scss';
 
-/**
- * 개발 전용: 휴대폰 인증요청/확인 API를 호출하지 않고 무조건 성공.
- * 끄려면 아래 `true`를 `false`로 바꾸거나 해당 줄을 주석 처리.
- */
 const DEV_SKIP_PHONE_AUTH = process.env.NODE_ENV === 'development' && true;
-// process.env.NODE_ENV === 'development' && false;
-
 const DEV_PHONE_AUTH_TOKEN = 'dev-phone-auth-token';
 const DEV_PHONE_AUTH_COMPLETE_TOKEN = 'dev-phone-auth-complete-token';
 
@@ -39,67 +32,53 @@ type ApiEnvelope<T> = {
   data?: T;
 };
 
-function pickErrorMessage(err: unknown, fallback: string) {
-  if (isHttpError(err) && err.data && typeof err.data === 'object') {
-    const data = err.data as Record<string, unknown>;
-    if (typeof data.detail === 'string' && data.detail.trim()) return data.detail;
-    if (typeof data.message === 'string' && data.message.trim()) {
-      const code = data.message;
-      if (code === 'NICKNAME_DUPLICATED') return '이미 사용 중인 닉네임입니다.';
-      if (code === 'PHONE_ALREADY_USED') return '이미 가입된 휴대폰 번호입니다.';
-      if (code === 'EMAIL_DUPLICATED') return '이미 사용 중인 이메일입니다.';
-      return data.message;
-    }
-  }
-  if (err instanceof Error && err.message) return err.message;
-  return fallback;
-}
-
 type FieldErrors = {
-  phone?: string;
-  email?: string;
-  password?: string;
-  passwordConfirm?: string;
-  name?: string;
   nickname?: string;
+  email?: string;
+  phone?: string;
   regionSido?: string;
   regionSigungu?: string;
 };
 
 const FIELD_ORDER: (keyof FieldErrors)[] = [
-  'phone',
-  'email',
-  'password',
-  'passwordConfirm',
-  'name',
   'nickname',
+  'email',
+  'phone',
   'regionSido',
   'regionSigungu',
 ];
+
+function pickErrorMessage(err: unknown, fallback: string) {
+  if (isHttpError(err) && err.data && typeof err.data === 'object') {
+    const data = err.data as Record<string, unknown>;
+    if (typeof data.detail === 'string' && data.detail.trim()) return data.detail;
+    if (typeof data.message === 'string' && data.message.trim()) return data.message;
+  }
+  if (err instanceof Error && err.message) return err.message;
+  return fallback;
+}
 
 function FieldHint({ message }: { message?: string }) {
   if (!message) return null;
   return <p className={styles.fieldError}>* {message}</p>;
 }
 
-/** 검증과 별개로 항상 노출되는 정책 안내 */
 function FieldNote({ children }: { children: string }) {
   return <p className={styles.fieldNote}>* {children}</p>;
 }
 
-export default function SignupClient() {
+/** 설정 > 마이페이지 > 회원정보 수정 */
+export default function MyPageEditClient() {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
+  const profile = MOCK_MY_PROFILE;
 
-  const [password, setPassword] = useState('');
-  const [passwordConfirm, setPasswordConfirm] = useState('');
-  const [name, setName] = useState('');
-  const [nickname, setNickname] = useState('');
-  const [email, setEmail] = useState('');
-  const [phone, setPhone] = useState('');
+  const [nickname, setNickname] = useState(profile.nickname);
+  const [email, setEmail] = useState(profile.email);
+  const [phone, setPhone] = useState(profile.phone);
   const [code, setCode] = useState('');
-  const [regionSido, setRegionSido] = useState(REGION_NONE);
-  const [regionSigungu, setRegionSigungu] = useState(REGION_NONE);
+  const [regionSido, setRegionSido] = useState(profile.regionSido);
+  const [regionSigungu, setRegionSigungu] = useState(profile.regionSigungu);
 
   const [phoneAuthToken, setPhoneAuthToken] = useState('');
   const [phoneAuthCompleteToken, setPhoneAuthCompleteToken] = useState('');
@@ -109,12 +88,9 @@ export default function SignupClient() {
   const [formError, setFormError] = useState<string | null>(null);
   const [infoMessage, setInfoMessage] = useState<string | null>(null);
 
-  const phoneRef = useRef<HTMLInputElement>(null);
-  const emailRef = useRef<HTMLInputElement>(null);
-  const passwordRef = useRef<HTMLInputElement>(null);
-  const passwordConfirmRef = useRef<HTMLInputElement>(null);
-  const nameRef = useRef<HTMLInputElement>(null);
   const nicknameRef = useRef<HTMLInputElement>(null);
+  const emailRef = useRef<HTMLInputElement>(null);
+  const phoneRef = useRef<HTMLInputElement>(null);
   const regionSidoRef = useRef<HTMLSelectElement>(null);
   const regionSigunguRef = useRef<HTMLSelectElement>(null);
 
@@ -165,7 +141,7 @@ export default function SignupClient() {
         setPhoneAuthToken(token);
         setPhoneAuthCompleteToken('');
         setPhoneVerified(false);
-        setInfoMessage('인증번호를 발송했습니다. (로컬은 서버 로그 확인)');
+        setInfoMessage('인증번호를 발송했습니다.');
       } catch (err) {
         setFormError(pickErrorMessage(err, '인증번호 발송에 실패했습니다.'));
       }
@@ -211,29 +187,23 @@ export default function SignupClient() {
     });
   }
 
-  function submitSignup() {
+  function submitEdit() {
     setFormError(null);
     setInfoMessage(null);
 
     const next: FieldErrors = {};
-    const phoneErr = validatePhone(phone);
-    if (phoneErr) next.phone = phoneErr;
-    else if (!phoneAuthCompleteToken) next.phone = MSG.phoneAuth;
-
-    const emailErr = validateEmail(email);
-    if (emailErr) next.email = emailErr;
-
-    const pwErr = validatePassword(password);
-    if (pwErr) next.password = pwErr;
-    if (!passwordConfirm) next.passwordConfirm = MSG.passwordRequired;
-    else if (password !== passwordConfirm) next.passwordConfirm = MSG.passwordConfirm;
-
-    if (!name.trim()) next.name = MSG.nameRequired;
     if (!nickname.trim()) next.nickname = MSG.nicknameRequired;
     else {
       const nickErr = validateNickname(nickname);
       if (nickErr) next.nickname = nickErr;
     }
+
+    const emailErr = validateEmail(email);
+    if (emailErr) next.email = emailErr;
+
+    const phoneErr = validatePhone(phone);
+    if (phoneErr) next.phone = phoneErr;
+    else if (!phoneAuthCompleteToken) next.phone = MSG.phoneAuth;
 
     if (regionSido === REGION_NONE) next.regionSido = MSG.sidoRequired;
     if (!sigunguDisabled && regionSigungu === REGION_NONE) {
@@ -245,12 +215,9 @@ export default function SignupClient() {
       const first = FIELD_ORDER.find((key) => next[key]);
       const el = first
         ? {
-            phone: phoneRef,
-            email: emailRef,
-            password: passwordRef,
-            passwordConfirm: passwordConfirmRef,
-            name: nameRef,
             nickname: nicknameRef,
+            email: emailRef,
+            phone: phoneRef,
             regionSido: regionSidoRef,
             regionSigungu: regionSigunguRef,
           }[first].current
@@ -260,36 +227,62 @@ export default function SignupClient() {
       return;
     }
 
-    const body: SignupRequest = {
-      phoneAuthCompleteToken,
-      password,
+    console.log('[mypage-edit] submit', {
       nickname,
-      name: name.trim() || undefined,
-      email: email.trim() || undefined,
-    };
-
-    startTransition(async () => {
-      try {
-        await bffPostJson(bffEndpoints.auth.signup, body);
-        router.replace('/');
-        router.refresh();
-      } catch (err) {
-        setFormError(pickErrorMessage(err, '회원가입에 실패했습니다.'));
-      }
+      email,
+      phone,
+      phoneAuthCompleteToken,
+      regionSido,
+      regionSigungu,
     });
+    router.push('/settings/mypage');
   }
 
   return (
     <div className={styles.shell}>
-      <PageHeader
-        title="회원가입"
-        backHref="/login"
-        onSubmit={submitSignup}
-      />
+      <PageHeader title="회원 정보 수정" backHref="/settings/mypage" onSubmit={submitEdit} />
 
       <div className={styles.form}>
         {formError ? <p className={styles.errorBanner}>{formError}</p> : null}
         {infoMessage ? <p className={styles.infoBanner}>{infoMessage}</p> : null}
+
+        <label className={styles.field}>
+          <span className={styles.label}>닉네임</span>
+          <div className={styles.inputWrap}>
+            <input
+              ref={nicknameRef}
+              type="text"
+              value={nickname}
+              onChange={(e) => {
+                setNickname(filterNickname(e.target.value));
+                clearError('nickname');
+              }}
+              placeholder="닉네임을 입력해주세요."
+              className={styles.input}
+            />
+            <FieldNote>닉네임은 3개월에 한 번만 변경할 수 있습니다.</FieldNote>
+            <FieldHint message={errors.nickname} />
+          </div>
+        </label>
+
+        <label className={styles.field}>
+          <span className={styles.label}>이메일</span>
+          <div className={styles.inputWrap}>
+            <input
+              ref={emailRef}
+              type="email"
+              value={email}
+              onChange={(e) => {
+                setEmail(filterEmail(e.target.value));
+                clearError('email');
+              }}
+              placeholder="이메일을 입력해주세요."
+              autoComplete="email"
+              className={styles.input}
+            />
+            <FieldHint message={errors.email} />
+          </div>
+        </label>
 
         <div className={styles.field}>
           <span className={styles.label}>연락처</span>
@@ -341,102 +334,7 @@ export default function SignupClient() {
           </div>
         ) : null}
 
-        <label className={styles.field}>
-          <span className={styles.label}>이메일</span>
-          <div className={styles.inputWrap}>
-            <input
-              ref={emailRef}
-              type="email"
-              value={email}
-              onChange={(e) => {
-                setEmail(filterEmail(e.target.value));
-                clearError('email');
-              }}
-              placeholder="이메일을 입력해주세요."
-              autoComplete="email"
-              className={styles.input}
-            />
-            <FieldHint message={errors.email} />
-          </div>
-        </label>
-
-        <label className={styles.field}>
-          <span className={styles.label}>비밀번호</span>
-          <div className={styles.inputWrap}>
-            <input
-              ref={passwordRef}
-              type="password"
-              value={password}
-              onChange={(e) => {
-                setPassword(e.target.value);
-                clearError('password');
-              }}
-              placeholder="비밀번호를 입력해주세요."
-              autoComplete="new-password"
-              className={styles.input}
-            />
-            <FieldHint message={errors.password} />
-          </div>
-        </label>
-
-        <label className={styles.field}>
-          <span className={styles.label}>비밀번호 확인</span>
-          <div className={styles.inputWrap}>
-            <input
-              ref={passwordConfirmRef}
-              type="password"
-              value={passwordConfirm}
-              onChange={(e) => {
-                setPasswordConfirm(e.target.value);
-                clearError('passwordConfirm');
-              }}
-              placeholder="비밀번호를 입력해주세요."
-              autoComplete="new-password"
-              className={styles.input}
-            />
-            <FieldHint message={errors.passwordConfirm} />
-          </div>
-        </label>
-
-        <label className={styles.field}>
-          <span className={styles.label}>이름</span>
-          <div className={styles.inputWrap}>
-            <input
-              ref={nameRef}
-              type="text"
-              value={name}
-              onChange={(e) => {
-                setName(filterName(e.target.value));
-                clearError('name');
-              }}
-              placeholder="이름을 입력해주세요."
-              className={styles.input}
-            />
-            <FieldNote>이름은 한 번 정하면 바꿀 수 없습니다.</FieldNote>
-            <FieldHint message={errors.name} />
-          </div>
-        </label>
-
-        <label className={styles.field}>
-          <span className={styles.label}>닉네임</span>
-          <div className={styles.inputWrap}>
-            <input
-              ref={nicknameRef}
-              type="text"
-              value={nickname}
-              onChange={(e) => {
-                setNickname(filterNickname(e.target.value));
-                clearError('nickname');
-              }}
-              placeholder="닉네임을 입력해주세요."
-              className={styles.input}
-            />
-            <FieldNote>닉네임은 3개월에 한 번만 변경할 수 있습니다.</FieldNote>
-            <FieldHint message={errors.nickname} />
-          </div>
-        </label>
-
-        <div className={styles.row}>
+        <div className={styles.regionRow}>
           <label className={styles.field}>
             <span className={styles.label}>지역 시/도</span>
             <div className={styles.inputWrap}>
@@ -484,10 +382,6 @@ export default function SignupClient() {
             </div>
           </label>
         </div>
-
-        <p className={styles.hint}>
-          지역은 UI만 반영되어 있으며, 회원가입 API에는 아직 포함하지 않습니다.
-        </p>
       </div>
     </div>
   );

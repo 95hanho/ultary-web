@@ -4,7 +4,6 @@ import { FooterMenu } from '@/components/common/FooterMenu';
 import { PageHeader } from '@/components/common/PageHeader';
 import { bffPostJson } from '@/lib/api/bffFetch';
 import { bffEndpoints } from '@/lib/api/endpoints';
-import { myUltaryPath } from '@/lib/mock/ultary-accounts';
 import {
   Ban,
   Bell,
@@ -27,7 +26,6 @@ import { useState, useTransition } from 'react';
 import styles from './settings.module.scss';
 
 const ArrowRightIcon = '/images/icon/arrow_right.svg';
-const MY_ULTARY = myUltaryPath();
 
 type MenuItem = {
   label: string;
@@ -44,8 +42,8 @@ const MENU_GROUPS: MenuGroup[] = [
   {
     title: '계정',
     items: [
-      { label: '마이페이지', href: MY_ULTARY, Icon: User },
-      { label: '반려동물 관리', href: MY_ULTARY, Icon: PawPrint },
+      { label: '마이페이지', href: '/settings/mypage', Icon: User },
+      { label: '반려동물 관리', href: '/settings/pets', Icon: PawPrint },
       { label: '계정 / 보안', href: '#', Icon: Shield },
       { label: '회원탈퇴', href: '#', Icon: UserMinus },
     ],

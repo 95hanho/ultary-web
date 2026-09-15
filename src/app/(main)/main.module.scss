@@ -9,12 +9,6 @@
   padding-bottom: 72px;
 }
 
-.iconBtn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-
 .main {
   display: flex;
   flex: 1;
@@ -53,7 +47,7 @@
   max-width: 100%;
   overflow: hidden;
   color: var(--brand-black-700);
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.2;
   text-align: center;
   text-overflow: ellipsis;

@@ -5,6 +5,8 @@ export type PendingPetPhoto = {
   dataUrl: string;
   fileName: string;
   mimeType: string;
+  /** 크롭 완료/뒤로 시 이동 경로 (없으면 마이울타리) */
+  returnHref?: string;
 };
 
 /** 파일 선택 직후 크롭 페이지로 넘길 임시 이미지 */

@@ -11,10 +11,11 @@ import { useWriteDraftStore } from '@/stores/write-draft.store';
 import { useStoryDraftStore } from '@/stores/story-draft.store';
 import { useModalStore } from '@/stores/modal.store';
 import clsx from 'clsx';
+import { Check } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useMemo, useRef, useState, type ChangeEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
 import type { Swiper as SwiperType } from 'swiper';
 import 'swiper/css';
 import 'swiper/css/free-mode';
@@ -146,6 +147,9 @@ export default function MyUltaryClient({ nickname }: MyUltaryClientProps) {
   const [selectedPetId, setSelectedPetId] = useState(MOCK_PETS[0]?.id ?? '');
   const [contentTab, setContentTab] = useState<ContentTab>('feed');
   const [photoTargetPetId, setPhotoTargetPetId] = useState<string | null>(null);
+  const [bio, setBio] = useState(() => getUltaryAccount(nickname)?.bio ?? '');
+  const [editingBio, setEditingBio] = useState(false);
+  const bioInputRef = useRef<HTMLInputElement>(null);
 
   const openModal = useModalStore((s) => s.open);
   const setWriteItems = useWriteDraftStore((s) => s.setItems);
@@ -158,6 +162,20 @@ export default function MyUltaryClient({ nickname }: MyUltaryClientProps) {
   const selectedPet = MOCK_PETS.find((pet) => pet.id === selectedPetId) ?? MOCK_PETS[0];
   const birthdayPet = MOCK_PETS.find((pet) => pet.isBirthday);
   const showPetNav = MOCK_PETS.length > 4;
+
+  useEffect(() => {
+    if (!editingBio) return;
+    const input = bioInputRef.current;
+    if (!input) return;
+    input.focus();
+    const len = input.value.length;
+    input.setSelectionRange(len, len);
+  }, [editingBio]);
+
+  const finishEditBio = () => {
+    setBio((prev) => prev.trim());
+    setEditingBio(false);
+  };
 
   const openCreateMenu = () => {
     openModal({
@@ -334,15 +352,46 @@ export default function MyUltaryClient({ nickname }: MyUltaryClientProps) {
             </li>
           </ul>
 
-          <div className={styles.bioRow}>
-            <p className={styles.bio}>
-              {account.bio}
-              {isOwnAccount ? (
-                <button type="button" className={styles.iconBtn} aria-label="소개글 수정">
-                  <Image src={EditIcon} alt="" width={18} height={18} />
+          <div className={clsx(styles.bioRow, editingBio && styles.bioRowEditing)}>
+            {editingBio ? (
+              <>
+                <input
+                  ref={bioInputRef}
+                  className={styles.bioInput}
+                  value={bio}
+                  onChange={(e) => setBio(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      finishEditBio();
+                    }
+                  }}
+                  aria-label="소개글"
+                />
+                <button
+                  type="button"
+                  className={styles.iconBtn}
+                  aria-label="소개글 수정 완료"
+                  onClick={finishEditBio}
+                >
+                  <Check size={18} strokeWidth={2.5} aria-hidden />
                 </button>
-              ) : null}
-            </p>
+              </>
+            ) : (
+              <p className={styles.bio}>
+                {bio}
+                {isOwnAccount ? (
+                  <button
+                    type="button"
+                    className={styles.iconBtn}
+                    aria-label="소개글 수정"
+                    onClick={() => setEditingBio(true)}
+                  >
+                    <Image src={EditIcon} alt="" width={18} height={18} />
+                  </button>
+                ) : null}
+              </p>
+            )}
           </div>
 
           {birthdayPet ? (
