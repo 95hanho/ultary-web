@@ -1,0 +1,130 @@
+.shell {
+  position: relative;
+  z-index: 10;
+  display: flex;
+  width: 100%;
+  max-width: 430px;
+  height: 100dvh;
+  max-height: 100dvh;
+  margin: 0 auto;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.main {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+  overflow-y: auto;
+  padding-bottom: 72px;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 6px 10px;
+  list-style: none;
+  border-radius: 10px;
+  background: rgba(243, 254, 255, 0.72);
+}
+
+.item {
+  margin: 0;
+  padding: 0;
+}
+
+.itemBody {
+  display: flex;
+  width: 100%;
+  min-height: 47px;
+  align-items: center;
+}
+
+.imageWrap {
+  display: flex;
+  flex-shrink: 0;
+  align-items: flex-start;
+  justify-content: center;
+  width: 47px;
+  height: 47px;
+  padding: 4px;
+  box-sizing: border-box;
+  border-radius: 7px;
+  overflow: hidden;
+  text-decoration: none;
+}
+
+.image {
+  display: block;
+  width: 39px;
+  height: 39px;
+  flex-shrink: 0;
+  object-fit: cover;
+  border-radius: 5px;
+}
+
+.info {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+  padding: 4px 5px;
+}
+
+.nickname {
+  color: var(--brand-grass-600);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.35;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  word-break: break-all;
+}
+
+.time {
+  color: var(--brand-gray-500);
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.35;
+  white-space: nowrap;
+}
+
+.actionWrap {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  align-self: stretch;
+  padding: 4px 0 4px 5px;
+  box-sizing: border-box;
+}
+
+.actionBtn {
+  display: inline-flex;
+  min-width: 70px;
+  height: 29px;
+  align-items: center;
+  justify-content: center;
+  padding: 5px 8px;
+  border: 1px solid var(--brand-black-700);
+  border-radius: 7px;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.actionBlue {
+  background: var(--brand-blue-600);
+  color: #fff;
+}
+
+.actionGray {
+  background: var(--brand-gray-100);
+  color: var(--brand-black-700);
+}

@@ -54,7 +54,7 @@ const MENU_GROUPS: MenuGroup[] = [
     items: [
       { label: '내 활동', href: '/settings/activity', Icon: List },
       { label: '주민 · 이웃 관리', href: '#', Icon: Users },
-      { label: '차단한 사용자', href: '#', Icon: Ban },
+      { label: '차단한 사용자', href: '/settings/blocked', Icon: Ban },
     ],
   },
   {
