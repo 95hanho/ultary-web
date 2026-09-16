@@ -1,5 +1,6 @@
 'use client';
 
+import { FooterMenu } from '@/components/common/FooterMenu';
 import { PageHeader } from '@/components/common/PageHeader';
 import {
   formatPhoneDisplay,
@@ -58,6 +59,8 @@ export default function MyPageClient() {
           회원정보 수정
         </Link>
       </div>
+
+      <FooterMenu />
     </div>
   );
 }

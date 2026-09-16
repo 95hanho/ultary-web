@@ -13,7 +13,7 @@ import {
   Info,
   List,
   PawPrint,
-  Shield,
+  // Shield, // 계정/보안 메뉴 복구 시 함께 해제
   User,
   UserMinus,
   Users,
@@ -44,14 +44,15 @@ const MENU_GROUPS: MenuGroup[] = [
     items: [
       { label: '마이페이지', href: '/settings/mypage', Icon: User },
       { label: '반려동물 관리', href: '/settings/pets', Icon: PawPrint },
-      { label: '계정 / 보안', href: '#', Icon: Shield },
-      { label: '회원탈퇴', href: '#', Icon: UserMinus },
+      // 마이페이지에서 비밀번호·회원정보 수정 가능 — 계정/보안 메뉴는 미사용
+      // { label: '계정 / 보안', href: '#', Icon: Shield },
+      { label: '회원탈퇴', href: '/settings/withdraw', Icon: UserMinus },
     ],
   },
   {
     title: '활동 · 관계',
     items: [
-      { label: '내 활동', href: '#', Icon: List },
+      { label: '내 활동', href: '/settings/activity', Icon: List },
       { label: '주민 · 이웃 관리', href: '#', Icon: Users },
       { label: '차단한 사용자', href: '#', Icon: Ban },
     ],
