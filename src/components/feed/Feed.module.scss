@@ -116,13 +116,24 @@
 
 .actionBtn {
   display: inline-flex;
+  align-items: center;
+  gap: 4px;
   padding: 0;
   border: 0;
   background: transparent;
+  color: var(--brand-black-700);
   cursor: pointer;
   > img {
     object-fit: cover;
   }
+}
+
+.actionCount {
+  min-width: 1ch;
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
 }
 
 .captionWrap {

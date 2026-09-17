@@ -8,6 +8,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react
 import type { Swiper as SwiperType } from 'swiper';
 import 'swiper/css';
 import { Swiper, SwiperSlide } from 'swiper/react';
+import { CommentSheet } from './CommentSheet';
 import styles from './Feed.module.scss';
 import { TagExplainPopover, type TagExplainMode } from './TagExplainPopover';
 
@@ -34,6 +35,8 @@ export type FeedData = {
   isFavorite?: boolean;
   /** 저장 여부 */
   isStored?: boolean;
+  likeCount?: number;
+  commentCount?: number;
 };
 
 /** 메인 피드 게시글 카드 */
@@ -46,6 +49,8 @@ export function Feed({
   story = 'none',
   isFavorite = false,
   isStored = false,
+  likeCount = 0,
+  commentCount = 0,
 }: FeedData) {
   const [index, setIndex] = useState(0);
   const [expanded, setExpanded] = useState(false);
@@ -64,6 +69,17 @@ export function Feed({
     mode: TagExplainMode;
     closeRequested?: boolean;
   } | null>(null);
+  const [commentsOpen, setCommentsOpen] = useState(false);
+
+  useEffect(() => {
+    try {
+      if (new URLSearchParams(window.location.search).get('comments') === id) {
+        setCommentsOpen(true);
+      }
+    } catch {
+      /* ignore */
+    }
+  }, [id]);
 
   useEffect(() => {
     const onPointerDown = (e: PointerEvent) => {
@@ -228,16 +244,23 @@ export function Feed({
 
         <div className={styles.actions}>
           <div className={styles.actionsLeft}>
-            <button type="button" className={styles.actionBtn} aria-label="좋아요">
+            <button type="button" className={styles.actionBtn} aria-label={`좋아요 ${likeCount}`}>
               <Image
                 src={isFavorite ? FavoriteFillIcon : FavoriteIcon}
                 alt=""
                 width={25}
                 height={25}
               />
+              <span className={styles.actionCount}>{likeCount}</span>
             </button>
-            <button type="button" className={styles.actionBtn} aria-label="댓글">
+            <button
+              type="button"
+              className={styles.actionBtn}
+              aria-label={`댓글 ${commentCount}`}
+              onClick={() => setCommentsOpen(true)}
+            >
               <Image src={CommentIcon} alt="" width={21} height={20} />
+              <span className={styles.actionCount}>{commentCount}</span>
             </button>
             <button type="button" className={styles.actionBtn} aria-label="공유">
               <Image src={ShareIcon} alt="" width={23} height={23} />
@@ -313,6 +336,12 @@ export function Feed({
           }}
         />
       ) : null}
+
+      <CommentSheet
+        open={commentsOpen}
+        onClose={() => setCommentsOpen(false)}
+        feedId={id}
+      />
     </article>
   );
 }
