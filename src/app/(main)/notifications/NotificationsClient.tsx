@@ -2,12 +2,17 @@
 
 import { FooterMenu } from '@/components/common/FooterMenu';
 import { PageHeader } from '@/components/common/PageHeader';
+import { bffGet, bffPatchJson } from '@/lib/api/bffFetch';
+import { bffEndpoints } from '@/lib/api/endpoints';
 import { MY_NICKNAME, OTHER_NICKNAME, myUltaryPath } from '@/lib/mock/ultary-accounts';
+import type { BffEnvelope } from '@/types/api';
+import type { NotificationType } from '@/types/enums';
+import type { Notification } from '@/types/notification';
 import clsx from 'clsx';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import styles from './notifications.module.scss';
 
 const OTHER_PROFILE = '/images/mock/feed.jpg';
@@ -362,9 +367,109 @@ function NotificationMessage({ item }: { item: NotificationItem }) {
   );
 }
 
+function formatNotifTime(iso: string) {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  const hh = String(d.getHours()).padStart(2, '0');
+  const mm = String(d.getMinutes()).padStart(2, '0');
+  return `${d.getMonth() + 1}월${d.getDate()}일 ${hh}:${mm}`;
+}
+
+function mapNotificationType(type: NotificationType): NotificationKind | null {
+  switch (type) {
+    case 'FEED_LIKE':
+      return 'likePost';
+    case 'FEED_COMMENT':
+      return 'commentOnPost';
+    case 'FEED_REPLY':
+      return 'replyOnComment';
+    case 'MENTION':
+      return 'mentionComment';
+    case 'NEIGHBOR_REQUEST':
+      return 'neighbor';
+    case 'PET_TAG_REQUEST':
+    case 'PET_TAG_APPROVED':
+      return 'tagPost';
+    case 'NEIGHBOR_ACCEPTED':
+    case 'SYSTEM':
+    default:
+      return null;
+  }
+}
+
+function pickActorNickname(n: Notification) {
+  const content = n.content?.trim() ?? '';
+  const match = content.match(/^@?([A-Za-z0-9_]{2,32})/);
+  if (match) return match[1];
+  if (n.actorUserNo != null) return `USER_${n.actorUserNo}`;
+  return '이웃';
+}
+
+function mapApiNotification(n: Notification): NotificationItem | null {
+  const kind = mapNotificationType(n.type);
+  if (!kind) return null;
+  return {
+    id: String(n.notificationId),
+    kind,
+    actorNickname: pickActorNickname(n),
+    profileUrl: OTHER_PROFILE,
+    timeLabel: formatNotifTime(n.createdAt),
+    preview: n.content ?? undefined,
+    feedOwnerNickname: MY_NICKNAME,
+    feedId: n.feedId != null ? String(n.feedId) : undefined,
+    commentId: n.feedCommentId != null ? String(n.feedCommentId) : undefined,
+    replyId: n.feedReplyId != null ? String(n.feedReplyId) : undefined,
+    neighborAction: kind === 'neighbor' ? 'accept' : undefined,
+  };
+}
+
+function unwrapNotificationList(data: unknown): Notification[] {
+  if (Array.isArray(data)) return data as Notification[];
+  if (data && typeof data === 'object' && Array.isArray((data as { items?: unknown }).items)) {
+    return (data as { items: Notification[] }).items;
+  }
+  return [];
+}
+
 /** 알림 페이지 */
 export default function NotificationsClient() {
   const [items, setItems] = useState(INITIAL_NOTIFICATIONS);
+  const [status, setStatus] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await bffGet<BffEnvelope<unknown>>(bffEndpoints.notifications.root, {
+          size: 30,
+        });
+        const list = unwrapNotificationList(res.data);
+        const mapped = list
+          .map(mapApiNotification)
+          .filter((v): v is NotificationItem => v != null);
+        if (cancelled) return;
+        if (mapped.length > 0) {
+          setItems(mapped);
+          setStatus(null);
+          for (const n of list) {
+            if (!n.isRead) {
+              bffPatchJson(bffEndpoints.notifications.read, {
+                notificationId: n.notificationId,
+              }).catch((err) => console.warn('[notifications] read', err));
+            }
+          }
+        } else {
+          setStatus('새 알림이 없어 예시 목록을 표시합니다.');
+        }
+      } catch (err) {
+        console.warn('[notifications] BFF fallback', err);
+        if (!cancelled) setStatus('알림을 불러오지 못해 예시 목록을 표시합니다.');
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   function toggleNeighbor(id: string) {
     setItems((prev) =>
@@ -383,6 +488,7 @@ export default function NotificationsClient() {
       <PageHeader title="알림" />
 
       <main className={styles.main}>
+        {status ? <p className={styles.status}>{status}</p> : null}
         <ul className={styles.list}>
           {items.map((item) => {
             const ultaryHref = myUltaryPath(item.actorNickname);

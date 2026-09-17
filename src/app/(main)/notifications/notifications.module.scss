@@ -30,6 +30,14 @@
   background: rgba(243, 254, 255, 0.72);
 }
 
+.status {
+  margin: 0 10px 6px;
+  color: var(--brand-gray-600);
+  font-size: 13px;
+  line-height: 1.4;
+  word-break: keep-all;
+}
+
 .item {
   margin: 0;
   padding: 0;

@@ -1,7 +1,7 @@
 'use client';
 
 import { PageHeader } from '@/components/common/PageHeader';
-import { bffPostJson } from '@/lib/api/bffFetch';
+import { bffGet, bffPatchJson, bffPostJson } from '@/lib/api/bffFetch';
 import { bffEndpoints } from '@/lib/api/endpoints';
 import { isHttpError } from '@/lib/api/error';
 import {
@@ -16,21 +16,23 @@ import {
 } from '@/lib/auth/signup-rules';
 import { MOCK_MY_PROFILE } from '@/lib/mock/mypage';
 import { getSigunguOptions, isSigunguDisabled, REGION_NONE, SIDO_OPTIONS } from '@/lib/region';
-import type { PhoneAuthResponse, PhoneVerifyResponse } from '@/types/api';
+import type {
+  BffEnvelope,
+  MeResponse,
+  PhoneAuthResponse,
+  PhoneVerifyResponse,
+  UpdateMeRequest,
+} from '@/types/api';
 import clsx from 'clsx';
 import { useRouter } from 'next/navigation';
-import { useRef, useState, useTransition } from 'react';
+import { useEffect, useRef, useState, useTransition } from 'react';
 import styles from '../mypage.module.scss';
 
 const DEV_SKIP_PHONE_AUTH = process.env.NODE_ENV === 'development' && true;
 const DEV_PHONE_AUTH_TOKEN = 'dev-phone-auth-token';
 const DEV_PHONE_AUTH_COMPLETE_TOKEN = 'dev-phone-auth-complete-token';
 
-type ApiEnvelope<T> = {
-  success?: boolean;
-  message?: string;
-  data?: T;
-};
+type ApiEnvelope<T> = BffEnvelope<T>;
 
 type FieldErrors = {
   nickname?: string;
@@ -71,14 +73,15 @@ function FieldNote({ children }: { children: string }) {
 export default function MyPageEditClient() {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
-  const profile = MOCK_MY_PROFILE;
+  const [loaded, setLoaded] = useState(false);
 
-  const [nickname, setNickname] = useState(profile.nickname);
-  const [email, setEmail] = useState(profile.email);
-  const [phone, setPhone] = useState(profile.phone);
+  const [nickname, setNickname] = useState(MOCK_MY_PROFILE.nickname);
+  const [email, setEmail] = useState(MOCK_MY_PROFILE.email);
+  const [phone, setPhone] = useState(MOCK_MY_PROFILE.phone);
   const [code, setCode] = useState('');
-  const [regionSido, setRegionSido] = useState(profile.regionSido);
-  const [regionSigungu, setRegionSigungu] = useState(profile.regionSigungu);
+  const [regionSido, setRegionSido] = useState(MOCK_MY_PROFILE.regionSido);
+  const [regionSigungu, setRegionSigungu] = useState(MOCK_MY_PROFILE.regionSigungu);
+  const [initialPhone, setInitialPhone] = useState(MOCK_MY_PROFILE.phone);
 
   const [phoneAuthToken, setPhoneAuthToken] = useState('');
   const [phoneAuthCompleteToken, setPhoneAuthCompleteToken] = useState('');
@@ -96,6 +99,38 @@ export default function MyPageEditClient() {
 
   const sigunguOptions = getSigunguOptions(regionSido);
   const sigunguDisabled = isSigunguDisabled(regionSido);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await bffGet<BffEnvelope<MeResponse>>(bffEndpoints.auth.me);
+        const me = res.data;
+        if (!me || cancelled) return;
+        setNickname(me.nickname);
+        setEmail(me.email ?? '');
+        const phoneDigits = me.phone?.replace(/\D/g, '') ?? '';
+        setPhone(phoneDigits);
+        setInitialPhone(phoneDigits);
+        setRegionSido(me.regionSido?.trim() || REGION_NONE);
+        setRegionSigungu(me.regionSigungu?.trim() || REGION_NONE);
+        setPhoneVerified(true);
+        setPhoneAuthCompleteToken(DEV_PHONE_AUTH_COMPLETE_TOKEN);
+      } catch (err) {
+        console.error('[mypage-edit] load', err);
+        if (!cancelled) {
+          setFormError('회원정보를 불러오지 못했습니다. 임시 값으로 편집합니다.');
+          setPhoneVerified(true);
+          setPhoneAuthCompleteToken(DEV_PHONE_AUTH_COMPLETE_TOKEN);
+        }
+      } finally {
+        if (!cancelled) setLoaded(true);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   function clearError(key: keyof FieldErrors) {
     setErrors((prev) => {
@@ -203,7 +238,7 @@ export default function MyPageEditClient() {
 
     const phoneErr = validatePhone(phone);
     if (phoneErr) next.phone = phoneErr;
-    else if (!phoneAuthCompleteToken) next.phone = MSG.phoneAuth;
+    else if (phone !== initialPhone && !phoneAuthCompleteToken) next.phone = MSG.phoneAuth;
 
     if (regionSido === REGION_NONE) next.regionSido = MSG.sidoRequired;
     if (!sigunguDisabled && regionSigungu === REGION_NONE) {
@@ -227,20 +262,34 @@ export default function MyPageEditClient() {
       return;
     }
 
-    console.log('[mypage-edit] submit', {
-      nickname,
-      email,
-      phone,
-      phoneAuthCompleteToken,
-      regionSido,
-      regionSigungu,
+    const body: UpdateMeRequest = {
+      nickname: nickname.trim(),
+      regionSido: regionSido === REGION_NONE ? null : regionSido,
+      regionSigungu:
+        sigunguDisabled || regionSigungu === REGION_NONE ? null : regionSigungu,
+    };
+
+    startTransition(async () => {
+      setFormError(null);
+      try {
+        await bffPatchJson(bffEndpoints.auth.updateMe, body);
+        router.push('/settings/mypage');
+        router.refresh();
+      } catch (err) {
+        console.error('[mypage-edit] submit', err);
+        setFormError(pickErrorMessage(err, '회원정보 저장에 실패했습니다.'));
+      }
     });
-    router.push('/settings/mypage');
   }
 
   return (
     <div className={styles.shell}>
-      <PageHeader title="회원 정보 수정" backHref="/settings/mypage" onSubmit={submitEdit} />
+      <PageHeader
+        title="회원 정보 수정"
+        backHref="/settings/mypage"
+        onSubmit={submitEdit}
+        submitDisabled={pending || !loaded}
+      />
 
       <div className={styles.form}>
         {formError ? <p className={styles.errorBanner}>{formError}</p> : null}

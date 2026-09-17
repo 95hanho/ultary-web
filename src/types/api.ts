@@ -142,3 +142,15 @@ export type MeResponse = {
   withdrawalStatus: 'ACTIVE' | 'REQUESTED' | 'WITHDRAWN';
   createdAt: string;
 };
+
+/** GET·PATCH /api/v1/settings — 알려진 필드 + 확장 */
+export type UserSettings = {
+  profileVisibility?: 'PUBLIC' | 'NEIGHBORS' | 'PRIVATE';
+} & Record<string, unknown>;
+
+/** BFF `{ success, data }` 봉투 */
+export type BffEnvelope<T> = {
+  success?: boolean;
+  message?: string;
+  data?: T | null;
+};

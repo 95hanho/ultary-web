@@ -2,9 +2,12 @@
 
 import { FooterMenu } from '@/components/common/FooterMenu';
 import { PageHeader } from '@/components/common/PageHeader';
+import { bffGet, bffPatchJson } from '@/lib/api/bffFetch';
+import { bffEndpoints } from '@/lib/api/endpoints';
+import type { BffEnvelope, UserSettings } from '@/types/api';
 import type { FeedVisibility } from '@/types/enums';
 import clsx from 'clsx';
-import { useState } from 'react';
+import { useEffect, useState, useTransition } from 'react';
 import styles from './privacy.module.scss';
 
 const VISIBILITY_OPTIONS: { value: FeedVisibility; label: string }[] = [
@@ -19,10 +22,12 @@ function Switch({
   checked,
   onChange,
   label,
+  disabled,
 }: {
   checked: boolean;
   onChange: (next: boolean) => void;
   label: string;
+  disabled?: boolean;
 }) {
   return (
     <button
@@ -30,6 +35,7 @@ function Switch({
       role="switch"
       aria-checked={checked}
       aria-label={label}
+      disabled={disabled}
       className={clsx(styles.switch, checked && styles.switchOn)}
       onClick={() => onChange(!checked)}
     >
@@ -42,10 +48,12 @@ function VisibilityPicker({
   label,
   value,
   onChange,
+  disabled,
 }: {
   label: string;
   value: FeedVisibility;
   onChange: (next: FeedVisibility) => void;
+  disabled?: boolean;
 }) {
   return (
     <div className={styles.visibilityBlock}>
@@ -57,6 +65,7 @@ function VisibilityPicker({
             type="button"
             role="radio"
             aria-checked={value === opt.value}
+            disabled={disabled}
             className={clsx(styles.option, value === opt.value && styles.optionActive)}
             onClick={() => onChange(opt.value)}
           >
@@ -68,8 +77,15 @@ function VisibilityPicker({
   );
 }
 
+function parseVisibility(value: unknown): FeedVisibility | null {
+  if (value === 'PUBLIC' || value === 'NEIGHBORS' || value === 'PRIVATE') return value;
+  return null;
+}
+
 /** 설정 > 공개 범위 */
 export default function PrivacyClient() {
+  const [pending, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
   const [privateAccount, setPrivateAccount] = useState(false);
   const [feedVisibility, setFeedVisibility] = useState<FeedVisibility>('PUBLIC');
   const [storyVisibility, setStoryVisibility] = useState<FeedVisibility>('NEIGHBORS');
@@ -77,6 +93,44 @@ export default function PrivacyClient() {
   const [allowTag, setAllowTag] = useState(true);
   const [allowMention, setAllowMention] = useState(true);
   const [allowComment, setAllowComment] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await bffGet<BffEnvelope<UserSettings>>(bffEndpoints.settings.root);
+        const settings = res.data;
+        if (!settings || cancelled) return;
+        const visibility = parseVisibility(settings.profileVisibility);
+        if (visibility) {
+          setFeedVisibility(visibility);
+          setPrivateAccount(visibility !== 'PUBLIC');
+        }
+      } catch (err) {
+        console.error('[privacy] load', err);
+        if (!cancelled) {
+          setError('설정을 불러오지 못했습니다. 로컬 기본값으로 표시합니다.');
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  function saveProfileVisibility(next: FeedVisibility) {
+    setError(null);
+    startTransition(async () => {
+      try {
+        await bffPatchJson(bffEndpoints.settings.root, {
+          profileVisibility: next,
+        });
+      } catch (err) {
+        console.error('[privacy] save', err);
+        setError('공개 범위 저장에 실패했습니다.');
+      }
+    });
+  }
 
   function setToggle(key: ToggleKey, next: boolean) {
     console.log('[privacy]', { key, enabled: next });
@@ -86,6 +140,10 @@ export default function PrivacyClient() {
         if (next) {
           setFeedVisibility('NEIGHBORS');
           setStoryVisibility('NEIGHBORS');
+          saveProfileVisibility('NEIGHBORS');
+        } else {
+          setFeedVisibility('PUBLIC');
+          saveProfileVisibility('PUBLIC');
         }
         break;
       case 'neighborRequest':
@@ -108,6 +166,7 @@ export default function PrivacyClient() {
       <PageHeader title="공개 범위" backHref="/settings" />
 
       <main className={styles.main}>
+        {error ? <p className={styles.hint}>{error}</p> : null}
         <ul className={styles.list}>
           <li className={styles.item}>
             <div className={styles.itemBody}>
@@ -120,6 +179,7 @@ export default function PrivacyClient() {
               <Switch
                 checked={privateAccount}
                 label="비공개 계정"
+                disabled={pending}
                 onChange={(next) => setToggle('privateAccount', next)}
               />
             </div>
@@ -129,9 +189,11 @@ export default function PrivacyClient() {
             <VisibilityPicker
               label="게시글 기본 공개 범위"
               value={feedVisibility}
+              disabled={pending}
               onChange={(next) => {
                 setFeedVisibility(next);
-                console.log('[privacy]', { key: 'feedVisibility', value: next });
+                setPrivateAccount(next !== 'PUBLIC');
+                saveProfileVisibility(next);
               }}
             />
           </li>
@@ -140,6 +202,7 @@ export default function PrivacyClient() {
             <VisibilityPicker
               label="스토리 공개 범위"
               value={storyVisibility}
+              disabled={pending}
               onChange={(next) => {
                 setStoryVisibility(next);
                 console.log('[privacy]', { key: 'storyVisibility', value: next });
