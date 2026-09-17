@@ -91,6 +91,69 @@
   height: 14px;
 }
 
+.menuArrowDown {
+  transform: rotate(90deg);
+  transition: transform 0.2s ease;
+}
+
+.menuArrowUp {
+  transform: rotate(-90deg);
+}
+
+.menuItemBtn {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  padding: 5px 5px 5px 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.accordion {
+  display: flex;
+  flex-direction: column;
+}
+
+.accordionPanel {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.22s ease;
+}
+
+.accordionPanelOpen {
+  grid-template-rows: 1fr;
+}
+
+.accordionInner {
+  overflow: hidden;
+  min-height: 0;
+}
+
+.appInfoRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0;
+  padding: 6px 5px 10px 40px;
+  color: var(--brand-gray-600);
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.appInfoLabel {
+  font-weight: 400;
+}
+
+.appInfoValue {
+  color: var(--brand-black-700);
+  font-weight: 700;
+}
+
 .logout {
   display: flex;
   align-items: center;
