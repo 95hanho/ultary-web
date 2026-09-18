@@ -2,8 +2,10 @@
 
 import { Profile, type StoryStatus } from '@/components/my-ultary/Profile';
 import { getTagExplain, splitCaptionTags, type TagExplain } from '@/lib/mock/tags';
+import { useModalStore } from '@/stores/modal.store';
 import clsx from 'clsx';
 import Image from 'next/image';
+import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { Swiper as SwiperType } from 'swiper';
 import 'swiper/css';
@@ -14,7 +16,7 @@ import { TagExplainPopover, type TagExplainMode } from './TagExplainPopover';
 
 /** 피드 액션 아이콘 (public) */
 const FavoriteIcon = '/images/icon/Favorite.svg';
-const FavoriteFillIcon = '/images/icon/Favorite_fill.svg'; // 좋아요 ON — 연결 전
+const FavoriteFillIcon = '/images/icon/Favorite_fill.svg';
 const CommentIcon = '/images/icon/comment.svg';
 const ShareIcon = '/images/icon/share.svg';
 const PinIcon = '/images/icon/Pin.svg';
@@ -52,9 +54,14 @@ export function Feed({
   likeCount = 0,
   commentCount = 0,
 }: FeedData) {
+  const router = useRouter();
+  const openModal = useModalStore((s) => s.open);
   const [index, setIndex] = useState(0);
   const [expanded, setExpanded] = useState(false);
   const [needsMore, setNeedsMore] = useState(false);
+  const [liked, setLiked] = useState(isFavorite);
+  const [likes, setLikes] = useState(likeCount);
+  const [stored, setStored] = useState(isStored);
   const swiperRef = useRef<SwiperType | null>(null);
   const captionRef = useRef<HTMLParagraphElement>(null);
   const leaveTimerRef = useRef<number | null>(null);
@@ -244,14 +251,27 @@ export function Feed({
 
         <div className={styles.actions}>
           <div className={styles.actionsLeft}>
-            <button type="button" className={styles.actionBtn} aria-label={`좋아요 ${likeCount}`}>
+            <button
+              type="button"
+              className={styles.actionBtn}
+              aria-label={`좋아요 ${likes}`}
+              aria-pressed={liked}
+              onClick={() => {
+                setLiked((v) => {
+                  setLikes((c) => (v ? Math.max(0, c - 1) : c + 1));
+                  return !v;
+                });
+              }}
+            >
               <Image
-                src={isFavorite ? FavoriteFillIcon : FavoriteIcon}
+                src={liked ? FavoriteFillIcon : FavoriteIcon}
                 alt=""
                 width={25}
                 height={25}
               />
-              <span className={styles.actionCount}>{likeCount}</span>
+              <span className={clsx(styles.actionCount, liked && styles.actionCountOn)}>
+                {likes}
+              </span>
             </button>
             <button
               type="button"
@@ -262,12 +282,45 @@ export function Feed({
               <Image src={CommentIcon} alt="" width={21} height={20} />
               <span className={styles.actionCount}>{commentCount}</span>
             </button>
-            <button type="button" className={styles.actionBtn} aria-label="공유">
+            <button
+              type="button"
+              className={styles.actionBtn}
+              aria-label="공유"
+              onClick={() => {
+                openModal({
+                  variant: 'action',
+                  title: '공유',
+                  items: [
+                    {
+                      label: '링크 복사',
+                      onClick: () => {
+                        const url = `${window.location.origin}/myultary/${nickname}/posts/${id}`;
+                        void navigator.clipboard?.writeText(url).catch(() => {
+                          /* ignore */
+                        });
+                      },
+                    },
+                    {
+                      label: '메시지로 보내기',
+                      onClick: () => {
+                        router.push('/dm');
+                      },
+                    },
+                  ],
+                });
+              }}
+            >
               <Image src={ShareIcon} alt="" width={23} height={23} />
             </button>
           </div>
-          <button type="button" className={styles.actionBtn} aria-label="저장">
-            <Image src={isStored ? PinFillIcon : PinIcon} alt="" width={25} height={25} />
+          <button
+            type="button"
+            className={styles.actionBtn}
+            aria-label="저장"
+            aria-pressed={stored}
+            onClick={() => setStored((v) => !v)}
+          >
+            <Image src={stored ? PinFillIcon : PinIcon} alt="" width={25} height={25} />
           </button>
         </div>
 

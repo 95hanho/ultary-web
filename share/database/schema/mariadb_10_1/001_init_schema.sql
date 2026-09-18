@@ -1,3 +1,4 @@
+-- schema_version: 7
 -- ULTARY MariaDB 10.1.13 Schema
 -- Engine: InnoDB
 -- Charset / Collation: utf8 / utf8_general_ci
@@ -5,7 +6,37 @@
 -- Auth note:
 --   - 일반 사용자 login_id 없음 (소셜 우선, 이후 email/phone + password 로그인)
 --   - password는 최초 NULL, 사용자가 나중에 설정 가능
---   - 소셜 가입 시 nickname = google_|kakao_ + 랜덤코드, is_default_nickname=1
+--   - 소셜 가입 시 nickname = google|kakao + 랜덤영문 (underscore/숫자 없음), is_default_nickname=1
+-- Naming / search note:
+--   - 전체 검색 대상 3종: NICKNAME(유저), PET(@mention_id), TAG(#hashtag, 필요 시 handle로 구분)
+--   - @ : 반려동물 mention_id
+--       · 이미지 위치 멘션 = ultary_feed_media_mention (승인 없음, 자유)
+--       · 공동작성 = ultary_feed_pet.role=COLLABORATOR (멘션된 피드 목록 / 삭제 권한)
+--   - # : 태그 hashtag (본문 태그, 상품·소개 태그). hashtag는 중복 가능·생성 후 불변, handle로 좁힘
+--   - 닉네임 허용: 영문·한글만. 한글만 2~5자, 영문만 4~10자. 혼합 시 한글1자=2, 영문1자=1, 가중치 합 4~10 (한글 최대 5자)
+--   - mention_id / tag.handle 허용: 영문·숫자·언더바 (^[A-Za-z0-9_]{1,30}$), UNIQUE, utf8_general_ci라 대소문자 동일 취급
+--   - 최근 검색: user 컬럼이 아니라 ultary_user_search_history (다건·search_type)
+--   - 피드 삭제: 작성자(user_no) 또는 COLLABORATOR 펫 보호자. deleted_by_user_no에 실제 삭제자 기록
+-- Identity change cooldown (생성 직후부터 잠금, *_changed_at에 기록):
+--   - user.nickname          : 변경 후(및 생성 직후) 7일간 재변경 불가
+--   - pet.mention_id         : 변경 후(및 생성 직후) 30일간 재변경 불가. pet.name은 생성 후 불변
+--   - tag.handle             : 설정·변경 후 30일간 재변경 불가. tag.hashtag는 생성 후 불변
+--     · handle이 NULL인 태그: handle_changed_at NULL → 최초 설정은 언제든 가능
+-- Tag column rename (v3 name/title → v4):
+--   - hashtag  : # 입력용 표시 키 (필수, 중복 허용)  ← 구 name
+--   - title    : 상품/소개 표시명 (선택, 길게)
+--   - handle   : 선택 고유 코드 (중복 hashtag 구분용, pet.mention_id와 동일 정규식)  ← mention_id 대신 handle
+-- Story note (v7):
+--   - ultary_story: IMAGE|VIDEO 1건 = 스토리 1건. expires_at = created_at + 24h
+--   - ultary_story_view: 시청자별 읽음 (story_id + viewer_user_no UNIQUE)
+--   - 활성 스토리 = is_deleted=0 AND expires_at > NOW()
+-- Change log:
+--   v1: 초기 스키마 (Phase 1-1)
+--   v2: 소셜 로그인 / login_id 제거 / is_default_nickname (Phase 1-6)
+--   v3: ultary_feed_image → ultary_feed_media (IMAGE|VIDEO, thumbnail, duration)
+--   v4: pet.mention_id, tag hashtag/handle, feed_m 알림 PET_TAG_* 제거 / FEED_COLLABORATOR 추가
+--   v6: nickname_changed_at / mention_id_changed_at / handle_changed_at (식별자 변경 쿨다운)
+--   v7: ultary_story / ultary_story_view (24h 스토리·읽음)
 
 SET NAMES utf8;
 SET FOREIGN_KEY_CHECKS = 0;
@@ -13,6 +44,9 @@ SET FOREIGN_KEY_CHECKS = 0;
 DROP TABLE IF EXISTS `ultary_ai_request_log`;
 DROP TABLE IF EXISTS `ultary_report`;
 DROP TABLE IF EXISTS `ultary_notification`;
+DROP TABLE IF EXISTS `ultary_story_view`;
+DROP TABLE IF EXISTS `ultary_story`;
+DROP TABLE IF EXISTS `ultary_user_search_history`;
 DROP TABLE IF EXISTS `ultary_tag_image`;
 DROP TABLE IF EXISTS `ultary_feed_tag`;
 DROP TABLE IF EXISTS `ultary_tag`;
@@ -21,7 +55,8 @@ DROP TABLE IF EXISTS `ultary_feed_comment_mention`;
 DROP TABLE IF EXISTS `ultary_feed_reply`;
 DROP TABLE IF EXISTS `ultary_feed_comment`;
 DROP TABLE IF EXISTS `ultary_feed_like`;
-DROP TABLE IF EXISTS `ultary_feed_image`;
+DROP TABLE IF EXISTS `ultary_feed_media_mention`;
+DROP TABLE IF EXISTS `ultary_feed_media`;
 DROP TABLE IF EXISTS `ultary_feed_pet`;
 DROP TABLE IF EXISTS `ultary_feed`;
 DROP TABLE IF EXISTS `ultary_user_block`;
@@ -39,7 +74,8 @@ CREATE TABLE `ultary_user` (
   `user_no` INT(11) NOT NULL AUTO_INCREMENT,
   `password` VARCHAR(200) NULL DEFAULT NULL COMMENT 'BCrypt 해시. 소셜만 사용 시 NULL, 이후 설정 가능',
   `name` VARCHAR(20) NULL DEFAULT NULL,
-  `nickname` VARCHAR(30) NOT NULL COMMENT '서비스 내 표시 이름. 소셜 가입 시 google_|kakao_ + 랜덤코드',
+  `nickname` VARCHAR(30) NOT NULL COMMENT '표시 이름. 한글 2~5 / 영문 4~10 / 혼합은 한글1=2 가중치 합 4~10. 소셜 가입 시 google|kakao + 랜덤영문(총 10자)',
+  `nickname_changed_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '닉네임 마지막 변경(또는 최초 부여) 시각. 생성 직후부터 7일간 재변경 불가',
   `is_default_nickname` TINYINT(1) NOT NULL DEFAULT 1 COMMENT '1=자동 생성 닉네임(변경 유도 대상), 0=사용자가 직접 변경함',
   `email` VARCHAR(50) NULL DEFAULT NULL COMMENT '소셜에서 전달되거나 이후 등록. 비밀번호 로그인 식별자로 사용 가능',
   `phone` VARCHAR(20) NULL DEFAULT NULL COMMENT '본인인증 후 등록. 비밀번호 로그인 식별자로 사용 가능',
@@ -136,7 +172,9 @@ CREATE TABLE `ultary_token` (
 CREATE TABLE `ultary_pet` (
   `pet_id` INT(11) NOT NULL AUTO_INCREMENT,
   `user_no` INT(11) NOT NULL COMMENT '반려동물 보호자',
-  `name` VARCHAR(30) NOT NULL,
+  `mention_id` VARCHAR(30) NOT NULL COMMENT '@멘션 핸들. 영문·숫자·_ 만. 전역 UNIQUE (대소문자 무시)',
+  `mention_id_changed_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'mention_id 마지막 변경(또는 최초 부여) 시각. 생성 직후부터 30일간 재변경 불가',
+  `name` VARCHAR(30) NOT NULL COMMENT '화면에 보이는 반려동물 이름. 생성 후 변경 불가',
   `species` ENUM('DOG','CAT','ETC') NOT NULL DEFAULT 'DOG',
   `breed` VARCHAR(50) NULL DEFAULT NULL COMMENT '품종',
   `gender` ENUM('MALE','FEMALE','UNKNOWN') NOT NULL DEFAULT 'UNKNOWN',
@@ -149,10 +187,11 @@ CREATE TABLE `ultary_pet` (
   `is_deleted` TINYINT(1) NOT NULL DEFAULT 0,
   `deleted_at` DATETIME NULL DEFAULT NULL,
   PRIMARY KEY (`pet_id`) USING BTREE,
+  UNIQUE KEY `UK_ultary_pet_mention_id` (`mention_id`) USING BTREE,
   KEY `IDX_ultary_pet_user_no` (`user_no`) USING BTREE,
   KEY `IDX_ultary_pet_profile_file_id` (`profile_file_id`) USING BTREE,
   KEY `IDX_ultary_pet_is_deleted` (`is_deleted`) USING BTREE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_general_ci COMMENT='사용자가 등록한 반려동물 프로필';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_general_ci COMMENT='사용자가 등록한 반려동물 프로필 (@mention_id)';
 
 CREATE TABLE `ultary_neighbor` (
   `neighbor_id` INT(11) NOT NULL AUTO_INCREMENT,
@@ -198,21 +237,20 @@ CREATE TABLE `ultary_feed` (
   `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   `is_deleted` TINYINT(1) NOT NULL DEFAULT 0,
   `deleted_at` DATETIME NULL DEFAULT NULL,
+  `deleted_by_user_no` INT(11) NULL DEFAULT NULL COMMENT '실제 삭제한 사용자 (작성자 또는 COLLABORATOR 펫 보호자)',
   PRIMARY KEY (`feed_id`) USING BTREE,
   KEY `IDX_ultary_feed_user_created` (`user_no`, `created_at`) USING BTREE,
   KEY `IDX_ultary_feed_visibility_created` (`visibility`, `created_at`) USING BTREE,
-  KEY `IDX_ultary_feed_is_deleted_created` (`is_deleted`, `created_at`) USING BTREE
+  KEY `IDX_ultary_feed_is_deleted_created` (`is_deleted`, `created_at`) USING BTREE,
+  KEY `IDX_ultary_feed_deleted_by_user_no` (`deleted_by_user_no`) USING BTREE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_general_ci COMMENT='반려동물 일상 피드';
 
 CREATE TABLE `ultary_feed_pet` (
   `feed_pet_id` INT(11) NOT NULL AUTO_INCREMENT,
   `feed_id` INT(11) NOT NULL,
-  `pet_id` INT(11) NOT NULL COMMENT '피드에 등장하는 반려동물',
+  `pet_id` INT(11) NOT NULL COMMENT '피드에 등장/공동 작성하는 반려동물',
   `added_by_user_no` INT(11) NOT NULL COMMENT '반려동물을 피드에 추가한 사용자',
-  `status` ENUM('APPROVED','PENDING','REJECTED') NOT NULL DEFAULT 'APPROVED' COMMENT '본인 반려동물은 APPROVED, 이웃 반려동물은 PENDING 후 승인',
-  `approved_by_user_no` INT(11) NULL DEFAULT NULL COMMENT '태그를 승인한 보호자',
-  `approved_at` DATETIME NULL DEFAULT NULL,
-  `rejected_at` DATETIME NULL DEFAULT NULL,
+  `role` ENUM('TAGGED','COLLABORATOR') NOT NULL DEFAULT 'TAGGED' COMMENT 'TAGGED=등장(참고), COLLABORATOR=공동작성(멘션된 피드·삭제권한)',
   `is_main` TINYINT(1) NOT NULL DEFAULT 0 COMMENT '피드 대표 반려동물 여부',
   `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -220,21 +258,40 @@ CREATE TABLE `ultary_feed_pet` (
   UNIQUE KEY `UK_ultary_feed_pet_feed_pet` (`feed_id`, `pet_id`) USING BTREE,
   KEY `IDX_ultary_feed_pet_pet_id` (`pet_id`) USING BTREE,
   KEY `IDX_ultary_feed_pet_added_by_user_no` (`added_by_user_no`) USING BTREE,
-  KEY `IDX_ultary_feed_pet_approved_by_user_no` (`approved_by_user_no`) USING BTREE,
-  KEY `IDX_ultary_feed_pet_status` (`status`) USING BTREE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_general_ci COMMENT='피드에 등장하는 반려동물 연결 테이블';
+  KEY `IDX_ultary_feed_pet_role` (`role`) USING BTREE,
+  KEY `IDX_ultary_feed_pet_role_pet` (`role`, `pet_id`) USING BTREE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_general_ci COMMENT='피드 반려동물 등장/공동작성 (승인 없음)';
 
-CREATE TABLE `ultary_feed_image` (
-  `feed_image_id` INT(11) NOT NULL AUTO_INCREMENT,
+CREATE TABLE `ultary_feed_media` (
+  `feed_media_id` INT(11) NOT NULL AUTO_INCREMENT,
   `feed_id` INT(11) NOT NULL,
-  `file_id` INT(11) NOT NULL,
-  `sort_order` INT(11) NOT NULL DEFAULT 0,
+  `file_id` INT(11) NOT NULL COMMENT '원본 미디어 파일 (이미지 또는 영상)',
+  `media_type` ENUM('IMAGE','VIDEO') NOT NULL COMMENT '캐러셀 슬롯 타입',
+  `thumbnail_file_id` INT(11) NULL DEFAULT NULL COMMENT 'VIDEO 커버/썸네일 이미지. IMAGE면 NULL',
+  `duration_sec` INT(11) NULL DEFAULT NULL COMMENT 'VIDEO 재생 초. IMAGE면 NULL',
+  `sort_order` INT(11) NOT NULL DEFAULT 0 COMMENT '캐러셀 순서 (0부터)',
   `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY (`feed_image_id`) USING BTREE,
-  UNIQUE KEY `UK_ultary_feed_image_sort` (`feed_id`, `sort_order`) USING BTREE,
-  KEY `IDX_ultary_feed_image_file_id` (`file_id`) USING BTREE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_general_ci COMMENT='피드 이미지 목록';
+  PRIMARY KEY (`feed_media_id`) USING BTREE,
+  UNIQUE KEY `UK_ultary_feed_media_sort` (`feed_id`, `sort_order`) USING BTREE,
+  KEY `IDX_ultary_feed_media_file_id` (`file_id`) USING BTREE,
+  KEY `IDX_ultary_feed_media_thumbnail_file_id` (`thumbnail_file_id`) USING BTREE,
+  KEY `IDX_ultary_feed_media_type` (`media_type`) USING BTREE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_general_ci COMMENT='피드 미디어 캐러셀 (사진/짧은 영상 여러 개)';
+
+CREATE TABLE `ultary_feed_media_mention` (
+  `feed_media_mention_id` INT(11) NOT NULL AUTO_INCREMENT,
+  `feed_media_id` INT(11) NOT NULL COMMENT '멘션이 붙은 캐러셀 슬롯(주로 IMAGE)',
+  `pet_id` INT(11) NOT NULL COMMENT '@mention_id 대상 반려동물',
+  `pos_x` DECIMAL(5,2) NOT NULL COMMENT '가로 위치 % (0.00~100.00)',
+  `pos_y` DECIMAL(5,2) NOT NULL COMMENT '세로 위치 % (0.00~100.00)',
+  `added_by_user_no` INT(11) NOT NULL,
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`feed_media_mention_id`) USING BTREE,
+  UNIQUE KEY `UK_ultary_feed_media_mention_pet` (`feed_media_id`, `pet_id`) USING BTREE,
+  KEY `IDX_ultary_feed_media_mention_pet_id` (`pet_id`) USING BTREE,
+  KEY `IDX_ultary_feed_media_mention_added_by` (`added_by_user_no`) USING BTREE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_general_ci COMMENT='미디어(이미지) 위 @반려동물 위치 멘션 (승인 없음)';
 
 CREATE TABLE `ultary_feed_like` (
   `feed_like_id` INT(11) NOT NULL AUTO_INCREMENT,
@@ -304,10 +361,12 @@ CREATE TABLE `ultary_feed_store` (
 
 CREATE TABLE `ultary_tag` (
   `tag_id` INT(11) NOT NULL AUTO_INCREMENT,
-  `name` VARCHAR(30) NOT NULL COMMENT '해시태그명',
-  `title` VARCHAR(50) NULL DEFAULT NULL,
-  `content` VARCHAR(500) NULL DEFAULT NULL,
-  `link` VARCHAR(200) NULL DEFAULT NULL,
+  `hashtag` VARCHAR(30) NOT NULL COMMENT '# 뒤에 쓰는 키. 중복 허용 (검색 후 선택). 생성 후 변경 불가',
+  `title` VARCHAR(100) NULL DEFAULT NULL COMMENT '상품명/소개 제목 (길 수 있음). 단순 해시태그는 NULL',
+  `handle` VARCHAR(30) NULL DEFAULT NULL COMMENT '선택 고유 코드. hashtag 중복 시 구분. 영문·숫자·_ , UNIQUE',
+  `handle_changed_at` DATETIME NULL DEFAULT NULL COMMENT 'handle 최초 설정/마지막 변경 시각. NULL=handle 미설정(최초 설정 자유). 설정·변경 후 30일간 재변경 불가. 생성 시 handle을 넣으면 생성 시각으로 설정',
+  `content` VARCHAR(500) NULL DEFAULT NULL COMMENT '태그 소개글',
+  `link` VARCHAR(200) NULL DEFAULT NULL COMMENT '상품/외부 링크',
   `use_count` INT(11) NOT NULL DEFAULT 0,
   `created_by_user_no` INT(11) NULL DEFAULT NULL,
   `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -315,9 +374,11 @@ CREATE TABLE `ultary_tag` (
   `is_deleted` TINYINT(1) NOT NULL DEFAULT 0,
   `deleted_at` DATETIME NULL DEFAULT NULL,
   PRIMARY KEY (`tag_id`) USING BTREE,
-  UNIQUE KEY `UK_ultary_tag_name` (`name`) USING BTREE,
-  KEY `IDX_ultary_tag_created_by_user_no` (`created_by_user_no`) USING BTREE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_general_ci COMMENT='피드에 연결되는 태그/해시태그';
+  UNIQUE KEY `UK_ultary_tag_handle` (`handle`) USING BTREE,
+  KEY `IDX_ultary_tag_hashtag` (`hashtag`) USING BTREE,
+  KEY `IDX_ultary_tag_created_by_user_no` (`created_by_user_no`) USING BTREE,
+  KEY `IDX_ultary_tag_is_deleted` (`is_deleted`) USING BTREE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_general_ci COMMENT='해시태그/상품·소개 태그 (#hashtag 불변, 선택 handle)';
 
 CREATE TABLE `ultary_feed_tag` (
   `feed_tag_id` INT(11) NOT NULL AUTO_INCREMENT,
@@ -343,11 +404,28 @@ CREATE TABLE `ultary_tag_image` (
   KEY `IDX_ultary_tag_image_file_id` (`file_id`) USING BTREE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_general_ci COMMENT='태그 소개 이미지';
 
+CREATE TABLE `ultary_user_search_history` (
+  `user_search_history_id` INT(11) NOT NULL AUTO_INCREMENT,
+  `user_no` INT(11) NOT NULL COMMENT '검색한 사용자',
+  `search_type` ENUM('NICKNAME','PET','TAG') NOT NULL COMMENT '검색 결과 종류',
+  `target_user_no` INT(11) NULL DEFAULT NULL COMMENT 'search_type=NICKNAME',
+  `target_pet_id` INT(11) NULL DEFAULT NULL COMMENT 'search_type=PET',
+  `target_tag_id` INT(11) NULL DEFAULT NULL COMMENT 'search_type=TAG',
+  `keyword` VARCHAR(50) NULL DEFAULT NULL COMMENT '검색 당시 표시용 스냅샷 (닉네임/mention_id/hashtag)',
+  `searched_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '동일 대상 재검색 시 갱신',
+  PRIMARY KEY (`user_search_history_id`) USING BTREE,
+  KEY `IDX_ultary_user_search_user_time` (`user_no`, `searched_at`) USING BTREE,
+  KEY `IDX_ultary_user_search_type` (`user_no`, `search_type`) USING BTREE,
+  KEY `IDX_ultary_user_search_target_user` (`target_user_no`) USING BTREE,
+  KEY `IDX_ultary_user_search_target_pet` (`target_pet_id`) USING BTREE,
+  KEY `IDX_ultary_user_search_target_tag` (`target_tag_id`) USING BTREE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_general_ci COMMENT='유저별 최근 검색 (닉네임/펫/태그). user 테이블 컬럼이 아니라 이력 테이블';
+
 CREATE TABLE `ultary_notification` (
   `notification_id` INT(11) NOT NULL AUTO_INCREMENT,
   `receiver_user_no` INT(11) NOT NULL COMMENT '알림을 받는 사용자',
   `actor_user_no` INT(11) NULL DEFAULT NULL COMMENT '알림을 발생시킨 사용자. 시스템 알림이면 null 가능',
-  `type` ENUM('FEED_LIKE','FEED_COMMENT','FEED_REPLY','MENTION','NEIGHBOR_REQUEST','NEIGHBOR_ACCEPTED','PET_TAG_REQUEST','PET_TAG_APPROVED','SYSTEM') NOT NULL,
+  `type` ENUM('FEED_LIKE','FEED_COMMENT','FEED_REPLY','MENTION','NEIGHBOR_REQUEST','NEIGHBOR_ACCEPTED','FEED_COLLABORATOR','SYSTEM') NOT NULL,
   `feed_id` INT(11) NULL DEFAULT NULL,
   `feed_pet_id` INT(11) NULL DEFAULT NULL,
   `feed_comment_id` INT(11) NULL DEFAULT NULL,
@@ -365,7 +443,7 @@ CREATE TABLE `ultary_notification` (
   KEY `IDX_ultary_notification_comment_id` (`feed_comment_id`) USING BTREE,
   KEY `IDX_ultary_notification_reply_id` (`feed_reply_id`) USING BTREE,
   KEY `IDX_ultary_notification_neighbor_id` (`neighbor_id`) USING BTREE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_general_ci COMMENT='좋아요, 댓글, 답글, 멘션, 이웃 요청, 반려동물 태그 승인 알림';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_general_ci COMMENT='좋아요, 댓글, 답글, 멘션, 이웃, 공동작성 알림';
 
 CREATE TABLE `ultary_report` (
   `report_id` INT(11) NOT NULL AUTO_INCREMENT,
@@ -413,6 +491,35 @@ CREATE TABLE `ultary_ai_request_log` (
   KEY `IDX_ultary_ai_feature_status` (`feature_type`, `status`) USING BTREE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_general_ci COMMENT='AI 문구 추천, 해시태그 추천, 프로필 소개, alt text 등 요청 이력';
 
+CREATE TABLE `ultary_story` (
+  `story_id` INT(11) NOT NULL AUTO_INCREMENT,
+  `user_no` INT(11) NOT NULL COMMENT '스토리 작성자',
+  `file_id` INT(11) NOT NULL COMMENT '원본 미디어 (이미지 또는 짧은 영상)',
+  `media_type` ENUM('IMAGE','VIDEO') NOT NULL,
+  `thumbnail_file_id` INT(11) NULL DEFAULT NULL COMMENT 'VIDEO 커버. IMAGE면 NULL',
+  `duration_sec` INT(11) NULL DEFAULT NULL COMMENT 'VIDEO 재생 초(최대 60). IMAGE면 NULL',
+  `caption` VARCHAR(200) NULL DEFAULT NULL COMMENT '짧은 문구',
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '업로드 시각 (UI 표시)',
+  `expires_at` DATETIME NOT NULL COMMENT 'created_at + 24시간. 이후 비활성',
+  `is_deleted` TINYINT(1) NOT NULL DEFAULT 0,
+  `deleted_at` DATETIME NULL DEFAULT NULL,
+  PRIMARY KEY (`story_id`) USING BTREE,
+  KEY `IDX_ultary_story_user_expires` (`user_no`, `expires_at`) USING BTREE,
+  KEY `IDX_ultary_story_expires_deleted` (`expires_at`, `is_deleted`) USING BTREE,
+  KEY `IDX_ultary_story_file_id` (`file_id`) USING BTREE,
+  KEY `IDX_ultary_story_thumbnail_file_id` (`thumbnail_file_id`) USING BTREE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_general_ci COMMENT='24시간 스토리 (사진/짧은 영상)';
+
+CREATE TABLE `ultary_story_view` (
+  `story_view_id` INT(11) NOT NULL AUTO_INCREMENT,
+  `story_id` INT(11) NOT NULL,
+  `viewer_user_no` INT(11) NOT NULL COMMENT '스토리를 본 사용자',
+  `viewed_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`story_view_id`) USING BTREE,
+  UNIQUE KEY `UK_ultary_story_view_story_viewer` (`story_id`, `viewer_user_no`) USING BTREE,
+  KEY `IDX_ultary_story_view_viewer` (`viewer_user_no`) USING BTREE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_general_ci COMMENT='스토리 읽음(시청) 기록';
+
 ALTER TABLE `ultary_user`
   ADD CONSTRAINT `FK_user_profile_file` FOREIGN KEY (`profile_file_id`) REFERENCES `ultary_file` (`file_id`) ON UPDATE CASCADE ON DELETE SET NULL;
 
@@ -440,17 +547,23 @@ ALTER TABLE `ultary_user_block`
   ADD CONSTRAINT `FK_user_block_blocked` FOREIGN KEY (`blocked_user_no`) REFERENCES `ultary_user` (`user_no`) ON UPDATE CASCADE ON DELETE RESTRICT;
 
 ALTER TABLE `ultary_feed`
-  ADD CONSTRAINT `FK_feed_user` FOREIGN KEY (`user_no`) REFERENCES `ultary_user` (`user_no`) ON UPDATE CASCADE ON DELETE RESTRICT;
+  ADD CONSTRAINT `FK_feed_user` FOREIGN KEY (`user_no`) REFERENCES `ultary_user` (`user_no`) ON UPDATE CASCADE ON DELETE RESTRICT,
+  ADD CONSTRAINT `FK_feed_deleted_by_user` FOREIGN KEY (`deleted_by_user_no`) REFERENCES `ultary_user` (`user_no`) ON UPDATE CASCADE ON DELETE SET NULL;
 
 ALTER TABLE `ultary_feed_pet`
   ADD CONSTRAINT `FK_feed_pet_feed` FOREIGN KEY (`feed_id`) REFERENCES `ultary_feed` (`feed_id`) ON UPDATE CASCADE ON DELETE RESTRICT,
   ADD CONSTRAINT `FK_feed_pet_pet` FOREIGN KEY (`pet_id`) REFERENCES `ultary_pet` (`pet_id`) ON UPDATE CASCADE ON DELETE RESTRICT,
-  ADD CONSTRAINT `FK_feed_pet_added_user` FOREIGN KEY (`added_by_user_no`) REFERENCES `ultary_user` (`user_no`) ON UPDATE CASCADE ON DELETE RESTRICT,
-  ADD CONSTRAINT `FK_feed_pet_approved_user` FOREIGN KEY (`approved_by_user_no`) REFERENCES `ultary_user` (`user_no`) ON UPDATE CASCADE ON DELETE SET NULL;
+  ADD CONSTRAINT `FK_feed_pet_added_user` FOREIGN KEY (`added_by_user_no`) REFERENCES `ultary_user` (`user_no`) ON UPDATE CASCADE ON DELETE RESTRICT;
 
-ALTER TABLE `ultary_feed_image`
-  ADD CONSTRAINT `FK_feed_image_feed` FOREIGN KEY (`feed_id`) REFERENCES `ultary_feed` (`feed_id`) ON UPDATE CASCADE ON DELETE RESTRICT,
-  ADD CONSTRAINT `FK_feed_image_file` FOREIGN KEY (`file_id`) REFERENCES `ultary_file` (`file_id`) ON UPDATE CASCADE ON DELETE RESTRICT;
+ALTER TABLE `ultary_feed_media`
+  ADD CONSTRAINT `FK_feed_media_feed` FOREIGN KEY (`feed_id`) REFERENCES `ultary_feed` (`feed_id`) ON UPDATE CASCADE ON DELETE RESTRICT,
+  ADD CONSTRAINT `FK_feed_media_file` FOREIGN KEY (`file_id`) REFERENCES `ultary_file` (`file_id`) ON UPDATE CASCADE ON DELETE RESTRICT,
+  ADD CONSTRAINT `FK_feed_media_thumbnail_file` FOREIGN KEY (`thumbnail_file_id`) REFERENCES `ultary_file` (`file_id`) ON UPDATE CASCADE ON DELETE SET NULL;
+
+ALTER TABLE `ultary_feed_media_mention`
+  ADD CONSTRAINT `FK_feed_media_mention_media` FOREIGN KEY (`feed_media_id`) REFERENCES `ultary_feed_media` (`feed_media_id`) ON UPDATE CASCADE ON DELETE RESTRICT,
+  ADD CONSTRAINT `FK_feed_media_mention_pet` FOREIGN KEY (`pet_id`) REFERENCES `ultary_pet` (`pet_id`) ON UPDATE CASCADE ON DELETE RESTRICT,
+  ADD CONSTRAINT `FK_feed_media_mention_added_user` FOREIGN KEY (`added_by_user_no`) REFERENCES `ultary_user` (`user_no`) ON UPDATE CASCADE ON DELETE RESTRICT;
 
 ALTER TABLE `ultary_feed_like`
   ADD CONSTRAINT `FK_feed_like_feed` FOREIGN KEY (`feed_id`) REFERENCES `ultary_feed` (`feed_id`) ON UPDATE CASCADE ON DELETE RESTRICT,
@@ -485,6 +598,12 @@ ALTER TABLE `ultary_tag_image`
   ADD CONSTRAINT `FK_tag_image_tag` FOREIGN KEY (`tag_id`) REFERENCES `ultary_tag` (`tag_id`) ON UPDATE CASCADE ON DELETE RESTRICT,
   ADD CONSTRAINT `FK_tag_image_file` FOREIGN KEY (`file_id`) REFERENCES `ultary_file` (`file_id`) ON UPDATE CASCADE ON DELETE RESTRICT;
 
+ALTER TABLE `ultary_user_search_history`
+  ADD CONSTRAINT `FK_user_search_user` FOREIGN KEY (`user_no`) REFERENCES `ultary_user` (`user_no`) ON UPDATE CASCADE ON DELETE CASCADE,
+  ADD CONSTRAINT `FK_user_search_target_user` FOREIGN KEY (`target_user_no`) REFERENCES `ultary_user` (`user_no`) ON UPDATE CASCADE ON DELETE CASCADE,
+  ADD CONSTRAINT `FK_user_search_target_pet` FOREIGN KEY (`target_pet_id`) REFERENCES `ultary_pet` (`pet_id`) ON UPDATE CASCADE ON DELETE CASCADE,
+  ADD CONSTRAINT `FK_user_search_target_tag` FOREIGN KEY (`target_tag_id`) REFERENCES `ultary_tag` (`tag_id`) ON UPDATE CASCADE ON DELETE CASCADE;
+
 ALTER TABLE `ultary_notification`
   ADD CONSTRAINT `FK_notification_receiver` FOREIGN KEY (`receiver_user_no`) REFERENCES `ultary_user` (`user_no`) ON UPDATE CASCADE ON DELETE RESTRICT,
   ADD CONSTRAINT `FK_notification_actor` FOREIGN KEY (`actor_user_no`) REFERENCES `ultary_user` (`user_no`) ON UPDATE CASCADE ON DELETE SET NULL,
@@ -507,3 +626,12 @@ ALTER TABLE `ultary_ai_request_log`
   ADD CONSTRAINT `FK_ai_user` FOREIGN KEY (`user_no`) REFERENCES `ultary_user` (`user_no`) ON UPDATE CASCADE ON DELETE RESTRICT,
   ADD CONSTRAINT `FK_ai_target_feed` FOREIGN KEY (`target_feed_id`) REFERENCES `ultary_feed` (`feed_id`) ON UPDATE CASCADE ON DELETE SET NULL,
   ADD CONSTRAINT `FK_ai_target_pet` FOREIGN KEY (`target_pet_id`) REFERENCES `ultary_pet` (`pet_id`) ON UPDATE CASCADE ON DELETE SET NULL;
+
+ALTER TABLE `ultary_story`
+  ADD CONSTRAINT `FK_story_user` FOREIGN KEY (`user_no`) REFERENCES `ultary_user` (`user_no`) ON UPDATE CASCADE ON DELETE RESTRICT,
+  ADD CONSTRAINT `FK_story_file` FOREIGN KEY (`file_id`) REFERENCES `ultary_file` (`file_id`) ON UPDATE CASCADE ON DELETE RESTRICT,
+  ADD CONSTRAINT `FK_story_thumbnail_file` FOREIGN KEY (`thumbnail_file_id`) REFERENCES `ultary_file` (`file_id`) ON UPDATE CASCADE ON DELETE SET NULL;
+
+ALTER TABLE `ultary_story_view`
+  ADD CONSTRAINT `FK_story_view_story` FOREIGN KEY (`story_id`) REFERENCES `ultary_story` (`story_id`) ON UPDATE CASCADE ON DELETE CASCADE,
+  ADD CONSTRAINT `FK_story_view_viewer` FOREIGN KEY (`viewer_user_no`) REFERENCES `ultary_user` (`user_no`) ON UPDATE CASCADE ON DELETE CASCADE;

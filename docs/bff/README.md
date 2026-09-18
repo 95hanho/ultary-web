@@ -9,7 +9,7 @@ Next.js Route Handler(`/api/**`)가 브라우저와 Spring Boot(`ultary-api`) �
 | [architecture.md](./architecture.md) | 요청 흐름, 인증, 응답 규약, 디렉터리 구조 |
 | [api-spec.md](./api-spec.md) | BFF API 명세 (Spring 매핑·인증·구현 상태) |
 | [development.md](./development.md) | Route Handler 구현 가이드 |
-| [../api-memo.md](../api-memo.md) | 도메인별 엔드포인트 빠른 참조 (원본 SoT) |
+| [../../share/docs/api-memo.md](../../share/docs/api-memo.md) | 도메인별 엔드포인트 (공유 SoT) |
 
 ## 코드·테스트 위치
 

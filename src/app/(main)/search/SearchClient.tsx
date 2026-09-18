@@ -14,7 +14,9 @@ import {
 import { highlightMatch, sortPetTagsByMatch } from '@/lib/search/highlight';
 import clsx from 'clsx';
 import Image from 'next/image';
+import Link from 'next/link';
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { EmptyState } from '@/components/common/EmptyState';
 import styles from './search.module.scss';
 
 const SearchIcon = '/images/icon/Search.svg';
@@ -72,7 +74,10 @@ function AccountRow({
 
   return (
     <li className={styles.accountItem}>
-      <button type="button" className={styles.accountBtn}>
+      <Link
+        href={myUltaryPath(account.nickname)}
+        className={styles.accountBtn}
+      >
         <span className={styles.accountImageWrap}>
           <Image
             src={account.imageUrl}
@@ -95,7 +100,7 @@ function AccountRow({
             ))}
           </span>
         </span>
-      </button>
+      </Link>
     </li>
   );
 }
@@ -245,30 +250,50 @@ export default function SearchClient() {
 
         {showAccountList ? (
           <div className={styles.searchPanel}>
-            <ul className={styles.accountList}>
-              {accountResults.map((account) => (
-                <AccountRow
-                  key={account.id}
-                  account={account}
-                  highlightQuery={nickHighlight}
-                  petQuery={petHighlight}
-                />
-              ))}
-            </ul>
+            {accountResults.length === 0 ? (
+              <EmptyState
+                title="검색 결과가 없어요"
+                description="다른 닉네임이나 펫 태그로 다시 검색해 보세요."
+              />
+            ) : (
+              <ul className={styles.accountList}>
+                {accountResults.map((account) => (
+                  <AccountRow
+                    key={account.id}
+                    account={account}
+                    highlightQuery={nickHighlight}
+                    petQuery={petHighlight}
+                  />
+                ))}
+              </ul>
+            )}
           </div>
         ) : null}
 
         {showHashtagList ? (
           <div className={styles.searchPanel}>
-            <HashtagResultList
-              items={hashtagResults}
-              onSelect={selectHashtag}
-              variant="page"
-            />
+            {hashtagResults.length === 0 ? (
+              <EmptyState
+                title="해시태그가 없어요"
+                description="다른 키워드로 검색해 보세요."
+              />
+            ) : (
+              <HashtagResultList
+                items={hashtagResults}
+                onSelect={selectHashtag}
+                variant="page"
+              />
+            )}
           </div>
         ) : null}
 
-        {showHashtagGrid ? <FeedGrid posts={HASHTAG_RESULT_POSTS} /> : null}
+        {showHashtagGrid ? (
+          <FeedGrid
+            posts={HASHTAG_RESULT_POSTS}
+            emptyTitle="게시물이 없어요"
+            emptyDescription="이 해시태그가 달린 게시물이 아직 없어요."
+          />
+        ) : null}
       </main>
 
       <FooterMenu />

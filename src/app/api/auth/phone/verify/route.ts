@@ -1,8 +1,8 @@
-import { NextRequest, NextResponse } from 'next/server';
 import { handleBffError } from '@/lib/api/bffRoute';
 import { springEndpoints } from '@/lib/api/endpoints';
 import { springPostJson } from '@/lib/api/springFetch';
 import type { PhoneVerifyRequest, PhoneVerifyResponse } from '@/types/api';
+import { NextRequest, NextResponse } from 'next/server';
 
 /** BFF /api/auth/phone/verify — POST */
 export async function POST(request: NextRequest) {

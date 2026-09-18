@@ -226,4 +226,5 @@
 | 엔드포인트 상수 | `src/lib/api/endpoints.ts` |
 | 요청 예시 | `http/bff.http` |
 | 타입 | `src/types/**` |
-| 도메인 메모 | `docs/api-memo.md` |
+| 도메인 메모 | `share/docs/api-memo.md` |
+| 공유 스펙 | `share/` (validation · database · 계약) |

@@ -1,24 +1,77 @@
 @baseUrl = http://localhost:3000
 @contentType = application/json
 
+### ------------------------------------------------------------
+### 시드 기준: share/database/seed/mariadb_10_1/001_dev_sample_data.sql
+### user 101 울타리 / 102 나리집사 / 103 산책러 / 104 대기중 / 105 팔로워
+### feed 101·102 / comment·reply 101 / pet 101(choco_01)·102(mung_01)
+### tag 101(산책)·102(royalcanin)·103(냥스타그램) / story 101·102
+### neighbor 104=PENDING(104→101) / file 100~104
+### 비밀번호 전원: Test1234!  ({noop})
+### ------------------------------------------------------------
+@email = myultary.test@example.com
+### 주의: # @name phone 과 충돌하면 {{phone}} 이 치환되지 않음 → seedPhone 사용
+@seedPhone = 01011112222
+@password = Test1234!
+@userNo = 101
+@otherUserNo = 102
+@pendingUserNo = 104
+@feedId = 101
+@feedIdOther = 102
+@commentId = 101
+@replyId = 101
+@petId = 101
+@feedPetId = 103
+@tagId = 102
+@storyId = 101
+@neighborIdPending = 104
+@neighborIdAccepted = 101
+@fileId = 100
+@receiverUserNo = 102
+
+### ==============================
+### 사용 방법
+### ==============================
+### 1) Spring(9377) + Next(3000) 기동
+### 2) 아래 "로그인" 실행 → Set-Cookie(httpOnly) 저장
+### 3) me 및 인증 API는 같은 세션(쿠키)으로 호출
+### 4) Spring 직접: D:\workspace\java\ultary-api\requests\*.http
+### 5) JSON 본문에는 // 주석 넣지 말 것 (BFF request.json() 파싱 실패)
+###    수동 입력 힌트는 ### 줄로 요청 위에 둠
+###
+### VS Code REST Client: Cookie Jar 기본 ON
+
 ### ==============================
 ### 헬스
 ### ==============================
 
-### 헬스체크
+### 헬스체크 (BFF → Spring)
 GET {{baseUrl}}/api/health
 
 ### ==============================
 ### 인증 · 유저
 ### ==============================
 
-### 구글 소셜 로그인 시작 (브라우저에서 열기)
-GET {{baseUrl}}/api/auth/social/google
+### 로그인 (email + password) — 시드 101
+# @name login
+POST {{baseUrl}}/api/auth/login
+Content-Type: {{contentType}}
 
-### 카카오 소셜 로그인 시작 (브라우저에서 열기)
-GET {{baseUrl}}/api/auth/social/kakao
+{
+  "email": "{{email}}",
+  "password": "{{password}}"
+}
 
-### 내 회원정보 조회 (httpOnly 쿠키 필요)
+### 로그인 (phone + password) — 시드 101
+POST {{baseUrl}}/api/auth/login
+Content-Type: {{contentType}}
+
+{
+  "phone": "{{seedPhone}}",
+  "password": "{{password}}"
+}
+
+### 내 회원정보 조회 (로그인 후 쿠키 필요)
 GET {{baseUrl}}/api/auth/me
 
 ### 로그아웃
@@ -27,93 +80,96 @@ Content-Type: {{contentType}}
 
 {}
 
-### 로그인 토큰 재발급
+### 로그인 토큰 재발급 (refreshToken 쿠키)
 POST {{baseUrl}}/api/auth/refresh
 Content-Type: {{contentType}}
 
 {}
 
-### 로그인 (email 또는 phone + password)
-POST {{baseUrl}}/api/auth/login
-Content-Type: {{contentType}}
-
-{
-  "email": "",
-  "password": ""
-}
-
-### 회원정보 변경
+### 회원정보 변경 (닉네임 제외 — 시드 bio/지역)
 PATCH {{baseUrl}}/api/auth/me
 Content-Type: {{contentType}}
 
 {
-  "nickname": "",
-  "bio": ""
+  "bio": "강아지랑 산책하는 집사",
+  "regionSido": "서울특별시",
+  "regionSigungu": "마포구"
 }
 
 ### 회원탈퇴
 DELETE {{baseUrl}}/api/auth/me
 
-### 회원가입
+### 회원가입 (시드와 겹치지 않는 phone/email 사용)
+### phoneAuthCompleteToken ← phoneVerify 응답 data.phoneAuthCompleteToken (수동)
 POST {{baseUrl}}/api/auth/signup
 Content-Type: {{contentType}}
 
 {
-  "phoneAuthCompleteToken": "",
+  "phoneAuthCompleteToken": "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIwMTAxMjM0NTY3OSIsInRva2VuVHlwZSI6IlBIT05FX0FVVEhfQ09NUExFVEUiLCJpYXQiOjE3ODk3MTcwMzQsImV4cCI6MTc4OTcxNzYzNCwicGhvbmUiOiIwMTAxMjM0NTY3OSJ9.cS61sOFIvH0hvdq9SNGM-HoNYpd5us6uE_CHWl3IND8",
   "password": "Test1234!",
-  "nickname": "울타리닉네임",
-  "name": "",
-  "email": ""
+  "nickname": "신규유저테스트",
+  "name": "홍길동",
+  "email": "new.user@example.com"
 }
 
-### 휴대폰 인증
+### 휴대폰 인증 (시드에 없는 번호)
+# @name phoneAuth
 POST {{baseUrl}}/api/auth/phone
 Content-Type: {{contentType}}
 
 {
-  "phone": "01012345678"
+  "phone": "01012345679"
 }
 
 ### 휴대폰 인증 확인
+### code ← Spring 서버 로그 [phoneAuth] code=xxxxxx (수동)
+### phoneAuthToken ← phoneAuth 응답 (아래 변수, phoneAuth 먼저 실행)
+# @name phoneVerify
 POST {{baseUrl}}/api/auth/phone/verify
 Content-Type: {{contentType}}
 
 {
-  "code": "",
-  "phoneAuthToken": ""
+  "code": "637999",
+  "phoneAuthToken": "{{phoneAuth.response.body.$.data.phoneAuthToken}}"
 }
 
-### 비밀번호 변경 토큰 생성
+### 비밀번호 변경 토큰 생성 (비로그인)
+### phoneAuthCompleteToken ← phoneVerify 응답 data.phoneAuthCompleteToken (수동)
+# @name passwordToken
 POST {{baseUrl}}/api/auth/password/token
 Content-Type: {{contentType}}
 
 {
-  "loginId": "",
-  "phone": ""
+  "phone": "{{seedPhone}}",
+  "phoneAuthCompleteToken": ""
 }
 
-### 비밀번호 변경
+### 비밀번호 변경 (비로그인)
+### passwordChangeToken ← passwordToken 응답 data.passwordChangeToken (수동)
 PUT {{baseUrl}}/api/auth/password
 Content-Type: {{contentType}}
 
 {
-  "token": "",
-  "password": ""
+  "passwordChangeToken": "",
+  "newPassword": "NewPass1234!"
 }
 
-### 구글 소셜 로그인 시작
+### 구글 소셜 로그인 시작 (브라우저에서 열기)
 GET {{baseUrl}}/api/auth/social/google
 
 ### 구글 소셜 로그인 콜백
+### code= ← OAuth 리다이렉트 URL의 code= (수동)
 GET {{baseUrl}}/api/auth/social/google/callback?code=
 
-### 카카오 소셜 로그인 시작
+### 카카오 소셜 로그인 시작 (브라우저에서 열기)
 GET {{baseUrl}}/api/auth/social/kakao
 
 ### 카카오 소셜 로그인 콜백
+### code= ← OAuth 리다이렉트 URL의 code= (수동)
 GET {{baseUrl}}/api/auth/social/kakao/callback?code=
 
 ### 소셜 계정 연동
+### code ← OAuth authorization code (수동)
 POST {{baseUrl}}/api/auth/social/link
 Content-Type: {{contentType}}
 
@@ -129,17 +185,19 @@ DELETE {{baseUrl}}/api/auth/social/unlink?provider=KAKAO
 ### 메인
 ### ==============================
 
-### 주민 스토리 보유 목록 조회
+### 주민 스토리 보유 목록 (시드: 주민 103 → story 102)
 GET {{baseUrl}}/api/main/stories/owners
 
-### 주민 스토리 조회
-GET {{baseUrl}}/api/main/stories?userNo=
+### 주민 스토리 조회 (본인 101)
+GET {{baseUrl}}/api/main/stories?userNo={{userNo}}
 
-### 주민 게시글 조회 (무한 스크롤)
+### 주민 게시글 조회 (101 + 주민 102·103)
+### cursor= ← 다음페이지 시 이전 응답 nextCursor (수동)
 GET {{baseUrl}}/api/main/feeds?cursor=&size=20
 
-### 검색
-GET {{baseUrl}}/api/main/search?q=&type=
+### 검색 (시드 태그/피드: 산책)
+### type= ← 필요 시 수동 지정
+GET {{baseUrl}}/api/main/search?q=산책&type=
 
 ### ==============================
 ### 마이울타리
@@ -148,24 +206,24 @@ GET {{baseUrl}}/api/main/search?q=&type=
 ### 마이울타리 정보 조회
 GET {{baseUrl}}/api/my-ultary
 
-### MY 게시글 그리드 조회
+### MY 게시글 그리드 조회 (시드 feed 101)
 GET {{baseUrl}}/api/my-ultary/feeds?cursor=&size=21
 
 ### MY 게시글 상세 조회
-GET {{baseUrl}}/api/my-ultary/feeds/1
+GET {{baseUrl}}/api/my-ultary/feeds/{{feedId}}
 
-### 저장한 게시글 조회
+### 저장한 게시글 조회 (시드: 101이 feed 102 저장)
 GET {{baseUrl}}/api/my-ultary/saved-feeds?cursor=&size=21
 
-### 태그된 게시글 조회
+### 태그된 게시글 조회 (시드: feed 102에 pet 101)
 GET {{baseUrl}}/api/my-ultary/tagged-feeds?cursor=&size=21
 
-### 프로필 사진 변경
+### 프로필 사진 변경 (시드 file 100~103)
 PATCH {{baseUrl}}/api/my-ultary/profile-image
 Content-Type: {{contentType}}
 
 {
-  "fileId": null
+  "profileFileId": {{fileId}}
 }
 
 ### 소개글 변경
@@ -173,209 +231,219 @@ PATCH {{baseUrl}}/api/my-ultary/bio
 Content-Type: {{contentType}}
 
 {
-  "bio": ""
+  "bio": "강아지랑 산책하는 집사"
 }
 
-### 스토리 등록
+### 스토리 등록 (시드 file 100)
 POST {{baseUrl}}/api/my-ultary/stories
 Content-Type: {{contentType}}
 
 {
-  "fileId": null
+  "fileId": {{fileId}},
+  "mediaType": "IMAGE",
+  "caption": "오늘 산책 스토리"
 }
 
-### 스토리 삭제
-DELETE {{baseUrl}}/api/my-ultary/stories/1
+### 스토리 삭제 (시드 story 101 — 재시드 필요할 수 있음)
+DELETE {{baseUrl}}/api/my-ultary/stories/{{storyId}}
 
 ### ==============================
 ### 반려동물
 ### ==============================
 
-### 반려동물 목록 조회
+### 반려동물 목록 조회 (시드: choco_01, mung_01)
 GET {{baseUrl}}/api/pets
 
-### 반려동물 등록
+### 반려동물 등록 (시드 mention_id와 겹치지 않게)
 POST {{baseUrl}}/api/pets
 Content-Type: {{contentType}}
 
 {
-  "name": "",
-  "tagName": "",
+  "mentionId": "pet_http_01",
+  "name": "테스트",
   "species": "DOG",
-  "breed": "",
-  "bio": ""
+  "breed": "푸들",
+  "bio": "http 테스트용"
 }
 
-### 반려동물 수정
-PATCH {{baseUrl}}/api/pets/1
+### 반려동물 수정 (시드 pet 101 초코 — name/mention 제외)
+PATCH {{baseUrl}}/api/pets/{{petId}}
 Content-Type: {{contentType}}
 
 {
-  "name": "",
-  "tagName": "",
+  "bio": "산책 좋아함",
   "species": "DOG",
-  "breed": "",
-  "bio": ""
+  "breed": "푸들"
 }
 
 ### 반려동물 삭제
-DELETE {{baseUrl}}/api/pets/1
+### {{petId}} ← 등록 응답 petId로 교체 (시드 101 삭제 금지)
+DELETE {{baseUrl}}/api/pets/{{petId}}
 
-### 피드 반려동물 태그 승인
-POST {{baseUrl}}/api/pets/tags/1/approve
+### 피드 반려동물 태그 승인 (시드 feed_pet 103 = feed102·pet101 COLLABORATOR)
+POST {{baseUrl}}/api/pets/tags/{{feedPetId}}/approve
 
 ### 피드 반려동물 태그 거절
-POST {{baseUrl}}/api/pets/tags/1/reject
+POST {{baseUrl}}/api/pets/tags/{{feedPetId}}/reject
 
 ### ==============================
 ### 게시글
 ### ==============================
 
-### 게시글 등록
+### 게시글 등록 (시드 file/pet/tag 참고)
 POST {{baseUrl}}/api/feeds
 Content-Type: {{contentType}}
 
 {
-  "content": "",
+  "content": "초코랑 산책 #산책",
   "visibility": "PUBLIC",
-  "imageFileIds": [],
-  "petIds": [],
-  "tagIds": []
+  "imageFileIds": [{{fileId}}],
+  "petIds": [{{petId}}],
+  "tagIds": [101]
 }
 
-### 게시글 상세 조회
-GET {{baseUrl}}/api/feeds/1
+### 게시글 상세 조회 (시드 feed 101)
+GET {{baseUrl}}/api/feeds/{{feedId}}
+
+### 게시글 상세 조회 (시드 feed 102 · 102 작성)
+GET {{baseUrl}}/api/feeds/{{feedIdOther}}
 
 ### 게시글 수정
-PATCH {{baseUrl}}/api/feeds/1
+PATCH {{baseUrl}}/api/feeds/{{feedId}}
 Content-Type: {{contentType}}
 
 {
-  "content": "",
+  "content": "초코랑 한강 산책 #산책",
   "visibility": "PUBLIC"
 }
 
-### 게시글 삭제
-DELETE {{baseUrl}}/api/feeds/1
+### 게시글 삭제 (주의: 시드 feed 삭제됨)
+DELETE {{baseUrl}}/api/feeds/{{feedId}}
 
 ### 게시글 좋아요
-POST {{baseUrl}}/api/feeds/1/like
+POST {{baseUrl}}/api/feeds/{{feedId}}/like
 
 ### 게시글 좋아요 취소
-DELETE {{baseUrl}}/api/feeds/1/like
+DELETE {{baseUrl}}/api/feeds/{{feedId}}/like
 
-### 게시글 좋아요한 사람 목록
-GET {{baseUrl}}/api/feeds/1/likers?cursor=&size=20
+### 게시글 좋아요한 사람 목록 (시드: 102가 101에 좋아요)
+GET {{baseUrl}}/api/feeds/{{feedId}}/likers?cursor=&size=20
 
 ### 게시글 저장
-POST {{baseUrl}}/api/feeds/1/store
+POST {{baseUrl}}/api/feeds/{{feedIdOther}}/store
 
 ### 게시글 저장 해제
-DELETE {{baseUrl}}/api/feeds/1/store
+DELETE {{baseUrl}}/api/feeds/{{feedIdOther}}/store
 
-### 게시글 공유
-POST {{baseUrl}}/api/feeds/1/share
+### 게시글 공유 (시드 수신자 102)
+POST {{baseUrl}}/api/feeds/{{feedId}}/share
 Content-Type: {{contentType}}
 
 {
   "type": "DM",
-  "receiverUserNo": null
+  "receiverUserNo": {{receiverUserNo}}
 }
 
-### 댓글 목록 조회
-GET {{baseUrl}}/api/feeds/1/comments?cursor=&size=20
+### 댓글 목록 조회 (시드 comment 101)
+GET {{baseUrl}}/api/feeds/{{feedId}}/comments?cursor=&size=20
 
 ### 댓글 작성
-POST {{baseUrl}}/api/feeds/1/comments
+POST {{baseUrl}}/api/feeds/{{feedId}}/comments
 Content-Type: {{contentType}}
 
 {
-  "content": ""
+  "content": "시드 피드 댓글 테스트"
 }
 
-### 댓글 수정
-PATCH {{baseUrl}}/api/feeds/1/comments/1
+### 댓글 수정 (시드 comment 101 · 작성자 102 — 101로 수정 시 권한 오류 가능)
+PATCH {{baseUrl}}/api/feeds/{{feedId}}/comments/{{commentId}}
 Content-Type: {{contentType}}
 
 {
-  "content": ""
+  "content": "초코 너무 귀엽다! @울타리 @choco_01"
 }
 
 ### 댓글 삭제
-DELETE {{baseUrl}}/api/feeds/1/comments/1
+DELETE {{baseUrl}}/api/feeds/{{feedId}}/comments/{{commentId}}
 
-### 답글 목록 조회
-GET {{baseUrl}}/api/feeds/1/comments/1/replies?cursor=&size=20
+### 답글 목록 조회 (시드 reply 101)
+GET {{baseUrl}}/api/feeds/{{feedId}}/comments/{{commentId}}/replies?cursor=&size=20
 
 ### 답글 작성
-POST {{baseUrl}}/api/feeds/1/comments/1/replies
+POST {{baseUrl}}/api/feeds/{{feedId}}/comments/{{commentId}}/replies
 Content-Type: {{contentType}}
 
 {
-  "content": ""
+  "content": "고마워! @나리집사"
 }
 
 ### 답글 수정
-PATCH {{baseUrl}}/api/feeds/1/comments/1/replies/1
+PATCH {{baseUrl}}/api/feeds/{{feedId}}/comments/{{commentId}}/replies/{{replyId}}
 Content-Type: {{contentType}}
 
 {
-  "content": ""
+  "content": "고마워! @나리집사"
 }
 
 ### 답글 삭제
-DELETE {{baseUrl}}/api/feeds/1/comments/1/replies/1
+DELETE {{baseUrl}}/api/feeds/{{feedId}}/comments/{{commentId}}/replies/{{replyId}}
 
 ### ==============================
 ### 태그
 ### ==============================
 
-### 태그 등록
+### 태그 등록 (시드 hashtag와 겹치지 않게)
 POST {{baseUrl}}/api/tags
 Content-Type: {{contentType}}
 
 {
-  "name": "",
-  "title": "",
-  "content": ""
+  "hashtag": "httptest",
+  "title": "HTTP 테스트 태그",
+  "content": "시드와 충돌 방지용"
 }
 
-### 태그 검색
-GET {{baseUrl}}/api/tags/search?q=
+### 태그 검색 (시드 royalcanin)
+GET {{baseUrl}}/api/tags/search?q=royal
 
 ### 태그 추천
-GET {{baseUrl}}/api/tags/recommend?q=
+GET {{baseUrl}}/api/tags/recommend?q=roy
 
-### 태그 정보 조회
-GET {{baseUrl}}/api/tags/1
+### 태그 정보 조회 (시드 tag 102)
+GET {{baseUrl}}/api/tags/{{tagId}}
 
 ### ==============================
 ### 다른 유저 울타리 · 관계
 ### ==============================
 
-### 다른 유저 울타리 정보 조회
-GET {{baseUrl}}/api/users/1/ultary
+### 다른 유저 울타리 (102 나리집사 · ACCEPTED)
+GET {{baseUrl}}/api/users/{{otherUserNo}}/ultary
 
-### 주민·이웃 목록 조회
-GET {{baseUrl}}/api/users/1/neighbors?type=
+### 다른 유저 울타리 (104 대기중 · PENDING)
+GET {{baseUrl}}/api/users/{{pendingUserNo}}/ultary
 
-### 주민 요청
-POST {{baseUrl}}/api/users/1/neighbors/request
+### 주민 목록 (101의 RESIDENTS = 102, 103)
+GET {{baseUrl}}/api/users/{{userNo}}/neighbors?type=RESIDENTS
 
-### 주민 요청 수락
-POST {{baseUrl}}/api/neighbors/1/accept
+### 이웃 목록 (101의 NEIGHBORS = 105)
+GET {{baseUrl}}/api/users/{{userNo}}/neighbors?type=NEIGHBORS
 
-### 주민 요청 거절
-POST {{baseUrl}}/api/neighbors/1/reject
+### 주민 요청 (이미 ACCEPTED인 102는 CONFLICT 예상)
+POST {{baseUrl}}/api/users/{{otherUserNo}}/neighbors/request
 
-### 주민 요청 취소·이웃 해제
-DELETE {{baseUrl}}/api/neighbors/1
+### 주민 요청 수락 (시드 neighbor 104 = 104→101 PENDING)
+POST {{baseUrl}}/api/neighbors/{{neighborIdPending}}/accept
 
-### 유저 차단
-POST {{baseUrl}}/api/users/1/block
+### 주민 요청 거절 (시드 재실행 후)
+POST {{baseUrl}}/api/neighbors/{{neighborIdPending}}/reject
+
+### 주민 요청 취소·이웃 해제 (시드 neighbor 101 = 101↔102)
+DELETE {{baseUrl}}/api/neighbors/{{neighborIdAccepted}}
+
+### 유저 차단 (102)
+POST {{baseUrl}}/api/users/{{otherUserNo}}/block
 
 ### 유저 차단 해제
-DELETE {{baseUrl}}/api/users/1/block
+DELETE {{baseUrl}}/api/users/{{otherUserNo}}/block
 
 ### 신고
 POST {{baseUrl}}/api/reports
@@ -383,21 +451,21 @@ Content-Type: {{contentType}}
 
 {
   "targetType": "USER",
-  "targetUserNo": null,
+  "targetUserNo": {{otherUserNo}},
   "targetFeedId": null,
-  "reason": ""
+  "reason": "테스트 신고"
 }
 
 ### ==============================
 ### 게시글 작성 중
 ### ==============================
 
-### 작성 사진 임시저장
+### 작성 사진 임시저장 (시드 file)
 POST {{baseUrl}}/api/write/draft-photos
 Content-Type: {{contentType}}
 
 {
-  "fileIds": []
+  "fileIds": [{{fileId}}]
 }
 
 ### 편집 사진 저장
@@ -405,7 +473,7 @@ POST {{baseUrl}}/api/write/edited-photos
 Content-Type: {{contentType}}
 
 {
-  "fileId": null,
+  "fileId": {{fileId}},
   "edits": {}
 }
 
@@ -414,7 +482,7 @@ POST {{baseUrl}}/api/write/photo-tags
 Content-Type: {{contentType}}
 
 {
-  "fileId": null,
+  "fileId": {{fileId}},
   "tags": []
 }
 
@@ -425,29 +493,34 @@ Content-Type: {{contentType}}
 ### DM 대화방 리스트 조회
 GET {{baseUrl}}/api/dm/rooms
 
-### DM 대화방 생성
+### DM 대화방 생성 (시드 수신자 102)
+# @name createDmRoom
 POST {{baseUrl}}/api/dm/rooms
 Content-Type: {{contentType}}
 
 {
-  "receiverUserNo": null
+  "receiverUserNo": {{receiverUserNo}}
 }
 
 ### DM 대화방 나가기
+### /rooms/{id} ← createDmRoom 응답 roomId로 교체 (수동)
 DELETE {{baseUrl}}/api/dm/rooms/1
 
 ### DM 읽음 처리
+### /rooms/{id} ← createDmRoom 응답 roomId로 교체 (수동)
 POST {{baseUrl}}/api/dm/rooms/1/read
 
 ### DM 메시지 조회
+### /rooms/{id} ← createDmRoom 응답 roomId로 교체 (수동)
 GET {{baseUrl}}/api/dm/rooms/1/messages?cursor=&size=30
 
 ### DM 메시지 전송
+### /rooms/{id} ← createDmRoom 응답 roomId로 교체 (수동)
 POST {{baseUrl}}/api/dm/rooms/1/messages
 Content-Type: {{contentType}}
 
 {
-  "content": ""
+  "content": "시드 유저 DM 테스트"
 }
 
 ### ==============================
@@ -455,9 +528,11 @@ Content-Type: {{contentType}}
 ### ==============================
 
 ### 알림 목록 조회
+# @name notificationList
 GET {{baseUrl}}/api/notifications?cursor=&size=20
 
 ### 알림 단건 읽음
+### /notifications/{id} ← notificationList 응답 notificationId로 교체 (수동)
 PATCH {{baseUrl}}/api/notifications/1/read
 
 ### 알림 전체 읽음
@@ -482,8 +557,8 @@ Content-Type: {{contentType}}
 ### 관리자
 ### ==============================
 
-### 관리자 태그 승인
-POST {{baseUrl}}/api/admin/tags/1/approve
+### 관리자 태그 승인 (시드 tag — 관리자 권한 필요)
+POST {{baseUrl}}/api/admin/tags/{{tagId}}/approve
 
 ### 관리자 태그 거절
-POST {{baseUrl}}/api/admin/tags/1/reject
+POST {{baseUrl}}/api/admin/tags/{{tagId}}/reject

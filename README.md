@@ -5,7 +5,8 @@
 ## 문서
 
 - [BFF 개요](docs/bff/README.md) — 아키텍처, API 명세, 구현 가이드
-- [API 메모](docs/api-memo.md) — 엔드포인트 SoT (FE ↔ BE 공유)
+- [API 메모](share/docs/api-memo.md) — 엔드포인트 SoT (FE ↔ BE 공유, `share/`)
+- [공유 스펙](share/README.md) — validation · database · 계약
 
 ## 개발
 

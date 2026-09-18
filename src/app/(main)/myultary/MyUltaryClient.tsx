@@ -14,7 +14,7 @@ import clsx from 'clsx';
 import { Check } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
 import type { Swiper as SwiperType } from 'swiper';
 import 'swiper/css';
@@ -135,9 +135,11 @@ type MyUltaryClientProps = {
 /** 마이울타리 (/myultary/[nickname]) — 내/타인 공용 */
 export default function MyUltaryClient({ nickname }: MyUltaryClientProps) {
   const router = useRouter();
+  const pathname = usePathname();
   const account = getUltaryAccount(nickname);
   const isOwnAccount = account?.isOwnAccount ?? false;
   const basePath = myUltaryPath(nickname);
+  const taggedActive = pathname?.startsWith(`${basePath}/tagged`) ?? false;
 
   const petSwiperRef = useRef<SwiperType | null>(null);
   const petPhotoInputRef = useRef<HTMLInputElement>(null);
@@ -567,7 +569,12 @@ export default function MyUltaryClient({ nickname }: MyUltaryClientProps) {
             />
           </button>
 
-          <Link href={`${basePath}/tagged`} className={styles.sideTabBtn} aria-label="그룹">
+          <Link
+            href={`${basePath}/tagged`}
+            className={clsx(styles.sideTabBtn, taggedActive && styles.sideTabActive)}
+            aria-label="태그됨"
+            aria-current={taggedActive ? 'page' : undefined}
+          >
             <Image src={GroupOffIcon} alt="" width={20} height={20} />
           </Link>
         </nav>

@@ -144,7 +144,10 @@ http/
   bff.http              # REST Client 수동 테스트
 docs/
   bff/                  # 이 문서
-  api-memo.md           # 엔드포인트 SoT (FE ↔ BE 공유)
+share/
+  docs/api-memo.md      # 엔드포인트 SoT (FE ↔ BE 공유)
+  validation/           # 입력 검사 rules.json
+  database/             # 스키마·시드
 ```
 
 ## 환경 변수
@@ -161,9 +164,11 @@ docs/
 
 ## 원본 정의 (Source of Truth)
 
-Spring `/api/v1/**` 경로·Method의 **원본 정의**는 이 FE 레포를 따른다.
+Spring `/api/v1/**` 경로·Method의 **원본 정의**는 공유 스펙 `share/`를 따른다.
 
-- `docs/api-memo.md`
+- `share/docs/api-memo.md`
+- `share/docs/API_CONTRACT.md`
+- `share/validation/rules.json`
 - `src/lib/api/endpoints.ts` → `springEndpoints`
 
-BE(`ultary-api`) Controller는 위와 동일해야 하며, 경로 변경 시 FE를 먼저 수정한 뒤 BE를 맞춘다.
+BE(`ultary-api`) Controller는 위와 동일해야 하며, 경로 변경 시 **`share/`를 먼저 수정**한 뒤 FE·BE를 맞춘다.

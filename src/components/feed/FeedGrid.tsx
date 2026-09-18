@@ -1,3 +1,4 @@
+import { EmptyState } from '@/components/common/EmptyState';
 import Image from 'next/image';
 import Link from 'next/link';
 import styles from './FeedGrid.module.scss';
@@ -14,10 +15,21 @@ export type FeedGridItem = {
 type FeedGridProps = {
   posts: FeedGridItem[];
   className?: string;
+  emptyTitle?: string;
+  emptyDescription?: string;
 };
 
 /** 3열 게시글 썸네일 그리드 */
-export function FeedGrid({ posts, className }: FeedGridProps) {
+export function FeedGrid({
+  posts,
+  className,
+  emptyTitle = '게시물이 없어요',
+  emptyDescription,
+}: FeedGridProps) {
+  if (posts.length === 0) {
+    return <EmptyState title={emptyTitle} description={emptyDescription} />;
+  }
+
   return (
     <ul className={`${styles.grid}${className ? ` ${className}` : ''}`}>
       {posts.map((post) => (

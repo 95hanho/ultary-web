@@ -5,15 +5,18 @@ import {
   type MockComment,
   type MockCommentReply,
 } from '@/lib/mock/comments';
+import { MY_NICKNAME, myUltaryPath } from '@/lib/mock/ultary-accounts';
 import clsx from 'clsx';
-import { Heart } from 'lucide-react';
+import { Heart, X } from 'lucide-react';
 import Image from 'next/image';
+import Link from 'next/link';
 import {
   useCallback,
   useEffect,
   useLayoutEffect,
   useRef,
   useState,
+  type FormEvent,
   type PointerEvent as ReactPointerEvent,
   type TransitionEvent as ReactTransitionEvent,
 } from 'react';
@@ -23,6 +26,8 @@ import styles from './CommentSheet.module.scss';
 const CLOSE_DRAG_PX = 50;
 const COMMENT_HISTORY_KEY = 'ultaryCommentSheet';
 const COMMENT_QUERY = 'comments';
+const MY_PROFILE = '/images/mock/feed.jpg';
+const SendIcon = '/images/icon/Send.svg';
 
 function commentSheetUrl(feedId: string, withQuery: boolean) {
   const url = new URL(window.location.href);
@@ -54,23 +59,33 @@ type CommentSheetProps = {
 
 function renderContent(content: string) {
   const parts = content.split(/(@[A-Za-z0-9_]+)/g);
-  return parts.map((part, i) =>
-    part.startsWith('@') ? (
-      <span key={i} className={styles.mention}>
+  return parts.map((part, i) => {
+    if (!part.startsWith('@')) {
+      return <span key={i}>{part}</span>;
+    }
+    const nickname = part.slice(1);
+    return (
+      <Link
+        key={i}
+        href={myUltaryPath(nickname)}
+        className={styles.mention}
+      >
         {part}
-      </span>
-    ) : (
-      <span key={i}>{part}</span>
-    ),
-  );
+      </Link>
+    );
+  });
 }
 
 function CommentBody({
   item,
   compact,
+  parentCommentId,
+  onReply,
 }: {
   item: MockCommentReply;
   compact?: boolean;
+  parentCommentId: string;
+  onReply: (nickname: string, parentCommentId: string) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
   const [needsMore, setNeedsMore] = useState(false);
@@ -94,7 +109,10 @@ function CommentBody({
 
   return (
     <div className={clsx(styles.item, compact && styles.itemReply)}>
-      <span className={clsx(styles.avatarWrap, compact && styles.avatarWrapSm)}>
+      <Link
+        href={myUltaryPath(item.nickname)}
+        className={clsx(styles.avatarWrap, compact && styles.avatarWrapSm)}
+      >
         <Image
           src={item.profileUrl}
           alt=""
@@ -102,7 +120,7 @@ function CommentBody({
           height={compact ? 32 : 40}
           className={styles.avatar}
         />
-      </span>
+      </Link>
 
       <div className={styles.body}>
         <div className={styles.textWrap}>
@@ -110,7 +128,9 @@ function CommentBody({
             ref={textRef}
             className={clsx(styles.text, !expanded && styles.textClamped)}
           >
-            <strong className={styles.nick}>{item.nickname}</strong>{' '}
+            <Link href={myUltaryPath(item.nickname)} className={styles.nick}>
+              {item.nickname}
+            </Link>{' '}
             {renderContent(item.content)}
           </p>
           {!expanded && needsMore ? (
@@ -127,7 +147,11 @@ function CommentBody({
         </div>
         <div className={styles.meta}>
           <span className={styles.time}>{item.timeLabel}</span>
-          <button type="button" className={styles.replyBtn}>
+          <button
+            type="button"
+            className={styles.replyBtn}
+            onClick={() => onReply(item.nickname, parentCommentId)}
+          >
             답글 달기
           </button>
         </div>
@@ -182,10 +206,85 @@ export function CommentSheet({
   const historyPushedRef = useRef(false);
   const closedByPopRef = useRef(false);
   const ignorePopRef = useRef(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
+
+  const [items, setItems] = useState<MockComment[]>(comments);
+  const [draft, setDraft] = useState('');
+  const [replyTo, setReplyTo] = useState<{
+    parentCommentId: string;
+    nickname: string;
+  } | null>(null);
 
   useEffect(() => {
     setHydrated(true);
   }, []);
+
+  useEffect(() => {
+    if (!open) return;
+    setItems(comments);
+    setDraft('');
+    setReplyTo(null);
+  }, [open, comments, feedId]);
+
+  const startReply = useCallback((nickname: string, parentCommentId: string) => {
+    setReplyTo({ parentCommentId, nickname });
+    setDraft((prev) => {
+      const mention = `@${nickname} `;
+      if (prev.startsWith(mention)) return prev;
+      return mention;
+    });
+    requestAnimationFrame(() => inputRef.current?.focus());
+  }, []);
+
+  const clearReply = useCallback(() => {
+    setReplyTo(null);
+    setDraft('');
+  }, []);
+
+  function submitComment(e?: FormEvent) {
+    e?.preventDefault();
+    const text = draft.trim();
+    if (!text) return;
+
+    if (replyTo) {
+      const reply: MockCommentReply = {
+        id: `local-r-${Date.now()}`,
+        nickname: MY_NICKNAME,
+        profileUrl: MY_PROFILE,
+        content: text,
+        timeLabel: '방금',
+        likeCount: 0,
+      };
+      setItems((prev) =>
+        prev.map((c) =>
+          c.id === replyTo.parentCommentId
+            ? { ...c, replies: [...c.replies, reply] }
+            : c,
+        ),
+      );
+    } else {
+      const next: MockComment = {
+        id: `local-c-${Date.now()}`,
+        nickname: MY_NICKNAME,
+        profileUrl: MY_PROFILE,
+        content: text,
+        timeLabel: '방금',
+        likeCount: 0,
+        replies: [],
+      };
+      setItems((prev) => [...prev, next]);
+    }
+
+    setDraft('');
+    setReplyTo(null);
+    requestAnimationFrame(() => {
+      listRef.current?.scrollTo({
+        top: listRef.current.scrollHeight,
+        behavior: 'smooth',
+      });
+    });
+  }
 
   const animateClose = useCallback(() => {
     if (closingRef.current || !presentRef.current) return;
@@ -364,20 +463,79 @@ export function CommentSheet({
           <span className={styles.bar} aria-hidden />
         </div>
 
-        <div className={styles.list}>
-          {comments.map((comment) => (
+        <div ref={listRef} className={styles.list}>
+          {items.map((comment) => (
             <div key={comment.id} className={styles.thread}>
-              <CommentBody item={comment} />
+              <CommentBody
+                item={comment}
+                parentCommentId={comment.id}
+                onReply={startReply}
+              />
               {comment.replies.length > 0 ? (
                 <div className={styles.replies}>
                   {comment.replies.map((reply) => (
-                    <CommentBody key={reply.id} item={reply} compact />
+                    <CommentBody
+                      key={reply.id}
+                      item={reply}
+                      compact
+                      parentCommentId={comment.id}
+                      onReply={startReply}
+                    />
                   ))}
                 </div>
               ) : null}
             </div>
           ))}
         </div>
+
+        <form className={styles.composer} onSubmit={submitComment}>
+          {replyTo ? (
+            <div className={styles.replyBar}>
+              <span className={styles.replyHint}>
+                <strong>@{replyTo.nickname}</strong>님에게 답글 남기는 중
+              </span>
+              <button
+                type="button"
+                className={styles.replyCancel}
+                aria-label="답글 취소"
+                onClick={clearReply}
+              >
+                <X size={16} strokeWidth={2} aria-hidden />
+              </button>
+            </div>
+          ) : null}
+          <div className={styles.composerRow}>
+            <span className={styles.composerAvatar}>
+              <Image
+                src={MY_PROFILE}
+                alt=""
+                width={32}
+                height={32}
+                className={styles.avatar}
+              />
+            </span>
+            <input
+              ref={inputRef}
+              className={styles.composerInput}
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              placeholder={
+                replyTo
+                  ? `@${replyTo.nickname}님에게 답글 남기기…`
+                  : '댓글을 입력하세요…'
+              }
+              aria-label={replyTo ? '답글 입력' : '댓글 입력'}
+            />
+            <button
+              type="submit"
+              className={styles.composerSend}
+              disabled={!draft.trim()}
+              aria-label="전송"
+            >
+              <Image src={SendIcon} alt="" width={22} height={22} />
+            </button>
+          </div>
+        </form>
       </div>
     </div>,
     document.body,

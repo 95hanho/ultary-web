@@ -71,7 +71,7 @@ const MENU_GROUPS: MenuGroup[] = [
   {
     title: '기타',
     items: [
-      { label: '고객센터 / 문의', href: '#', Icon: HelpCircle },
+      { label: '고객센터 / 문의', href: '/settings/support', Icon: HelpCircle },
       { label: '이용약관 · 개인정보처리방침', href: '/settings/terms', Icon: FileText },
       { label: '앱 정보', href: '#', Icon: Info, accordion: 'appInfo' },
     ],

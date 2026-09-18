@@ -2,7 +2,7 @@
 
 ## 새 Route Handler 구현 순서
 
-1. `docs/api-memo.md` / `endpoints.ts`에 BFF·Spring 경로가 있는지 확인
+1. `share/docs/api-memo.md` / `endpoints.ts`에 BFF·Spring 경로가 있는지 확인
 2. `src/app/api/.../route.ts` 스켈레톤의 `notImplemented`를 Spring 연동으로 교체
 3. 필요한 Request/Response 타입을 `src/types/`에 추가
 4. `http/bff.http`에 요청 예시 추가 (없으면)

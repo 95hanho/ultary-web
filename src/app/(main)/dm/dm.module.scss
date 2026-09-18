@@ -16,38 +16,221 @@
   min-height: 0;
   flex: 1;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 24px 15px 72px;
+  overflow-y: auto;
+  padding-bottom: 72px;
 }
 
-.panel {
+.roomList {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.roomItem {
   display: flex;
   width: 100%;
-  max-width: 320px;
-  flex-direction: column;
   align-items: center;
-  gap: 8px;
-  padding: 28px 20px;
-  border: 1px solid var(--brand-gray-100);
-  border-radius: 12px;
-  background: rgba(243, 254, 255, 0.72);
-  text-align: center;
+  gap: 12px;
+  padding: 12px 15px;
+  border: 0;
+  border-bottom: 1px solid var(--brand-gray-100);
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+
+  &:active {
+    background: rgba(0, 0, 0, 0.03);
+  }
 }
 
-.title {
+.roomAvatar {
+  display: flex;
+  flex-shrink: 0;
+  width: 48px;
+  height: 48px;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.roomAvatarImg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.roomBody {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.roomTop,
+.roomBottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.roomNick {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--brand-black-700);
+  font-size: 14px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.roomTime {
+  flex-shrink: 0;
+  color: var(--brand-gray-400);
+  font-size: 12px;
+}
+
+.roomPreview {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--brand-gray-600);
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.badge {
+  display: inline-flex;
+  flex-shrink: 0;
+  min-width: 18px;
+  height: 18px;
+  align-items: center;
+  justify-content: center;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--brand-grass-600);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.profileLink {
+  color: var(--brand-grass-600);
+  font-size: 13px;
+  font-weight: 700;
+  text-decoration: none;
+
+  &:hover,
+  &:active {
+    text-decoration: underline;
+  }
+}
+
+.thread {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+}
+
+.messages {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 10px;
+  overflow-y: auto;
+  padding: 16px 15px;
+}
+
+.bubbleRow {
+  display: flex;
+  justify-content: flex-start;
+}
+
+.bubbleRowMe {
+  justify-content: flex-end;
+}
+
+.bubble {
+  display: flex;
+  max-width: 78%;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px;
+  border-radius: 14px 14px 14px 4px;
+  background: var(--brand-gray-100);
+}
+
+.bubbleMe {
+  border-radius: 14px 14px 4px 14px;
+  background: rgba(90, 176, 90, 0.18);
+}
+
+.bubbleText {
   margin: 0;
   color: var(--brand-black-700);
-  font-size: 20px;
-  font-weight: 700;
-  line-height: 1.3;
+  font-size: 14px;
+  line-height: 1.4;
+  word-break: break-word;
 }
 
-.desc {
-  margin: 0;
-  color: var(--brand-gray-600);
-  font-size: 14px;
-  font-weight: 400;
-  line-height: 1.5;
-  word-break: keep-all;
+.bubbleTime {
+  align-self: flex-end;
+  color: var(--brand-gray-400);
+  font-size: 11px;
+}
+
+.composer {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 13px calc(10px + env(safe-area-inset-bottom, 0px));
+  border-top: 1px solid var(--brand-gray-100);
+  background: #fff;
+}
+
+.composerInput {
+  min-width: 0;
+  flex: 1;
+  height: 40px;
+  padding: 0 12px;
+  border: 1px solid var(--brand-gray-200);
+  border-radius: 20px;
+  background: #fff;
+  color: var(--brand-black-700);
+  font-size: 13px;
+  outline: none;
+
+  &::placeholder {
+    color: var(--brand-gray-400);
+  }
+
+  &:focus {
+    border-color: var(--brand-grass-600);
+  }
+}
+
+.composerSend {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  cursor: pointer;
+
+  &:disabled {
+    opacity: 0.35;
+    cursor: default;
+  }
 }
