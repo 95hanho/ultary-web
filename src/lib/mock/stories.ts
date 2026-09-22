@@ -20,12 +20,12 @@ export const MOCK_STORY_OWNER: MockStoryOwner = {
     {
       id: 'story-1',
       kind: 'image',
-      src: '/images/mock/post_ex.jpg',
+      src: '/images/mock/post.jpg',
     },
     {
       id: 'story-2',
       kind: 'image',
-      src: '/images/mock/feed.jpg',
+      src: '/images/mock/post2.jpg',
     },
     {
       id: 'story-3',

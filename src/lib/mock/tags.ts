@@ -27,7 +27,7 @@ export const MOCK_TAG_EXPLAINS: Record<string, TagExplain> = {
   푸들: {
     tag: '푸들',
     title: '푸들',
-    imageUrl: '/images/mock/feed.jpg',
+    imageUrl: '/images/mock/post2.jpg',
     description: '곱슬 털이 매력인 반려견 견종 태그입니다. 미용·산책·일상 게시글에서 자주 사용됩니다.',
     linkUrl: '#',
     linkLabel: '→관련 링크 보기',
@@ -42,7 +42,7 @@ export function getTagExplain(raw: string): TagExplain | null {
   return {
     tag: key,
     title: key,
-    imageUrl: '/images/mock/post_ex.jpg',
+    imageUrl: '/images/mock/post.jpg',
     description: `#${key} 태그에 대한 설명이 아직 없습니다.`,
   };
 }

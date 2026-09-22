@@ -11,7 +11,7 @@ import { useState, type ReactNode } from 'react';
 import styles from './activity.module.scss';
 
 const MY_PROFILE = '/images/mock/profile.jpg';
-const OTHER_PROFILE = '/images/mock/feed.jpg';
+const OTHER_PROFILE = '/images/mock/post2.jpg';
 
 type ActivityKind =
   | 'like'

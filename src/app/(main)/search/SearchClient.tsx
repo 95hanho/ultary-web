@@ -23,14 +23,14 @@ const SearchIcon = '/images/icon/Search.svg';
 
 const RECOMMENDED_POSTS = MOCK_RECOMMENDED_FEEDS.map((feed) => ({
   id: feed.id,
-  imageUrl: feed.images[0] ?? '/images/mock/post_ex.jpg',
+  imageUrl: feed.images[0] ?? '/images/mock/post.jpg',
   isMulti: feed.images.length > 1,
   href: `${myUltaryPath(MY_NICKNAME)}/posts/${feed.id}`,
 }));
 
 const HASHTAG_RESULT_POSTS = MOCK_RECOMMENDED_FEEDS.map((feed) => ({
   id: `tag-${feed.id}`,
-  imageUrl: feed.images[0] ?? '/images/mock/post_ex.jpg',
+  imageUrl: feed.images[0] ?? '/images/mock/post.jpg',
   isMulti: true,
   href: `${myUltaryPath(OTHER_NICKNAME)}/posts/${feed.id}`,
 }));

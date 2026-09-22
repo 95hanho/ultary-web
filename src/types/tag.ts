@@ -1,4 +1,5 @@
 import type { DateTimeString, SoftDelete, Timestamps } from './common';
+import type { FileSummary } from './file';
 
 /** ultary_tag */
 export type Tag = {
@@ -9,6 +10,9 @@ export type Tag = {
   link: string | null;
   useCount: number;
   createdByUserNo: number | null;
+  /** 읽기 응답 — 기존 imageFileIds와 함께 */
+  imageFileIds?: number[];
+  images?: FileSummary[];
 } & Timestamps &
   SoftDelete;
 

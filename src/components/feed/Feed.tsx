@@ -103,7 +103,7 @@ export function Feed({
     };
   }, []);
 
-  const safeImages = images.length > 0 ? images : ['/images/mock/post_ex.jpg'];
+  const safeImages = images.length > 0 ? images : ['/images/mock/post.jpg'];
   const hasMultiple = safeImages.length > 1;
   const showPrev = hasMultiple && index > 0;
   const showNext = hasMultiple && index < safeImages.length - 1;

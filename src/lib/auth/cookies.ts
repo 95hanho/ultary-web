@@ -3,14 +3,19 @@ import 'server-only';
 import { cookies } from 'next/headers';
 import type { NextResponse } from 'next/server';
 import { isProd } from '@/lib/env.server';
+import {
+  ACCESS_TOKEN_COOKIE,
+  ACCESS_TOKEN_MAX_AGE,
+  REFRESH_TOKEN_COOKIE,
+  REFRESH_TOKEN_MAX_AGE,
+} from '@/lib/auth/cookie-names';
 
-export const ACCESS_TOKEN_COOKIE = 'accessToken';
-export const REFRESH_TOKEN_COOKIE = 'refreshToken';
-
-/** access 기본 30분 */
-export const ACCESS_TOKEN_MAX_AGE = 60 * 30;
-/** refresh 기본 14일 */
-export const REFRESH_TOKEN_MAX_AGE = 60 * 60 * 24 * 14;
+export {
+  ACCESS_TOKEN_COOKIE,
+  ACCESS_TOKEN_MAX_AGE,
+  REFRESH_TOKEN_COOKIE,
+  REFRESH_TOKEN_MAX_AGE,
+} from '@/lib/auth/cookie-names';
 
 const baseCookieOptions = {
   httpOnly: true,

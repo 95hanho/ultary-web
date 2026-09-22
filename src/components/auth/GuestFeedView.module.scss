@@ -1,0 +1,20 @@
+.shell {
+  position: relative;
+  min-height: 100%;
+  background: #fff;
+}
+
+.feedWrap {
+  /* 배경으로만 보이게 */
+}
+
+.blocker {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}

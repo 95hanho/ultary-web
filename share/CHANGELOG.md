@@ -7,6 +7,36 @@ validation · database · docs 모두 **여기 한곳**에 적는다.
 
 ---
 
+## 2026-09-22 17:24
+
+### docs · 인증 FE/BFF 적용 + Spring 가이드
+- `auth-access.md` 상태: FE/BFF 1차 적용 반영
+- `spring-auth-api.md` 추가 — Spring이 적용할 게스트 단건 GET·쓰기 401·nickname (복붙용 §0)
+- BFF: middleware(페이지 가드, refresh 없음), requireAccessToken/withAuth(Spring refresh), `/feeds/:id` 공유 페이지(실데이터→목업 폴백)
+- `api-memo` · `API_CONTRACT`에 게스트 GET / spring-auth-api 링크
+## 2026-09-22 16:07
+
+### docs · 인증 접근 규칙 (설계)
+- docs/auth-access.md 추가
+  - 로그인·회원가입 등 제외 → 미인증 시 로그인 페이지
+  - 공유 URL/카카오 단건 피드는 게스트 열람 허용
+  - 로그인 모달: 닫기 가능, 사진 넘김·좋아요·댓글 등 모든 액션 시 재표시
+- API_CONTRACT.md · README.md에 링크
+
+## 2026-09-22 15:05
+
+### docs · StoryOwner
+- `/main/stories/owners`는 FileSummary 미포함 (링: 보유 여부 + `hasUnviewed`만)
+- 읽음은 `POST /stories/{id}/view` → `ultary_story_view` (`INSERT IGNORE`, 본인 스토리는 미기록)
+
+## 2026-09-22 14:45
+
+### docs · API 응답 설계
+- 읽기 API에 **FileSummary** 임베드 (`file` / `profileFile` / `coverFile` / `images` 등)
+  - `filePath` = 업로드 상대경로 또는 CDN 절대 URL → 피드·스토리 스크롤 시 추가 `/files/{id}` 불필요
+- `api-memo.md` · `API_CONTRACT.md` 반영
+- 시드 CDN file_id 110~141 안내 갱신
+
 ## 2026-09-18 16:33
 
 - 불필요 파일 삭제: `docs/api-memo.md`(리다이렉트 스텁), 루트 `database/`(잔여 스키마)

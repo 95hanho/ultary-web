@@ -26,7 +26,7 @@ import styles from './CommentSheet.module.scss';
 const CLOSE_DRAG_PX = 50;
 const COMMENT_HISTORY_KEY = 'ultaryCommentSheet';
 const COMMENT_QUERY = 'comments';
-const MY_PROFILE = '/images/mock/feed.jpg';
+const MY_PROFILE = '/images/mock/post2.jpg';
 const SendIcon = '/images/icon/Send.svg';
 
 function commentSheetUrl(feedId: string, withQuery: boolean) {

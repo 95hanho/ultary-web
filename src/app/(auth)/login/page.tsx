@@ -3,17 +3,21 @@ import Image from 'next/image';
 import Link from 'next/link';
 import styles from './login.module.scss';
 
-const LOGO_SRC = encodeURI('/images/auth/ultary_logo 1.png');
-const GOOGLE_ICON_SRC = '/images/auth/google.social.png';
-const KAKAO_BTN_SRC = encodeURI('/images/auth/kakao_login_large_wide 1.png');
+const LOGO_SRC = '/images/img/ultary_logo_login.png';
+const GOOGLE_ICON_SRC = '/images/icon/google_social.png';
+const KAKAO_BTN_SRC = '/images/img/kakao_login_large_wide.png';
 
 type LoginPageProps = {
-  searchParams?: Promise<{ error?: string }>;
+  searchParams?: Promise<{ error?: string; returnUrl?: string }>;
 };
 
 export default async function LoginPage({ searchParams }: LoginPageProps) {
   const params = searchParams ? await searchParams : undefined;
   const error = params?.error;
+  const returnUrl = params?.returnUrl?.trim() || '';
+  const returnQuery = returnUrl
+    ? `?returnUrl=${encodeURIComponent(returnUrl)}`
+    : '';
 
   return (
     <main className={styles.shell}>
@@ -34,6 +38,9 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
         ) : null}
 
         <form action="#" method="post" className={styles.form}>
+          {returnUrl ? (
+            <input type="hidden" name="returnUrl" value={returnUrl} />
+          ) : null}
           <div className={styles.fields}>
             <input
               type="text"
@@ -61,7 +68,10 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
             </Link>
 
             <div className={styles.social}>
-              <a href={bffEndpoints.auth.google} className={styles.googleBtn}>
+              <a
+                href={`${bffEndpoints.auth.google}${returnQuery}`}
+                className={styles.googleBtn}
+              >
                 <Image
                   src={GOOGLE_ICON_SRC}
                   alt=""
@@ -73,7 +83,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
               </a>
 
               <a
-                href={bffEndpoints.auth.kakao}
+                href={`${bffEndpoints.auth.kakao}${returnQuery}`}
                 className={styles.kakaoBtn}
                 aria-label="카카오 로그인"
               >

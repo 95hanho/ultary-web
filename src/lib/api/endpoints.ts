@@ -77,10 +77,15 @@ export const bffEndpoints = {
     profileImage: '/api/my-ultary/profile-image',
     /** PATCH 소개글 */
     bio: '/api/my-ultary/bio',
-    /** POST 스토리 등록 */
+    /** GET 내 스토리 목록 / POST 스토리 등록 */
     stories: '/api/my-ultary/stories',
     /** DELETE 스토리 삭제 */
     story: '/api/my-ultary/stories/:storyId',
+  },
+
+  stories: {
+    /** POST 스토리 읽음 (ultary_story_view · 본인 스토리는 미기록) */
+    view: '/api/stories/:storyId/view',
   },
 
   pets: {
@@ -189,6 +194,15 @@ export const bffEndpoints = {
     /** POST 태그 거절 */
     tagReject: '/api/admin/tags/:tagId/reject',
   },
+
+  files: {
+    /** POST 업로드 (multipart) / GET 목록(있으면) */
+    root: '/api/files',
+    /** GET 단건 메타 */
+    detail: '/api/files/:fileId',
+    /** GET 바이너리 프록시 (상대 filePath용 · CDN은 호출 금지) */
+    content: '/api/files/:fileId/content',
+  },
 } as const;
 
 /** Next 서버 → Spring (/api/v1) */
@@ -257,10 +271,15 @@ export const springEndpoints = {
     profileImage: '/api/v1/my-ultary/profile-image',
     /** PATCH */
     bio: '/api/v1/my-ultary/bio',
-    /** POST */
+    /** GET / POST */
     stories: '/api/v1/my-ultary/stories',
     /** DELETE */
     story: '/api/v1/my-ultary/stories/:storyId',
+  },
+
+  stories: {
+    /** POST 읽음 — INSERT IGNORE, 본인 스토리 미기록 */
+    view: '/api/v1/stories/:storyId/view',
   },
 
   pets: {
@@ -366,6 +385,15 @@ export const springEndpoints = {
     tagApprove: '/api/v1/admin/tags/:tagId/approve',
     /** POST */
     tagReject: '/api/v1/admin/tags/:tagId/reject',
+  },
+
+  files: {
+    /** POST multipart 업로드 / GET */
+    root: '/api/v1/files',
+    /** GET 단건 메타 */
+    detail: '/api/v1/files/:fileId',
+    /** GET 바이너리 — 상대 filePath만. CDN 절대 URL에는 호출하지 않음 */
+    content: '/api/v1/files/:fileId/content',
   },
 } as const;
 

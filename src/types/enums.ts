@@ -1,3 +1,6 @@
+/** ultary_file.source_type */
+export type FileSourceType = 'OWNED' | 'UNSPLASH' | 'AI' | 'ETC';
+
 /** ultary_user.withdrawal_status */
 export type WithdrawalStatus = 'ACTIVE' | 'REQUESTED' | 'WITHDRAWN';
 

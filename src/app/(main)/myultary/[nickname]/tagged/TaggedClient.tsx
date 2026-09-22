@@ -17,7 +17,7 @@ export default function TaggedClient({ nickname }: TaggedClientProps) {
   const basePath = myUltaryPath(nickname);
   const posts: FeedGridItem[] = MOCK_HOME_FEEDS.slice(0, 6).map((feed) => ({
     id: `tagged-${feed.id}`,
-    imageUrl: feed.images[0] ?? '/images/mock/post_ex.jpg',
+    imageUrl: feed.images[0] ?? '/images/mock/post.jpg',
     isMulti: feed.images.length > 1,
     href: `${basePath}/posts/${feed.id}`,
   }));

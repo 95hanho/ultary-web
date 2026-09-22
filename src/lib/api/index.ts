@@ -22,3 +22,5 @@ export {
 } from './springFetch';
 
 export { bffEndpoints, endpoints, springEndpoints } from './endpoints';
+
+export { resolveFileDisplayUrl } from './fileUrl';

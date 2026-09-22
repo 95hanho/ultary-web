@@ -10,9 +10,12 @@ import {
 } from '@/lib/api/bffRoute';
 import { springGet } from '@/lib/api/springFetch';
 
-/** 주�? ?�토�?보유 목록 조회 */
+/**
+ * 주민 스토리 보유 목록 (링 메타만).
+ * FileSummary / 프로필 URL 없음 — hasUnviewed 등. 미디어는 GET /main/stories?userNo=
+ */
 export async function GET(request: NextRequest) {
-  console.log('[API] 주�? ?�토�?보유 목록 조회');
+  console.log('[API] 주민 스토리 보유 목록 조회');
   try {
     const accessToken = await requireAccessToken();
     if (isUnauthorized(accessToken)) return accessToken;

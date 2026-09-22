@@ -1,3 +1,5 @@
+import type { FileSummary } from './file';
+
 /** BE ApiResponse / ProblemDetail 대응 */
 
 export const API_ERROR_CODES = [
@@ -136,6 +138,8 @@ export type MeResponse = {
   email: string | null;
   phone: string | null;
   profileFileId: number | null;
+  /** 읽기 임베드 — share FileSummary */
+  profileFile?: FileSummary | null;
   bio: string | null;
   regionSido: string | null;
   regionSigungu: string | null;

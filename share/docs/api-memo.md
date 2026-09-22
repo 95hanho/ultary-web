@@ -76,9 +76,10 @@ BFF: `/api/...` · Spring: `/api/v1/...`
 | 주민 게시글 조회 (무한 스크롤) | GET | `/api/main/feeds` | `/api/v1/main/feeds` | 구현 |
 | 검색 (유저 / 반려동물 / 태그 / 게시글) | GET | `/api/main/search` | `/api/v1/main/search` | 구현 |
 
-> 스토리 소유자 목록 = 내가 팔로우(`requester` ACCEPTED)한 유저 중 활성 스토리 보유자. `hasUnviewed`로 안 읽은 링 표시.  
+> 스토리 소유자 목록 = 내가 팔로우(`requester` ACCEPTED)한 유저 중 활성 스토리 보유자. `hasUnviewed`는 `ultary_story_view` 기준(안 읽은 링). **미디어/프로필 URL 없음** — 링 탭 시 `GET /main/stories?userNo=`.  
 > 메인 피드: 본인 + 주민 게시글. `PUBLIC` / 본인 / `NEIGHBORS`(ACCEPTED). 차단 쌍 제외. 커서 `cursorFeedId` + `nextCursorFeedId`.  
 > 검색 `type`: `ALL`(기본) \| `USER` \| `PET` \| `TAG` \| `FEED`. `@`/`#` 접두는 서버에서 제거. URL 쿼리에서는 `#`를 `%23`, `@`를 `%40`로 인코딩해야 함(`#`는 fragment라 미인코딩 시 `q`/`type`이 잘림). 차단 유저·펫 제외.  
+> **미디어 URL**: 피드·스토리 상세·프로필 등 읽기 응답에 `fileId`와 함께 `FileSummary` 임베드. `filePath`는 상대경로(`images/…`) 또는 CDN 절대 URL. **예외: `/main/stories/owners`는 링 메타만** (`hasUnviewed` 등).  
 > HTTP: `requests/story.http`, `requests/main.http`
 
 ---
@@ -130,6 +131,7 @@ BFF: `/api/...` · Spring: `/api/v1/...`
 | 게시글 수정 | PATCH | `/api/feeds/:feedId` |
 | 게시글 삭제 | DELETE | `/api/feeds/:feedId` |
 
+> Spring: `GET /api/v1/feeds/{feedId}` — **PUBLIC은 비로그인 허용**. 상세는 [`spring-auth-api.md`](./spring-auth-api.md).
 > 삭제 권한: 작성자 또는 `feed_pet.role=COLLABORATOR` 펫의 보호자. `deleted_by_user_no`에 실제 삭제자 기록.
 > 등록 시 `media` 1개 이상 필수. PATCH는 content·visibility만 (미디어/펫/태그 교체 미지원).
 > `PRIVATE`는 작성자만 조회. `NEIGHBORS`는 ACCEPTED 이웃만 조회.
@@ -257,12 +259,47 @@ BFF: `/api/...` · Spring: `/api/v1/...`
 - 코드 상수: `src/lib/api/endpoints.ts` (`bffEndpoints` / `springEndpoints`)
 - BFF 스켈레톤: `src/app/api/**/route.ts`
 - REST Client 틀: `http/bff.http` (프론트) · Spring: `requests/*.http`
-- DB 스키마: `share/database/schema/mariadb_10_1/001_init_schema.sql` (**schema_version 7**, 스토리 포함)
+- DB 스키마: `share/database/schema/mariadb_10_1/001_init_schema.sql` (**schema_version 8**)
+  - 기존 DB v7→v8: `002_file_source_attribution.sql`
+  - `ultary_file` 출처: `source_type`(OWNED|UNSPLASH|AI|ETC), `author_name`, `source_url`, `license_url`, `copyright_notice`
 - 로컬 시드(선택): `share/database/seed/mariadb_10_1/001_dev_sample_data.sql`  
   - 스키마 직후 실행. **재실행 가능**(CLEANUP 후 INSERT). 운영/최종 배포에서는 실행하지 않음.  
-  - `ultary_file`은 업로드 디렉터리에 있는 실제 파일만 (`images/…`, `videos/…`).  
+  - CDN 시드: `file_path` = `https://ehfqntuqntu.cdn1.cafe24.com/ultary/{filename}` (profile/post/story/goods). file_id **110~141**.  
+  - 일반 업로드 파일은 `images/…`, `videos/…` (UPLOAD_DIR 상대경로).  
   - 시드 user **101~105** (펫 유저당 1~2). HTTP: `my-ultary` / `story` / `neighbor` → 101 (`google-myultary-test-001`)
 - 입력 검사 공통 스펙: `share/validation/` (`rules.json`)
+
+### 응답 임베드: FileSummary
+
+목록·프로필·피드·스토리·태그 등 **fileId를 내려주던 읽기 API**는 동일 응답에 파일 요약을 포함한다.
+
+```json
+{
+  "fileId": 120,
+  "filePath": "https://ehfqntuqntu.cdn1.cafe24.com/ultary/post.jpg",
+  "mimeType": "image/jpeg",
+  "extension": "jpg",
+  "sourceType": "OWNED",
+  "authorName": null,
+  "sourceUrl": null,
+  "licenseUrl": null,
+  "copyrightNotice": null
+}
+```
+
+| 응답 | 필드 |
+|------|------|
+| Feed `media[]` | `file`, `thumbnailFile` (+ 기존 `fileId` / `thumbnailFileId`) |
+| Feed 그리드 | `coverFile`, `coverThumbnailFile` |
+| Story | `file`, `thumbnailFile`, `authorProfileFile` |
+| StoryOwner (`/main/stories/owners`) | 임베드 없음 (`hasUnviewed`만; 미디어는 stories?userNo=) |
+| Me / MyUltary / UserUltary / Neighbor / Search | `profileFile` |
+| Pet | `profileFile` |
+| Tag | `images[]` (+ 기존 `imageFileIds`) |
+
+- `filePath`가 `http(s)://` 이면 FE가 **그대로** `<img src>` (CDN).  
+- 상대경로면 `GET /api/v1/files/{fileId}/content` (또는 BFF 프록시). CDN 절대경로에 `/content` 호출은 하지 않음.  
+- 업로드·단건 메타는 계속 `POST/GET /api/v1/files`.
 
 ### Spring 구현 진행 (BE)
 
@@ -276,4 +313,5 @@ BFF: `/api/...` · Spring: `/api/v1/...`
 | 1-12 | Main feeds/search | 타임라인 커서 + 통합 검색. HTTP `main.http` |
 | 다음 | DM·알림 등 | 미착수 |
 
-파일 업로드 상대경로: `images/{uuid}.ext`, `videos/{uuid}.ext` (`UPLOAD_DIR` / `D:/files/ultary-api`).
+파일 업로드 상대경로: `images/{uuid}.ext`, `videos/{uuid}.ext` (`UPLOAD_DIR`).  
+시드 CDN·임베드 요약은 위 **FileSummary** 절 참고.

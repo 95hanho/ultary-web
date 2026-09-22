@@ -10,9 +10,9 @@ import {
 } from '@/lib/api/bffRoute';
 import { springGet } from '@/lib/api/springFetch';
 
-/** ?�?�한 게시글 조회 */
+/** 저장한 게시글 조회 */
 export async function GET(request: NextRequest) {
-  console.log('[API] ?�?�한 게시글 조회');
+  console.log('[API] 저장한 게시글 조회');
   try {
     const accessToken = await requireAccessToken();
     if (isUnauthorized(accessToken)) return accessToken;

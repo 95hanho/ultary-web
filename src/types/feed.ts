@@ -1,5 +1,6 @@
 import type { DateTimeString, Flag, SoftDelete, Timestamps } from './common';
 import type { FeedPetStatus, FeedVisibility } from './enums';
+import type { FeedCoverFileEmbed, FeedMediaFileEmbed, FileSummary } from './file';
 
 /** ultary_feed */
 export type Feed = {
@@ -12,6 +13,20 @@ export type Feed = {
   storeCount: number;
 } & Timestamps &
   SoftDelete;
+
+/** 피드 상세·타임라인 읽기 응답 (media 임베드) */
+export type FeedDetailResponse = Feed & {
+  media?: FeedMediaFileEmbed[];
+  authorProfileFile?: FileSummary | null;
+  /** 작성자 표시명 — Spring 게스트 단건에도 포함 (spring-auth-api.md) */
+  nickname?: string | null;
+  authorNickname?: string | null;
+} & FeedCoverFileEmbed;
+
+/** 피드 그리드 읽기 응답 */
+export type FeedGridItem = {
+  feedId: number;
+} & FeedCoverFileEmbed;
 
 /** ultary_feed_pet */
 export type FeedPet = {
@@ -26,7 +41,7 @@ export type FeedPet = {
   isMain: Flag;
 } & Timestamps;
 
-/** ultary_feed_image */
+/** @deprecated schema v3+ 는 feed_media — FeedMediaFileEmbed 참고 */
 export type FeedImage = {
   feedImageId: number;
   feedId: number;

@@ -3,41 +3,39 @@ import { springEndpoints } from '@/lib/api/endpoints';
 import {
   bearer,
   handleBffError,
-  isUnauthorized,
   ok,
   queryParams,
   readJsonBody,
-  requireAccessToken,
+  withAuth,
+  withOptionalAuth,
 } from '@/lib/api/bffRoute';
 import { springDelete, springGet, springPatchForm } from '@/lib/api/springFetch';
 
-type Ctx = { params: Promise<{ feedId: string }> };
+type FeedParams = { feedId: string };
 
-/** BFF /api/feeds/[feedId] — GET */
-export async function GET(request: NextRequest, { params }: Ctx) {
+/**
+ * 게시글 단건 — 공유 게스트 열람 허용 (share/docs/auth-access.md).
+ * 로그인 시 Bearer, 비로그인 시 무토큰으로 Spring 공개 조회.
+ */
+export const GET = withOptionalAuth<FeedParams>(async ({ request, accessToken, params }) => {
   console.log('[API] 게시글 상세 조회');
   try {
-    const accessToken = await requireAccessToken();
-    if (isUnauthorized(accessToken)) return accessToken;
-    const { feedId } = await params;
+    const { feedId } = params;
     const data = await springGet(
       springEndpoints.feeds.detail,
       { feedId, ...queryParams(request) },
-      bearer(accessToken),
+      accessToken ? bearer(accessToken) : undefined,
     );
     return ok(data);
   } catch (err) {
     return handleBffError(err);
   }
-}
+});
 
-/** BFF /api/feeds/[feedId] — PATCH */
-export async function PATCH(request: NextRequest, { params }: Ctx) {
+export const PATCH = withAuth<FeedParams>(async ({ request, accessToken, params }) => {
   console.log('[API] 게시글 수정');
   try {
-    const accessToken = await requireAccessToken();
-    if (isUnauthorized(accessToken)) return accessToken;
-    const { feedId } = await params;
+    const { feedId } = params;
     const body = await readJsonBody(request);
     const data = await springPatchForm(
       springEndpoints.feeds.detail,
@@ -48,15 +46,12 @@ export async function PATCH(request: NextRequest, { params }: Ctx) {
   } catch (err) {
     return handleBffError(err);
   }
-}
+});
 
-/** BFF /api/feeds/[feedId] — DELETE */
-export async function DELETE(_request: Request, { params }: Ctx) {
+export const DELETE = withAuth<FeedParams>(async ({ accessToken, params }) => {
   console.log('[API] 게시글 삭제');
   try {
-    const accessToken = await requireAccessToken();
-    if (isUnauthorized(accessToken)) return accessToken;
-    const { feedId } = await params;
+    const { feedId } = params;
     const data = await springDelete(
       springEndpoints.feeds.detail,
       { feedId },
@@ -66,4 +61,4 @@ export async function DELETE(_request: Request, { params }: Ctx) {
   } catch (err) {
     return handleBffError(err);
   }
-}
+});

@@ -1,4 +1,6 @@
--- schema_version: 7
+-- schema_version: 8
+-- Ultary MariaDB 10.1 초기 스키마
+-- v8: ultary_file 출처 컬럼 (source_type/author_name/source_url/license_url/copyright_notice)
 -- ULTARY MariaDB 10.1.13 Schema
 -- Engine: InnoDB
 -- Charset / Collation: utf8 / utf8_general_ci
@@ -135,8 +137,11 @@ CREATE TABLE `ultary_file` (
   `mime_type` VARCHAR(100) NULL DEFAULT NULL,
   `file_size` INT(11) NULL DEFAULT NULL COMMENT 'byte 단위 파일 크기',
   `file_path` VARCHAR(300) NOT NULL,
-  `copyright` VARCHAR(50) NULL DEFAULT NULL,
-  `copyright_url` VARCHAR(300) NULL DEFAULT NULL,
+  `source_type` VARCHAR(20) NULL DEFAULT NULL COMMENT 'OWNED|UNSPLASH|AI|ETC',
+  `author_name` VARCHAR(100) NULL DEFAULT NULL COMMENT '사진 작가명·크레딧',
+  `source_url` VARCHAR(500) NULL DEFAULT NULL COMMENT '원본 이미지/사진 페이지',
+  `license_url` VARCHAR(500) NULL DEFAULT NULL COMMENT '라이선스 페이지',
+  `copyright_notice` VARCHAR(255) NULL DEFAULT NULL COMMENT '별도 저작권 문구(있을 때만)',
   `uploaded_by_user_no` INT(11) NULL DEFAULT NULL,
   `uploaded_by_admin_no` INT(11) NULL DEFAULT NULL,
   `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -145,7 +150,8 @@ CREATE TABLE `ultary_file` (
   PRIMARY KEY (`file_id`) USING BTREE,
   KEY `IDX_ultary_file_uploaded_by_user_no` (`uploaded_by_user_no`) USING BTREE,
   KEY `IDX_ultary_file_uploaded_by_admin_no` (`uploaded_by_admin_no`) USING BTREE,
-  KEY `IDX_ultary_file_is_deleted` (`is_deleted`) USING BTREE
+  KEY `IDX_ultary_file_is_deleted` (`is_deleted`) USING BTREE,
+  KEY `IDX_ultary_file_source_type` (`source_type`) USING BTREE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_general_ci COMMENT='이미지 및 첨부파일 메타데이터';
 
 CREATE TABLE `ultary_token` (

@@ -6,7 +6,9 @@
 ### user 101 울타리 / 102 나리집사 / 103 산책러 / 104 대기중 / 105 팔로워
 ### feed 101·102 / comment·reply 101 / pet 101(choco_01)·102(mung_01)
 ### tag 101(산책)·102(royalcanin)·103(냥스타그램) / story 101·102
-### neighbor 104=PENDING(104→101) / file 100~104
+### neighbor 104=PENDING(104→101)
+### file CDN 110~141 (profile 110~114 / post 120~124 / story 130~133 / goods 140~141)
+### 읽기 응답: FileSummary 임베드 (file / profileFile / coverFile …) — share/docs/API_CONTRACT.md
 ### 비밀번호 전원: Test1234!  ({noop})
 ### ------------------------------------------------------------
 @email = myultary.test@example.com
@@ -23,10 +25,11 @@
 @petId = 101
 @feedPetId = 103
 @tagId = 102
-@storyId = 101
+@storyId = 102
 @neighborIdPending = 104
 @neighborIdAccepted = 101
-@fileId = 100
+@fileId = 110
+@cdnPostFileId = 120
 @receiverUserNo = 102
 
 ### ==============================
@@ -129,7 +132,7 @@ POST {{baseUrl}}/api/auth/phone/verify
 Content-Type: {{contentType}}
 
 {
-  "code": "637999",
+  "code": "",
   "phoneAuthToken": "{{phoneAuth.response.body.$.data.phoneAuthToken}}"
 }
 
@@ -185,11 +188,15 @@ DELETE {{baseUrl}}/api/auth/social/unlink?provider=KAKAO
 ### 메인
 ### ==============================
 
-### 주민 스토리 보유 목록 (시드: 주민 103 → story 102)
+### 주민 스토리 보유 목록 (링 메타만 · FileSummary 없음 · hasUnviewed)
+### 시드: 주민 중 활성 스토리 보유자
 GET {{baseUrl}}/api/main/stories/owners
 
-### 주민 스토리 조회 (본인 101)
-GET {{baseUrl}}/api/main/stories?userNo={{userNo}}
+### 주민 스토리 조회 (미디어 + FileSummary · 링 탭 후)
+GET {{baseUrl}}/api/main/stories?userNo={{otherUserNo}}
+
+### 스토리 읽음 (ultary_story_view · 본인 스토리는 미기록)
+POST {{baseUrl}}/api/stories/{{storyId}}/view
 
 ### 주민 게시글 조회 (101 + 주민 102·103)
 ### cursor= ← 다음페이지 시 이전 응답 nextCursor (수동)
@@ -218,7 +225,7 @@ GET {{baseUrl}}/api/my-ultary/saved-feeds?cursor=&size=21
 ### 태그된 게시글 조회 (시드: feed 102에 pet 101)
 GET {{baseUrl}}/api/my-ultary/tagged-feeds?cursor=&size=21
 
-### 프로필 사진 변경 (시드 file 100~103)
+### 프로필 사진 변경 (시드 CDN profile file 110~114)
 PATCH {{baseUrl}}/api/my-ultary/profile-image
 Content-Type: {{contentType}}
 
@@ -234,12 +241,15 @@ Content-Type: {{contentType}}
   "bio": "강아지랑 산책하는 집사"
 }
 
-### 스토리 등록 (시드 file 100)
+### 내 스토리 목록 (FileSummary 임베드)
+GET {{baseUrl}}/api/my-ultary/stories
+
+### 스토리 등록 (시드 CDN story/post file)
 POST {{baseUrl}}/api/my-ultary/stories
 Content-Type: {{contentType}}
 
 {
-  "fileId": {{fileId}},
+  "fileId": {{cdnPostFileId}},
   "mediaType": "IMAGE",
   "caption": "오늘 산책 스토리"
 }
@@ -297,7 +307,7 @@ Content-Type: {{contentType}}
 {
   "content": "초코랑 산책 #산책",
   "visibility": "PUBLIC",
-  "imageFileIds": [{{fileId}}],
+  "imageFileIds": [{{cdnPostFileId}}],
   "petIds": [{{petId}}],
   "tagIds": [101]
 }
@@ -457,15 +467,39 @@ Content-Type: {{contentType}}
 }
 
 ### ==============================
+### 파일 (업로드 · 메타 · content 프록시)
+### ==============================
+### FileSummary: 읽기 API에 file/profileFile 등이 임베드됨.
+### filePath가 http(s)면 FE가 그대로 표시. 상대경로만 아래 content 사용.
+
+### 파일 메타 조회 (시드 CDN 110)
+GET {{baseUrl}}/api/files/{{fileId}}
+
+### 파일 content 프록시
+### CDN 절대 URL 파일에는 호출하지 말 것 (상대 filePath 업로드 파일용)
+GET {{baseUrl}}/api/files/{{fileId}}/content
+
+### 파일 업로드 (multipart — REST Client에서 로컬 파일 지정)
+# POST {{baseUrl}}/api/files
+# Content-Type: multipart/form-data; boundary=----WebKitFormBoundary
+#
+# ------WebKitFormBoundary
+# Content-Disposition: form-data; name="file"; filename="test.jpg"
+# Content-Type: image/jpeg
+#
+# < ./test.jpg
+# ------WebKitFormBoundary--
+
+### ==============================
 ### 게시글 작성 중
 ### ==============================
 
-### 작성 사진 임시저장 (시드 file)
+### 작성 사진 임시저장 (시드 CDN post file)
 POST {{baseUrl}}/api/write/draft-photos
 Content-Type: {{contentType}}
 
 {
-  "fileIds": [{{fileId}}]
+  "fileIds": [{{cdnPostFileId}}]
 }
 
 ### 편집 사진 저장

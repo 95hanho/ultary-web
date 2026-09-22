@@ -6,6 +6,17 @@
 
 공통 query (페이지네이션): `cursor`, `size` — 도메인별 기본값은 `http/bff.http` 참고.
 
+### FileSummary (읽기 응답 임베드)
+
+share `API_CONTRACT` / `api-memo` 참고. 피드·스토리 상세·프로필·검색·태그 등 읽기 응답에
+`fileId`와 함께 `file` / `profileFile` / `coverFile` / `images` 요약을 포함한다.
+
+- `filePath`가 `http(s)://` → FE가 CDN URL 그대로 사용
+- 상대경로 → BFF `GET /api/files/{fileId}/content` (Spring 프록시)
+- 헬퍼: `resolveFileDisplayUrl` (`src/lib/api/fileUrl.ts`)
+- 쓰기(업로드·등록)는 기존처럼 **fileId만** 전송
+- **예외:** `GET /api/main/stories/owners`는 FileSummary 없음 (링: `hasUnviewed` 등만). 미디어는 `GET /api/main/stories?userNo=`
+
 ---
 
 ## 1. 헬스
@@ -55,7 +66,7 @@
 
 ### GET `/api/auth/me` 성공 data
 
-`MeResponse` — `src/types/api.ts` 참고 (`userNo`, `nickname`, `defaultNickname`, …)
+`MeResponse` — `src/types/api.ts` 참고 (`userNo`, `nickname`, `defaultNickname`, `profileFile` …)
 
 ### POST Spring social/login (BFF 내부)
 
@@ -76,10 +87,13 @@
 
 | Method | BFF | Spring | Auth | 상태 |
 |--------|-----|--------|------|------|
-| GET | `/api/main/stories/owners` | `/api/v1/main/stories/owners` | ✅ | 🚧 |
-| GET | `/api/main/stories?userNo=` | `/api/v1/main/stories` | ✅ | 🚧 |
-| GET | `/api/main/feeds?cursor=&size=` | `/api/v1/main/feeds` | ✅ | 🚧 |
-| GET | `/api/main/search?q=&type=` | `/api/v1/main/search` | ✅ | 🚧 |
+| GET | `/api/main/stories/owners` | `/api/v1/main/stories/owners` | ✅ | ✅ |
+| GET | `/api/main/stories?userNo=` | `/api/v1/main/stories` | ✅ | ✅ |
+| GET | `/api/main/feeds?cursor=&size=` | `/api/v1/main/feeds` | ✅ | ✅ |
+| GET | `/api/main/search?q=&type=` | `/api/v1/main/search` | ✅ | ✅ |
+
+`stories/owners`: 링 메타만 (`hasUnviewed`). FileSummary·프로필 URL 없음.  
+`stories?userNo=`: 스토리 목록 + FileSummary (`file` / `thumbnailFile` / `authorProfileFile`).
 
 ---
 
@@ -94,8 +108,13 @@
 | GET | `/api/my-ultary/tagged-feeds` | `/api/v1/my-ultary/tagged-feeds` | ✅ | 🚧 |
 | PATCH | `/api/my-ultary/profile-image` | `/api/v1/my-ultary/profile-image` | ✅ | 🚧 |
 | PATCH | `/api/my-ultary/bio` | `/api/v1/my-ultary/bio` | ✅ | 🚧 |
-| POST | `/api/my-ultary/stories` | `/api/v1/my-ultary/stories` | ✅ | 🚧 |
-| DELETE | `/api/my-ultary/stories/:storyId` | `/api/v1/my-ultary/stories/:storyId` | ✅ | 🚧 |
+| GET | `/api/my-ultary/stories` | `/api/v1/my-ultary/stories` | ✅ | ✅ |
+| POST | `/api/my-ultary/stories` | `/api/v1/my-ultary/stories` | ✅ | ✅ |
+| DELETE | `/api/my-ultary/stories/:storyId` | `/api/v1/my-ultary/stories/:storyId` | ✅ | ✅ |
+| POST | `/api/stories/:storyId/view` | `/api/v1/stories/:storyId/view` | ✅ | ✅ |
+
+스토리 읽음: `ultary_story_view` INSERT IGNORE. 본인 스토리는 미기록.  
+owners의 `hasUnviewed`는 이 뷰 테이블 기준.
 
 ---
 
@@ -219,12 +238,24 @@
 
 ---
 
+## 14. 파일
+
+| Method | BFF | Spring | Auth | 상태 |
+|--------|-----|--------|------|------|
+| POST | `/api/files` | `/api/v1/files` | ✅ | ✅ |
+| GET | `/api/files/:fileId` | `/api/v1/files/:fileId` | ✅ | ✅ |
+| GET | `/api/files/:fileId/content` | `/api/v1/files/:fileId/content` | ✅ | ✅ |
+
+`content`는 상대 `filePath` 전용 프록시. CDN 절대 URL에는 호출하지 않는다.
+
+---
+
 ## 관련 파일
 
 | 용도 | 경로 |
 |------|------|
 | 엔드포인트 상수 | `src/lib/api/endpoints.ts` |
 | 요청 예시 | `http/bff.http` |
-| 타입 | `src/types/**` |
+| 타입 | `src/types/**` (`FileSummary`, `resolveFileDisplayUrl`) |
 | 도메인 메모 | `share/docs/api-memo.md` |
 | 공유 스펙 | `share/` (validation · database · 계약) |

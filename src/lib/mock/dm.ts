@@ -17,8 +17,8 @@ export type MockDmRoom = {
   messages: MockDmMessage[];
 };
 
-const PROFILE = '/images/mock/feed.jpg';
-const PROFILE_2 = '/images/mock/post_ex.jpg';
+const PROFILE = '/images/mock/post2.jpg';
+const PROFILE_2 = '/images/mock/post.jpg';
 
 export const MOCK_DM_ROOMS: MockDmRoom[] = [
   {

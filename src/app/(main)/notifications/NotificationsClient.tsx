@@ -15,8 +15,8 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useState, type ReactNode } from 'react';
 import styles from './notifications.module.scss';
 
-const OTHER_PROFILE = '/images/mock/feed.jpg';
-const OTHER_PROFILE_2 = '/images/mock/post_ex.jpg';
+const OTHER_PROFILE = '/images/mock/post2.jpg';
+const OTHER_PROFILE_2 = '/images/mock/post.jpg';
 
 type NeighborAction = 'accept' | 'cancel';
 

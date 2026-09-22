@@ -1,7 +1,7 @@
 import type { FeedData } from '@/components/feed/Feed';
 
 const MOCK_PROFILE = '/images/mock/profile.jpg';
-const MOCK_POST = '/images/mock/post_ex.jpg';
+const MOCK_POST = '/images/mock/post.jpg';
 
 const LONG_CAPTION =
   '오늘 간식은 #royalcanin 내용내용내용내용내용내용내용내용내용내용내용내용내용내용내용내용내용내용내용내용내용내용내용내용내용내용내용내용내용내용내용내용내용내용내용내용내용내용';

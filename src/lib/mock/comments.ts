@@ -14,8 +14,8 @@ export type MockComment = MockCommentReply & {
   replies: MockCommentReply[];
 };
 
-const PROFILE = '/images/mock/feed.jpg';
-const PROFILE_2 = '/images/mock/post_ex.jpg';
+const PROFILE = '/images/mock/post2.jpg';
+const PROFILE_2 = '/images/mock/post.jpg';
 
 const LONG =
   '내용내용내용내용내용내용내용내용내용내용내용내용내용내용내용내용내용내용내용내용내용내용내용내용내용내용내용내용내용내용내용내용내용내용내용내용내용내용';

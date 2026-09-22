@@ -13,11 +13,13 @@ share/
     README.md
     rules.json
   database/
-    schema/mariadb_10_1/    ← 001_init_schema.sql (schema_version 7)
-    seed/mariadb_10_1/      ← 001_dev_sample_data.sql (로컬 전용)
+    schema/mariadb_10_1/    ← 001_init_schema.sql (schema_version 8)
+    seed/mariadb_10_1/      ← 001_dev_sample_data.sql (로컬 전용, CDN 시드 포함)
   docs/
     api-memo.md             ← 엔드포인트·도메인 메모
     API_CONTRACT.md         ← 응답·계약 요약
+    auth-access.md          ← 페이지·공유 피드 인증 접근 규칙
+    spring-auth-api.md      ← Spring이 맞춰야 할 인증·게스트 API
 ```
 
 | 경로 | 용도 |
@@ -27,6 +29,8 @@ share/
 | `database/seed/` | 로컬 전용 시드 (운영 제외) |
 | `docs/api-memo.md` | 엔드포인트·도메인 메모 |
 | `docs/API_CONTRACT.md` | 계약 요약 |
+| `docs/auth-access.md` | 로그인 필수·공유 단건 게스트·로그인 모달 |
+| `docs/spring-auth-api.md` | Spring 적용용 인증·게스트 API 변경 목록 |
 
 경로·시각 폴더로 버전 나누지 않는다. git 히스토리 + `CHANGELOG.md`(날짜·시분)가 버전이다.
 

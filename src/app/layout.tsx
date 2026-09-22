@@ -21,7 +21,7 @@ export default function RootLayout({
         <div className="ultary-bg pointer-events-none absolute inset-x-0 bottom-0 z-0 overflow-hidden">
           <div className="relative left-1/2 w-[120%] -translate-x-1/2">
             <Image
-              src="/images/ultary_bg_bt.png"
+              src="/images/img/ultary_bg_bt.png"
               alt=""
               width={1054}
               height={702}

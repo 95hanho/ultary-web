@@ -2,7 +2,7 @@ import Image from 'next/image';
 import type { ReactNode } from 'react';
 import styles from './LogoHeader.module.scss';
 
-const LogoIcon = '/images/icon/ultary_logo.png';
+const LogoIcon = '/images/img/ultary_logo.png';
 
 type LogoHeaderProps = {
   actions?: ReactNode;

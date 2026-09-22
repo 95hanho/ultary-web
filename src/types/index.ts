@@ -14,6 +14,7 @@ export type * from './pet';
 export type * from './neighbor';
 export type * from './feed';
 export type * from './tag';
+export type * from './story';
 export type * from './notification';
 export type * from './report';
 export type * from './ai';

@@ -10,9 +10,9 @@ import {
 } from '@/lib/api/bffRoute';
 import { springGet } from '@/lib/api/springFetch';
 
-/** ????? ?? ?? */
+/** 마이울타리 정보 조회 */
 export async function GET(request: NextRequest) {
-  console.log('[API] ????? ?? ??');
+  console.log('[API] 마이울타리 정보 조회');
   try {
     const accessToken = await requireAccessToken();
     if (isUnauthorized(accessToken)) return accessToken;

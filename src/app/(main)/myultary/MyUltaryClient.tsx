@@ -252,7 +252,7 @@ export default function MyUltaryClient({ nickname }: MyUltaryClientProps) {
     () =>
       MOCK_MY_FEEDS.map((feed) => ({
         id: feed.id,
-        imageUrl: feed.images[0] ?? '/images/mock/post_ex.jpg',
+        imageUrl: feed.images[0] ?? '/images/mock/post.jpg',
         isMulti: feed.images.length > 1,
         href: `${basePath}/posts/${feed.id}`,
       })),
@@ -263,7 +263,7 @@ export default function MyUltaryClient({ nickname }: MyUltaryClientProps) {
     () =>
       MOCK_SAVED_FEEDS.map((feed) => ({
         id: feed.id,
-        imageUrl: feed.images[0] ?? '/images/mock/post_ex.jpg',
+        imageUrl: feed.images[0] ?? '/images/mock/post.jpg',
         isMulti: feed.images.length > 1,
         href: `${basePath}/saved/${feed.id}`,
       })),
