@@ -1,4 +1,4 @@
-/** 쿠키 이름 — Edge middleware / Node 공용 (server-only 금지) */
+/** 쿠키 이름 — proxy / Node 공용 (server-only 금지) */
 export const ACCESS_TOKEN_COOKIE = 'accessToken';
 export const REFRESH_TOKEN_COOKIE = 'refreshToken';
 

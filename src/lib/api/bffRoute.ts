@@ -88,7 +88,7 @@ async function refreshViaSpring(refreshToken: string): Promise<TokenResponse | n
 
 /**
  * access 쿠키 필수. 없으면 refresh로 Spring 재발급 후 cookies().set.
- * (미들웨어에서는 재발급하지 않음 — shop 교훈)
+ * (proxy에서는 재발급하지 않음 — shop 교훈)
  */
 export async function requireAccessToken(): Promise<string | NextResponse> {
   const jar = await cookies();

@@ -13,8 +13,8 @@
 | **그 외 모든 페이지** | **로그인 페이지로 이동** (`returnUrl`) | 정상 |
 | **공유된 게시글 단건** `/feeds/:feedId` | **해당 게시글만** 열람 + 로그인 모달 | 정상 |
 
-- 페이지 가드(middleware)와 액션 가드(모달)를 분리.
-- **토큰 재발급은 middleware에서 하지 않음** — BFF(`requireAccessToken` / `withAuth`)만 Spring `/auth/refresh` 호출.
+- 페이지 가드(`proxy`)와 액션 가드(모달)를 분리.
+- **토큰 재발급은 proxy에서 하지 않음** — BFF(`requireAccessToken` / `withAuth`)만 Spring `/auth/refresh` 호출.
 
 ---
 
@@ -40,7 +40,7 @@
 
 | 레이어 | 역할 |
 |--------|------|
-| `src/middleware.ts` | 쿠키 유무만 검사, 리다이렉트 (refresh 호출 없음) |
+| `src/proxy.ts` | 쿠키 유무만 검사, 리다이렉트 (refresh 호출 없음) |
 | `requireAccessToken` / `withAuth` | access 없으면 Spring refresh → 쿠키 설정 |
 | `withOptionalAuth` | `GET /api/feeds/:id` 게스트 허용 |
 | Spring | [`spring-auth-api.md`](./spring-auth-api.md) |
@@ -50,7 +50,7 @@
 ## 5. 체크리스트
 
 - [x] 인증 제외 라우트 화이트리스트 (`lib/auth/paths.ts`)
-- [x] middleware + `returnUrl`
+- [x] middleware/`proxy` + `returnUrl`
 - [x] 공유 단건 페이지 `/feeds/[feedId]` + 로그인 모달
 - [x] BFF `GET` 단건 optional auth
 - [ ] Spring PUBLIC 단건 익명 GET ([`spring-auth-api.md`](./spring-auth-api.md))

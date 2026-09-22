@@ -32,7 +32,7 @@ type OptionalHandler<P extends Record<string, string>> = (
 
 /**
  * 인증 필수 BFF 핸들러.
- * access 없으면 Spring refresh 시도 후 쿠키 세팅. (미들웨어에서는 refresh 안 함)
+ * access 없으면 Spring refresh 시도 후 쿠키 세팅. (proxy에서는 refresh 안 함)
  */
 export function withAuth<P extends Record<string, string> = Record<string, never>>(
   handler: AuthedHandler<P>,
