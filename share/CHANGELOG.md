@@ -7,6 +7,12 @@ validation · database · docs 모두 **여기 한곳**에 적는다.
 
 ---
 
+## 2026-09-22 17:50
+
+### Spring · share 적용
+- `GET /api/v1/feeds/{feedId}` PUBLIC 게스트 조회 (`spring-auth-api.md` §0·§2)
+- FileSummary 임베드 + CDN 시드 · StoryOwner 링 메타 분리 (기존 14:45·15:05)
+
 ## 2026-09-22 17:24
 
 ### docs · 인증 FE/BFF 적용 + Spring 가이드

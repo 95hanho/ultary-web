@@ -53,6 +53,6 @@
 - [x] middleware/`proxy` + `returnUrl`
 - [x] 공유 단건 페이지 `/feeds/[feedId]` + 로그인 모달
 - [x] BFF `GET` 단건 optional auth
-- [ ] Spring PUBLIC 단건 익명 GET ([`spring-auth-api.md`](./spring-auth-api.md))
+- [x] Spring PUBLIC 단건 익명 GET ([`spring-auth-api.md`](./spring-auth-api.md))
 - [x] api-memo · spring-auth-api에 게스트 GET 명시
 - [ ] 로그인 form/소셜 `returnUrl` 복귀 완성 (소셜 콜백 · form action)

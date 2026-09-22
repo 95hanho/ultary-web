@@ -82,10 +82,10 @@ refresh 요청 body: `{ "refreshToken": "..." }` → `TokenResponse` (accessToke
 
 ## 5. 구현 체크리스트 (Spring)
 
-- [ ] Security/필터: `GET /feeds/{id}` 익명 허용
-- [ ] 서비스: PUBLIC만 익명 반환 / 비PUBLIC·차단 → 기존 실패 응답
-- [ ] 응답: FileSummary + nickname
-- [ ] like/comment/store/share/patch/delete — 익명 거부
+- [x] Security/필터: `GET /feeds/{id}` 익명 허용
+- [x] 서비스: PUBLIC만 익명 반환 / 비PUBLIC·차단 → 기존 실패 응답
+- [x] 응답: FileSummary + nickname (`authorNickname`)
+- [x] like/comment/store/share/patch/delete — 익명 거부 (나머지 `/api/v1/**` authenticated)
 - [ ] (선택) comments GET 게스트 정책 → `api-memo.md` 반영
 
 ---
