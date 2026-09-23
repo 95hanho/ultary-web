@@ -65,6 +65,8 @@ export function Feed({
   const swiperRef = useRef<SwiperType | null>(null);
   const captionRef = useRef<HTMLParagraphElement>(null);
   const leaveTimerRef = useRef<number | null>(null);
+  /** PC: 태그 호버 0.5초 후 프리뷰 */
+  const hoverOpenTimerRef = useRef<number | null>(null);
   /** 프리뷰 오픈 직후 가짜 leave로 바로 닫히지 않게 */
   const ignoreLeaveUntilRef = useRef(0);
   /** 터치 탭 후 합성 mouseenter로 프리뷰가 열리는 것 방지 */
@@ -76,6 +78,8 @@ export function Feed({
     mode: TagExplainMode;
     closeRequested?: boolean;
   } | null>(null);
+  const tagOpenRef = useRef(tagOpen);
+  tagOpenRef.current = tagOpen;
   const [commentsOpen, setCommentsOpen] = useState(false);
 
   useEffect(() => {
@@ -116,8 +120,16 @@ export function Feed({
     }
   };
 
+  const clearHoverOpenTimer = () => {
+    if (hoverOpenTimerRef.current != null) {
+      window.clearTimeout(hoverOpenTimerRef.current);
+      hoverOpenTimerRef.current = null;
+    }
+  };
+
   const closeTag = useCallback(() => {
     clearLeaveTimer();
+    clearHoverOpenTimer();
     setTagOpen(null);
   }, []);
 
@@ -126,6 +138,7 @@ export function Feed({
     const data = getTagExplain(tagText);
     if (!data) return;
     clearLeaveTimer();
+    clearHoverOpenTimer();
     setTagOpen({
       data,
       rect: el.getBoundingClientRect(),
@@ -152,6 +165,19 @@ export function Feed({
     });
   };
 
+  /** PC: 태그 위에 0.5초 머무르면 흐릿한 프리뷰 */
+  const scheduleHoverPreview = (tagText: string, el: HTMLElement) => {
+    clearLeaveTimer();
+    clearHoverOpenTimer();
+    const open = tagOpenRef.current;
+    if (open && !open.closeRequested) return;
+    hoverOpenTimerRef.current = window.setTimeout(() => {
+      hoverOpenTimerRef.current = null;
+      openTagPreviewIfClosed(tagText, el);
+    }, 500);
+  };
+
+  /** 프리뷰만 leave로 닫음. active(클릭 선명)는 X/바깥 클릭으로만 닫음 */
   const scheduleCloseIfPreview = () => {
     if (Date.now() < ignoreLeaveUntilRef.current) return;
     clearLeaveTimer();
@@ -160,7 +186,7 @@ export function Feed({
         if (!prev || prev.mode === 'active') return prev;
         return { ...prev, closeRequested: true };
       });
-    }, 200);
+    }, 220);
   };
 
   useLayoutEffect(() => {
@@ -349,10 +375,11 @@ export function Feed({
                   onMouseEnter={(e) => {
                     // 터치 기기의 sticky hover / 합성 mouseenter 무시
                     if (lastPointerTypeRef.current !== 'mouse') return;
-                    openTagPreviewIfClosed(part.value, e.currentTarget);
+                    scheduleHoverPreview(part.value, e.currentTarget);
                   }}
                   onMouseLeave={() => {
                     if (lastPointerTypeRef.current !== 'mouse') return;
+                    clearHoverOpenTimer();
                     scheduleCloseIfPreview();
                   }}
                 >

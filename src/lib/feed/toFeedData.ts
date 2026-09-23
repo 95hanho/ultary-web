@@ -1,5 +1,3 @@
-import 'server-only';
-
 import type { FeedData } from '@/components/feed/Feed';
 import { resolveFileDisplayUrl } from '@/lib/api/fileUrl';
 import type { FeedDetailResponse } from '@/types/feed';
@@ -60,4 +58,19 @@ export function toFeedData(raw: unknown, fallbackId: string): FeedData {
     likeCount: detail.likeCount ?? 0,
     commentCount: detail.commentCount ?? 0,
   };
+}
+
+/** BFF `{ success, data }` 또는 data 배열/커서 응답 → FeedData[] */
+export function toFeedDataList(raw: unknown): FeedData[] {
+  const list = unwrapList(raw);
+  return list.map((item, i) => toFeedData(item, `feed-${i}`));
+}
+
+function unwrapList(raw: unknown): unknown[] {
+  if (Array.isArray(raw)) return raw;
+  if (!isRecord(raw)) return [];
+  if (Array.isArray(raw.data)) return raw.data;
+  if (Array.isArray(raw.items)) return raw.items;
+  if (Array.isArray(raw.content)) return raw.content;
+  return [];
 }

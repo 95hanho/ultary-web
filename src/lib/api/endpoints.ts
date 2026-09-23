@@ -195,6 +195,12 @@ export const bffEndpoints = {
     tagReject: '/api/admin/tags/:tagId/reject',
   },
 
+  /** development + Spring local 전용 */
+  test: {
+    /** DELETE 내 스토리 읽음 전부 초기화 */
+    storyViews: '/api/test/story-views',
+  },
+
   files: {
     /** POST 업로드 (multipart) / GET 목록(있으면) */
     root: '/api/files',
@@ -385,6 +391,12 @@ export const springEndpoints = {
     tagApprove: '/api/v1/admin/tags/:tagId/approve',
     /** POST */
     tagReject: '/api/v1/admin/tags/:tagId/reject',
+  },
+
+  /** Spring @Profile("local") only */
+  test: {
+    /** DELETE Bearer — 내 ultary_story_view 전부 삭제 */
+    storyViews: '/api/v1/test/story-views',
   },
 
   files: {

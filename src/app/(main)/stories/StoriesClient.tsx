@@ -1,18 +1,91 @@
 'use client';
 
 import { Profile } from '@/components/my-ultary/Profile';
-import { MOCK_STORY_OWNER, STORY_IMAGE_DURATION_MS, type MockStoryItem } from '@/lib/mock/stories';
+import { StoryDevTools } from '@/components/dev/StoryDevTools';
+import { bffGet, bffPostJson } from '@/lib/api/bffFetch';
+import { bffEndpoints } from '@/lib/api/endpoints';
+import { resolveFileDisplayUrl } from '@/lib/api/fileUrl';
+import { STORY_IMAGE_DURATION_MS } from '@/lib/mock/stories';
+import type { BffEnvelope } from '@/types/api';
+import type { Story, StoryOwner } from '@/types/story';
 import { Ellipsis, Pause, Play, X } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { useCallback, useEffect, useRef, useState, type RefObject } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type RefObject,
+} from 'react';
 import styles from './stories.module.scss';
 
-/** 스토리 보기 (미리보기) */
-export default function StoriesClient() {
-  const router = useRouter();
-  const owner = MOCK_STORY_OWNER;
-  const items = owner.items;
+type StorySlide = {
+  storyId: number;
+  kind: 'image' | 'video';
+  src: string;
+  viewedByMe: boolean;
+};
 
+type StartMode = 'unviewed' | 'last';
+
+type Props = {
+  userNo: string;
+  nicknameHint?: string;
+  start?: StartMode;
+};
+
+const FALLBACK_MEDIA = '/images/mock/post.jpg';
+const FALLBACK_PROFILE = '/images/mock/profile.jpg';
+
+function unwrapList<T>(raw: unknown): T[] {
+  if (Array.isArray(raw)) return raw as T[];
+  if (raw && typeof raw === 'object') {
+    const data = (raw as BffEnvelope<T[]>).data;
+    if (Array.isArray(data)) return data;
+  }
+  return [];
+}
+
+/** 첫 미열람 인덱스. 전부 읽었으면 0 */
+function firstUnviewedIndex(stories: { viewedByMe?: boolean }[]): number {
+  const i = stories.findIndex((s) => s.viewedByMe === false);
+  return i >= 0 ? i : 0;
+}
+
+function toSlide(story: Story): StorySlide {
+  const src =
+    resolveFileDisplayUrl(story.file) ??
+    resolveFileDisplayUrl(story.thumbnailFile) ??
+    FALLBACK_MEDIA;
+  return {
+    storyId: story.storyId,
+    kind: story.mediaType === 'VIDEO' ? 'video' : 'image',
+    src,
+    viewedByMe: Boolean(story.viewedByMe),
+  };
+}
+
+function ownerStoriesHref(owner: StoryOwner, start: StartMode) {
+  const q = new URLSearchParams({
+    userNo: String(owner.userNo),
+    nickname: owner.nickname,
+  });
+  if (start === 'last') q.set('start', 'last');
+  return `/stories?${q.toString()}`;
+}
+
+/** 스토리 보기 — owners 체인 + GET /main/stories?userNo= · 조회 시 view */
+export default function StoriesClient({
+  userNo,
+  nicknameHint = '',
+  start = 'unviewed',
+}: Props) {
+  const router = useRouter();
+  const [loading, setLoading] = useState(true);
+  const [items, setItems] = useState<StorySlide[]>([]);
+  const [owners, setOwners] = useState<StoryOwner[]>([]);
+  const [nickname, setNickname] = useState(nicknameHint || 'ULTARY');
+  const [profileUrl, setProfileUrl] = useState(FALLBACK_PROFILE);
   const [index, setIndex] = useState(0);
   const [playId, setPlayId] = useState(0);
   const [progress, setProgress] = useState(0);
@@ -23,10 +96,105 @@ export default function StoriesClient() {
   const elapsedRef = useRef(0);
   const indexRef = useRef(index);
   const pausedRef = useRef(paused);
+  const ownersRef = useRef<StoryOwner[]>([]);
+  const markedViewRef = useRef<Set<number>>(new Set());
   indexRef.current = index;
   pausedRef.current = paused;
+  ownersRef.current = owners;
 
   const current = items[index] ?? null;
+
+  const close = useCallback(() => {
+    router.back();
+  }, [router]);
+
+  /** 읽음 초기화 후 이전 페이지로 — 현재 스토리 재조회(읽음) 방지 */
+  const onStoryViewsCleared = useCallback(async () => {
+    markedViewRef.current.clear();
+    router.back();
+  }, [router]);
+
+  const goToOwner = useCallback(
+    (owner: StoryOwner, nextStart: StartMode) => {
+      router.replace(ownerStoriesHref(owner, nextStart));
+    },
+    [router],
+  );
+
+  useEffect(() => {
+    if (!userNo) {
+      router.replace('/');
+      return;
+    }
+
+    let cancelled = false;
+    markedViewRef.current.clear();
+    (async () => {
+      setLoading(true);
+      try {
+        const [storiesRes, ownersRes] = await Promise.all([
+          bffGet<BffEnvelope<Story[]>>(bffEndpoints.main.stories, { userNo }),
+          bffGet<BffEnvelope<StoryOwner[]>>(bffEndpoints.main.storyOwners),
+        ]);
+        if (cancelled) return;
+
+        const list = unwrapList<Story>(storiesRes.data ?? storiesRes);
+        const ownerList = unwrapList<StoryOwner>(ownersRes.data ?? ownersRes);
+        const slides = list.map(toSlide);
+        setItems(slides);
+        setOwners(ownerList);
+
+        const first = list[0];
+        const nick =
+          nicknameHint ||
+          first?.nickname?.trim() ||
+          first?.authorNickname?.trim() ||
+          'ULTARY';
+        setNickname(nick);
+        setProfileUrl(
+          resolveFileDisplayUrl(first?.authorProfileFile) ?? FALLBACK_PROFILE,
+        );
+
+        if (slides.length === 0) {
+          setIndex(0);
+        } else if (start === 'last') {
+          setIndex(slides.length - 1);
+        } else {
+          setIndex(firstUnviewedIndex(slides));
+        }
+        setPlayId((n) => n + 1);
+      } catch (err) {
+        console.error('[stories] load failed', err);
+        if (!cancelled) {
+          setItems([]);
+          setOwners([]);
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [userNo, nicknameHint, router, start]);
+
+  /** 현재 스토리 조회 시 읽음 기록 */
+  useEffect(() => {
+    if (!current) return;
+    const { storyId } = current;
+    if (markedViewRef.current.has(storyId)) return;
+    markedViewRef.current.add(storyId);
+
+    void bffPostJson(bffEndpoints.stories.view, { storyId }).catch((err) => {
+      console.error('[stories] view mark failed', err);
+      markedViewRef.current.delete(storyId);
+    });
+
+    setItems((prev) =>
+      prev.map((s) => (s.storyId === storyId ? { ...s, viewedByMe: true } : s)),
+    );
+  }, [current]);
 
   const clearTick = () => {
     if (rafRef.current != null) {
@@ -35,18 +203,41 @@ export default function StoriesClient() {
     }
   };
 
-  const close = useCallback(() => {
-    router.back();
-  }, [router]);
-
   const finishOrNext = useCallback(() => {
-    if (indexRef.current >= items.length - 1) {
-      close();
+    if (indexRef.current < items.length - 1) {
+      setPaused(false);
+      setIndex((i) => i + 1);
       return;
     }
+
+    // 현재 이웃 마지막 → 다음 이웃 또는 나가기
+    const list = ownersRef.current;
+    const i = list.findIndex((o) => String(o.userNo) === userNo);
+    const next = i >= 0 ? list[i + 1] : undefined;
+    if (next) {
+      goToOwner(next, 'unviewed');
+      return;
+    }
+    close();
+  }, [close, goToOwner, items.length, userNo]);
+
+  const handlePrevTap = useCallback(() => {
     setPaused(false);
-    setIndex((i) => i + 1);
-  }, [close, items.length]);
+    if (indexRef.current > 0) {
+      setIndex((i) => i - 1);
+      return;
+    }
+
+    // 현재 이웃 첫 장 → 이전 이웃(마지막 장부터) 또는 나가기
+    const list = ownersRef.current;
+    const i = list.findIndex((o) => String(o.userNo) === userNo);
+    const prev = i > 0 ? list[i - 1] : undefined;
+    if (prev) {
+      goToOwner(prev, 'last');
+      return;
+    }
+    close();
+  }, [close, goToOwner, userNo]);
 
   useEffect(() => {
     clearTick();
@@ -64,7 +255,10 @@ export default function StoriesClient() {
           rafRef.current = requestAnimationFrame(tick);
           return;
         }
-        const p = Math.min(1, (elapsedRef.current + (now - startRef.current)) / duration);
+        const p = Math.min(
+          1,
+          (elapsedRef.current + (now - startRef.current)) / duration,
+        );
         setProgress(p);
         if (p >= 1) {
           finishOrNext();
@@ -164,15 +358,6 @@ export default function StoriesClient() {
     return () => document.removeEventListener('keydown', onKey);
   }, [close]);
 
-  const handlePrevTap = () => {
-    setPaused(false);
-    if (index <= 0) {
-      setPlayId((n) => n + 1);
-      return;
-    }
-    setIndex((i) => i - 1);
-  };
-
   const handleNextTap = () => {
     finishOrNext();
   };
@@ -183,7 +368,34 @@ export default function StoriesClient() {
     return progress;
   };
 
-  if (!current) return null;
+  if (loading) {
+    return (
+      <div className={styles.shell} role="status" aria-label="스토리 불러오는 중">
+        <div className={styles.inner} />
+        <StoryDevTools onStoryViewsCleared={onStoryViewsCleared} />
+      </div>
+    );
+  }
+
+  if (!current) {
+    return (
+      <div className={styles.shell} role="dialog" aria-modal="true" aria-label="스토리">
+        <div className={styles.inner}>
+          <header className={styles.header}>
+            <div className={styles.profileWrap}>
+              <div className={styles.profileLeft}>
+                <span className={styles.nickname}>스토리가 없습니다</span>
+              </div>
+              <button type="button" className={styles.iconBtn} aria-label="닫기" onClick={close}>
+                <X size={28} strokeWidth={2.25} />
+              </button>
+            </div>
+          </header>
+        </div>
+        <StoryDevTools onStoryViewsCleared={onStoryViewsCleared} />
+      </div>
+    );
+  }
 
   return (
     <div className={styles.shell} role="dialog" aria-modal="true" aria-label="스토리">
@@ -206,7 +418,7 @@ export default function StoriesClient() {
         <header className={styles.header}>
           <div className={styles.progressWrap} aria-hidden>
             {items.map((item, i) => (
-              <div key={item.id} className={styles.progressItem}>
+              <div key={item.storyId} className={styles.progressItem}>
                 <div
                   className={styles.progressFill}
                   style={{ transform: `scaleX(${fillScale(i)})` }}
@@ -217,8 +429,8 @@ export default function StoriesClient() {
 
           <div className={styles.profileWrap}>
             <div className={styles.profileLeft}>
-              <Profile imageUrl={owner.profileUrl} size={44} story="none" />
-              <span className={styles.nickname}>{owner.nickname}</span>
+              <Profile imageUrl={profileUrl} size={44} story="none" />
+              <span className={styles.nickname}>{nickname}</span>
             </div>
             <div className={styles.actions}>
               <button
@@ -267,6 +479,8 @@ export default function StoriesClient() {
           <StoryMedia item={current} videoRef={videoRef} />
         </div>
       </div>
+
+      <StoryDevTools onStoryViewsCleared={onStoryViewsCleared} />
     </div>
   );
 }
@@ -275,14 +489,14 @@ function StoryMedia({
   item,
   videoRef,
 }: {
-  item: MockStoryItem;
+  item: StorySlide;
   videoRef: RefObject<HTMLVideoElement | null>;
 }) {
   if (item.kind === 'video') {
     return (
       <div className={styles.mediaFrame}>
         <video
-          key={item.id}
+          key={item.storyId}
           ref={videoRef}
           className={styles.media}
           src={item.src}
@@ -297,7 +511,13 @@ function StoryMedia({
   return (
     <div className={styles.mediaFrame}>
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img key={item.id} src={item.src} alt="" className={styles.media} draggable={false} />
+      <img
+        key={item.storyId}
+        src={item.src}
+        alt=""
+        className={styles.media}
+        draggable={false}
+      />
     </div>
   );
 }

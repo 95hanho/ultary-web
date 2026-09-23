@@ -124,6 +124,8 @@ export function TagExplainPopover({
       if (!target) return;
       if (rootRef.current?.contains(target)) return;
       if ((target as Element).closest?.('[data-tag-trigger="true"]')) return;
+      // preview: 마우스 leave로 닫힘. active: 바깥 클릭으로만 닫힘
+      if (mode !== 'active') return;
       setExiting(true);
     };
 
@@ -150,7 +152,7 @@ export function TagExplainPopover({
       window.removeEventListener('scroll', onScroll, true);
       document.removeEventListener('keydown', onKey);
     };
-  }, []);
+  }, [mode]);
 
   const hash = data.tag.startsWith('#') ? data.tag : `#${data.tag}`;
   const opacity = exiting || !show || !coords ? 0 : mode === 'preview' ? 0.55 : 1;
@@ -173,8 +175,8 @@ export function TagExplainPopover({
         }}
         onMouseEnter={() => {
           if (exiting) return;
+          // 프리뷰 유지용 — 호버만으로 선명(active) 전환하지 않음
           onPopoverEnter?.();
-          if (mode === 'preview') onModeChange('active');
         }}
         onMouseLeave={() => {
           if (exiting) return;
@@ -182,6 +184,7 @@ export function TagExplainPopover({
         }}
         onClick={() => {
           if (exiting) return;
+          // PC: 클릭 시에만 선명
           onModeChange('active');
         }}
       >

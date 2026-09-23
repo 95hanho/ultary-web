@@ -3,12 +3,18 @@
 import { FooterMenu } from '@/components/common/FooterMenu';
 import { LogoHeader } from '@/components/common/LogoHeader';
 import { FeedList } from '@/components/feed/FeedList';
+import type { FeedData } from '@/components/feed/Feed';
 import { Profile, type StoryStatus } from '@/components/my-ultary/Profile';
+import { bffGet } from '@/lib/api/bffFetch';
+import { bffEndpoints } from '@/lib/api/endpoints';
+import { toFeedDataList } from '@/lib/feed/toFeedData';
 import { MOCK_HOME_FEEDS } from '@/lib/mock/feeds';
+import type { BffEnvelope } from '@/types/api';
+import type { StoryOwner } from '@/types/story';
 import clsx from 'clsx';
 import Image from 'next/image';
 import Link from 'next/link';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { Swiper as SwiperType } from 'swiper';
 import 'swiper/css';
 import 'swiper/css/free-mode';
@@ -18,21 +24,14 @@ import styles from './main.module.scss';
 
 const ArrowLeftIcon = '/images/icon/arrow_left.svg';
 const ArrowRightIcon = '/images/icon/arrow_right.svg';
+const FALLBACK_PROFILE = '/images/mock/profile.jpg';
 
-const MOCK_PROFILE = '/images/mock/profile.jpg';
-
-const STORY_USERS: {
+type StoryRing = {
+  userNo: number;
   nickname: string;
   imageUrl: string;
   story: StoryStatus;
-}[] = [
-  { nickname: 'HAN_HOSEONGS...', imageUrl: MOCK_PROFILE, story: 'unread' },
-  { nickname: 'HAN_HOSEONGS...', imageUrl: MOCK_PROFILE, story: 'read' },
-  { nickname: 'HAN_HOSEONGS...', imageUrl: MOCK_PROFILE, story: 'none' },
-  { nickname: 'HAN_HOSEONGS...', imageUrl: MOCK_PROFILE, story: 'unread' },
-  { nickname: 'HAN_HOSEONGS...', imageUrl: MOCK_PROFILE, story: 'read' },
-  { nickname: 'HAN_HOSEONGS...', imageUrl: MOCK_PROFILE, story: 'none' },
-];
+};
 
 function syncStoryNav(
   swiper: SwiperType,
@@ -54,10 +53,54 @@ function slideStoriesByHalf(swiper: SwiperType, direction: 'prev' | 'next') {
   swiper.translateTo(clamped, 300);
 }
 
+function ownersToRings(owners: StoryOwner[]): StoryRing[] {
+  return owners.map((o) => ({
+    userNo: o.userNo,
+    nickname: o.nickname,
+    imageUrl: FALLBACK_PROFILE,
+    story: o.hasUnviewed ? 'unread' : 'read',
+  }));
+}
+
+function unwrapOwners(raw: unknown): StoryOwner[] {
+  if (Array.isArray(raw)) return raw as StoryOwner[];
+  if (raw && typeof raw === 'object') {
+    const data = (raw as BffEnvelope<StoryOwner[]>).data;
+    if (Array.isArray(data)) return data;
+  }
+  return [];
+}
+
 export default function MainClient() {
   const storySwiperRef = useRef<SwiperType | null>(null);
   const [canStoryPrev, setCanStoryPrev] = useState(false);
   const [canStoryNext, setCanStoryNext] = useState(false);
+  const [feeds, setFeeds] = useState<FeedData[]>(MOCK_HOME_FEEDS);
+  const [storyUsers, setStoryUsers] = useState<StoryRing[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const [feedsRes, ownersRes] = await Promise.all([
+          bffGet<BffEnvelope<unknown>>(bffEndpoints.main.feeds, { size: 20 }),
+          bffGet<BffEnvelope<StoryOwner[]>>(bffEndpoints.main.storyOwners),
+        ]);
+        if (cancelled) return;
+
+        const mapped = toFeedDataList(feedsRes.data ?? feedsRes);
+        if (mapped.length > 0) setFeeds(mapped);
+
+        const owners = unwrapOwners(ownersRes.data ?? ownersRes);
+        if (owners.length > 0) setStoryUsers(ownersToRings(owners));
+      } catch (err) {
+        console.error('[main] BFF load failed, using mock', err);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   return (
     <div className={styles.shell}>
@@ -65,71 +108,94 @@ export default function MainClient() {
 
       <main className={styles.main}>
         <section className={styles.stories} aria-label="스토리">
-          <Swiper
-            modules={[FreeMode]}
-            slidesPerView="auto"
-            spaceBetween={15}
-            freeMode
-            className={styles.storySwiper}
-            onSwiper={(swiper) => {
-              storySwiperRef.current = swiper;
-              syncStoryNav(swiper, setCanStoryPrev, setCanStoryNext);
-            }}
-            onProgress={(swiper) => {
-              syncStoryNav(swiper, setCanStoryPrev, setCanStoryNext);
-            }}
-            onReachBeginning={(swiper) => {
-              syncStoryNav(swiper, setCanStoryPrev, setCanStoryNext);
-            }}
-            onReachEnd={(swiper) => {
-              syncStoryNav(swiper, setCanStoryPrev, setCanStoryNext);
-            }}
-            onFromEdge={(swiper) => {
-              syncStoryNav(swiper, setCanStoryPrev, setCanStoryNext);
-            }}
-            onTransitionEnd={(swiper) => {
-              syncStoryNav(swiper, setCanStoryPrev, setCanStoryNext);
-            }}
-          >
-            {STORY_USERS.map((user, i) => (
-              <SwiperSlide key={`${user.nickname}-${i}`} className={styles.storySlide}>
-                <Link href="/stories" className={styles.storyItem}>
-                  <Profile imageUrl={user.imageUrl} size={80} story={user.story} />
-                  <span className={styles.storyNickname}>{user.nickname}</span>
-                </Link>
-              </SwiperSlide>
-            ))}
-          </Swiper>
+          {storyUsers.length > 0 ? (
+            <>
+              <Swiper
+                modules={[FreeMode]}
+                slidesPerView="auto"
+                spaceBetween={15}
+                freeMode
+                className={styles.storySwiper}
+                onSwiper={(swiper) => {
+                  storySwiperRef.current = swiper;
+                  syncStoryNav(swiper, setCanStoryPrev, setCanStoryNext);
+                }}
+                onProgress={(swiper) => {
+                  syncStoryNav(swiper, setCanStoryPrev, setCanStoryNext);
+                }}
+                onReachBeginning={(swiper) => {
+                  syncStoryNav(swiper, setCanStoryPrev, setCanStoryNext);
+                }}
+                onReachEnd={(swiper) => {
+                  syncStoryNav(swiper, setCanStoryPrev, setCanStoryNext);
+                }}
+                onFromEdge={(swiper) => {
+                  syncStoryNav(swiper, setCanStoryPrev, setCanStoryNext);
+                }}
+                onTransitionEnd={(swiper) => {
+                  syncStoryNav(swiper, setCanStoryPrev, setCanStoryNext);
+                }}
+              >
+                {storyUsers.map((user) => (
+                  <SwiperSlide
+                    key={user.userNo}
+                    className={styles.storySlide}
+                  >
+                    <Link
+                      href={`/stories?userNo=${user.userNo}&nickname=${encodeURIComponent(user.nickname)}`}
+                      className={styles.storyItem}
+                    >
+                      <Profile
+                        imageUrl={user.imageUrl}
+                        size={80}
+                        story={user.story}
+                      />
+                      <span className={styles.storyNickname}>{user.nickname}</span>
+                    </Link>
+                  </SwiperSlide>
+                ))}
+              </Swiper>
 
-          {canStoryPrev ? (
-            <button
-              type="button"
-              className={clsx(styles.navBtn, styles.navPrev)}
-              onClick={() => {
-                const swiper = storySwiperRef.current;
-                if (swiper) slideStoriesByHalf(swiper, 'prev');
-              }}
-              aria-label="이전 스토리"
-            >
-              <Image src={ArrowLeftIcon} alt="" width={16} height={16} />
-            </button>
-          ) : null}
-          {canStoryNext ? (
-            <button
-              type="button"
-              className={clsx(styles.navBtn, styles.navNext)}
-              onClick={() => {
-                const swiper = storySwiperRef.current;
-                if (swiper) slideStoriesByHalf(swiper, 'next');
-              }}
-              aria-label="다음 스토리"
-            >
-              <Image src={ArrowRightIcon} alt="" width={16} height={16} />
-            </button>
+              {canStoryPrev ? (
+                <button
+                  type="button"
+                  className={clsx(styles.navBtn, styles.navPrev)}
+                  onClick={() => {
+                    const swiper = storySwiperRef.current;
+                    if (swiper) slideStoriesByHalf(swiper, 'prev');
+                  }}
+                  aria-label="이전 스토리"
+                >
+                  <Image src={ArrowLeftIcon} alt="" width={16} height={16} />
+                </button>
+              ) : null}
+              {canStoryNext ? (
+                <button
+                  type="button"
+                  className={clsx(styles.navBtn, styles.navNext)}
+                  onClick={() => {
+                    const swiper = storySwiperRef.current;
+                    if (swiper) slideStoriesByHalf(swiper, 'next');
+                  }}
+                  aria-label="다음 스토리"
+                >
+                  <Image src={ArrowRightIcon} alt="" width={16} height={16} />
+                </button>
+              ) : null}
+            </>
           ) : null}
         </section>
 
-        <FeedList feeds={MOCK_HOME_FEEDS} />
+        <FeedList feeds={feeds} />
+
+        {feeds.length > 0 ? (
+          <div className={styles.feedEnd}>
+            <p className={styles.feedEndMessage}>마지막 게시글입니다.</p>
+            <button type="button" className={styles.recommendBtn}>
+              추천게시글 보기
+            </button>
+          </div>
+        ) : null}
       </main>
 
       <FooterMenu />

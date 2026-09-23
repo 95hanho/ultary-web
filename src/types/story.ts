@@ -17,7 +17,7 @@ export type StoryOwner = {
 
 /**
  * GET /main/stories?userNo= · GET /my-ultary/stories
- * FileSummary 임베드
+ * FileSummary 임베드 + 단건 읽음 여부
  */
 export type Story = {
   storyId: number;
@@ -28,6 +28,14 @@ export type Story = {
   file?: FileSummary | null;
   thumbnailFile?: FileSummary | null;
   authorProfileFile?: FileSummary | null;
+  /** 작성자 표시명 (있으면 사용) */
+  nickname?: string | null;
+  authorNickname?: string | null;
+  /**
+   * 현재 로그인 유저가 이 스토리를 읽었는지 (`ultary_story_view`).
+   * share: FE는 첫 false부터 재생, 전부 true면 index 0.
+   */
+  viewedByMe: boolean;
   expiresAt: DateTimeString;
   createdAt: DateTimeString;
 } & SoftDelete;

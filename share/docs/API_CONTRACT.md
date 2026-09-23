@@ -40,6 +40,19 @@
 
 쓰기 요청(업로드·피드/스토리 등록)은 기존처럼 **fileId만** 보낸다.
 
+### Story · 읽음 (FE)
+
+| API | 필드 | 의미 |
+|-----|------|------|
+| `GET /main/stories/owners` | `hasUnviewed` | 그 유저 활성 스토리 중 **하나라도** 미열람 |
+| `GET /main/stories?userNo=` · `GET /my-ultary/stories` | 각 항목 `viewedByMe` | **스토리 단건** 읽음 (`ultary_story_view`) |
+| `POST /stories/{storyId}/view` | — | 해당 `storyId`만 INSERT IGNORE (본인 스토리는 미기록) |
+
+**재생 순서 (FE)**  
+1. 응답 배열은 `created_at` ASC (서버 정렬 유지).  
+2. 시작 인덱스 = 첫 `viewedByMe === false`. 전부 `true`이면 `0`(처음부터).  
+3. 슬라이드할 때마다 `POST .../view`로 그 스토리 읽음 처리.
+
 ## 페이지·게스트 접근
 
 FE 라우트 가드·공유 게시글 게스트 열람·로그인 모달: [`auth-access.md`](./auth-access.md).  

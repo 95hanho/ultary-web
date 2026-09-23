@@ -6,13 +6,14 @@
 -- CDN (Cafe24): https://ehfqntuqntu.cdn1.cafe24.com/ultary/{filename}
 --   profile.jpg ~ profile5.png (유저 프로필 5)
 --   post.jpg, post2.jpg, post3.png, post4.png, post6.png (피드 5)
---   story.png ~ story4.png (스토리 4)
+--   story.png ~ story10.png (스토리 10)
 --   goods.png, goods2.png (태그/상품 2)
 --
--- 시드: user 101~105 / pet 101~107 / file 110~141
---       feed 101~103 / story 101~104 / tag 101~103
+-- 시드: user 101~105 / pet 101~107 / file 110~141 + 134~139(추가 스토리)
+--       feed 101~103 / story 101~110 / tag 101~103
+--       주민 102·103 스토리 각 4개 (링 테스트용 viewedByMe)
 --       neighbor: 101→102·103 ACCEPTED, 105→101 ACCEPTED, 104→101 PENDING
--- HTTP: user 101 (google-myultary-test-001)
+-- HTTP: user 101 (google-myultary-test-001) / phone 01011112222
 -- ============================================================
 
 SET NAMES utf8mb4;
@@ -21,11 +22,13 @@ SET FOREIGN_KEY_CHECKS = 0;
 -- ---------- CLEANUP ----------
 DELETE FROM `ultary_story_view`
 WHERE `viewer_user_no` IN (1, 2, 101, 102, 103, 104, 105)
-   OR `story_id` IN (1, 101, 102, 103, 104);
+   OR `story_id` BETWEEN 101 AND 110
+   OR `story_id` IN (1);
 
 DELETE FROM `ultary_story`
 WHERE `user_no` IN (1, 2, 101, 102, 103, 104, 105)
-   OR `story_id` IN (1, 101, 102, 103, 104)
+   OR `story_id` BETWEEN 101 AND 110
+   OR `story_id` IN (1)
    OR `file_id` BETWEEN 100 AND 149;
 
 DELETE FROM `ultary_feed_comment_mention`
@@ -132,6 +135,7 @@ WHERE `file_id` BETWEEN 100 AND 149
      'profile.jpg', 'profile2.png', 'profile3.png', 'profile4.png', 'profile5.png',
      'post.jpg', 'post2.jpg', 'post3.png', 'post4.png', 'post6.png',
      'story.png', 'story2.png', 'story3.png', 'story4.png',
+     'story5.png', 'story6.png', 'story7.png', 'story8.png', 'story9.png', 'story10.png',
      'goods.png', 'goods2.png',
      '3a0deb13-37ce-4335-8db9-b88d645434b4.jpg',
      '237977e1-02ad-41ba-985c-90c94d004bfd.jpg',
@@ -179,7 +183,7 @@ INSERT INTO `ultary_user_social` (
 (104, 'GOOGLE', 'google-seed-user-104', 'seed.u104@example.com'),
 (105, 'KAKAO', 'kakao-seed-user-105', 'seed.u105@example.com');
 
--- ---------- CDN 파일 16개 ----------
+-- ---------- CDN 파일 22개 ----------
 -- file_path = 절대 URL (FE가 그대로 표시). source_type=OWNED (Cafe24 CDN 테스트 자산)
 INSERT INTO `ultary_file` (
   `file_id`, `original_name`, `store_name`, `extension`, `mime_type`,
@@ -198,11 +202,17 @@ INSERT INTO `ultary_file` (
 (122, 'post3.png', 'post3.png', 'png', 'image/png',  0, 'https://ehfqntuqntu.cdn1.cafe24.com/ultary/post3.png', 'OWNED', 102, NOW(), 0),
 (123, 'post4.png', 'post4.png', 'png', 'image/png',  0, 'https://ehfqntuqntu.cdn1.cafe24.com/ultary/post4.png', 'OWNED', 103, NOW(), 0),
 (124, 'post6.png', 'post6.png', 'png', 'image/png',  0, 'https://ehfqntuqntu.cdn1.cafe24.com/ultary/post6.png', 'OWNED', 102, NOW(), 0),
--- 스토리 130~133
-(130, 'story.png',  'story.png',  'png', 'image/png', 0, 'https://ehfqntuqntu.cdn1.cafe24.com/ultary/story.png',  'OWNED', 101, NOW(), 0),
-(131, 'story2.png', 'story2.png', 'png', 'image/png', 0, 'https://ehfqntuqntu.cdn1.cafe24.com/ultary/story2.png', 'OWNED', 102, NOW(), 0),
-(132, 'story3.png', 'story3.png', 'png', 'image/png', 0, 'https://ehfqntuqntu.cdn1.cafe24.com/ultary/story3.png', 'OWNED', 103, NOW(), 0),
-(133, 'story4.png', 'story4.png', 'png', 'image/png', 0, 'https://ehfqntuqntu.cdn1.cafe24.com/ultary/story4.png', 'OWNED', 105, NOW(), 0),
+-- 스토리 130~139 (story.png ~ story10.png)
+(130, 'story.png',   'story.png',   'png', 'image/png', 0, 'https://ehfqntuqntu.cdn1.cafe24.com/ultary/story.png',   'OWNED', 101, NOW(), 0),
+(131, 'story2.png',  'story2.png',  'png', 'image/png', 0, 'https://ehfqntuqntu.cdn1.cafe24.com/ultary/story2.png',  'OWNED', 102, NOW(), 0),
+(132, 'story3.png',  'story3.png',  'png', 'image/png', 0, 'https://ehfqntuqntu.cdn1.cafe24.com/ultary/story3.png',  'OWNED', 103, NOW(), 0),
+(133, 'story4.png',  'story4.png',  'png', 'image/png', 0, 'https://ehfqntuqntu.cdn1.cafe24.com/ultary/story4.png',  'OWNED', 105, NOW(), 0),
+(134, 'story5.png',  'story5.png',  'png', 'image/png', 0, 'https://ehfqntuqntu.cdn1.cafe24.com/ultary/story5.png',  'OWNED', 102, NOW(), 0),
+(135, 'story6.png',  'story6.png',  'png', 'image/png', 0, 'https://ehfqntuqntu.cdn1.cafe24.com/ultary/story6.png',  'OWNED', 102, NOW(), 0),
+(136, 'story7.png',  'story7.png',  'png', 'image/png', 0, 'https://ehfqntuqntu.cdn1.cafe24.com/ultary/story7.png',  'OWNED', 102, NOW(), 0),
+(137, 'story8.png',  'story8.png',  'png', 'image/png', 0, 'https://ehfqntuqntu.cdn1.cafe24.com/ultary/story8.png',  'OWNED', 103, NOW(), 0),
+(138, 'story9.png',  'story9.png',  'png', 'image/png', 0, 'https://ehfqntuqntu.cdn1.cafe24.com/ultary/story9.png',  'OWNED', 103, NOW(), 0),
+(139, 'story10.png', 'story10.png', 'png', 'image/png', 0, 'https://ehfqntuqntu.cdn1.cafe24.com/ultary/story10.png', 'OWNED', 103, NOW(), 0),
 -- 태그/상품 140~141
 (140, 'goods.png',  'goods.png',  'png', 'image/png', 0, 'https://ehfqntuqntu.cdn1.cafe24.com/ultary/goods.png',  'OWNED', 101, NOW(), 0),
 (141, 'goods2.png', 'goods2.png', 'png', 'image/png', 0, 'https://ehfqntuqntu.cdn1.cafe24.com/ultary/goods2.png', 'OWNED', 102, NOW(), 0);
@@ -354,16 +364,35 @@ INSERT INTO `ultary_feed_comment_mention` (
 ) VALUES
 (103, NULL, 101, 102, NULL);
 
--- ---------- 스토리 (101 본인 + 주민 102·103 + 이웃 105) ----------
+-- ---------- 스토리 (101 본인 1 + 주민 102·103 각 4 + 이웃 105 1) ----------
+-- created_at 간격: ASC 재생·viewedByMe 테스트용 (오래된 것부터)
 INSERT INTO `ultary_story` (
   `story_id`, `user_no`, `file_id`, `media_type`,
   `thumbnail_file_id`, `duration_sec`, `caption`,
   `created_at`, `expires_at`
 ) VALUES
-(101, 101, 130, 'IMAGE', NULL, NULL, '오늘 산책 스토리', NOW(), DATE_ADD(NOW(), INTERVAL 24 HOUR)),
-(102, 102, 131, 'IMAGE', NULL, NULL, '나리집사 스토리', NOW(), DATE_ADD(NOW(), INTERVAL 24 HOUR)),
-(103, 103, 132, 'IMAGE', NULL, NULL, '산책러 스토리', NOW(), DATE_ADD(NOW(), INTERVAL 24 HOUR)),
-(104, 105, 133, 'IMAGE', NULL, NULL, '팔로워 스토리', NOW(), DATE_ADD(NOW(), INTERVAL 24 HOUR));
+(101, 101, 130, 'IMAGE', NULL, NULL, '오늘 산책 스토리',
+ DATE_SUB(NOW(), INTERVAL 50 MINUTE), DATE_ADD(DATE_SUB(NOW(), INTERVAL 50 MINUTE), INTERVAL 24 HOUR)),
+-- 102 나리집사 (4): story2 + story5~7
+(102, 102, 131, 'IMAGE', NULL, NULL, '나리집사 스토리 1',
+ DATE_SUB(NOW(), INTERVAL 40 MINUTE), DATE_ADD(DATE_SUB(NOW(), INTERVAL 40 MINUTE), INTERVAL 24 HOUR)),
+(105, 102, 134, 'IMAGE', NULL, NULL, '나리집사 스토리 2',
+ DATE_SUB(NOW(), INTERVAL 30 MINUTE), DATE_ADD(DATE_SUB(NOW(), INTERVAL 30 MINUTE), INTERVAL 24 HOUR)),
+(106, 102, 135, 'IMAGE', NULL, NULL, '나리집사 스토리 3',
+ DATE_SUB(NOW(), INTERVAL 20 MINUTE), DATE_ADD(DATE_SUB(NOW(), INTERVAL 20 MINUTE), INTERVAL 24 HOUR)),
+(107, 102, 136, 'IMAGE', NULL, NULL, '나리집사 스토리 4',
+ DATE_SUB(NOW(), INTERVAL 10 MINUTE), DATE_ADD(DATE_SUB(NOW(), INTERVAL 10 MINUTE), INTERVAL 24 HOUR)),
+-- 103 산책러 (4): story3 + story8~10
+(103, 103, 132, 'IMAGE', NULL, NULL, '산책러 스토리 1',
+ DATE_SUB(NOW(), INTERVAL 35 MINUTE), DATE_ADD(DATE_SUB(NOW(), INTERVAL 35 MINUTE), INTERVAL 24 HOUR)),
+(108, 103, 137, 'IMAGE', NULL, NULL, '산책러 스토리 2',
+ DATE_SUB(NOW(), INTERVAL 25 MINUTE), DATE_ADD(DATE_SUB(NOW(), INTERVAL 25 MINUTE), INTERVAL 24 HOUR)),
+(109, 103, 138, 'IMAGE', NULL, NULL, '산책러 스토리 3',
+ DATE_SUB(NOW(), INTERVAL 15 MINUTE), DATE_ADD(DATE_SUB(NOW(), INTERVAL 15 MINUTE), INTERVAL 24 HOUR)),
+(110, 103, 139, 'IMAGE', NULL, NULL, '산책러 스토리 4',
+ DATE_SUB(NOW(), INTERVAL 5 MINUTE), DATE_ADD(DATE_SUB(NOW(), INTERVAL 5 MINUTE), INTERVAL 24 HOUR)),
+(104, 105, 133, 'IMAGE', NULL, NULL, '팔로워 스토리',
+ DATE_SUB(NOW(), INTERVAL 45 MINUTE), DATE_ADD(DATE_SUB(NOW(), INTERVAL 45 MINUTE), INTERVAL 24 HOUR));
 
 ALTER TABLE `ultary_user` AUTO_INCREMENT = 200;
 ALTER TABLE `ultary_file` AUTO_INCREMENT = 200;

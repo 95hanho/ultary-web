@@ -7,6 +7,25 @@ validation · database · docs 모두 **여기 한곳**에 적는다.
 
 ---
 
+## 2026-09-23 10:45
+
+### Spring · local 스토리 읽음 초기화
+- `DELETE /api/v1/test/story-views` (`@Profile("local")`, Bearer) — 내 `ultary_story_view` 전부 삭제
+- FE: development에서만 호출. prod 프로필에서는 빈 미등록
+
+## 2026-09-23 10:35
+
+### seed · 스토리 테스트 보강
+- CDN `story5.png`~`story10.png` (file 134~139)
+- 주민 102·103 스토리 각 +3 → 유저당 4개 (`story_id` 101~110), `created_at` 간격으로 ASC 재생 테스트
+
+## 2026-09-23 10:25
+
+### docs · 스토리 단건 읽음 + FE 재생
+- `GET /main/stories?userNo=` 각 항목 `viewedByMe` (이미 API 제공) — FE는 첫 미열람부터, 전부 읽었으면 index 0
+- owners `hasUnviewed` = 유저 단위 링 / `viewedByMe` = 스토리 단건 구분 명시
+- `api-memo.md` · `API_CONTRACT.md` 반영
+
 ## 2026-09-22 17:50
 
 ### Spring · share 적용

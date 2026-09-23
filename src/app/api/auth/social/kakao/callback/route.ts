@@ -3,6 +3,7 @@ import { setAuthCookies } from '@/lib/auth/cookies';
 import { exchangeKakaoCode } from '@/lib/auth/kakao-oauth';
 import {
   clearOAuthStateCookie,
+  getOAuthReturnCookie,
   getOAuthStateCookie,
   parseOAuthState,
 } from '@/lib/auth/oauth-state';
@@ -42,7 +43,8 @@ export async function GET(request: NextRequest) {
       name: profile.name,
     });
 
-    const redirectUrl = new URL('/', APP_URL);
+    const returnPath = await getOAuthReturnCookie();
+    const redirectUrl = new URL(returnPath, APP_URL);
     if (tokens.defaultNickname) {
       redirectUrl.searchParams.set('needNickname', '1');
     }

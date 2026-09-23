@@ -110,3 +110,36 @@
 .animate-pop-out {
   animation: pop-out 0.4s ease-out both;
 }
+
+/*
+ * 하단 울타리 배경
+ * - ≤430px: 기존과 같이 뷰포트 너비의 120%로 스케일 (한 장)
+ * - >430px: 430px 기준(120% = 516px) 타일 크기 고정 후 좌우 repeat
+ *   → PC에서 울타리가 커져 옅은 글자가 가려지지 않게
+ */
+.ultary-bg {
+  --ultary-bg-col: 430px;
+  --ultary-bg-scale: 1.2;
+  --ultary-bg-tile: calc(var(--ultary-bg-col) * var(--ultary-bg-scale));
+  --ultary-bg-ratio: 0.6658444; /* 702 / 1054 */
+
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+  height: calc(120vw * var(--ultary-bg-ratio));
+  background-image: url('/images/img/ultary_bg_bt.png');
+  background-repeat: repeat-x;
+  background-position: center bottom;
+  background-size: 120% auto;
+}
+
+@media (min-width: 431px) {
+  .ultary-bg {
+    height: calc(var(--ultary-bg-tile) * var(--ultary-bg-ratio));
+    background-size: var(--ultary-bg-tile) auto;
+  }
+}
+

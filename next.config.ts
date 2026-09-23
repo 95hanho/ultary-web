@@ -15,6 +15,16 @@ const nextConfig: NextConfig = {
   },
   // 개발 모드에서 상단 프로그레스 바 숨기기
   devIndicators: false,
+  // FileSummary CDN (share seed cafe24) — next/image 외부 호스트 허용
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'ehfqntuqntu.cdn1.cafe24.com',
+        pathname: '/ultary/**',
+      },
+    ],
+  },
 };
 
 export default nextConfig;

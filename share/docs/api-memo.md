@@ -76,7 +76,9 @@ BFF: `/api/...` · Spring: `/api/v1/...`
 | 주민 게시글 조회 (무한 스크롤) | GET | `/api/main/feeds` | `/api/v1/main/feeds` | 구현 |
 | 검색 (유저 / 반려동물 / 태그 / 게시글) | GET | `/api/main/search` | `/api/v1/main/search` | 구현 |
 
-> 스토리 소유자 목록 = 내가 팔로우(`requester` ACCEPTED)한 유저 중 활성 스토리 보유자. `hasUnviewed`는 `ultary_story_view` 기준(안 읽은 링). **미디어/프로필 URL 없음** — 링 탭 시 `GET /main/stories?userNo=`.  
+> 스토리 소유자 목록 = 내가 팔로우(`requester` ACCEPTED)한 유저 중 활성 스토리 보유자. `hasUnviewed`는 `ultary_story_view` 기준(안 읽은 링). **미열람(`hasUnviewed=true`) 먼저**, 그다음 최신 스토리 순. **미디어/프로필 URL 없음** — 링 탭 시 `GET /main/stories?userNo=`.  
+> **주민 스토리 조회** `GET /main/stories?userNo=`: 해당 유저 활성 스토리 배열(`created_at` ASC). **항목마다 `viewedByMe`**(스토리 단건 읽음, `ultary_story_view`). FileSummary 포함.  
+> **FE 재생**: 배열은 시간순 유지. 시작 인덱스 = 첫 `viewedByMe === false` (없으면 `0` = 처음부터). 넘긴 뒤 `POST /stories/:storyId/view`로 읽음 기록.  
 > 메인 피드: 본인 + 주민 게시글. `PUBLIC` / 본인 / `NEIGHBORS`(ACCEPTED). 차단 쌍 제외. 커서 `cursorFeedId` + `nextCursorFeedId`.  
 > 검색 `type`: `ALL`(기본) \| `USER` \| `PET` \| `TAG` \| `FEED`. `@`/`#` 접두는 서버에서 제거. URL 쿼리에서는 `#`를 `%23`, `@`를 `%40`로 인코딩해야 함(`#`는 fragment라 미인코딩 시 `q`/`type`이 잘림). 차단 유저·펫 제외.  
 > **미디어 URL**: 피드·스토리 상세·프로필 등 읽기 응답에 `fileId`와 함께 `FileSummary` 임베드. `filePath`는 상대경로(`images/…`) 또는 CDN 절대 URL. **예외: `/main/stories/owners`는 링 메타만** (`hasUnviewed` 등).  
@@ -101,7 +103,7 @@ BFF: `/api/...` · Spring: `/api/v1/...`
 | 스토리 읽음 | POST | `/api/stories/:storyId/view` | `/api/v1/stories/:storyId/view` | 구현 |
 
 > 주민 = 팔로잉(`requester` ACCEPTED), 이웃 = 팔로워(`receiver` ACCEPTED).  
-> 스토리: IMAGE\|VIDEO, `expires_at = created_at + 24h`, 읽음은 `ultary_story_view`. 조회는 본인 또는 ACCEPTED 이웃.  
+> 스토리: IMAGE\|VIDEO, `expires_at = created_at + 24h`. 읽음은 **스토리 단건** (`ultary_story_view`: `story_id`+`viewer_user_no`). 목록 응답 `viewedByMe` · 링 `hasUnviewed`(그 유저 활성 중 미열람 1개라도). 조회는 본인 또는 ACCEPTED 이웃.  
 > tagged-feeds: 내 펫 `COLLABORATOR` 또는 사진 `@` 멘션된 게시글.  
 > HTTP: `requests/my-ultary.http` (시드 user 101 / `google-myultary-test-001`)
 
@@ -251,6 +253,20 @@ BFF: `/api/...` · Spring: `/api/v1/...`
 |------|--------|-----|
 | 태그 승인 | POST | `/api/admin/tags/:tagId/approve` |
 | 태그 거절 | POST | `/api/admin/tags/:tagId/reject` |
+
+---
+
+## 13. 로컬 테스트 전용 (`local` 프로필)
+
+> Spring `@Profile("local")` — **prod 프로필에서는 컨트롤러 미등록(404)**.  
+> FE는 development에서만 버튼/호출. BFF 경유 시에도 Spring이 local이어야 함.
+
+| 기능 | Method | Spring | 비고 |
+|------|--------|--------|------|
+| 비밀번호 인코딩 | POST | `/api/v1/test/password/encode` | 인증 불필요 |
+| **내 스토리 읽음 초기화** | DELETE | `/api/v1/test/story-views` | Bearer 필수. `ultary_story_view`에서 내 viewer 행 전부 삭제 → `deletedCount` |
+
+HTTP: `requests/test.http`
 
 ---
 

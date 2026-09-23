@@ -596,3 +596,10 @@ POST {{baseUrl}}/api/admin/tags/{{tagId}}/approve
 
 ### 관리자 태그 거절
 POST {{baseUrl}}/api/admin/tags/{{tagId}}/reject
+
+### ==============================
+### 로컬 테스트 (Spring local + Next development)
+### ==============================
+
+### 내 스토리 읽음 전부화 (ultary_story_view)
+DELETE {{baseUrl}}/api/test/story-views

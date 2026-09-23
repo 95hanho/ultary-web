@@ -1,7 +1,6 @@
 import { Providers } from '@/providers/Providers';
 import '@/styles';
 import type { Metadata } from 'next';
-import Image from 'next/image';
 
 export const metadata: Metadata = {
   title: 'Ultary',
@@ -16,21 +15,12 @@ export default function RootLayout({
   return (
     <html lang="ko" className="h-full antialiased">
       <body className="relative flex min-h-full flex-col">
-        <Providers>{children}</Providers>
-
-        <div className="ultary-bg pointer-events-none absolute inset-x-0 bottom-0 z-0 overflow-hidden">
-          <div className="relative left-1/2 w-[120%] -translate-x-1/2">
-            <Image
-              src="/images/img/ultary_bg_bt.png"
-              alt=""
-              width={1054}
-              height={702}
-              priority
-              className="h-auto w-full"
-              style={{ height: 'auto' }}
-            />
-          </div>
+        <div className="relative z-[1] flex min-h-full flex-1 flex-col">
+          <Providers>{children}</Providers>
         </div>
+
+        {/* ≤430: 기존처럼 뷰포트 기준 스케일 / >430: 430 기준 타일 고정 후 좌우 반복 */}
+        <div className="ultary-bg" aria-hidden />
       </body>
     </html>
   );

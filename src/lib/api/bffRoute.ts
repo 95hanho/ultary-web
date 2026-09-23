@@ -1,16 +1,11 @@
 import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
 import { toErrorResponse } from '@/lib/api/error';
 import type { Params, RequestHeaders } from '@/lib/api/http';
 import {
-  ACCESS_TOKEN_COOKIE,
-  ACCESS_TOKEN_MAX_AGE,
-  REFRESH_TOKEN_COOKIE,
-  REFRESH_TOKEN_MAX_AGE,
-} from '@/lib/auth/cookie-names';
-import { isProd, SPRING_BASE_URL } from '@/lib/env.server';
-import { springEndpoints } from '@/lib/api/endpoints';
-import type { RefreshTokenRequest, TokenResponse } from '@/types/api';
+  applyTokensToCookieJar,
+  clearAuthCookieJar,
+  resolveSessionFromCookies,
+} from '@/lib/auth/session';
 
 export { runAuthed, withAuth, withOptionalAuth } from '@/lib/auth/withAuth';
 
@@ -56,64 +51,22 @@ export function bearer(accessToken: string): RequestHeaders {
   return { Authorization: `Bearer ${accessToken}` };
 }
 
-const cookieOpts = {
-  httpOnly: true,
-  secure: isProd,
-  sameSite: 'lax' as const,
-  path: '/',
-};
-
-async function refreshViaSpring(refreshToken: string): Promise<TokenResponse | null> {
-  try {
-    const res = await fetch(`${SPRING_BASE_URL}${springEndpoints.auth.refresh}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-      body: JSON.stringify({ refreshToken } satisfies RefreshTokenRequest),
-      cache: 'no-store',
-    });
-    if (!res.ok) return null;
-    const raw = (await res.json()) as TokenResponse & {
-      success?: boolean;
-      data?: TokenResponse;
-    };
-    if (typeof raw.accessToken === 'string' && typeof raw.refreshToken === 'string') {
-      return raw;
-    }
-    if (raw.data?.accessToken && raw.data?.refreshToken) return raw.data;
-    return null;
-  } catch {
-    return null;
-  }
-}
-
 /**
- * access 쿠키 필수. 없으면 refresh로 Spring 재발급 후 cookies().set.
- * (proxy에서는 재발급하지 않음 — shop 교훈)
+ * access 쿠키 필수. 없으면 refresh로 Spring 재발급 (공유 락).
+ * 실패 시 Spring 401/403일 때만 쿠키 삭제 — 파싱/네트워크 실패로 refresh를 지우지 않음.
  */
 export async function requireAccessToken(): Promise<string | NextResponse> {
-  const jar = await cookies();
-  const access = jar.get(ACCESS_TOKEN_COOKIE)?.value?.trim();
-  if (access) return access;
-
-  const refresh = jar.get(REFRESH_TOKEN_COOKIE)?.value?.trim();
-  if (!refresh) return unauthorized();
-
-  const tokens = await refreshViaSpring(refresh);
-  if (!tokens) {
-    jar.set(ACCESS_TOKEN_COOKIE, '', { ...cookieOpts, maxAge: 0 });
-    jar.set(REFRESH_TOKEN_COOKIE, '', { ...cookieOpts, maxAge: 0 });
-    return unauthorized('세션이 만료되었습니다. 다시 로그인해 주세요.');
+  const session = await resolveSessionFromCookies();
+  if (!session.ok) {
+    if (session.clearCookies) await clearAuthCookieJar();
+    return unauthorized(
+      session.message === 'REFRESH_UNAUTHORIZED'
+        ? '세션이 만료되었습니다. 다시 로그인해 주세요.'
+        : undefined,
+    );
   }
-
-  jar.set(ACCESS_TOKEN_COOKIE, tokens.accessToken, {
-    ...cookieOpts,
-    maxAge: tokens.expiresIn ?? ACCESS_TOKEN_MAX_AGE,
-  });
-  jar.set(REFRESH_TOKEN_COOKIE, tokens.refreshToken, {
-    ...cookieOpts,
-    maxAge: REFRESH_TOKEN_MAX_AGE,
-  });
-  return tokens.accessToken;
+  if (session.tokens) await applyTokensToCookieJar(session.tokens);
+  return session.accessToken;
 }
 
 export function isUnauthorized(
