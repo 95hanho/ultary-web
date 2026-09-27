@@ -70,7 +70,12 @@ export function FooterMenu() {
         aria-current={isNotifications ? 'page' : undefined}
         onClick={guardNav('/notifications')}
       >
-        <Image src={isNotifications ? BellFillIcon : BellIcon} alt="" width={30} height={30} />
+        <span className={styles.iconWrap}>
+          <Image src={isNotifications ? BellFillIcon : BellIcon} alt="" width={30} height={30} />
+          <span className={styles.badge} aria-hidden>
+            9+
+          </span>
+        </span>
       </Link>
 
       <Link

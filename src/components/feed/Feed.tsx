@@ -1,10 +1,12 @@
 'use client';
 
 import { Profile, type StoryStatus } from '@/components/my-ultary/Profile';
+import { myUltaryPath } from '@/lib/mock/ultary-accounts';
 import { getTagExplain, splitCaptionTags, type TagExplain } from '@/lib/mock/tags';
 import { useModalStore } from '@/stores/modal.store';
 import clsx from 'clsx';
 import Image from 'next/image';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { Swiper as SwiperType } from 'swiper';
@@ -26,6 +28,8 @@ const ArrowRightIcon = '/images/icon/arrow_right.svg';
 
 export type FeedData = {
   id: string;
+  /** 작성자. 스토리 링·스토리 이동에 사용 */
+  userNo?: number;
   nickname: string;
   profileUrl: string;
   /** 캐러셀용. 목업은 같은 사진 여러 장도 OK */
@@ -44,6 +48,7 @@ export type FeedData = {
 /** 메인 피드 게시글 카드 */
 export function Feed({
   id,
+  userNo,
   nickname,
   profileUrl,
   images,
@@ -112,6 +117,15 @@ export function Feed({
   const showPrev = hasMultiple && index > 0;
   const showNext = hasMultiple && index < safeImages.length - 1;
   const captionParts = splitCaptionTags(caption);
+  const storyRing = story === 'unread' ? 'unread' : 'none';
+  const storyHref =
+    storyRing === 'unread' && userNo != null
+      ? `/stories?${new URLSearchParams({
+          userNo: String(userNo),
+          nickname,
+          single: '1',
+        }).toString()}`
+      : null;
 
   const clearLeaveTimer = () => {
     if (leaveTimerRef.current != null) {
@@ -210,8 +224,16 @@ export function Feed({
   return (
     <article id={`feed-${id}`} className={styles.feed}>
       <header className={styles.header}>
-        <Profile imageUrl={profileUrl} size={36} story={story} />
-        <span className={styles.nickname}>{nickname}</span>
+        {storyHref ? (
+          <Link href={storyHref} className={styles.profileLink} aria-label={`${nickname} 스토리`}>
+            <Profile imageUrl={profileUrl} size={36} story={storyRing} />
+          </Link>
+        ) : (
+          <Profile imageUrl={profileUrl} size={36} story={storyRing} />
+        )}
+        <Link href={myUltaryPath(nickname)} className={styles.nickname}>
+          {nickname}
+        </Link>
       </header>
       <div className={styles.content}>
         <div className={styles.media}>

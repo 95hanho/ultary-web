@@ -12,10 +12,22 @@
   gap: 5px;
 }
 
+.profileLink {
+  display: inline-flex;
+  line-height: 0;
+}
+
 .nickname {
   color: var(--brand-black-700);
   font-size: 14px;
-  font-weight: 700;
+  font-weight: 400;
+  text-decoration: none;
+
+  &:hover,
+  &:active {
+    font-weight: 700;
+    text-decoration: underline;
+  }
 }
 
 .content {

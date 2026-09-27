@@ -10,6 +10,11 @@
   backdrop-filter: blur(6px);
 }
 
+.logoLink {
+  display: inline-flex;
+  line-height: 0;
+}
+
 .logo {
   width: 75px;
   max-width: 140px;

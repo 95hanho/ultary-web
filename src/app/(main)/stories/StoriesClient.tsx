@@ -32,6 +32,12 @@ type Props = {
   userNo: string;
   nicknameHint?: string;
   start?: StartMode;
+  /** 메인에서 안 읽은 링을 연 경우. 클릭 유저 뒤의 안 읽은 유저만 이어서 재생 */
+  unreadChain?: boolean;
+  /** unreadChain 시작 유저 (메인에서 누른 userNo) */
+  fromUserNo?: string;
+  /** 피드에서 연 경우. 이 유저 스토리만 보고 끝에서는 이전 페이지로 */
+  singleUser?: boolean;
 };
 
 const FALLBACK_MEDIA = '/images/mock/post.jpg';
@@ -65,13 +71,42 @@ function toSlide(story: Story): StorySlide {
   };
 }
 
-function ownerStoriesHref(owner: StoryOwner, start: StartMode) {
+function ownerStoriesHref(
+  owner: StoryOwner,
+  start: StartMode,
+  chain?: { fromUserNo: string },
+) {
   const q = new URLSearchParams({
     userNo: String(owner.userNo),
     nickname: owner.nickname,
   });
   if (start === 'last') q.set('start', 'last');
+  if (chain) {
+    q.set('chain', 'unread');
+    q.set('from', chain.fromUserNo);
+  }
   return `/stories?${q.toString()}`;
+}
+
+/**
+ * 안 읽은 체인: 클릭한 유저부터, 그 뒤 hasUnviewed 유저만.
+ * 클릭 유저·현재 유저는 조회 후 hasUnviewed가 꺼져도 유지한다.
+ */
+function unreadChainQueue(
+  list: StoryOwner[],
+  fromUserNo: string,
+  currentUserNo: string,
+): StoryOwner[] {
+  const start = list.findIndex((o) => String(o.userNo) === fromUserNo);
+  const from = start >= 0 ? start : list.findIndex((o) => String(o.userNo) === currentUserNo);
+  if (from < 0) return [];
+
+  return list.filter((owner, i) => {
+    if (i < from) return false;
+    if (String(owner.userNo) === fromUserNo) return true;
+    if (String(owner.userNo) === currentUserNo) return true;
+    return owner.hasUnviewed;
+  });
 }
 
 /** 스토리 보기 — owners 체인 + GET /main/stories?userNo= · 조회 시 view */
@@ -79,6 +114,9 @@ export default function StoriesClient({
   userNo,
   nicknameHint = '',
   start = 'unviewed',
+  unreadChain = false,
+  fromUserNo = '',
+  singleUser = false,
 }: Props) {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
@@ -114,11 +152,19 @@ export default function StoriesClient({
     router.back();
   }, [router]);
 
+  const chainFrom = unreadChain ? fromUserNo || userNo : '';
+
   const goToOwner = useCallback(
     (owner: StoryOwner, nextStart: StartMode) => {
-      router.replace(ownerStoriesHref(owner, nextStart));
+      router.replace(
+        ownerStoriesHref(
+          owner,
+          nextStart,
+          chainFrom ? { fromUserNo: chainFrom } : undefined,
+        ),
+      );
     },
-    [router],
+    [chainFrom, router],
   );
 
   useEffect(() => {
@@ -210,8 +256,25 @@ export default function StoriesClient({
       return;
     }
 
+    if (singleUser) {
+      close();
+      return;
+    }
+
     // 현재 이웃 마지막 → 다음 이웃 또는 나가기
     const list = ownersRef.current;
+    if (chainFrom) {
+      const queue = unreadChainQueue(list, chainFrom, userNo);
+      const i = queue.findIndex((o) => String(o.userNo) === userNo);
+      const next = i >= 0 ? queue[i + 1] : undefined;
+      if (next) {
+        goToOwner(next, 'unviewed');
+        return;
+      }
+      close();
+      return;
+    }
+
     const i = list.findIndex((o) => String(o.userNo) === userNo);
     const next = i >= 0 ? list[i + 1] : undefined;
     if (next) {
@@ -219,7 +282,7 @@ export default function StoriesClient({
       return;
     }
     close();
-  }, [close, goToOwner, items.length, userNo]);
+  }, [chainFrom, close, goToOwner, items.length, singleUser, userNo]);
 
   const handlePrevTap = useCallback(() => {
     setPaused(false);
@@ -228,8 +291,31 @@ export default function StoriesClient({
       return;
     }
 
+    if (singleUser) {
+      close();
+      return;
+    }
+
+    // 메인에서 연 유저의 첫 장에서 뒤로 가면 이전 유저가 아니라 원래 페이지로
+    if (fromUserNo && userNo === fromUserNo) {
+      close();
+      return;
+    }
+
     // 현재 이웃 첫 장 → 이전 이웃(마지막 장부터) 또는 나가기
     const list = ownersRef.current;
+    if (chainFrom) {
+      const queue = unreadChainQueue(list, chainFrom, userNo);
+      const i = queue.findIndex((o) => String(o.userNo) === userNo);
+      const prev = i > 0 ? queue[i - 1] : undefined;
+      if (prev) {
+        goToOwner(prev, 'last');
+        return;
+      }
+      close();
+      return;
+    }
+
     const i = list.findIndex((o) => String(o.userNo) === userNo);
     const prev = i > 0 ? list[i - 1] : undefined;
     if (prev) {
@@ -237,7 +323,7 @@ export default function StoriesClient({
       return;
     }
     close();
-  }, [close, goToOwner, userNo]);
+  }, [chainFrom, close, fromUserNo, goToOwner, singleUser, userNo]);
 
   useEffect(() => {
     clearTick();

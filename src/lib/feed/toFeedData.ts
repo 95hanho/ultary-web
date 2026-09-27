@@ -51,6 +51,7 @@ export function toFeedData(raw: unknown, fallbackId: string): FeedData {
 
   return {
     id: String(detail.feedId ?? fallbackId),
+    userNo: typeof detail.userNo === 'number' ? detail.userNo : undefined,
     nickname,
     profileUrl,
     images,

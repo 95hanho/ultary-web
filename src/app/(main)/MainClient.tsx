@@ -9,6 +9,7 @@ import { bffGet } from '@/lib/api/bffFetch';
 import { bffEndpoints } from '@/lib/api/endpoints';
 import { toFeedDataList } from '@/lib/feed/toFeedData';
 import { MOCK_HOME_FEEDS } from '@/lib/mock/feeds';
+import { myUltaryPath } from '@/lib/mock/ultary-accounts';
 import type { BffEnvelope } from '@/types/api';
 import type { StoryOwner } from '@/types/story';
 import clsx from 'clsx';
@@ -53,6 +54,16 @@ function slideStoriesByHalf(swiper: SwiperType, direction: 'prev' | 'next') {
   swiper.translateTo(clamped, 300);
 }
 
+function storyHref(user: StoryRing) {
+  const q = new URLSearchParams({
+    userNo: String(user.userNo),
+    nickname: user.nickname,
+    from: String(user.userNo),
+  });
+  if (user.story === 'unread') q.set('chain', 'unread');
+  return `/stories?${q.toString()}`;
+}
+
 function ownersToRings(owners: StoryOwner[]): StoryRing[] {
   return owners.map((o) => ({
     userNo: o.userNo,
@@ -60,6 +71,23 @@ function ownersToRings(owners: StoryOwner[]): StoryRing[] {
     imageUrl: FALLBACK_PROFILE,
     story: o.hasUnviewed ? 'unread' : 'read',
   }));
+}
+
+/** 피드 프로필: 안 읽은 스토리만 unread, 없거나 다 읽었으면 none */
+function applyOwnerStory(feeds: FeedData[], owners: StoryOwner[]): FeedData[] {
+  const byUser = new Map(owners.map((o) => [o.userNo, o]));
+  const byNick = new Map(owners.map((o) => [o.nickname, o]));
+
+  return feeds.map((feed) => {
+    const owner =
+      (feed.userNo != null ? byUser.get(feed.userNo) : undefined) ??
+      byNick.get(feed.nickname);
+    return {
+      ...feed,
+      userNo: feed.userNo ?? owner?.userNo,
+      story: owner?.hasUnviewed ? 'unread' : 'none',
+    };
+  });
 }
 
 function unwrapOwners(raw: unknown): StoryOwner[] {
@@ -88,10 +116,10 @@ export default function MainClient() {
         ]);
         if (cancelled) return;
 
-        const mapped = toFeedDataList(feedsRes.data ?? feedsRes);
-        if (mapped.length > 0) setFeeds(mapped);
-
         const owners = unwrapOwners(ownersRes.data ?? ownersRes);
+        const mapped = toFeedDataList(feedsRes.data ?? feedsRes);
+        if (mapped.length > 0) setFeeds(applyOwnerStory(mapped, owners));
+
         if (owners.length > 0) setStoryUsers(ownersToRings(owners));
       } catch (err) {
         console.error('[main] BFF load failed, using mock', err);
@@ -141,17 +169,18 @@ export default function MainClient() {
                     key={user.userNo}
                     className={styles.storySlide}
                   >
-                    <Link
-                      href={`/stories?userNo=${user.userNo}&nickname=${encodeURIComponent(user.nickname)}`}
-                      className={styles.storyItem}
-                    >
-                      <Profile
-                        imageUrl={user.imageUrl}
-                        size={80}
-                        story={user.story}
-                      />
-                      <span className={styles.storyNickname}>{user.nickname}</span>
-                    </Link>
+                    <div className={styles.storyItem}>
+                      <Link href={storyHref(user)} aria-label={`${user.nickname} 스토리`}>
+                        <Profile
+                          imageUrl={user.imageUrl}
+                          size={80}
+                          story={user.story}
+                        />
+                      </Link>
+                      <Link href={myUltaryPath(user.nickname)} className={styles.storyNickname}>
+                        {user.nickname}
+                      </Link>
+                    </div>
                   </SwiperSlide>
                 ))}
               </Swiper>
