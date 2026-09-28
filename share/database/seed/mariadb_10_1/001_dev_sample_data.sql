@@ -1,5 +1,5 @@
 -- ============================================================
--- ULTARY 로컬/개발용 샘플 데이터 (schema_version 8)
+-- ULTARY 로컬/개발용 샘플 데이터 (schema_version 9)
 -- 실행: 001_init_schema.sql(v8) 이후. 운영에서는 실행하지 않음.
 -- 재실행: CLEANUP 후 INSERT (그대로 다시 실행 가능).
 --
@@ -10,7 +10,9 @@
 --   goods.png, goods2.png (태그/상품 2)
 --
 -- 시드: user 101~105 / pet 101~107 / file 110~141 + 134~139(추가 스토리)
+--       구경 계정 user 201~220 (피드·펫 없음, 비밀번호 Test1234!)
 --       feed 101~103 / story 101~110 / tag 101~103
+--       피드·댓글·답글 좋아요는 구경 계정이 기존 글에 무작위로 누른 값
 --       주민 102·103 스토리 각 4개 (링 테스트용 viewedByMe)
 --       neighbor: 101→102·103 ACCEPTED, 105→101 ACCEPTED, 104→101 PENDING
 -- HTTP: user 101 (google-myultary-test-001) / phone 01011112222
@@ -31,17 +33,36 @@ WHERE `user_no` IN (1, 2, 101, 102, 103, 104, 105)
    OR `story_id` IN (1)
    OR `file_id` BETWEEN 100 AND 149;
 
+DELETE FROM `ultary_feed_comment_like`
+WHERE `user_no` IN (1, 2, 101, 102, 103, 104, 105)
+   OR `user_no` BETWEEN 201 AND 220
+   OR `feed_comment_id` IN (1, 101)
+   OR `feed_comment_id` BETWEEN 201 AND 220;
+
+DELETE FROM `ultary_feed_reply_like`
+WHERE `user_no` IN (1, 2, 101, 102, 103, 104, 105)
+   OR `user_no` BETWEEN 201 AND 220
+   OR `feed_reply_id` IN (1, 101)
+   OR `feed_reply_id` BETWEEN 201 AND 220;
+
 DELETE FROM `ultary_feed_comment_mention`
 WHERE `feed_comment_id` IN (1, 101)
+   OR `feed_comment_id` BETWEEN 201 AND 220
    OR `feed_reply_id` IN (1, 101)
+   OR `feed_reply_id` BETWEEN 201 AND 220
    OR `mentioned_user_no` IN (1, 2, 101, 102, 103, 104, 105)
+   OR `mentioned_user_no` BETWEEN 201 AND 220
    OR `mentioned_pet_id` IN (1, 2, 101, 102, 103, 104, 105, 106, 107)
-   OR `feed_comment_mention_id` IN (1, 2, 3, 101, 102, 103);
+   OR `feed_comment_mention_id` IN (1, 2, 3, 101, 102, 103)
+   OR `feed_comment_mention_id` BETWEEN 201 AND 220;
 
 DELETE FROM `ultary_feed_reply`
 WHERE `user_no` IN (1, 2, 101, 102, 103, 104, 105)
+   OR `user_no` BETWEEN 201 AND 220
    OR `feed_reply_id` IN (1, 101)
-   OR `feed_comment_id` IN (1, 101);
+   OR `feed_reply_id` BETWEEN 201 AND 220
+   OR `feed_comment_id` IN (1, 101)
+   OR `feed_comment_id` BETWEEN 201 AND 220;
 
 DELETE FROM `ultary_feed_comment`
 WHERE `user_no` IN (1, 2, 101, 102, 103, 104, 105)
@@ -54,6 +75,7 @@ WHERE `user_no` IN (1, 2, 101, 102, 103, 104, 105)
 
 DELETE FROM `ultary_feed_like`
 WHERE `user_no` IN (1, 2, 101, 102, 103, 104, 105)
+   OR `user_no` BETWEEN 201 AND 220
    OR `feed_id` IN (1, 2, 101, 102, 103);
 
 DELETE FROM `ultary_feed_tag`
@@ -103,10 +125,12 @@ WHERE `user_no` IN (1, 2, 101, 102, 103, 104, 105)
    OR `mention_id` IN ('choco_01', 'nabi_01', 'mung_01', 'coco_01', 'tori_01', 'kong_01', 'bori_01');
 
 DELETE FROM `ultary_token`
-WHERE `user_no` IN (1, 2, 101, 102, 103, 104, 105);
+WHERE `user_no` IN (1, 2, 101, 102, 103, 104, 105)
+   OR `user_no` BETWEEN 201 AND 220;
 
 DELETE FROM `ultary_user_social`
 WHERE `user_no` IN (1, 2, 101, 102, 103, 104, 105)
+   OR `user_no` BETWEEN 201 AND 220
    OR `provider_user_id` IN (
      'google-seed-user-001',
      'kakao-seed-user-002',
@@ -115,7 +139,8 @@ WHERE `user_no` IN (1, 2, 101, 102, 103, 104, 105)
      'google-seed-user-103',
      'google-seed-user-104',
      'kakao-seed-user-105'
-   );
+   )
+   OR `provider_user_id` LIKE 'google-seed-viewer-%';
 
 UPDATE `ultary_user` SET `profile_file_id` = NULL
 WHERE `user_no` IN (1, 2, 101, 102, 103, 104, 105)
@@ -146,6 +171,7 @@ WHERE `file_id` BETWEEN 100 AND 149
 
 DELETE FROM `ultary_user`
 WHERE `user_no` IN (1, 2, 101, 102, 103, 104, 105)
+   OR `user_no` BETWEEN 201 AND 220
    OR `email` IN (
      'seed.dog@example.com',
      'seed.cat@example.com',
@@ -155,9 +181,14 @@ WHERE `user_no` IN (1, 2, 101, 102, 103, 104, 105)
      'seed.u104@example.com',
      'seed.u105@example.com'
    )
+   OR `email` LIKE 'viewer2%@example.com'
    OR `nickname` IN (
      '울타리견주', '울타리냥이', '울타리', '나리집사',
-     '산책러', '대기중', '팔로워'
+     '산책러', '대기중', '팔로워',
+     '구경꾼', '산책손님', '냥덕후', '강아지팬', '한강러',
+     '공원지기', '간식러', '냥집사', '멍멍이', '냥냥이',
+     '구름이', '바람돌', '달빛', '별빛', '풀잎',
+     '모래알', '하늘색', '노을빛', '아침이슬', '저녁노을'
    );
 
 SET FOREIGN_KEY_CHECKS = 1;
@@ -182,6 +213,57 @@ INSERT INTO `ultary_user_social` (
 (103, 'GOOGLE', 'google-seed-user-103', 'seed.u103@example.com'),
 (104, 'GOOGLE', 'google-seed-user-104', 'seed.u104@example.com'),
 (105, 'KAKAO', 'kakao-seed-user-105', 'seed.u105@example.com');
+
+-- ---------- 구경 계정 20명 (피드·펫 없음, 비밀번호: {noop}Test1234!) ----------
+INSERT INTO `ultary_user` (
+  `user_no`, `password`, `name`, `nickname`, `nickname_changed_at`,
+  `is_default_nickname`, `email`, `phone`, `bio`,
+  `region_sido`, `region_sigungu`, `withdrawal_status`
+) VALUES
+(201, '{noop}Test1234!', '구경일', '구경꾼',   NOW(), 0, 'viewer201@example.com', '01020100201', '피드 없이 구경만', '서울특별시', '마포구', 'ACTIVE'),
+(202, '{noop}Test1234!', '구경이', '산책손님', NOW(), 0, 'viewer202@example.com', '01020100202', '피드 없이 구경만', '서울특별시', '용산구', 'ACTIVE'),
+(203, '{noop}Test1234!', '구경삼', '냥덕후',   NOW(), 0, 'viewer203@example.com', '01020100203', '피드 없이 구경만', '서울특별시', '강남구', 'ACTIVE'),
+(204, '{noop}Test1234!', '구경사', '강아지팬', NOW(), 0, 'viewer204@example.com', '01020100204', '피드 없이 구경만', '경기도', '성남시', 'ACTIVE'),
+(205, '{noop}Test1234!', '구경오', '한강러',   NOW(), 0, 'viewer205@example.com', '01020100205', '피드 없이 구경만', '서울특별시', '영등포구', 'ACTIVE'),
+(206, '{noop}Test1234!', '구경육', '공원지기', NOW(), 0, 'viewer206@example.com', '01020100206', '피드 없이 구경만', '경기도', '고양시', 'ACTIVE'),
+(207, '{noop}Test1234!', '구경칠', '간식러',   NOW(), 0, 'viewer207@example.com', '01020100207', '피드 없이 구경만', '인천광역시', '연수구', 'ACTIVE'),
+(208, '{noop}Test1234!', '구경팔', '냥집사',   NOW(), 0, 'viewer208@example.com', '01020100208', '피드 없이 구경만', '서울특별시', '성동구', 'ACTIVE'),
+(209, '{noop}Test1234!', '구경구', '멍멍이',   NOW(), 0, 'viewer209@example.com', '01020100209', '피드 없이 구경만', '부산광역시', '해운대구', 'ACTIVE'),
+(210, '{noop}Test1234!', '구경십', '냥냥이',   NOW(), 0, 'viewer210@example.com', '01020100210', '피드 없이 구경만', '대구광역시', '수성구', 'ACTIVE'),
+(211, '{noop}Test1234!', '구경십일', '구름이', NOW(), 0, 'viewer211@example.com', '01020100211', '피드 없이 구경만', '서울특별시', '종로구', 'ACTIVE'),
+(212, '{noop}Test1234!', '구경십이', '바람돌', NOW(), 0, 'viewer212@example.com', '01020100212', '피드 없이 구경만', '경기도', '수원시', 'ACTIVE'),
+(213, '{noop}Test1234!', '구경십삼', '달빛',   NOW(), 0, 'viewer213@example.com', '01020100213', '피드 없이 구경만', '서울특별시', '송파구', 'ACTIVE'),
+(214, '{noop}Test1234!', '구경십사', '별빛',   NOW(), 0, 'viewer214@example.com', '01020100214', '피드 없이 구경만', '대전광역시', '유성구', 'ACTIVE'),
+(215, '{noop}Test1234!', '구경십오', '풀잎',   NOW(), 0, 'viewer215@example.com', '01020100215', '피드 없이 구경만', '광주광역시', '동구', 'ACTIVE'),
+(216, '{noop}Test1234!', '구경십육', '모래알', NOW(), 0, 'viewer216@example.com', '01020100216', '피드 없이 구경만', '제주특별자치도', '제주시', 'ACTIVE'),
+(217, '{noop}Test1234!', '구경십칠', '하늘색', NOW(), 0, 'viewer217@example.com', '01020100217', '피드 없이 구경만', '서울특별시', '관악구', 'ACTIVE'),
+(218, '{noop}Test1234!', '구경십팔', '노을빛', NOW(), 0, 'viewer218@example.com', '01020100218', '피드 없이 구경만', '경기도', '용인시', 'ACTIVE'),
+(219, '{noop}Test1234!', '구경십구', '아침이슬', NOW(), 0, 'viewer219@example.com', '01020100219', '피드 없이 구경만', '강원특별자치도', '춘천시', 'ACTIVE'),
+(220, '{noop}Test1234!', '구경이십', '저녁노을', NOW(), 0, 'viewer220@example.com', '01020100220', '피드 없이 구경만', '경상남도', '창원시', 'ACTIVE');
+
+INSERT INTO `ultary_user_social` (
+  `user_no`, `provider`, `provider_user_id`, `provider_email`
+) VALUES
+(201, 'GOOGLE', 'google-seed-viewer-201', 'viewer201@example.com'),
+(202, 'GOOGLE', 'google-seed-viewer-202', 'viewer202@example.com'),
+(203, 'GOOGLE', 'google-seed-viewer-203', 'viewer203@example.com'),
+(204, 'GOOGLE', 'google-seed-viewer-204', 'viewer204@example.com'),
+(205, 'GOOGLE', 'google-seed-viewer-205', 'viewer205@example.com'),
+(206, 'GOOGLE', 'google-seed-viewer-206', 'viewer206@example.com'),
+(207, 'GOOGLE', 'google-seed-viewer-207', 'viewer207@example.com'),
+(208, 'GOOGLE', 'google-seed-viewer-208', 'viewer208@example.com'),
+(209, 'GOOGLE', 'google-seed-viewer-209', 'viewer209@example.com'),
+(210, 'GOOGLE', 'google-seed-viewer-210', 'viewer210@example.com'),
+(211, 'GOOGLE', 'google-seed-viewer-211', 'viewer211@example.com'),
+(212, 'GOOGLE', 'google-seed-viewer-212', 'viewer212@example.com'),
+(213, 'GOOGLE', 'google-seed-viewer-213', 'viewer213@example.com'),
+(214, 'GOOGLE', 'google-seed-viewer-214', 'viewer214@example.com'),
+(215, 'GOOGLE', 'google-seed-viewer-215', 'viewer215@example.com'),
+(216, 'GOOGLE', 'google-seed-viewer-216', 'viewer216@example.com'),
+(217, 'GOOGLE', 'google-seed-viewer-217', 'viewer217@example.com'),
+(218, 'GOOGLE', 'google-seed-viewer-218', 'viewer218@example.com'),
+(219, 'GOOGLE', 'google-seed-viewer-219', 'viewer219@example.com'),
+(220, 'GOOGLE', 'google-seed-viewer-220', 'viewer220@example.com');
 
 -- ---------- CDN 파일 22개 ----------
 -- file_path = 절대 URL (FE가 그대로 표시). source_type=OWNED (Cafe24 CDN 테스트 자산)
@@ -364,6 +446,140 @@ INSERT INTO `ultary_feed_comment_mention` (
 ) VALUES
 (103, NULL, 101, 102, NULL);
 
+-- ---------- 구경 계정 좋아요 (기존 피드·댓글·답글만, 작성자 101의 likedByMe는 비움) ----------
+-- 피드 101: 14명 / 102: 10명 / 103: 16명 (기존 101·102 좋아요와 중복 없음)
+INSERT INTO `ultary_feed_like` (`feed_like_id`, `feed_id`, `user_no`) VALUES
+(201, 101, 201), (202, 101, 202), (203, 101, 204), (204, 101, 205),
+(205, 101, 207), (206, 101, 208), (207, 101, 210), (208, 101, 211),
+(209, 101, 213), (210, 101, 214), (211, 101, 216), (212, 101, 217),
+(213, 101, 219), (214, 101, 220),
+(215, 102, 202), (216, 102, 204), (217, 102, 206), (218, 102, 208),
+(219, 102, 210), (220, 102, 212), (221, 102, 214), (222, 102, 216),
+(223, 102, 218), (224, 102, 220),
+(225, 103, 201), (226, 103, 202), (227, 103, 203), (228, 103, 204),
+(229, 103, 206), (230, 103, 207), (231, 103, 208), (232, 103, 209),
+(233, 103, 211), (234, 103, 212), (235, 103, 213), (236, 103, 214),
+(237, 103, 216), (238, 103, 217), (239, 103, 218), (240, 103, 219);
+
+INSERT INTO `ultary_feed_comment_like` (`feed_comment_like_id`, `feed_comment_id`, `user_no`) VALUES
+(201, 101, 201), (202, 101, 203), (203, 101, 204), (204, 101, 206),
+(205, 101, 208), (206, 101, 209), (207, 101, 211), (208, 101, 213),
+(209, 101, 215), (210, 101, 218), (211, 101, 220);
+
+INSERT INTO `ultary_feed_reply_like` (`feed_reply_like_id`, `feed_reply_id`, `user_no`) VALUES
+(201, 101, 202), (202, 101, 207), (203, 101, 212),
+(204, 101, 214), (205, 101, 216), (206, 101, 219);
+
+-- ---------- 테스트 댓글·답글 (본문 맨 앞 @멘션 + mentions 행) ----------
+-- 피드 101 스레드 합 10 (기존 1댓글+1답글 포함) → 목록에 replies 포함
+INSERT INTO `ultary_feed_comment` (
+  `feed_comment_id`, `feed_id`, `user_no`, `content`, `created_at`
+) VALUES
+(201, 101, 103, '주말에도 한강 가고 싶다', DATE_ADD(NOW(), INTERVAL 1 MINUTE)),
+(202, 101, 105, '@산책러 다음에 같이 가요', DATE_ADD(NOW(), INTERVAL 2 MINUTE)),
+(203, 101, 104, '사진 구도 진짜 예쁘다 어디서 찍었어요?', DATE_ADD(NOW(), INTERVAL 4 MINUTE)),
+(204, 101, 201, '@울타리 완전 공감해요 저도 그렇게 생각했어요', DATE_ADD(NOW(), INTERVAL 6 MINUTE)),
+(205, 101, 202, '이 댓글은 길어서 스크롤 테스트용이에요. 내용이 여러 줄로 내려가면 더보기도 같이 볼 수 있어요.', DATE_ADD(NOW(), INTERVAL 8 MINUTE)),
+(206, 102, 101, '@나리집사 나비 표정이 좋다', DATE_ADD(NOW(), INTERVAL 1 MINUTE)),
+(207, 102, 103, '냥스타그램 인정', DATE_ADD(NOW(), INTERVAL 2 MINUTE)),
+(208, 102, 105, '@choco_01 도 잘 나왔다', DATE_ADD(NOW(), INTERVAL 4 MINUTE)),
+(209, 103, 102, '@산책러 공원 어디예요', DATE_ADD(NOW(), INTERVAL 1 MINUTE)),
+(210, 103, 101, '코코 표정이 좋다', DATE_ADD(NOW(), INTERVAL 2 MINUTE)),
+(211, 103, 104, '주말 산책 부러워요', DATE_ADD(NOW(), INTERVAL 4 MINUTE));
+
+INSERT INTO `ultary_feed_reply` (
+  `feed_reply_id`, `feed_comment_id`, `user_no`, `content`, `created_at`
+) VALUES
+(201, 202, 103, '@팔로워 좋아요 그때 봐요', DATE_ADD(NOW(), INTERVAL 3 MINUTE)),
+(202, 203, 101, '여의나루 쪽이요', DATE_ADD(NOW(), INTERVAL 5 MINUTE)),
+(203, 204, 102, '@구경꾼 저도 그 생각이에요', DATE_ADD(NOW(), INTERVAL 7 MINUTE)),
+(204, 206, 102, '고마워요 @울타리', DATE_ADD(NOW(), INTERVAL 3 MINUTE)),
+(205, 209, 103, '성남 중앙공원이에요 @나리집사', DATE_ADD(NOW(), INTERVAL 3 MINUTE));
+
+INSERT INTO `ultary_feed_comment_mention` (
+  `feed_comment_mention_id`, `feed_comment_id`, `feed_reply_id`, `mentioned_user_no`, `mentioned_pet_id`
+) VALUES
+(201, 202, NULL, 103, NULL),
+(202, NULL, 201, 105, NULL),
+(203, 204, NULL, 101, NULL),
+(204, NULL, 203, 201, NULL),
+(205, 206, NULL, 102, NULL),
+(206, NULL, 204, 101, NULL),
+(207, 208, NULL, NULL, 101),
+(208, 209, NULL, 103, NULL),
+(209, NULL, 205, 102, NULL);
+
+INSERT INTO `ultary_feed_comment_like` (`feed_comment_like_id`, `feed_comment_id`, `user_no`) VALUES
+(301, 201, 201), (302, 201, 202), (303, 201, 203), (304, 201, 204),
+(305, 201, 205), (306, 201, 206), (307, 201, 207), (308, 201, 208),
+(309, 202, 209), (310, 202, 210), (311, 202, 211), (312, 202, 212),
+(313, 202, 213), (314, 202, 214), (315, 202, 101),
+(316, 203, 201), (317, 203, 203), (318, 203, 205), (319, 203, 207),
+(320, 203, 209), (321, 203, 101),
+(322, 204, 202), (323, 204, 204), (324, 204, 206),
+(325, 206, 101), (326, 206, 201), (327, 206, 202), (328, 206, 203),
+(329, 206, 204), (330, 206, 205), (331, 206, 206), (332, 206, 207),
+(333, 206, 208), (334, 206, 209), (335, 206, 210),
+(336, 207, 211), (337, 207, 212), (338, 207, 213), (339, 207, 214),
+(340, 207, 215), (341, 207, 216),
+(342, 208, 201), (343, 208, 205), (344, 208, 210),
+(345, 209, 201), (346, 209, 202), (347, 209, 203), (348, 209, 204),
+(349, 209, 205), (350, 209, 206), (351, 209, 207), (352, 209, 104),
+(353, 210, 208), (354, 210, 209), (355, 210, 210), (356, 210, 211),
+(357, 210, 212),
+(358, 211, 215);
+
+INSERT INTO `ultary_feed_reply_like` (`feed_reply_like_id`, `feed_reply_id`, `user_no`) VALUES
+(301, 201, 215), (302, 201, 216), (303, 201, 217), (304, 201, 218),
+(305, 201, 219), (306, 201, 220),
+(307, 202, 101), (308, 202, 201), (309, 202, 202),
+(310, 203, 203), (311, 203, 208), (312, 203, 212), (313, 203, 216),
+(314, 204, 103), (315, 204, 217), (316, 204, 218), (317, 204, 219),
+(318, 204, 220),
+(319, 205, 101), (320, 205, 213), (321, 205, 214);
+
+UPDATE `ultary_feed` f
+INNER JOIN (
+  SELECT `feed_id`, COUNT(*) AS cnt
+  FROM `ultary_feed_like`
+  WHERE `is_deleted` = 0 AND `feed_id` IN (101, 102, 103)
+  GROUP BY `feed_id`
+) x ON x.feed_id = f.feed_id
+SET f.like_count = x.cnt
+WHERE f.feed_id IN (101, 102, 103);
+
+UPDATE `ultary_feed_comment` c
+INNER JOIN (
+  SELECT `feed_comment_id`, COUNT(*) AS cnt
+  FROM `ultary_feed_comment_like`
+  WHERE `is_deleted` = 0
+    AND `feed_comment_id` IN (101, 201, 202, 203, 204, 206, 207, 208, 209, 210, 211)
+  GROUP BY `feed_comment_id`
+) x ON x.feed_comment_id = c.feed_comment_id
+SET c.like_count = x.cnt
+WHERE c.feed_comment_id IN (101, 201, 202, 203, 204, 206, 207, 208, 209, 210, 211);
+
+UPDATE `ultary_feed_reply` r
+INNER JOIN (
+  SELECT `feed_reply_id`, COUNT(*) AS cnt
+  FROM `ultary_feed_reply_like`
+  WHERE `is_deleted` = 0
+    AND `feed_reply_id` IN (101, 201, 202, 203, 204, 205)
+  GROUP BY `feed_reply_id`
+) x ON x.feed_reply_id = r.feed_reply_id
+SET r.like_count = x.cnt
+WHERE r.feed_reply_id IN (101, 201, 202, 203, 204, 205);
+
+UPDATE `ultary_feed` f
+INNER JOIN (
+  SELECT `feed_id`, COUNT(*) AS cnt
+  FROM `ultary_feed_comment`
+  WHERE `is_deleted` = 0 AND `feed_id` IN (101, 102, 103)
+  GROUP BY `feed_id`
+) x ON x.feed_id = f.feed_id
+SET f.comment_count = x.cnt
+WHERE f.feed_id IN (101, 102, 103);
+
 -- ---------- 스토리 (101 본인 1 + 주민 102·103 각 4 + 이웃 105 1) ----------
 -- created_at 간격: ASC 재생·viewedByMe 테스트용 (오래된 것부터)
 INSERT INTO `ultary_story` (
@@ -394,7 +610,7 @@ INSERT INTO `ultary_story` (
 (104, 105, 133, 'IMAGE', NULL, NULL, '팔로워 스토리',
  DATE_SUB(NOW(), INTERVAL 45 MINUTE), DATE_ADD(DATE_SUB(NOW(), INTERVAL 45 MINUTE), INTERVAL 24 HOUR));
 
-ALTER TABLE `ultary_user` AUTO_INCREMENT = 200;
+ALTER TABLE `ultary_user` AUTO_INCREMENT = 300;
 ALTER TABLE `ultary_file` AUTO_INCREMENT = 200;
 ALTER TABLE `ultary_pet` AUTO_INCREMENT = 200;
 ALTER TABLE `ultary_tag` AUTO_INCREMENT = 200;
@@ -404,11 +620,13 @@ ALTER TABLE `ultary_feed_media` AUTO_INCREMENT = 200;
 ALTER TABLE `ultary_feed_media_mention` AUTO_INCREMENT = 200;
 ALTER TABLE `ultary_feed_pet` AUTO_INCREMENT = 200;
 ALTER TABLE `ultary_feed_tag` AUTO_INCREMENT = 200;
-ALTER TABLE `ultary_feed_like` AUTO_INCREMENT = 200;
+ALTER TABLE `ultary_feed_like` AUTO_INCREMENT = 300;
+ALTER TABLE `ultary_feed_comment_like` AUTO_INCREMENT = 400;
+ALTER TABLE `ultary_feed_reply_like` AUTO_INCREMENT = 400;
 ALTER TABLE `ultary_feed_store` AUTO_INCREMENT = 200;
-ALTER TABLE `ultary_feed_comment` AUTO_INCREMENT = 200;
-ALTER TABLE `ultary_feed_reply` AUTO_INCREMENT = 200;
-ALTER TABLE `ultary_feed_comment_mention` AUTO_INCREMENT = 200;
+ALTER TABLE `ultary_feed_comment` AUTO_INCREMENT = 300;
+ALTER TABLE `ultary_feed_reply` AUTO_INCREMENT = 300;
+ALTER TABLE `ultary_feed_comment_mention` AUTO_INCREMENT = 300;
 ALTER TABLE `ultary_story` AUTO_INCREMENT = 200;
 ALTER TABLE `ultary_neighbor` AUTO_INCREMENT = 200;
 ALTER TABLE `ultary_user_social` AUTO_INCREMENT = 200;

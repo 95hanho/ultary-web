@@ -5,6 +5,7 @@ import { StoryDevTools } from '@/components/dev/StoryDevTools';
 import { bffGet, bffPostJson } from '@/lib/api/bffFetch';
 import { bffEndpoints } from '@/lib/api/endpoints';
 import { resolveFileDisplayUrl } from '@/lib/api/fileUrl';
+import { NO_PROFILE_SRC } from '@/lib/profileImage';
 import { STORY_IMAGE_DURATION_MS } from '@/lib/mock/stories';
 import type { BffEnvelope } from '@/types/api';
 import type { Story, StoryOwner } from '@/types/story';
@@ -41,7 +42,7 @@ type Props = {
 };
 
 const FALLBACK_MEDIA = '/images/mock/post.jpg';
-const FALLBACK_PROFILE = '/images/mock/profile.jpg';
+const FALLBACK_PROFILE = NO_PROFILE_SRC;
 
 function unwrapList<T>(raw: unknown): T[] {
   if (Array.isArray(raw)) return raw as T[];

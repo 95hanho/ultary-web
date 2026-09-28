@@ -73,6 +73,13 @@
   -webkit-overflow-scrolling: touch;
 }
 
+.status {
+  margin: 24px 0;
+  color: var(--brand-gray-500);
+  font-size: 14px;
+  text-align: center;
+}
+
 .thread {
   display: flex;
   flex-direction: column;

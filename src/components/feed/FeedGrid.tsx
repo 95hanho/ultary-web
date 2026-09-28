@@ -7,9 +7,10 @@ const MultiIcon = '/images/icon/multi.svg';
 
 export type FeedGridItem = {
   id: string;
-  imageUrl: string;
+  /** 없으면 회색 칸만 보여 로딩으로 쓴다 */
+  imageUrl?: string;
   isMulti?: boolean;
-  href: string;
+  href?: string;
 };
 
 type FeedGridProps = {
@@ -34,20 +35,22 @@ export function FeedGrid({
     <ul className={`${styles.grid}${className ? ` ${className}` : ''}`}>
       {posts.map((post) => (
         <li key={post.id} className={styles.item}>
-          <Link href={post.href} className={styles.link} aria-label="게시글 보기">
-            <Image
-              src={post.imageUrl}
-              alt=""
-              width={200}
-              height={200}
-              className={styles.img}
-            />
-            {post.isMulti ? (
-              <span className={styles.multiBadge} aria-hidden>
-                <Image src={MultiIcon} alt="" width={18} height={18} />
-              </span>
-            ) : null}
-          </Link>
+          {post.imageUrl && post.href ? (
+            <Link href={post.href} className={styles.link} aria-label="게시글 보기">
+              <Image
+                src={post.imageUrl}
+                alt=""
+                width={200}
+                height={200}
+                className={styles.img}
+              />
+              {post.isMulti ? (
+                <span className={styles.multiBadge} aria-hidden>
+                  <Image src={MultiIcon} alt="" width={18} height={18} />
+                </span>
+              ) : null}
+            </Link>
+          ) : null}
         </li>
       ))}
     </ul>

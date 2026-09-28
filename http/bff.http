@@ -202,9 +202,15 @@ POST {{baseUrl}}/api/stories/{{storyId}}/view
 ### cursor= ← 다음페이지 시 이전 응답 nextCursor (수동)
 GET {{baseUrl}}/api/main/feeds?cursor=&size=20
 
+### 메인 추천 게시글 (임시: 조회 가능 피드 최신순)
+GET {{baseUrl}}/api/main/feeds/recommended?limit=10
+
 ### 검색 (시드 태그/피드: 산책)
 ### type= ← 필요 시 수동 지정
 GET {{baseUrl}}/api/main/search?q=산책&type=
+
+### 검색 추천 게시글 (임시: 조회 가능 피드 최신순)
+GET {{baseUrl}}/api/main/search/recommended?limit=10
 
 ### ==============================
 ### 마이울타리
@@ -376,6 +382,12 @@ Content-Type: {{contentType}}
 ### 댓글 삭제
 DELETE {{baseUrl}}/api/feeds/{{feedId}}/comments/{{commentId}}
 
+### 댓글 좋아요 (응답: likeCount, likedByMe, authorProfileFile)
+POST {{baseUrl}}/api/feeds/{{feedId}}/comments/{{commentId}}/like
+
+### 댓글 좋아요 취소
+DELETE {{baseUrl}}/api/feeds/{{feedId}}/comments/{{commentId}}/like
+
 ### 답글 목록 조회 (시드 reply 101)
 GET {{baseUrl}}/api/feeds/{{feedId}}/comments/{{commentId}}/replies?cursor=&size=20
 
@@ -397,6 +409,12 @@ Content-Type: {{contentType}}
 
 ### 답글 삭제
 DELETE {{baseUrl}}/api/feeds/{{feedId}}/comments/{{commentId}}/replies/{{replyId}}
+
+### 답글 좋아요 (응답: likeCount, likedByMe, authorProfileFile)
+POST {{baseUrl}}/api/feeds/{{feedId}}/comments/{{commentId}}/replies/{{replyId}}/like
+
+### 답글 좋아요 취소
+DELETE {{baseUrl}}/api/feeds/{{feedId}}/comments/{{commentId}}/replies/{{replyId}}/like
 
 ### ==============================
 ### 태그

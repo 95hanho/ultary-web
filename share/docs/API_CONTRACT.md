@@ -45,6 +45,10 @@
 | API | 필드 | 의미 |
 |-----|------|------|
 | `GET /main/stories/owners` | `hasUnviewed` | 그 유저 활성 스토리 중 **하나라도** 미열람 |
+| `GET /main/stories/owners` | `profileFile` | 소유자 프로필 `FileSummary`. 미등록이면 `null`. 스토리 미디어는 포함하지 않음 |
+| `GET /main/feeds` · `GET /feeds/{feedId}` | `authorProfileFile` | 작성자 프로필 `FileSummary`. 미등록이면 `null`. 게시글 `media[].file`과 별개 |
+| `GET /main/feeds/recommended` · `GET /main/search/recommended` | 피드 배열 | 나중에 추천 알고리즘 추가해야함. 지금은 조회 가능한 전체 피드를 최신순 `limit`건. 항목은 피드 단건과 동일 |
+| `GET /feeds/{id}/comments` · `.../replies` | `authorProfileFile` | 댓글·답글 작성자 프로필 `FileSummary`. 미등록이면 `null`. 인라인 `replies`에도 동일 |
 | `GET /main/stories?userNo=` · `GET /my-ultary/stories` | 각 항목 `viewedByMe` | **스토리 단건** 읽음 (`ultary_story_view`) |
 | `POST /stories/{storyId}/view` | — | 해당 `storyId`만 INSERT IGNORE (본인 스토리는 미기록) |
 

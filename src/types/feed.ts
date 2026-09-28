@@ -18,9 +18,13 @@ export type Feed = {
 export type FeedDetailResponse = Feed & {
   media?: FeedMediaFileEmbed[];
   authorProfileFile?: FileSummary | null;
+  /** 작성자 프로필. owners와 같이 `profileFile`로 올 수도 있음 */
+  profileFile?: FileSummary | null;
   /** 작성자 표시명 — Spring 게스트 단건에도 포함 (spring-auth-api.md) */
   nickname?: string | null;
   authorNickname?: string | null;
+  /** 현재 로그인 유저가 이 게시글을 저장했는지 */
+  storedByMe?: boolean;
 } & FeedCoverFileEmbed;
 
 /** 피드 그리드 읽기 응답 */
@@ -63,6 +67,14 @@ export type FeedComment = {
   feedId: number;
   userNo: number;
   content: string;
+  likeCount: number;
+  /** 현재 로그인 유저가 이 댓글을 좋아요 했는지 */
+  likedByMe: boolean;
+  authorNickname?: string | null;
+  /** 작성자 프로필. 미등록이면 null */
+  authorProfileFile?: FileSummary | null;
+  replyCount?: number;
+  replies?: FeedReply[];
 } & Timestamps &
   SoftDelete;
 
@@ -72,6 +84,12 @@ export type FeedReply = {
   feedCommentId: number;
   userNo: number;
   content: string;
+  likeCount: number;
+  /** 현재 로그인 유저가 이 답글을 좋아요 했는지 */
+  likedByMe: boolean;
+  authorNickname?: string | null;
+  /** 작성자 프로필. 미등록이면 null */
+  authorProfileFile?: FileSummary | null;
 } & Timestamps &
   SoftDelete;
 

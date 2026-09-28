@@ -58,8 +58,12 @@ export const bffEndpoints = {
     stories: '/api/main/stories',
     /** GET 주민 게시글 무한스크롤 */
     feeds: '/api/main/feeds',
+    /** GET 메인 추천 게시글 ?limit= */
+    feedsRecommended: '/api/main/feeds/recommended',
     /** GET 검색 ?q=&type= */
     search: '/api/main/search',
+    /** GET 검색 추천 게시글 ?limit= */
+    searchRecommended: '/api/main/search/recommended',
   },
 
   myUltary: {
@@ -116,10 +120,14 @@ export const bffEndpoints = {
     comments: '/api/feeds/:feedId/comments',
     /** PATCH 댓글 수정 / DELETE 댓글 삭제 */
     comment: '/api/feeds/:feedId/comments/:commentId',
+    /** POST 댓글 좋아요 / DELETE 취소 */
+    commentLike: '/api/feeds/:feedId/comments/:commentId/like',
     /** GET 답글 목록 / POST 답글 작성 */
     replies: '/api/feeds/:feedId/comments/:commentId/replies',
     /** PATCH 답글 수정 / DELETE 답글 삭제 */
     reply: '/api/feeds/:feedId/comments/:commentId/replies/:replyId',
+    /** POST 답글 좋아요 / DELETE 취소 */
+    replyLike: '/api/feeds/:feedId/comments/:commentId/replies/:replyId/like',
   },
 
   tags: {
@@ -258,8 +266,12 @@ export const springEndpoints = {
     stories: '/api/v1/main/stories',
     /** GET */
     feeds: '/api/v1/main/feeds',
+    /** GET 메인 추천 게시글 ?limit= */
+    feedsRecommended: '/api/v1/main/feeds/recommended',
     /** GET */
     search: '/api/v1/main/search',
+    /** GET 검색 추천 게시글 ?limit= */
+    searchRecommended: '/api/v1/main/search/recommended',
   },
 
   myUltary: {
@@ -316,10 +328,14 @@ export const springEndpoints = {
     comments: '/api/v1/feeds/:feedId/comments',
     /** PATCH / DELETE */
     comment: '/api/v1/feeds/:feedId/comments/:commentId',
+    /** POST / DELETE */
+    commentLike: '/api/v1/feeds/:feedId/comments/:commentId/like',
     /** GET / POST */
     replies: '/api/v1/feeds/:feedId/comments/:commentId/replies',
     /** PATCH / DELETE */
     reply: '/api/v1/feeds/:feedId/comments/:commentId/replies/:replyId',
+    /** POST / DELETE */
+    replyLike: '/api/v1/feeds/:feedId/comments/:commentId/replies/:replyId/like',
   },
 
   tags: {

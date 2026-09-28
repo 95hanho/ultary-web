@@ -15,7 +15,8 @@
    - 조건: `visibility = PUBLIC` + 차단 관계 아님.
    - 비PUBLIC / 권한 없음 → 기존과 동일하게 **404 또는 403**.
    - 로그인 시: 기존 가시성(이웃·본인) 유지.
-3. 응답에 **FileSummary 임베드** 유지 (`media[].file`, `authorProfileFile` 등) + **작성자 `nickname`** (루트 `nickname` 또는 `authorNickname` / `author.nickname` 중 하나).
+3. 응답에 **FileSummary 임베드** (`media[].file`) + **작성자 `authorProfileFile`** (`FileSummary | null`, 미등록이면 null) + **작성자 `nickname`** (루트 `nickname` 또는 `authorNickname` / `author.nickname` 중 하나).
+   - `GET /api/v1/main/feeds` 각 항목과 `GET /api/v1/feeds/{feedId}` 모두. 게시글 사진과 별개.
 4. **좋아요·댓글·저장·공유·수정·삭제 등 쓰기/액션** — 익명 **401** (기존 유지·확인).
 5. 피드 타임라인·검색·프로필 전체 등 **단건 외 API는 게스트에 열지 말 것**.
 

@@ -1,9 +1,9 @@
 import type { FeedData } from '@/components/feed/Feed';
 import { resolveFileDisplayUrl } from '@/lib/api/fileUrl';
+import { NO_PROFILE_SRC } from '@/lib/profileImage';
 import type { FeedDetailResponse } from '@/types/feed';
 import { isRecord } from '@/lib/api/error';
 
-const FALLBACK_PROFILE = '/images/mock/profile.jpg';
 const FALLBACK_POST = '/images/mock/post.jpg';
 
 /**
@@ -15,7 +15,7 @@ export function toFeedData(raw: unknown, fallbackId: string): FeedData {
     return {
       id: fallbackId,
       nickname: 'ULTARY',
-      profileUrl: FALLBACK_PROFILE,
+      profileUrl: NO_PROFILE_SRC,
       images: [FALLBACK_POST],
       caption: '',
       likeCount: 0,
@@ -26,7 +26,11 @@ export function toFeedData(raw: unknown, fallbackId: string): FeedData {
   const detail = raw as FeedDetailResponse & {
     nickname?: string | null;
     authorNickname?: string | null;
-    author?: { nickname?: string | null };
+    profileFile?: FeedDetailResponse['authorProfileFile'];
+    author?: {
+      nickname?: string | null;
+      profileFile?: FeedDetailResponse['authorProfileFile'];
+    };
   };
 
   const nickname =
@@ -36,7 +40,11 @@ export function toFeedData(raw: unknown, fallbackId: string): FeedData {
     'ULTARY';
 
   const profileUrl =
-    resolveFileDisplayUrl(detail.authorProfileFile) ?? FALLBACK_PROFILE;
+    resolveFileDisplayUrl(
+      detail.authorProfileFile ??
+        detail.profileFile ??
+        detail.author?.profileFile,
+    ) ?? NO_PROFILE_SRC;
 
   const images =
     detail.media
@@ -58,6 +66,7 @@ export function toFeedData(raw: unknown, fallbackId: string): FeedData {
     caption: detail.content?.trim() || '',
     likeCount: detail.likeCount ?? 0,
     commentCount: detail.commentCount ?? 0,
+    isStored: detail.storedByMe === true,
   };
 }
 

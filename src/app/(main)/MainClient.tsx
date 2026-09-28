@@ -8,6 +8,8 @@ import { Profile, type StoryStatus } from '@/components/my-ultary/Profile';
 import { bffGet } from '@/lib/api/bffFetch';
 import { bffEndpoints } from '@/lib/api/endpoints';
 import { toFeedDataList } from '@/lib/feed/toFeedData';
+import { resolveFileDisplayUrl } from '@/lib/api/fileUrl';
+import { NO_PROFILE_SRC } from '@/lib/profileImage';
 import { MOCK_HOME_FEEDS } from '@/lib/mock/feeds';
 import { myUltaryPath } from '@/lib/mock/ultary-accounts';
 import type { BffEnvelope } from '@/types/api';
@@ -25,7 +27,7 @@ import styles from './main.module.scss';
 
 const ArrowLeftIcon = '/images/icon/arrow_left.svg';
 const ArrowRightIcon = '/images/icon/arrow_right.svg';
-const FALLBACK_PROFILE = '/images/mock/profile.jpg';
+const FALLBACK_PROFILE = NO_PROFILE_SRC;
 
 type StoryRing = {
   userNo: number;
@@ -68,7 +70,7 @@ function ownersToRings(owners: StoryOwner[]): StoryRing[] {
   return owners.map((o) => ({
     userNo: o.userNo,
     nickname: o.nickname,
-    imageUrl: FALLBACK_PROFILE,
+    imageUrl: resolveFileDisplayUrl(o.profileFile) ?? FALLBACK_PROFILE,
     story: o.hasUnviewed ? 'unread' : 'read',
   }));
 }
@@ -104,7 +106,11 @@ export default function MainClient() {
   const [canStoryPrev, setCanStoryPrev] = useState(false);
   const [canStoryNext, setCanStoryNext] = useState(false);
   const [feeds, setFeeds] = useState<FeedData[]>(MOCK_HOME_FEEDS);
+  const [recommended, setRecommended] = useState<FeedData[]>([]);
+  const [showRecommended, setShowRecommended] = useState(false);
+  const [recommendLoading, setRecommendLoading] = useState(false);
   const [storyUsers, setStoryUsers] = useState<StoryRing[]>([]);
+  const ownersRef = useRef<StoryOwner[]>([]);
 
   useEffect(() => {
     let cancelled = false;
@@ -117,6 +123,7 @@ export default function MainClient() {
         if (cancelled) return;
 
         const owners = unwrapOwners(ownersRes.data ?? ownersRes);
+        ownersRef.current = owners;
         const mapped = toFeedDataList(feedsRes.data ?? feedsRes);
         if (mapped.length > 0) setFeeds(applyOwnerStory(mapped, owners));
 
@@ -129,6 +136,28 @@ export default function MainClient() {
       cancelled = true;
     };
   }, []);
+
+  async function openRecommended() {
+    if (recommendLoading || showRecommended) return;
+    setRecommendLoading(true);
+    try {
+      const res = await bffGet<BffEnvelope<unknown>>(
+        bffEndpoints.main.feedsRecommended,
+        { limit: 10 },
+      );
+      const list = applyOwnerStory(
+        toFeedDataList(res.data ?? res),
+        ownersRef.current,
+      );
+      if (list.length === 0) return;
+      setRecommended(list);
+      setShowRecommended(true);
+    } catch (err) {
+      console.error('[main] recommended failed', err);
+    } finally {
+      setRecommendLoading(false);
+    }
+  }
 
   return (
     <div className={styles.shell}>
@@ -219,11 +248,27 @@ export default function MainClient() {
 
         {feeds.length > 0 ? (
           <div className={styles.feedEnd}>
-            <p className={styles.feedEndMessage}>마지막 게시글입니다.</p>
-            <button type="button" className={styles.recommendBtn}>
-              추천게시글 보기
-            </button>
+            <p className={styles.feedEndMessage}>
+              {showRecommended
+                ? '여기부터 추천게시글입니다'
+                : '마지막 게시글입니다.'}
+            </p>
+            {showRecommended ? null : (
+              <button
+                type="button"
+                className={styles.recommendBtn}
+                disabled={recommendLoading}
+                onClick={() => {
+                  void openRecommended();
+                }}
+              >
+                추천게시글 보기
+              </button>
+            )}
           </div>
+        ) : null}
+        {showRecommended ? (
+          <FeedList feeds={recommended} label="추천 게시글" />
         ) : null}
       </main>
 

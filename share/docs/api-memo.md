@@ -74,14 +74,19 @@ BFF: `/api/...` · Spring: `/api/v1/...`
 | 주민 스토리 있는 목록 조회 | GET | `/api/main/stories/owners` | `/api/v1/main/stories/owners` | 구현 |
 | 주민 스토리 조회 | GET | `/api/main/stories?userNo=` | `/api/v1/main/stories?userNo=` | 구현 |
 | 주민 게시글 조회 (무한 스크롤) | GET | `/api/main/feeds` | `/api/v1/main/feeds` | 구현 |
+| 메인 추천 게시글 | GET | `/api/main/feeds/recommended` | `/api/v1/main/feeds/recommended` | 구현 |
 | 검색 (유저 / 반려동물 / 태그 / 게시글) | GET | `/api/main/search` | `/api/v1/main/search` | 구현 |
+| 검색 추천 게시글 | GET | `/api/main/search/recommended` | `/api/v1/main/search/recommended` | 구현 |
 
-> 스토리 소유자 목록 = 내가 팔로우(`requester` ACCEPTED)한 유저 중 활성 스토리 보유자. `hasUnviewed`는 `ultary_story_view` 기준(안 읽은 링). **미열람(`hasUnviewed=true`) 먼저**, 그다음 최신 스토리 순. **미디어/프로필 URL 없음** — 링 탭 시 `GET /main/stories?userNo=`.  
+> 스토리 소유자 목록 = 내가 팔로우(`requester` ACCEPTED)한 유저 중 활성 스토리 보유자. `hasUnviewed`는 `ultary_story_view` 기준(안 읽은 링). **미열람(`hasUnviewed=true`) 먼저**, 그다음 최신 스토리 순.  
+> **프로필**: 항목마다 `profileFile` (`FileSummary | null`, 유저 프로필 사진). 미등록이면 `null`. 스토리 미디어(`file`)는 넣지 않음 — 링 탭 시 `GET /main/stories?userNo=`.  
 > **주민 스토리 조회** `GET /main/stories?userNo=`: 해당 유저 활성 스토리 배열(`created_at` ASC). **항목마다 `viewedByMe`**(스토리 단건 읽음, `ultary_story_view`). FileSummary 포함.  
 > **FE 재생**: 배열은 시간순 유지. 시작 인덱스 = 첫 `viewedByMe === false` (없으면 `0` = 처음부터). 넘긴 뒤 `POST /stories/:storyId/view`로 읽음 기록.  
 > 메인 피드: 본인 + 주민 게시글. `PUBLIC` / 본인 / `NEIGHBORS`(ACCEPTED). 차단 쌍 제외. 커서 `cursorFeedId` + `nextCursorFeedId`.  
+> **추천 게시글** (`/main/feeds/recommended`, `/main/search/recommended`): 나중에 추천 알고리즘 추가해야함. 지금은 조회 가능한 전체 피드(공개·본인·이웃공개, 차단 제외)를 최신순 `limit`건(기본 10, 최대 20). 응답은 피드 단건과 같은 `FeedResponse` 배열. 주민 타임라인과 별개.  
+> **작성자 프로필**: 항목마다 `authorProfileFile` (`FileSummary | null`). 미등록이면 `null`. 게시글 사진(`media[].file`)과 별개. 단건 `GET /feeds/{feedId}`도 동일.  
 > 검색 `type`: `ALL`(기본) \| `USER` \| `PET` \| `TAG` \| `FEED`. `@`/`#` 접두는 서버에서 제거. URL 쿼리에서는 `#`를 `%23`, `@`를 `%40`로 인코딩해야 함(`#`는 fragment라 미인코딩 시 `q`/`type`이 잘림). 차단 유저·펫 제외.  
-> **미디어 URL**: 피드·스토리 상세·프로필 등 읽기 응답에 `fileId`와 함께 `FileSummary` 임베드. `filePath`는 상대경로(`images/…`) 또는 CDN 절대 URL. **예외: `/main/stories/owners`는 링 메타만** (`hasUnviewed` 등).  
+> **미디어 URL**: 피드·스토리 상세·프로필 등 읽기 응답에 `fileId`와 함께 `FileSummary` 임베드. `filePath`는 상대경로(`images/…`) 또는 CDN 절대 URL. `/main/stories/owners`는 스토리 미디어 없이 **`profileFile`만** 임베드. `/main/feeds` 항목은 게시글 `media[].file`과 함께 작성자 **`authorProfileFile`**.  
 > HTTP: `requests/story.http`, `requests/main.http`
 
 ---
@@ -147,10 +152,16 @@ BFF: `/api/...` · Spring: `/api/v1/...`
 | 댓글 작성 | POST | `/api/feeds/:feedId/comments` |
 | 댓글 수정 | PATCH | `/api/feeds/:feedId/comments/:commentId` |
 | 댓글 삭제 | DELETE | `/api/feeds/:feedId/comments/:commentId` |
+| 댓글 좋아요 | POST | `/api/feeds/:feedId/comments/:commentId/like` |
+| 댓글 좋아요 취소 | DELETE | `/api/feeds/:feedId/comments/:commentId/like` |
 | 답글 목록 | GET | `/api/feeds/:feedId/comments/:commentId/replies` |
 | 답글 작성 | POST | `/api/feeds/:feedId/comments/:commentId/replies` |
 | 답글 수정 | PATCH | `/api/feeds/:feedId/comments/:commentId/replies/:replyId` |
 | 답글 삭제 | DELETE | `/api/feeds/:feedId/comments/:commentId/replies/:replyId` |
+| 답글 좋아요 | POST | `/api/feeds/:feedId/comments/:commentId/replies/:replyId/like` |
+| 답글 좋아요 취소 | DELETE | `/api/feeds/:feedId/comments/:commentId/replies/:replyId/like` |
+
+> 댓글·답글 응답: `likeCount`, `likedByMe`, `authorProfileFile` (`FileSummary | null`, 작성자 프로필. 미등록이면 null). 목록에 답글이 포함되면 답글에도 동일. 좋아요 토글·작성·수정도 해당 댓글/답글 응답을 다시 반환. 테이블은 `ultary_feed_comment_like` / `ultary_feed_reply_like` (피드 좋아요와 분리).
 
 ---
 
@@ -275,8 +286,9 @@ HTTP: `requests/test.http`
 - 코드 상수: `src/lib/api/endpoints.ts` (`bffEndpoints` / `springEndpoints`)
 - BFF 스켈레톤: `src/app/api/**/route.ts`
 - REST Client 틀: `http/bff.http` (프론트) · Spring: `requests/*.http`
-- DB 스키마: `share/database/schema/mariadb_10_1/001_init_schema.sql` (**schema_version 8**)
+- DB 스키마: `share/database/schema/mariadb_10_1/001_init_schema.sql` (**schema_version 9**)
   - 기존 DB v7→v8: `002_file_source_attribution.sql`
+  - 기존 DB v8→v9: `003_comment_reply_like.sql`
   - `ultary_file` 출처: `source_type`(OWNED|UNSPLASH|AI|ETC), `author_name`, `source_url`, `license_url`, `copyright_notice`
 - 로컬 시드(선택): `share/database/seed/mariadb_10_1/001_dev_sample_data.sql`  
   - 스키마 직후 실행. **재실행 가능**(CLEANUP 후 INSERT). 운영/최종 배포에서는 실행하지 않음.  
@@ -305,10 +317,12 @@ HTTP: `requests/test.http`
 
 | 응답 | 필드 |
 |------|------|
+| Feed (`/main/feeds` 항목 · `GET /feeds/{feedId}`) | `authorProfileFile` (작성자 프로필. 없으면 null). 게시글 미디어와 별개 |
+| 댓글·답글 (`GET /feeds/{id}/comments` · `.../replies`, 작성·수정·좋아요 응답) | `authorProfileFile` (작성자 프로필. 없으면 null). 목록에 답글이 포함되면 답글에도 동일 |
 | Feed `media[]` | `file`, `thumbnailFile` (+ 기존 `fileId` / `thumbnailFileId`) |
 | Feed 그리드 | `coverFile`, `coverThumbnailFile` |
 | Story | `file`, `thumbnailFile`, `authorProfileFile` |
-| StoryOwner (`/main/stories/owners`) | 임베드 없음 (`hasUnviewed`만; 미디어는 stories?userNo=) |
+| StoryOwner (`/main/stories/owners`) | `profileFile` (유저 프로필. 없으면 null). 스토리 미디어는 없음 |
 | Me / MyUltary / UserUltary / Neighbor / Search | `profileFile` |
 | Pet | `profileFile` |
 | Tag | `images[]` (+ 기존 `imageFileIds`) |

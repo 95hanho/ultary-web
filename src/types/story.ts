@@ -6,13 +6,15 @@ export type StoryMediaType = 'IMAGE' | 'VIDEO';
 
 /**
  * GET /main/stories/owners
- * 링 메타만 — FileSummary / 프로필 URL 없음. 미디어는 GET /main/stories?userNo=
+ * 링 메타 + 유저 프로필. 스토리 미디어는 GET /main/stories?userNo=
  */
 export type StoryOwner = {
   userNo: number;
   nickname: string;
   /** ultary_story_view 기준 안 읽은 활성 스토리 여부 */
   hasUnviewed: boolean;
+  /** 유저 프로필. 미등록이면 null */
+  profileFile?: FileSummary | null;
 };
 
 /**

@@ -1,10 +1,14 @@
 'use client';
 
 import { FooterMenu } from '@/components/common/FooterMenu';
-import { FeedGrid } from '@/components/feed/FeedGrid';
+import { FeedGrid, type FeedGridItem } from '@/components/feed/FeedGrid';
 import { HashtagResultList } from '@/components/search/HashtagResultList';
+import { bffGet } from '@/lib/api/bffFetch';
+import { bffEndpoints } from '@/lib/api/endpoints';
+import { toFeedDataList } from '@/lib/feed/toFeedData';
 import { MOCK_RECOMMENDED_FEEDS } from '@/lib/mock/feeds';
-import { MY_NICKNAME, OTHER_NICKNAME, myUltaryPath } from '@/lib/mock/ultary-accounts';
+import type { BffEnvelope } from '@/types/api';
+import { OTHER_NICKNAME, myUltaryPath } from '@/lib/mock/ultary-accounts';
 import {
   filterMockHashtags,
   MOCK_SEARCH_ACCOUNTS,
@@ -21,11 +25,9 @@ import styles from './search.module.scss';
 
 const SearchIcon = '/images/icon/Search.svg';
 
-const RECOMMENDED_POSTS = MOCK_RECOMMENDED_FEEDS.map((feed) => ({
-  id: feed.id,
-  imageUrl: feed.images[0] ?? '/images/mock/post.jpg',
-  isMulti: feed.images.length > 1,
-  href: `${myUltaryPath(MY_NICKNAME)}/posts/${feed.id}`,
+/** API 오기 전 회색 칸. 이미지는 넣지 않는다 */
+const RECOMMENDED_PLACEHOLDERS: FeedGridItem[] = Array.from({ length: 9 }, (_, i) => ({
+  id: `recommended-placeholder-${i}`,
 }));
 
 const HASHTAG_RESULT_POSTS = MOCK_RECOMMENDED_FEEDS.map((feed) => ({
@@ -117,6 +119,37 @@ export default function SearchClient() {
   ]);
 
   const [isInputFocused, setIsInputFocused] = useState(false);
+  const [recommendedPosts, setRecommendedPosts] = useState<FeedGridItem[]>(
+    RECOMMENDED_PLACEHOLDERS,
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await bffGet<BffEnvelope<unknown>>(
+          bffEndpoints.main.searchRecommended,
+          { limit: 10 },
+        );
+        const grid: FeedGridItem[] = toFeedDataList(res.data ?? res)
+          .filter((feed) => Boolean(feed.images[0]))
+          .map((feed) => ({
+            id: feed.id,
+            imageUrl: feed.images[0],
+            isMulti: feed.images.length > 1,
+            href: `${myUltaryPath(feed.nickname)}/posts/${feed.id}`,
+          }));
+        if (cancelled) return;
+        setRecommendedPosts(grid);
+      } catch (err) {
+        console.error('[search] recommended failed', err);
+        if (!cancelled) setRecommendedPosts([]);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const parsed = useMemo(() => parseQuery(query), [query]);
 
@@ -225,7 +258,7 @@ export default function SearchClient() {
       </header>
 
       <main className={styles.main}>
-        {phase === 'idle' ? <FeedGrid posts={RECOMMENDED_POSTS} /> : null}
+        {phase === 'idle' ? <FeedGrid posts={recommendedPosts} /> : null}
 
         {showRecent ? (
           <div className={styles.searchPanel}>

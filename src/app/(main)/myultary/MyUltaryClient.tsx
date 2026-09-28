@@ -403,6 +403,11 @@ export default function MyUltaryClient({ nickname }: MyUltaryClientProps) {
           ) : null}
 
           <div className={clsx(styles.petArea, petViewMode === 'detail' && styles.petAreaDetail)}>
+            {MOCK_PETS.length === 0 ? (
+              <div className={styles.petEmpty} role="status">
+                <p className={styles.petEmptyText}>등록된 펫이 없습니다.</p>
+              </div>
+            ) : (
             <div className={styles.petCarouselWrap}>
               <Swiper
                 modules={[FreeMode]}
@@ -521,6 +526,8 @@ export default function MyUltaryClient({ nickname }: MyUltaryClientProps) {
                 </div>
               </div>
             ) : null}
+            </div>
+            )}
           </div>
         </div>
 

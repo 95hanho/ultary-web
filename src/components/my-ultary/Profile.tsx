@@ -1,3 +1,4 @@
+import { NO_PROFILE_SRC } from '@/lib/profileImage';
 import clsx from 'clsx';
 import Image from 'next/image';
 import styles from './Profile.module.scss';
@@ -33,7 +34,7 @@ export function Profile({
       style={{ width: size, height: size }}
     >
       <Image
-        src={imageUrl}
+        src={imageUrl.trim() ? imageUrl : NO_PROFILE_SRC}
         alt=""
         width={size}
         height={size}

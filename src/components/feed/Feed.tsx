@@ -1,8 +1,11 @@
 'use client';
 
 import { Profile, type StoryStatus } from '@/components/my-ultary/Profile';
-import { myUltaryPath } from '@/lib/mock/ultary-accounts';
+import { bffDelete, bffPostJson } from '@/lib/api/bffFetch';
+import { bffEndpoints } from '@/lib/api/endpoints';
+import { isRecord } from '@/lib/api/error';
 import { getTagExplain, splitCaptionTags, type TagExplain } from '@/lib/mock/tags';
+import { myUltaryPath } from '@/lib/mock/ultary-accounts';
 import { useModalStore } from '@/stores/modal.store';
 import clsx from 'clsx';
 import Image from 'next/image';
@@ -25,6 +28,14 @@ const PinIcon = '/images/icon/Pin.svg';
 const PinFillIcon = '/images/icon/Pin_fill.svg';
 const ArrowLeftIcon = '/images/icon/arrow_left.svg';
 const ArrowRightIcon = '/images/icon/arrow_right.svg';
+
+function readStoredFlag(raw: unknown): boolean | null {
+  const root = isRecord(raw) && isRecord(raw.data) ? raw.data : raw;
+  if (!isRecord(root)) return null;
+  if (typeof root.storedByMe === 'boolean') return root.storedByMe;
+  if (typeof root.stored === 'boolean') return root.stored;
+  return null;
+}
 
 export type FeedData = {
   id: string;
@@ -67,6 +78,7 @@ export function Feed({
   const [liked, setLiked] = useState(isFavorite);
   const [likes, setLikes] = useState(likeCount);
   const [stored, setStored] = useState(isStored);
+  const [storePending, setStorePending] = useState(false);
   const swiperRef = useRef<SwiperType | null>(null);
   const captionRef = useRef<HTMLParagraphElement>(null);
   const leaveTimerRef = useRef<number | null>(null);
@@ -88,6 +100,10 @@ export function Feed({
   const [commentsOpen, setCommentsOpen] = useState(false);
 
   useEffect(() => {
+    setStored(isStored);
+  }, [id, isStored]);
+
+  useEffect(() => {
     try {
       if (new URLSearchParams(window.location.search).get('comments') === id) {
         setCommentsOpen(true);
@@ -96,6 +112,25 @@ export function Feed({
       /* ignore */
     }
   }, [id]);
+
+  const toggleStore = useCallback(async () => {
+    if (storePending) return;
+    const next = !stored;
+    setStored(next);
+    setStorePending(true);
+    try {
+      const res = next
+        ? await bffPostJson<unknown>(bffEndpoints.feeds.store, { feedId: id })
+        : await bffDelete<unknown>(bffEndpoints.feeds.store, { feedId: id });
+      const saved = readStoredFlag(res);
+      if (saved != null) setStored(saved);
+    } catch (err) {
+      console.error('[feed] store failed', err);
+      setStored(!next);
+    } finally {
+      setStorePending(false);
+    }
+  }, [id, storePending, stored]);
 
   useEffect(() => {
     const onPointerDown = (e: PointerEvent) => {
@@ -311,12 +346,7 @@ export function Feed({
                 });
               }}
             >
-              <Image
-                src={liked ? FavoriteFillIcon : FavoriteIcon}
-                alt=""
-                width={25}
-                height={25}
-              />
+              <Image src={liked ? FavoriteFillIcon : FavoriteIcon} alt="" width={25} height={25} />
               <span className={clsx(styles.actionCount, liked && styles.actionCountOn)}>
                 {likes}
               </span>
@@ -328,7 +358,7 @@ export function Feed({
               onClick={() => setCommentsOpen(true)}
             >
               <Image src={CommentIcon} alt="" width={21} height={20} />
-              <span className={styles.actionCount}>{commentCount}</span>
+              <span className={clsx(styles.actionCount, 'ml-1')}>{commentCount}</span>
             </button>
             <button
               type="button"
@@ -366,7 +396,10 @@ export function Feed({
             className={styles.actionBtn}
             aria-label="저장"
             aria-pressed={stored}
-            onClick={() => setStored((v) => !v)}
+            disabled={storePending}
+            onClick={() => {
+              void toggleStore();
+            }}
           >
             <Image src={stored ? PinFillIcon : PinIcon} alt="" width={25} height={25} />
           </button>
@@ -439,11 +472,7 @@ export function Feed({
         />
       ) : null}
 
-      <CommentSheet
-        open={commentsOpen}
-        onClose={() => setCommentsOpen(false)}
-        feedId={id}
-      />
+      <CommentSheet open={commentsOpen} onClose={() => setCommentsOpen(false)} feedId={id} />
     </article>
   );
 }

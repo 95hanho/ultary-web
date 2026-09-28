@@ -151,6 +151,27 @@
   margin-top: 4px;
 }
 
+.petEmpty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  width: 100%;
+  height: 148px;
+  margin-top: 8px;
+  border-radius: 15px;
+  background: rgb(129 207 240 / 50%);
+}
+
+.petEmptyText {
+  margin: 0;
+  color: var(--brand-black-700);
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.3;
+  text-align: center;
+}
+
 .petCarouselWrap {
   position: relative;
   display: flex;

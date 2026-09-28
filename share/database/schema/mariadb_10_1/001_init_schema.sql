@@ -1,5 +1,6 @@
--- schema_version: 8
+-- schema_version: 9
 -- Ultary MariaDB 10.1 초기 스키마
+-- v9: ultary_feed_comment_like / ultary_feed_reply_like, 댓글·답글 like_count
 -- v8: ultary_file 출처 컬럼 (source_type/author_name/source_url/license_url/copyright_notice)
 -- ULTARY MariaDB 10.1.13 Schema
 -- Engine: InnoDB
@@ -39,6 +40,8 @@
 --   v4: pet.mention_id, tag hashtag/handle, feed_m 알림 PET_TAG_* 제거 / FEED_COLLABORATOR 추가
 --   v6: nickname_changed_at / mention_id_changed_at / handle_changed_at (식별자 변경 쿨다운)
 --   v7: ultary_story / ultary_story_view (24h 스토리·읽음)
+--   v8: ultary_file 출처 컬럼
+--   v9: 댓글·답글 좋아요 (피드 좋아요와 별도 테이블)
 
 SET NAMES utf8;
 SET FOREIGN_KEY_CHECKS = 0;
@@ -54,6 +57,8 @@ DROP TABLE IF EXISTS `ultary_feed_tag`;
 DROP TABLE IF EXISTS `ultary_tag`;
 DROP TABLE IF EXISTS `ultary_feed_store`;
 DROP TABLE IF EXISTS `ultary_feed_comment_mention`;
+DROP TABLE IF EXISTS `ultary_feed_reply_like`;
+DROP TABLE IF EXISTS `ultary_feed_comment_like`;
 DROP TABLE IF EXISTS `ultary_feed_reply`;
 DROP TABLE IF EXISTS `ultary_feed_comment`;
 DROP TABLE IF EXISTS `ultary_feed_like`;
@@ -316,6 +321,7 @@ CREATE TABLE `ultary_feed_comment` (
   `feed_id` INT(11) NOT NULL,
   `user_no` INT(11) NOT NULL,
   `content` VARCHAR(500) NOT NULL,
+  `like_count` INT(11) NOT NULL DEFAULT 0,
   `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   `is_deleted` TINYINT(1) NOT NULL DEFAULT 0,
@@ -330,6 +336,7 @@ CREATE TABLE `ultary_feed_reply` (
   `feed_comment_id` INT(11) NOT NULL,
   `user_no` INT(11) NOT NULL,
   `content` VARCHAR(500) NOT NULL,
+  `like_count` INT(11) NOT NULL DEFAULT 0,
   `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   `is_deleted` TINYINT(1) NOT NULL DEFAULT 0,
@@ -338,6 +345,30 @@ CREATE TABLE `ultary_feed_reply` (
   KEY `IDX_ultary_feed_reply_comment_created` (`feed_comment_id`, `created_at`) USING BTREE,
   KEY `IDX_ultary_feed_reply_user_no` (`user_no`) USING BTREE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_general_ci COMMENT='피드 댓글의 답글';
+
+CREATE TABLE `ultary_feed_comment_like` (
+  `feed_comment_like_id` INT(11) NOT NULL AUTO_INCREMENT,
+  `feed_comment_id` INT(11) NOT NULL,
+  `user_no` INT(11) NOT NULL,
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `is_deleted` TINYINT(1) NOT NULL DEFAULT 0,
+  `deleted_at` DATETIME NULL DEFAULT NULL,
+  PRIMARY KEY (`feed_comment_like_id`) USING BTREE,
+  UNIQUE KEY `UK_ultary_feed_comment_like_comment_user` (`feed_comment_id`, `user_no`) USING BTREE,
+  KEY `IDX_ultary_feed_comment_like_user_no` (`user_no`) USING BTREE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_general_ci COMMENT='댓글 좋아요';
+
+CREATE TABLE `ultary_feed_reply_like` (
+  `feed_reply_like_id` INT(11) NOT NULL AUTO_INCREMENT,
+  `feed_reply_id` INT(11) NOT NULL,
+  `user_no` INT(11) NOT NULL,
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `is_deleted` TINYINT(1) NOT NULL DEFAULT 0,
+  `deleted_at` DATETIME NULL DEFAULT NULL,
+  PRIMARY KEY (`feed_reply_like_id`) USING BTREE,
+  UNIQUE KEY `UK_ultary_feed_reply_like_reply_user` (`feed_reply_id`, `user_no`) USING BTREE,
+  KEY `IDX_ultary_feed_reply_like_user_no` (`user_no`) USING BTREE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_general_ci COMMENT='답글 좋아요';
 
 CREATE TABLE `ultary_feed_comment_mention` (
   `feed_comment_mention_id` INT(11) NOT NULL AUTO_INCREMENT,
@@ -582,6 +613,14 @@ ALTER TABLE `ultary_feed_comment`
 ALTER TABLE `ultary_feed_reply`
   ADD CONSTRAINT `FK_feed_reply_comment` FOREIGN KEY (`feed_comment_id`) REFERENCES `ultary_feed_comment` (`feed_comment_id`) ON UPDATE CASCADE ON DELETE RESTRICT,
   ADD CONSTRAINT `FK_feed_reply_user` FOREIGN KEY (`user_no`) REFERENCES `ultary_user` (`user_no`) ON UPDATE CASCADE ON DELETE RESTRICT;
+
+ALTER TABLE `ultary_feed_comment_like`
+  ADD CONSTRAINT `FK_feed_comment_like_comment` FOREIGN KEY (`feed_comment_id`) REFERENCES `ultary_feed_comment` (`feed_comment_id`) ON UPDATE CASCADE ON DELETE RESTRICT,
+  ADD CONSTRAINT `FK_feed_comment_like_user` FOREIGN KEY (`user_no`) REFERENCES `ultary_user` (`user_no`) ON UPDATE CASCADE ON DELETE RESTRICT;
+
+ALTER TABLE `ultary_feed_reply_like`
+  ADD CONSTRAINT `FK_feed_reply_like_reply` FOREIGN KEY (`feed_reply_id`) REFERENCES `ultary_feed_reply` (`feed_reply_id`) ON UPDATE CASCADE ON DELETE RESTRICT,
+  ADD CONSTRAINT `FK_feed_reply_like_user` FOREIGN KEY (`user_no`) REFERENCES `ultary_user` (`user_no`) ON UPDATE CASCADE ON DELETE RESTRICT;
 
 ALTER TABLE `ultary_feed_comment_mention`
   ADD CONSTRAINT `FK_mention_comment` FOREIGN KEY (`feed_comment_id`) REFERENCES `ultary_feed_comment` (`feed_comment_id`) ON UPDATE CASCADE ON DELETE SET NULL,

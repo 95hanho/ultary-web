@@ -1,7 +1,7 @@
 'use client';
 
+import { loadFeedComments } from '@/lib/feed/toComments';
 import {
-  MOCK_FEED_COMMENTS,
   type MockComment,
   type MockCommentReply,
 } from '@/lib/mock/comments';
@@ -54,6 +54,7 @@ type CommentSheetProps = {
   open: boolean;
   onClose: () => void;
   feedId: string;
+  /** 넘기면 API 대신 이 목록을 쓴다 */
   comments?: MockComment[];
 };
 
@@ -185,7 +186,7 @@ export function CommentSheet({
   open,
   onClose,
   feedId,
-  comments = MOCK_FEED_COMMENTS,
+  comments,
 }: CommentSheetProps) {
   const [hydrated, setHydrated] = useState(false);
   /** 포털 유지 (닫힘 애니 끝날 때까지) */
@@ -209,7 +210,10 @@ export function CommentSheet({
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
 
-  const [items, setItems] = useState<MockComment[]>(comments);
+  const [items, setItems] = useState<MockComment[]>(comments ?? []);
+  const [listStatus, setListStatus] = useState<'idle' | 'loading' | 'ready' | 'error'>(
+    'idle',
+  );
   const [draft, setDraft] = useState('');
   const [replyTo, setReplyTo] = useState<{
     parentCommentId: string;
@@ -222,9 +226,34 @@ export function CommentSheet({
 
   useEffect(() => {
     if (!open) return;
-    setItems(comments);
     setDraft('');
     setReplyTo(null);
+
+    if (comments) {
+      setItems(comments);
+      setListStatus('ready');
+      return;
+    }
+
+    let cancelled = false;
+    setItems([]);
+    setListStatus('loading');
+    loadFeedComments(feedId)
+      .then((list) => {
+        if (cancelled) return;
+        setItems(list);
+        setListStatus('ready');
+      })
+      .catch((err) => {
+        console.error('[comments] load failed', err);
+        if (cancelled) return;
+        setItems([]);
+        setListStatus('error');
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, [open, comments, feedId]);
 
   const startReply = useCallback((nickname: string, parentCommentId: string) => {
@@ -464,6 +493,15 @@ export function CommentSheet({
         </div>
 
         <div ref={listRef} className={styles.list}>
+          {listStatus === 'loading' ? (
+            <p className={styles.status}>댓글을 불러오는 중</p>
+          ) : null}
+          {listStatus === 'error' ? (
+            <p className={styles.status}>댓글을 불러오지 못했습니다.</p>
+          ) : null}
+          {listStatus === 'ready' && items.length === 0 ? (
+            <p className={styles.status}>댓글이 없습니다.</p>
+          ) : null}
           {items.map((comment) => (
             <div key={comment.id} className={styles.thread}>
               <CommentBody
