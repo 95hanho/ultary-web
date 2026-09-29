@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "mariadb": {
+      "command": "npx",
+      "args": ["-y", "@ashenud/mcp-mysql-server"],
+      "envFile": "mcp/mariadb/.env"
+    }
+  }
+}

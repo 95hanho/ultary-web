@@ -5,9 +5,13 @@ import { bffDelete, bffPostJson } from '@/lib/api/bffFetch';
 import { bffEndpoints } from '@/lib/api/endpoints';
 import { isRecord } from '@/lib/api/error';
 import { getTagExplain, splitCaptionTags, type TagExplain } from '@/lib/mock/tags';
+import { resolveFeedPetLabels, type FeedPetLabel } from '@/lib/feed/petLabels';
+import { NO_PROFILE_SRC } from '@/lib/profileImage';
 import { myUltaryPath } from '@/lib/mock/ultary-accounts';
 import { useModalStore } from '@/stores/modal.store';
 import clsx from 'clsx';
+import { User } from 'lucide-react';
+import { MediaImage } from '@/components/common/MediaImage';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -45,6 +49,8 @@ export type FeedData = {
   profileUrl: string;
   /** 캐러셀용. 목업은 같은 사진 여러 장도 OK */
   images: string[];
+  /** images와 같은 순서. 사진 위 펫 태그 위치 (0~1) */
+  photoTags?: FeedPhotoTag[][];
   caption: string;
   /** 스토리 링 상태 */
   story?: StoryStatus;
@@ -56,6 +62,18 @@ export type FeedData = {
   commentCount?: number;
 };
 
+export type FeedPhotoTag = {
+  petId: number;
+  /** 사진 기준 0~1 */
+  x: number;
+  y: number;
+};
+
+type FeedProps = FeedData & {
+  /** 마이울타리 게시글 목록에서는 작성자 사진·닉네임을 숨긴다 */
+  showAuthor?: boolean;
+};
+
 /** 메인 피드 게시글 카드 */
 export function Feed({
   id,
@@ -63,13 +81,15 @@ export function Feed({
   nickname,
   profileUrl,
   images,
+  photoTags,
   caption,
   story = 'none',
   isFavorite = false,
   isStored = false,
   likeCount = 0,
   commentCount = 0,
-}: FeedData) {
+  showAuthor = true,
+}: FeedProps) {
   const router = useRouter();
   const openModal = useModalStore((s) => s.open);
   const [index, setIndex] = useState(0);
@@ -98,6 +118,9 @@ export function Feed({
   const tagOpenRef = useRef(tagOpen);
   tagOpenRef.current = tagOpen;
   const [commentsOpen, setCommentsOpen] = useState(false);
+  const [tagsOpen, setTagsOpen] = useState(false);
+  const [tagListOpen, setTagListOpen] = useState(false);
+  const [petLabels, setPetLabels] = useState<Record<number, FeedPetLabel>>({});
 
   useEffect(() => {
     setStored(isStored);
@@ -112,6 +135,23 @@ export function Feed({
       /* ignore */
     }
   }, [id]);
+
+  useEffect(() => {
+    setTagsOpen(false);
+    setTagListOpen(false);
+  }, [id, index]);
+
+  useEffect(() => {
+    const ids = [...new Set((photoTags ?? []).flat().map((tag) => tag.petId))];
+    if (ids.length === 0) return;
+    let cancelled = false;
+    resolveFeedPetLabels(ids, userNo).then((found) => {
+      if (!cancelled) setPetLabels(found);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [id, photoTags, userNo]);
 
   const toggleStore = useCallback(async () => {
     if (storePending) return;
@@ -148,6 +188,8 @@ export function Feed({
   }, []);
 
   const safeImages = images.length > 0 ? images : ['/images/mock/post.jpg'];
+  const slideTags = photoTags ?? [];
+  const currentTags = slideTags[index] ?? [];
   const hasMultiple = safeImages.length > 1;
   const showPrev = hasMultiple && index > 0;
   const showNext = hasMultiple && index < safeImages.length - 1;
@@ -258,18 +300,20 @@ export function Feed({
 
   return (
     <article id={`feed-${id}`} className={styles.feed}>
-      <header className={styles.header}>
-        {storyHref ? (
-          <Link href={storyHref} className={styles.profileLink} aria-label={`${nickname} 스토리`}>
+      {showAuthor ? (
+        <header className={styles.header}>
+          {storyHref ? (
+            <Link href={storyHref} className={styles.profileLink} aria-label={`${nickname} 스토리`}>
+              <Profile imageUrl={profileUrl} size={36} story={storyRing} />
+            </Link>
+          ) : (
             <Profile imageUrl={profileUrl} size={36} story={storyRing} />
+          )}
+          <Link href={myUltaryPath(nickname)} className={styles.nickname}>
+            {nickname}
           </Link>
-        ) : (
-          <Profile imageUrl={profileUrl} size={36} story={storyRing} />
-        )}
-        <Link href={myUltaryPath(nickname)} className={styles.nickname}>
-          {nickname}
-        </Link>
-      </header>
+        </header>
+      ) : null}
       <div className={styles.content}>
         <div className={styles.media}>
           <Swiper
@@ -281,18 +325,75 @@ export function Feed({
             onSlideChange={(swiper) => setIndex(swiper.activeIndex)}
             className={styles.swiper}
           >
-            {safeImages.map((src, i) => (
+            {safeImages.map((src, i) => {
+              const tags = slideTags[i] ?? [];
+              return (
               <SwiperSlide key={`${src}-${i}`}>
-                <Image
-                  src={src}
-                  alt=""
-                  width={430}
-                  height={430}
-                  className={styles.photo}
-                  style={{ height: 'auto' }}
-                />
+                <div
+                  className={styles.photoFrame}
+                  onClick={() => {
+                    if (tags.length === 0) return;
+                    setTagListOpen(false);
+                    setTagsOpen((open) => !open);
+                  }}
+                >
+                  <MediaImage
+                    src={src}
+                    alt=""
+                    width={430}
+                    height={430}
+                    className={styles.photo}
+                    style={{ height: 'auto' }}
+                  />
+                  {tagsOpen && i === index
+                    ? tags.map((tag) => (
+                        <span
+                          key={tag.petId}
+                          className={styles.petTag}
+                          style={{ left: `${tag.x * 100}%`, top: `${tag.y * 100}%` }}
+                        >
+                          {petLabels[tag.petId]?.label ?? '태그'}
+                        </span>
+                      ))
+                    : null}
+                  {tags.length > 0 ? (
+                    <button
+                      type="button"
+                      className={styles.tagPeopleBtn}
+                      aria-label="태그된 펫"
+                      aria-expanded={tagListOpen && i === index}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        setTagsOpen(false);
+                        setTagListOpen((open) => !open);
+                      }}
+                    >
+                      <User size={16} strokeWidth={2.25} aria-hidden />
+                    </button>
+                  ) : null}
+                  {tagListOpen && i === index ? (
+                    <ul className={styles.tagList} onClick={(event) => event.stopPropagation()}>
+                      {tags.map((tag) => {
+                        const info = petLabels[tag.petId];
+                        return (
+                          <li key={tag.petId} className={styles.tagListItem}>
+                            <MediaImage
+                              src={info?.imageUrl ?? NO_PROFILE_SRC}
+                              alt=""
+                              width={28}
+                              height={28}
+                              className={styles.tagListAvatar}
+                            />
+                            <span>{info?.label ?? '태그된 펫'}</span>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  ) : null}
+                </div>
               </SwiperSlide>
-            ))}
+              );
+            })}
           </Swiper>
           {showPrev ? (
             <button
@@ -407,7 +508,8 @@ export function Feed({
 
         <div className={styles.captionWrap}>
           <p ref={captionRef} className={clsx(styles.caption, !expanded && styles.captionClamped)}>
-            <strong className={styles.captionNick}>{nickname}</strong>{' '}
+            {showAuthor ? <strong className={styles.captionNick}>{nickname}</strong> : null}
+            {showAuthor ? ' ' : null}
             {captionParts.map((part, i) => {
               if (part.type !== 'tag') {
                 return <span key={`t-${i}`}>{part.value}</span>;

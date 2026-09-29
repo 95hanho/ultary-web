@@ -2,7 +2,7 @@
 
 import { EmptyState } from '@/components/common/EmptyState';
 import { MY_NICKNAME, OTHER_NICKNAME, myUltaryPath } from '@/lib/mock/ultary-accounts';
-import Image from 'next/image';
+import { MediaImage } from '@/components/common/MediaImage';
 import Link from 'next/link';
 import styles from './NotificationPanel.module.scss';
 
@@ -59,7 +59,7 @@ export function NotificationPanel({ compact = false }: { compact?: boolean }) {
               className={styles.avatar}
               aria-label={`${item.nickname} 울타리`}
             >
-              <Image
+              <MediaImage
                 src={item.profileUrl}
                 alt=""
                 width={40}

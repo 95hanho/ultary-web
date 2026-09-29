@@ -1,4 +1,5 @@
 import { EmptyState } from '@/components/common/EmptyState';
+import { MediaImage } from '@/components/common/MediaImage';
 import Image from 'next/image';
 import Link from 'next/link';
 import styles from './FeedGrid.module.scss';
@@ -37,7 +38,7 @@ export function FeedGrid({
         <li key={post.id} className={styles.item}>
           {post.imageUrl && post.href ? (
             <Link href={post.href} className={styles.link} aria-label="게시글 보기">
-              <Image
+              <MediaImage
                 src={post.imageUrl}
                 alt=""
                 width={200}

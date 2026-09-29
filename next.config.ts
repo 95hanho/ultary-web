@@ -15,13 +15,25 @@ const nextConfig: NextConfig = {
   },
   // 개발 모드에서 상단 프로그레스 바 숨기기
   devIndicators: false,
-  // FileSummary CDN (share seed cafe24) — next/image 외부 호스트 허용
+  // CDN 절대 URL + Spring이 /uploads 로 여는 업로드 파일.
+  // 상대경로 업로드(images/…)는 /api/files/{id}/content 이고 MediaImage가 처리한다.
   images: {
     remotePatterns: [
       {
         protocol: 'https',
         hostname: 'ehfqntuqntu.cdn1.cafe24.com',
         pathname: '/ultary/**',
+      },
+      {
+        protocol: 'https',
+        hostname: '95hanho.pe.kr',
+        pathname: '/uploads/**',
+      },
+      {
+        protocol: 'http',
+        hostname: 'localhost',
+        port: '9377',
+        pathname: '/uploads/**',
       },
     ],
   },

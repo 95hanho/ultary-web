@@ -1,5 +1,7 @@
 export type SearchAccount = {
   id: string;
+  /** 검색·최근 검색 API의 울타리 주인 */
+  userNo?: number;
   nickname: string;
   imageUrl: string;
   petTags: string[];

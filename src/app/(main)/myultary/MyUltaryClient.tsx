@@ -2,20 +2,39 @@
 
 import { FooterMenu } from '@/components/common/FooterMenu';
 import { LogoHeader } from '@/components/common/LogoHeader';
-import { FeedGrid } from '@/components/feed/FeedGrid';
+import { FeedGrid, type FeedGridItem } from '@/components/feed/FeedGrid';
 import { Profile } from '@/components/my-ultary/Profile';
+import { bffEndpoints } from '@/lib/api/endpoints';
+import { bffGet, bffPatchJson } from '@/lib/api/bffFetch';
+import type { BffEnvelope } from '@/types/api';
 import { MOCK_MY_FEEDS, MOCK_SAVED_FEEDS } from '@/lib/mock/feeds';
-import { getUltaryAccount, myUltaryPath } from '@/lib/mock/ultary-accounts';
+import { getUltaryAccount, MY_NICKNAME, myUltaryPath } from '@/lib/mock/ultary-accounts';
+import {
+  mapFeedGrid,
+  mapMyPets,
+  mapMyUltaryProfile,
+  storyRingStatus,
+  type MyUltaryPetCard,
+  type MyUltaryProfile,
+} from '@/lib/myultary/fromApi';
+import { mapSearchUsers } from '@/lib/search/accounts';
+import { NO_PROFILE_SRC } from '@/lib/profileImage';
 import { readFileAsDataUrl, setPendingPetPhoto } from '@/lib/pending-pet-photo';
+import {
+  clearUltaryGridScroll,
+  readUltaryGridScroll,
+  saveUltaryGridScroll,
+} from '@/lib/myultary/gridScroll';
 import { useWriteDraftStore } from '@/stores/write-draft.store';
 import { useStoryDraftStore } from '@/stores/story-draft.store';
 import { useModalStore } from '@/stores/modal.store';
 import clsx from 'clsx';
 import { Check } from 'lucide-react';
+import { MediaImage } from '@/components/common/MediaImage';
 import Image from 'next/image';
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
-import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
+import { notFound, useRouter } from 'next/navigation';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ChangeEvent, type MouseEvent } from 'react';
 import type { Swiper as SwiperType } from 'swiper';
 import 'swiper/css';
 import 'swiper/css/free-mode';
@@ -39,19 +58,12 @@ const FeedOnIcon = '/images/icon/Order_on.svg';
 const SavedOffIcon = '/images/icon/pin_off.svg';
 const SavedOnIcon = '/images/icon/Pin_on.svg';
 const GroupOffIcon = '/images/icon/Group_light.svg';
+const GroupOnIcon = '/images/icon/Group_light_on.svg';
 
 type AccountStoryStatus = 'none' | 'read' | 'unread';
-type ContentTab = 'feed' | 'saved';
+type ContentTab = 'feed' | 'saved' | 'tagged';
 
-type Pet = {
-  id: string;
-  name: string;
-  handle: string;
-  gender: 'M' | 'F';
-  bio: string;
-  imageUrl: string;
-  isBirthday?: boolean;
-};
+type Pet = MyUltaryPetCard;
 
 const MOCK_PETS: Pet[] = [
   {
@@ -70,6 +82,7 @@ const MOCK_PETS: Pet[] = [
     gender: 'F',
     bio: '낮잠 전문',
     imageUrl: '/images/mock/profile.jpg',
+    isBirthday: false,
   },
   {
     id: 'pet-3',
@@ -78,6 +91,7 @@ const MOCK_PETS: Pet[] = [
     gender: 'F',
     bio: '간식 러버',
     imageUrl: '/images/mock/profile.jpg',
+    isBirthday: false,
   },
   {
     id: 'pet-4',
@@ -86,6 +100,7 @@ const MOCK_PETS: Pet[] = [
     gender: 'M',
     bio: '공놀이 좋아함',
     imageUrl: '/images/mock/profile.jpg',
+    isBirthday: false,
   },
   {
     id: 'pet-5',
@@ -94,6 +109,7 @@ const MOCK_PETS: Pet[] = [
     gender: 'M',
     bio: '겁 많음',
     imageUrl: '/images/mock/profile.jpg',
+    isBirthday: false,
   },
 ];
 
@@ -132,24 +148,35 @@ type MyUltaryClientProps = {
   nickname: string;
 };
 
-/** 마이울타리 (/myultary/[nickname]) — 내/타인 공용 */
+/** 마이울타리 (/myultary/[nickname]) — 내 계정·다른 사람 모두 API, 예시 계정만 mock */
 export default function MyUltaryClient({ nickname }: MyUltaryClientProps) {
   const router = useRouter();
-  const pathname = usePathname();
-  const account = getUltaryAccount(nickname);
-  const isOwnAccount = account?.isOwnAccount ?? false;
+  const mockAccount = getUltaryAccount(nickname);
+  const expectsOwn = !mockAccount || mockAccount.isOwnAccount;
   const basePath = myUltaryPath(nickname);
-  const taggedActive = pathname?.startsWith(`${basePath}/tagged`) ?? false;
 
   const petSwiperRef = useRef<SwiperType | null>(null);
   const petPhotoInputRef = useRef<HTMLInputElement>(null);
   const [canPetPrev, setCanPetPrev] = useState(false);
   const [canPetNext, setCanPetNext] = useState(false);
   const [petViewMode, setPetViewMode] = useState<'carousel' | 'detail'>('carousel');
-  const [selectedPetId, setSelectedPetId] = useState(MOCK_PETS[0]?.id ?? '');
+  const [selectedPetId, setSelectedPetId] = useState('');
   const [contentTab, setContentTab] = useState<ContentTab>('feed');
+  const pendingGridScrollY = useRef<number | null>(null);
   const [photoTargetPetId, setPhotoTargetPetId] = useState<string | null>(null);
-  const [bio, setBio] = useState(() => getUltaryAccount(nickname)?.bio ?? '');
+  const [profile, setProfile] = useState<MyUltaryProfile | null>(null);
+  const [viewingOwn, setViewingOwn] = useState(mockAccount?.isOwnAccount === true);
+  const [profileReady, setProfileReady] = useState(!expectsOwn);
+  const [unknownAccount, setUnknownAccount] = useState(false);
+  const [apiPets, setApiPets] = useState<Pet[]>([]);
+  const [apiFeedPosts, setApiFeedPosts] = useState<FeedGridItem[]>([]);
+  const [savedApiPosts, setSavedApiPosts] = useState<FeedGridItem[]>([]);
+  const [taggedPosts, setTaggedPosts] = useState<FeedGridItem[]>([]);
+  const [feedsReady, setFeedsReady] = useState(!expectsOwn);
+  const [savedReady, setSavedReady] = useState(!expectsOwn);
+  const [taggedReady, setTaggedReady] = useState(!expectsOwn);
+  const [bio, setBio] = useState(() => (expectsOwn ? '' : (mockAccount?.bio ?? '')));
+  const [savedBio, setSavedBio] = useState(() => (expectsOwn ? '' : (mockAccount?.bio ?? '')));
   const [editingBio, setEditingBio] = useState(false);
   const bioInputRef = useRef<HTMLInputElement>(null);
 
@@ -161,9 +188,26 @@ export default function MyUltaryClient({ nickname }: MyUltaryClientProps) {
   const writeFileInputRef = useRef<HTMLInputElement>(null);
   const storyFileInputRef = useRef<HTMLInputElement>(null);
 
-  const selectedPet = MOCK_PETS.find((pet) => pet.id === selectedPetId) ?? MOCK_PETS[0];
-  const birthdayPet = MOCK_PETS.find((pet) => pet.isBirthday);
-  const showPetNav = MOCK_PETS.length > 4;
+  const pets = expectsOwn ? apiPets : MOCK_PETS;
+  const singlePet = pets.length === 1;
+  const activePetView = singlePet ? 'detail' : petViewMode;
+  const selectedPet = pets.find((pet) => pet.id === selectedPetId) ?? pets[0];
+  const birthdayPet = pets.find((pet) => pet.isBirthday);
+  const showPetNav = pets.length > 4;
+  const isOwnAccount = viewingOwn && !unknownAccount;
+  const storyStatus: AccountStoryStatus = profile
+    ? storyRingStatus(profile)
+    : (mockAccount?.storyStatus ?? 'none');
+  const displayNickname = expectsOwn
+    ? (profile?.nickname ?? nickname)
+    : (mockAccount?.nickname ?? nickname);
+  const postCount = expectsOwn ? (profile?.feedCount ?? 0) : (mockAccount?.postCount ?? 0);
+  const residentCount = expectsOwn
+    ? (profile?.residentCount ?? 0)
+    : (mockAccount?.residentCount ?? 0);
+  const neighborCount = expectsOwn
+    ? (profile?.neighborCount ?? 0)
+    : (mockAccount?.neighborCount ?? 0);
 
   useEffect(() => {
     if (!editingBio) return;
@@ -175,9 +219,159 @@ export default function MyUltaryClient({ nickname }: MyUltaryClientProps) {
   }, [editingBio]);
 
   const finishEditBio = () => {
-    setBio((prev) => prev.trim());
+    const next = bio.trim();
+    setBio(next);
     setEditingBio(false);
+    if (!expectsOwn || next === savedBio) return;
+    void (async () => {
+      try {
+        await bffPatchJson<BffEnvelope<unknown>, { bio: string }>(
+          bffEndpoints.myUltary.bio,
+          { bio: next },
+        );
+        setSavedBio(next);
+        setProfile((prev) => (prev ? { ...prev, bio: next } : prev));
+      } catch (err) {
+        console.error('[myultary] bio update failed', err);
+        setBio(savedBio);
+      }
+    })();
   };
+
+  useEffect(() => {
+    if (!expectsOwn) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await bffGet<BffEnvelope<unknown>>(bffEndpoints.myUltary.profile);
+        const nextProfile = mapMyUltaryProfile(res.data);
+        if (cancelled) return;
+        const isMine =
+          nickname === MY_NICKNAME ||
+          (nextProfile != null && nickname === nextProfile.nickname);
+        if (isMine && nextProfile) {
+          setViewingOwn(true);
+          setProfile(nextProfile);
+          setBio(nextProfile.bio);
+          setSavedBio(nextProfile.bio);
+          setProfileReady(true);
+
+          const [petsRes, feedsRes] = await Promise.all([
+            bffGet<BffEnvelope<unknown>>(bffEndpoints.pets.root),
+            bffGet<BffEnvelope<unknown>>(bffEndpoints.myUltary.feeds, { size: 21 }),
+          ]);
+          if (cancelled) return;
+          const nextPets = mapMyPets(petsRes.data, NO_PROFILE_SRC);
+          setApiPets(nextPets);
+          setSelectedPetId((current) =>
+            nextPets.some((pet) => pet.id === current) ? current : (nextPets[0]?.id ?? ''),
+          );
+          setApiFeedPosts(
+            mapFeedGrid(feedsRes.data, (id) => `${basePath}/posts/${id}`),
+          );
+          setFeedsReady(true);
+          return;
+        }
+
+        const searchRes = await bffGet<BffEnvelope<unknown>>(bffEndpoints.main.search, {
+          q: nickname,
+          type: 'USER',
+        });
+        if (cancelled) return;
+        const matched = mapSearchUsers(searchRes.data).find(
+          (user) => user.nickname === nickname && user.userNo != null,
+        );
+        if (!matched?.userNo) {
+          setUnknownAccount(true);
+          return;
+        }
+        const otherUserNo = matched.userNo;
+        const [otherRes, petsRes, feedsRes] = await Promise.all([
+          bffGet<BffEnvelope<unknown>>(bffEndpoints.users.ultary, { userNo: otherUserNo }),
+          bffGet<BffEnvelope<unknown>>(bffEndpoints.users.pets, { userNo: otherUserNo }),
+          bffGet<BffEnvelope<unknown>>(bffEndpoints.users.feeds, {
+            userNo: otherUserNo,
+            size: 21,
+          }),
+        ]);
+        if (cancelled) return;
+        const otherProfile = mapMyUltaryProfile(otherRes.data);
+        if (!otherProfile) {
+          setUnknownAccount(true);
+          return;
+        }
+        const nextPets = mapMyPets(petsRes.data, NO_PROFILE_SRC);
+        setViewingOwn(false);
+        setProfile(otherProfile);
+        setBio(otherProfile.bio);
+        setSavedBio(otherProfile.bio);
+        setApiPets(nextPets);
+        setSelectedPetId((current) =>
+          nextPets.some((pet) => pet.id === current) ? current : (nextPets[0]?.id ?? ''),
+        );
+        setApiFeedPosts(
+          mapFeedGrid(feedsRes.data, (id) => `${basePath}/posts/${id}`),
+        );
+        setProfileReady(true);
+        setFeedsReady(true);
+        setSavedReady(true);
+        setTaggedReady(true);
+      } catch (err) {
+        console.error('[myultary] profile load failed', err);
+        if (!cancelled) {
+          setProfileReady(true);
+          setFeedsReady(true);
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [basePath, expectsOwn, nickname]);
+
+  useEffect(() => {
+    if (!viewingOwn || contentTab !== 'saved' || savedReady) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await bffGet<BffEnvelope<unknown>>(bffEndpoints.myUltary.savedFeeds, {
+          limit: 21,
+        });
+        if (cancelled) return;
+        setSavedApiPosts(mapFeedGrid(res.data, (id) => `${basePath}/saved/${id}`));
+      } catch (err) {
+        console.error('[myultary] saved feeds failed', err);
+        if (!cancelled) setSavedApiPosts([]);
+      } finally {
+        if (!cancelled) setSavedReady(true);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [basePath, contentTab, savedReady, viewingOwn]);
+
+  useEffect(() => {
+    if (!viewingOwn || contentTab !== 'tagged' || taggedReady) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await bffGet<BffEnvelope<unknown>>(bffEndpoints.myUltary.taggedFeeds, {
+          limit: 21,
+        });
+        if (cancelled) return;
+        setTaggedPosts(mapFeedGrid(res.data, (id) => `${basePath}/tagged/${id}`));
+      } catch (err) {
+        console.error('[myultary] tagged feeds failed', err);
+        if (!cancelled) setTaggedPosts([]);
+      } finally {
+        if (!cancelled) setTaggedReady(true);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [basePath, contentTab, taggedReady, viewingOwn]);
 
   const openCreateMenu = () => {
     openModal({
@@ -248,33 +442,69 @@ export default function MyUltaryClient({ nickname }: MyUltaryClientProps) {
     }
   };
 
-  const feedPosts = useMemo(
-    () =>
-      MOCK_MY_FEEDS.map((feed) => ({
-        id: feed.id,
-        imageUrl: feed.images[0] ?? '/images/mock/post.jpg',
-        isMulti: feed.images.length > 1,
-        href: `${basePath}/posts/${feed.id}`,
-      })),
-    [basePath],
-  );
+  useLayoutEffect(() => {
+    const saved = readUltaryGridScroll(nickname);
+    if (!saved) return;
+    pendingGridScrollY.current = saved.scrollY;
+    setContentTab(saved.tab);
+  }, [nickname]);
 
-  const savedPosts = useMemo(
-    () =>
-      MOCK_SAVED_FEEDS.map((feed) => ({
-        id: feed.id,
-        imageUrl: feed.images[0] ?? '/images/mock/post.jpg',
-        isMulti: feed.images.length > 1,
-        href: `${basePath}/saved/${feed.id}`,
-      })),
-    [basePath],
-  );
+  const rememberGridScroll = (event: MouseEvent<HTMLElement>) => {
+    const link = (event.target as HTMLElement).closest('a');
+    if (!link) return;
+    saveUltaryGridScroll(nickname, contentTab);
+  };
 
-  const posts = contentTab === 'feed' ? feedPosts : savedPosts;
+  const feedPosts = useMemo(() => {
+    if (expectsOwn) return apiFeedPosts;
+    return MOCK_MY_FEEDS.map((feed) => ({
+      id: feed.id,
+      imageUrl: feed.images[0] ?? '/images/mock/post.jpg',
+      isMulti: feed.images.length > 1,
+      href: `${basePath}/posts/${feed.id}`,
+    }));
+  }, [apiFeedPosts, basePath, expectsOwn]);
 
-  if (!account) return null;
+  const savedPosts = useMemo(() => {
+    if (expectsOwn) return savedApiPosts;
+    return MOCK_SAVED_FEEDS.map((feed) => ({
+      id: feed.id,
+      imageUrl: feed.images[0] ?? '/images/mock/post.jpg',
+      isMulti: feed.images.length > 1,
+      href: `${basePath}/saved/${feed.id}`,
+    }));
+  }, [basePath, expectsOwn, savedApiPosts]);
+
+  const posts =
+    contentTab === 'saved' ? savedPosts : contentTab === 'tagged' ? taggedPosts : feedPosts;
+  const gridReady =
+    contentTab === 'saved'
+      ? savedReady
+      : contentTab === 'tagged'
+        ? taggedReady
+        : !expectsOwn || feedsReady;
+  const showEmptyGrid = gridReady && posts.length === 0;
+
+  useEffect(() => {
+    const y = pendingGridScrollY.current;
+    if (y == null || !profileReady || !gridReady) return;
+    pendingGridScrollY.current = null;
+    clearUltaryGridScroll(nickname);
+    const apply = () => window.scrollTo(0, y);
+    apply();
+    const frame = window.requestAnimationFrame(apply);
+    const timer = window.setTimeout(apply, 80);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.clearTimeout(timer);
+    };
+  }, [gridReady, nickname, profileReady, posts.length]);
+
+  if (unknownAccount) notFound();
+  if (!expectsOwn && !mockAccount) notFound();
 
   const handlePetSelect = (petId: string) => {
+    if (pets.length <= 1) return;
     if (petViewMode === 'detail' && petId === selectedPetId) {
       setPetViewMode('carousel');
     } else {
@@ -337,20 +567,20 @@ export default function MyUltaryClient({ nickname }: MyUltaryClientProps) {
 
       <section className={styles.profileSection} aria-label="프로필">
         <div className={styles.profileMain}>
-          <h1 className={styles.nickname}>{account.nickname}</h1>
+          <h1 className={styles.nickname}>{displayNickname}</h1>
 
           <ul className={styles.stats}>
             <li className={styles.statItem}>
               <strong>게시물</strong>
-              {account.postCount}
+              {postCount}
             </li>
             <li className={styles.statItem}>
               <strong>주민</strong>
-              {account.residentCount}
+              {residentCount}
             </li>
             <li className={styles.statItem}>
               <strong>이웃</strong>
-              {account.neighborCount}
+              {neighborCount}
             </li>
           </ul>
 
@@ -382,7 +612,7 @@ export default function MyUltaryClient({ nickname }: MyUltaryClientProps) {
             ) : (
               <p className={styles.bio}>
                 {bio}
-                {isOwnAccount ? (
+                {isOwnAccount && profileReady ? (
                   <button
                     type="button"
                     className={styles.iconBtn}
@@ -402,12 +632,16 @@ export default function MyUltaryClient({ nickname }: MyUltaryClientProps) {
             </p>
           ) : null}
 
-          <div className={clsx(styles.petArea, petViewMode === 'detail' && styles.petAreaDetail)}>
-            {MOCK_PETS.length === 0 ? (
+          <div className={clsx(styles.petArea, activePetView === 'detail' && styles.petAreaDetail)}>
+            {pets.length === 0 ? (
+              profileReady ? (
               <div className={styles.petEmpty} role="status">
                 <p className={styles.petEmptyText}>등록된 펫이 없습니다.</p>
               </div>
+              ) : null
             ) : (
+            <>
+            {singlePet ? null : (
             <div className={styles.petCarouselWrap}>
               <Swiper
                 modules={[FreeMode]}
@@ -435,7 +669,7 @@ export default function MyUltaryClient({ nickname }: MyUltaryClientProps) {
                   syncPetNav(swiper, setCanPetPrev, setCanPetNext);
                 }}
               >
-                {MOCK_PETS.map((pet) => (
+                {pets.map((pet) => (
                   <SwiperSlide key={pet.id} className={styles.petSlide}>
                     <button
                       type="button"
@@ -449,7 +683,7 @@ export default function MyUltaryClient({ nickname }: MyUltaryClientProps) {
                       aria-label={`${pet.name} 상세 보기`}
                     >
                       <span className={styles.petCardPhoto}>
-                        <Image
+                        <MediaImage
                           src={pet.imageUrl}
                           alt=""
                           width={80}
@@ -495,9 +729,10 @@ export default function MyUltaryClient({ nickname }: MyUltaryClientProps) {
                 </button>
               ) : null}
             </div>
+            )}
 
             {selectedPet ? (
-              <div className={styles.petDetailCard} aria-hidden={petViewMode !== 'detail'}>
+              <div className={styles.petDetailCard} aria-hidden={activePetView !== 'detail'}>
                 <div className={styles.petDetailPhotoWrap}>
                   <Profile imageUrl={selectedPet.imageUrl} size={88} />
                   {isOwnAccount ? (
@@ -505,7 +740,7 @@ export default function MyUltaryClient({ nickname }: MyUltaryClientProps) {
                       type="button"
                       className={styles.petSettingBtn}
                       aria-label={`${selectedPet.name} 프로필 사진 설정`}
-                      tabIndex={petViewMode === 'detail' ? 0 : -1}
+                      tabIndex={activePetView === 'detail' ? 0 : -1}
                       onClick={() => openPetPhotoPicker(selectedPet.id)}
                     >
                       <Image src={SettingFillIcon} alt="" width={30} height={30} />
@@ -519,26 +754,40 @@ export default function MyUltaryClient({ nickname }: MyUltaryClientProps) {
                 </div>
                 <div className={styles.petDetailInfo}>
                   <p className={styles.petName}>
-                    {selectedPet.name}({selectedPet.gender})
+                    {selectedPet.name}
+                    {selectedPet.gender ? `(${selectedPet.gender})` : ''}
                   </p>
                   <p className={styles.petHandle}>{selectedPet.handle}</p>
                   <p className={styles.petBio}>{selectedPet.bio}</p>
                 </div>
               </div>
             ) : null}
-            </div>
+            </>
             )}
           </div>
         </div>
 
         <nav className={styles.sideTabs} aria-label="콘텐츠 메뉴">
-          <Link
-            href="/stories"
-            className={clsx(styles.sideTabBtn, getStoryTabClass(account.storyStatus))}
-            aria-label="스토리"
-          >
-            <Image src={getStoryIcon(account.storyStatus)} alt="" width={20} height={20} />
-          </Link>
+          {profile?.userNo != null ? (
+            <Link
+              href={`/stories?${new URLSearchParams({
+                userNo: String(profile.userNo),
+                nickname: profile.nickname,
+                single: '1',
+              }).toString()}`}
+              className={clsx(styles.sideTabBtn, getStoryTabClass(storyStatus))}
+              aria-label="스토리"
+            >
+              <Image src={getStoryIcon(storyStatus)} alt="" width={20} height={20} />
+            </Link>
+          ) : (
+            <span
+              className={clsx(styles.sideTabBtn, getStoryTabClass(storyStatus))}
+              aria-label="스토리"
+            >
+              <Image src={getStoryIcon(storyStatus)} alt="" width={20} height={20} />
+            </span>
+          )}
 
           <button
             type="button"
@@ -576,19 +825,38 @@ export default function MyUltaryClient({ nickname }: MyUltaryClientProps) {
             />
           </button>
 
-          <Link
-            href={`${basePath}/tagged`}
-            className={clsx(styles.sideTabBtn, taggedActive && styles.sideTabActive)}
+          <button
+            type="button"
+            className={clsx(
+              styles.sideTabBtn,
+              contentTab === 'tagged' ? styles.sideTabActive : undefined,
+            )}
+            onClick={() => setContentTab('tagged')}
             aria-label="태그됨"
-            aria-current={taggedActive ? 'page' : undefined}
+            aria-pressed={contentTab === 'tagged'}
           >
-            <Image src={GroupOffIcon} alt="" width={20} height={20} />
-          </Link>
+            <Image
+              src={contentTab === 'tagged' ? GroupOnIcon : GroupOffIcon}
+              alt=""
+              width={20}
+              height={20}
+            />
+          </button>
         </nav>
       </section>
 
-      <section className={styles.feedSection} aria-label="게시물 그리드">
-        <FeedGrid posts={posts} />
+      <section
+        className={styles.feedSection}
+        aria-label="게시물 그리드"
+        onClick={rememberGridScroll}
+      >
+        {showEmptyGrid ? (
+          <p className={styles.feedEmpty} role="status">
+            게시글이 없습니다
+          </p>
+        ) : gridReady ? (
+          <FeedGrid posts={posts} />
+        ) : null}
       </section>
 
       {isOwnAccount ? (

@@ -43,6 +43,7 @@ export type FeedMediaFileEmbed = {
   thumbnailFileId?: number | null;
   file?: FileSummary | null;
   thumbnailFile?: FileSummary | null;
+  sortOrder?: number;
 };
 
 /** 피드 그리드 커버 (읽기 응답) */

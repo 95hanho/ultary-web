@@ -9,7 +9,7 @@ import type { BffEnvelope } from '@/types/api';
 import type { NotificationType } from '@/types/enums';
 import type { Notification } from '@/types/notification';
 import clsx from 'clsx';
-import Image from 'next/image';
+import { MediaImage } from '@/components/common/MediaImage';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState, type ReactNode } from 'react';
@@ -503,7 +503,7 @@ export default function NotificationsClient() {
                     className={styles.imageWrap}
                     aria-label={`${item.actorNickname} 울타리`}
                   >
-                    <Image
+                    <MediaImage
                       src={item.profileUrl}
                       alt=""
                       width={39}

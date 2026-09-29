@@ -12,22 +12,29 @@ type FeedListPageProps = {
   backHref: string;
   feeds: FeedData[];
   focusId?: string;
+  showAuthor?: boolean;
 };
 
 /** 스토리 없는 게시글 리스트 페이지 (마이울타리 그리드에서 진입) */
-export function FeedListPage({ title, backHref, feeds, focusId }: FeedListPageProps) {
+export function FeedListPage({
+  title,
+  backHref,
+  feeds,
+  focusId,
+  showAuthor = true,
+}: FeedListPageProps) {
   useEffect(() => {
     if (!focusId) return;
     document.getElementById(`feed-${focusId}`)?.scrollIntoView({
       block: 'start',
     });
-  }, [focusId]);
+  }, [focusId, feeds]);
 
   return (
     <div className={styles.shell}>
       <PageHeader title={title} backHref={backHref} />
       <main className={styles.main}>
-        <FeedList feeds={feeds} />
+        <FeedList feeds={feeds} showAuthor={showAuthor} />
       </main>
       <FooterMenu />
     </div>

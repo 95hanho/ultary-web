@@ -3,9 +3,10 @@
 import { FooterMenu } from '@/components/common/FooterMenu';
 import { FeedGrid, type FeedGridItem } from '@/components/feed/FeedGrid';
 import { HashtagResultList } from '@/components/search/HashtagResultList';
-import { bffGet } from '@/lib/api/bffFetch';
+import { bffDelete, bffGet, bffPostJson } from '@/lib/api/bffFetch';
 import { bffEndpoints } from '@/lib/api/endpoints';
 import { toFeedDataList } from '@/lib/feed/toFeedData';
+import { mapRecentAccounts, mapSearchUsers } from '@/lib/search/accounts';
 import { MOCK_RECOMMENDED_FEEDS } from '@/lib/mock/feeds';
 import type { BffEnvelope } from '@/types/api';
 import { OTHER_NICKNAME, myUltaryPath } from '@/lib/mock/ultary-accounts';
@@ -17,8 +18,10 @@ import {
 } from '@/lib/mock/search';
 import { highlightMatch, sortPetTagsByMatch } from '@/lib/search/highlight';
 import clsx from 'clsx';
+import { MediaImage } from '@/components/common/MediaImage';
 import Image from 'next/image';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { EmptyState } from '@/components/common/EmptyState';
 import styles from './search.module.scss';
@@ -67,10 +70,12 @@ function AccountRow({
   account,
   highlightQuery,
   petQuery,
+  onEnter,
 }: {
   account: SearchAccount;
   highlightQuery: string;
   petQuery: string;
+  onEnter: (account: SearchAccount) => void;
 }) {
   const tags = sortPetTagsByMatch(account.petTags, petQuery || highlightQuery);
 
@@ -79,9 +84,14 @@ function AccountRow({
       <Link
         href={myUltaryPath(account.nickname)}
         className={styles.accountBtn}
+        onClick={(event) => {
+          if (account.userNo == null) return;
+          event.preventDefault();
+          onEnter(account);
+        }}
       >
         <span className={styles.accountImageWrap}>
-          <Image
+          <MediaImage
             src={account.imageUrl}
             alt=""
             width={47}
@@ -109,14 +119,16 @@ function AccountRow({
 
 /** 검색 페이지 */
 export default function SearchClient() {
+  const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
   const [phase, setPhase] = useState<SearchPhase>('idle');
   const [query, setQuery] = useState('');
   const [selectedHashtag, setSelectedHashtag] = useState<string | null>(null);
-  const [recentAccounts, setRecentAccounts] = useState<SearchAccount[]>([
-    MOCK_SEARCH_ACCOUNTS[0],
-    MOCK_SEARCH_ACCOUNTS[0],
-  ]);
+  const [recentAccounts, setRecentAccounts] = useState<SearchAccount[]>([]);
+  const [userResults, setUserResults] = useState<SearchAccount[]>([]);
+  const [userSearchState, setUserSearchState] = useState<'idle' | 'loading' | 'ready'>(
+    'idle',
+  );
 
   const [isInputFocused, setIsInputFocused] = useState(false);
   const [recommendedPosts, setRecommendedPosts] = useState<FeedGridItem[]>(
@@ -161,12 +173,51 @@ export default function SearchClient() {
     }
   }, [phase]);
 
+  useEffect(() => {
+    if (phase !== 'active' || selectedHashtag || parsed.mode !== 'plain') {
+      setUserResults([]);
+      setUserSearchState('idle');
+      return;
+    }
+    const term = parsed.term.trim();
+    if (!term) {
+      setUserResults([]);
+      setUserSearchState('idle');
+      return;
+    }
+
+    let cancelled = false;
+    setUserSearchState('loading');
+    const timer = window.setTimeout(() => {
+      bffGet<BffEnvelope<unknown>>(bffEndpoints.main.search, {
+        q: term,
+        type: 'USER',
+      })
+        .then((res) => {
+          if (cancelled) return;
+          setUserResults(mapSearchUsers(res.data ?? res));
+          setUserSearchState('ready');
+        })
+        .catch((err) => {
+          console.error('[search] users failed', err);
+          if (cancelled) return;
+          setUserResults([]);
+          setUserSearchState('ready');
+        });
+    }, 250);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [phase, selectedHashtag, parsed.mode, parsed.term]);
+
   const accountResults = useMemo(() => {
     if (phase !== 'active' || selectedHashtag) return [];
-    if (parsed.mode === 'hashtag') return [];
-    if (!parsed.term.trim()) return [];
-    return filterAccounts(parsed.mode === 'pet' ? 'pet' : 'plain', parsed.term);
-  }, [phase, parsed, selectedHashtag]);
+    if (parsed.mode === 'hashtag' || !parsed.term.trim()) return [];
+    if (parsed.mode === 'pet') return filterAccounts('pet', parsed.term);
+    return userResults;
+  }, [phase, parsed, selectedHashtag, userResults]);
 
   const hashtagResults: MockHashtag[] = useMemo(() => {
     if (phase !== 'active' || selectedHashtag) return [];
@@ -191,9 +242,34 @@ export default function SearchClient() {
 
   const showHashtagGrid = phase === 'active' && !!selectedHashtag;
 
+  async function loadRecent() {
+    try {
+      const res = await bffGet<BffEnvelope<unknown>>(bffEndpoints.main.searchRecent);
+      setRecentAccounts(mapRecentAccounts(res.data ?? res));
+    } catch (err) {
+      console.error('[search] recent failed', err);
+      setRecentAccounts([]);
+    }
+  }
+
+  async function enterUltary(account: SearchAccount) {
+    const href = myUltaryPath(account.nickname);
+    if (account.userNo != null) {
+      try {
+        await bffPostJson(bffEndpoints.main.searchRecent, {
+          targetUserNo: account.userNo,
+        });
+      } catch (err) {
+        console.error('[search] recent save failed', err);
+      }
+    }
+    router.push(href);
+  }
+
   const openSearch = () => {
     setPhase('active');
     setSelectedHashtag(null);
+    void loadRecent();
   };
 
   const cancelSearch = () => {
@@ -202,9 +278,14 @@ export default function SearchClient() {
     setSelectedHashtag(null);
   };
 
-  const clearRecent = () => {
-    setRecentAccounts([]);
-  };
+  async function clearRecent() {
+    try {
+      await bffDelete(bffEndpoints.main.searchRecent);
+      setRecentAccounts([]);
+    } catch (err) {
+      console.error('[search] recent clear failed', err);
+    }
+  }
 
   const onChangeQuery = (value: string) => {
     setQuery(value);
@@ -260,7 +341,7 @@ export default function SearchClient() {
       <main className={styles.main}>
         {phase === 'idle' ? <FeedGrid posts={recommendedPosts} /> : null}
 
-        {showRecent ? (
+        {showRecent && recentAccounts.length > 0 ? (
           <div className={styles.searchPanel}>
             <div className={styles.recentHeader}>
               <span className={styles.recentTitle}>최근 검색 항목</span>
@@ -275,6 +356,7 @@ export default function SearchClient() {
                   account={account}
                   highlightQuery=""
                   petQuery=""
+                  onEnter={enterUltary}
                 />
               ))}
             </ul>
@@ -283,7 +365,7 @@ export default function SearchClient() {
 
         {showAccountList ? (
           <div className={styles.searchPanel}>
-            {accountResults.length === 0 ? (
+            {parsed.mode === 'plain' && userSearchState === 'loading' ? null : accountResults.length === 0 ? (
               <EmptyState
                 title="검색 결과가 없어요"
                 description="다른 닉네임이나 펫 태그로 다시 검색해 보세요."
@@ -296,6 +378,7 @@ export default function SearchClient() {
                     account={account}
                     highlightQuery={nickHighlight}
                     petQuery={petHighlight}
+                    onEnter={enterUltary}
                   />
                 ))}
               </ul>

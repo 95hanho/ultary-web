@@ -64,6 +64,10 @@ export const bffEndpoints = {
     search: '/api/main/search',
     /** GET 검색 추천 게시글 ?limit= */
     searchRecommended: '/api/main/search/recommended',
+    /** GET 최근 검색 5건 / POST 울타리 진입 저장 */
+    searchRecent: '/api/main/search/recent',
+    /** GET 최근 검색 더보기 ?cursorHistoryId= */
+    searchRecentMore: '/api/main/search/recent/more',
   },
 
   myUltary: {
@@ -77,8 +81,6 @@ export const bffEndpoints = {
     savedFeeds: '/api/my-ultary/saved-feeds',
     /** GET 태그된 게시글 */
     taggedFeeds: '/api/my-ultary/tagged-feeds',
-    /** PATCH 프로필 사진 */
-    profileImage: '/api/my-ultary/profile-image',
     /** PATCH 소개글 */
     bio: '/api/my-ultary/bio',
     /** GET 내 스토리 목록 / POST 스토리 등록 */
@@ -95,7 +97,7 @@ export const bffEndpoints = {
   pets: {
     /** GET 목록 / POST 등록 */
     root: '/api/pets',
-    /** PATCH 수정 / DELETE 삭제 */
+    /** PATCH 수정 (profileFileId·priority 포함) / DELETE 삭제 */
     detail: '/api/pets/:petId',
     /** POST 피드 반려동물 태그 승인 */
     tagApprove: '/api/pets/tags/:feedPetId/approve',
@@ -144,6 +146,10 @@ export const bffEndpoints = {
   users: {
     /** GET 다른 유저 울타리 정보 */
     ultary: '/api/users/:userNo/ultary',
+    /** GET 그 유저의 펫 목록 */
+    pets: '/api/users/:userNo/pets',
+    /** GET 그 유저의 게시글 그리드 */
+    feeds: '/api/users/:userNo/feeds',
     /** GET 주민/이웃 목록 ?type= */
     neighbors: '/api/users/:userNo/neighbors',
     /** POST 주민 요청 */
@@ -272,6 +278,10 @@ export const springEndpoints = {
     search: '/api/v1/main/search',
     /** GET 검색 추천 게시글 ?limit= */
     searchRecommended: '/api/v1/main/search/recommended',
+    /** GET 최근 검색 5건 / POST { targetUserNo } */
+    searchRecent: '/api/v1/main/search/recent',
+    /** GET 최근 검색 더보기 ?cursorHistoryId= */
+    searchRecentMore: '/api/v1/main/search/recent/more',
   },
 
   myUltary: {
@@ -285,8 +295,6 @@ export const springEndpoints = {
     savedFeeds: '/api/v1/my-ultary/saved-feeds',
     /** GET */
     taggedFeeds: '/api/v1/my-ultary/tagged-feeds',
-    /** PATCH */
-    profileImage: '/api/v1/my-ultary/profile-image',
     /** PATCH */
     bio: '/api/v1/my-ultary/bio',
     /** GET / POST */
@@ -352,6 +360,10 @@ export const springEndpoints = {
   users: {
     /** GET */
     ultary: '/api/v1/users/:userNo/ultary',
+    /** GET */
+    pets: '/api/v1/users/:userNo/pets',
+    /** GET */
+    feeds: '/api/v1/users/:userNo/feeds',
     /** GET */
     neighbors: '/api/v1/users/:userNo/neighbors',
     /** POST */

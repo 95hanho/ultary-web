@@ -4,7 +4,7 @@ import { FooterMenu } from '@/components/common/FooterMenu';
 import { PageHeader } from '@/components/common/PageHeader';
 import { MY_NICKNAME, OTHER_NICKNAME, myUltaryPath } from '@/lib/mock/ultary-accounts';
 import clsx from 'clsx';
-import Image from 'next/image';
+import { MediaImage } from '@/components/common/MediaImage';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState, type ReactNode } from 'react';
@@ -300,7 +300,7 @@ export default function ActivityClient() {
                     className={styles.imageWrap}
                     aria-label={`${item.targetNickname} 울타리`}
                   >
-                    <Image
+                    <MediaImage
                       src={item.profileUrl}
                       alt=""
                       width={39}

@@ -1,12 +1,18 @@
 'use client';
 
+import { bffGet } from '@/lib/api/bffFetch';
+import { bffEndpoints } from '@/lib/api/endpoints';
+import { resolveFileDisplayUrl } from '@/lib/api/fileUrl';
 import { MY_NICKNAME, myUltaryPath } from '@/lib/mock/ultary-accounts';
+import { NO_PROFILE_SRC } from '@/lib/profileImage';
 import { confirmLeaveWrite, isWriteFlowPath } from '@/lib/write/confirm-leave';
+import type { BffEnvelope, MeResponse } from '@/types/api';
 import clsx from 'clsx';
+import { MediaImage } from '@/components/common/MediaImage';
 import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import type { MouseEvent } from 'react';
+import { useEffect, useState, type MouseEvent } from 'react';
 import styles from './FooterMenu.module.scss';
 
 const HomeIcon = '/images/icon/Home.svg';
@@ -17,13 +23,36 @@ const BellIcon = '/images/icon/Bell.svg';
 const BellFillIcon = '/images/icon/Bell_fill.svg';
 const MessageIcon = '/images/icon/Message.svg';
 const MessageFillIcon = '/images/icon/Message_fill.svg';
-const PROFILE_SRC = '/images/mock/profile.jpg';
+let cachedAvatarSrc: string | null = null;
 
 /** 하단 공통 메뉴바 */
 export function FooterMenu() {
   const pathname = usePathname();
   const router = useRouter();
   const myPath = myUltaryPath(MY_NICKNAME);
+  const [avatarSrc, setAvatarSrc] = useState(NO_PROFILE_SRC);
+
+  useEffect(() => {
+    if (cachedAvatarSrc) {
+      setAvatarSrc(cachedAvatarSrc);
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      try {
+        const res = await bffGet<BffEnvelope<MeResponse>>(bffEndpoints.auth.me);
+        const url = resolveFileDisplayUrl(res.data?.profileFile);
+        if (!url || cancelled) return;
+        cachedAvatarSrc = url;
+        setAvatarSrc(url);
+      } catch (err) {
+        console.error('[footer] me profile failed', err);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
   const writing = isWriteFlowPath(pathname);
   const isHome = pathname === '/';
   const isSearch = pathname.startsWith('/search');
@@ -95,8 +124,8 @@ export function FooterMenu() {
         aria-current={isMyUltary ? 'page' : undefined}
         onClick={guardNav(myPath)}
       >
-        <Image
-          src={PROFILE_SRC}
+        <MediaImage
+          src={avatarSrc}
           alt=""
           width={35}
           height={35}

@@ -6,6 +6,7 @@ import { EmptyState } from '@/components/common/EmptyState';
 import { MOCK_DM_ROOMS, type MockDmMessage, type MockDmRoom } from '@/lib/mock/dm';
 import { myUltaryPath } from '@/lib/mock/ultary-accounts';
 import clsx from 'clsx';
+import { MediaImage } from '@/components/common/MediaImage';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
@@ -132,7 +133,7 @@ export default function DmClient() {
                   onClick={() => openRoom(room)}
                 >
                   <span className={styles.roomAvatar}>
-                    <Image
+                    <MediaImage
                       src={room.profileUrl}
                       alt=""
                       width={48}

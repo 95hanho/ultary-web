@@ -8,6 +8,7 @@ import {
 import { MY_NICKNAME, myUltaryPath } from '@/lib/mock/ultary-accounts';
 import clsx from 'clsx';
 import { Heart, X } from 'lucide-react';
+import { MediaImage } from '@/components/common/MediaImage';
 import Image from 'next/image';
 import Link from 'next/link';
 import {
@@ -114,7 +115,7 @@ function CommentBody({
         href={myUltaryPath(item.nickname)}
         className={clsx(styles.avatarWrap, compact && styles.avatarWrapSm)}
       >
-        <Image
+        <MediaImage
           src={item.profileUrl}
           alt=""
           width={compact ? 32 : 40}
@@ -544,7 +545,7 @@ export function CommentSheet({
           ) : null}
           <div className={styles.composerRow}>
             <span className={styles.composerAvatar}>
-              <Image
+              <MediaImage
                 src={MY_PROFILE}
                 alt=""
                 width={32}

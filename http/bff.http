@@ -209,6 +209,23 @@ GET {{baseUrl}}/api/main/feeds/recommended?limit=10
 ### type= ← 필요 시 수동 지정
 GET {{baseUrl}}/api/main/search?q=산책&type=
 
+### 최근 검색 5건 (검색창을 열 때)
+GET {{baseUrl}}/api/main/search/recent
+
+### 최근 검색 더보기
+GET {{baseUrl}}/api/main/search/recent/more?cursorHistoryId=
+
+### 최근 검색 저장 (검색 후 울타리 진입)
+POST {{baseUrl}}/api/main/search/recent
+Content-Type: {{contentType}}
+
+{
+  "targetUserNo": {{otherUserNo}}
+}
+
+### 최근 검색 모두 지우기
+DELETE {{baseUrl}}/api/main/search/recent
+
 ### 검색 추천 게시글 (임시: 조회 가능 피드 최신순)
 GET {{baseUrl}}/api/main/search/recommended?limit=10
 
@@ -230,14 +247,6 @@ GET {{baseUrl}}/api/my-ultary/saved-feeds?cursor=&size=21
 
 ### 태그된 게시글 조회 (시드: feed 102에 pet 101)
 GET {{baseUrl}}/api/my-ultary/tagged-feeds?cursor=&size=21
-
-### 프로필 사진 변경 (시드 CDN profile file 110~114)
-PATCH {{baseUrl}}/api/my-ultary/profile-image
-Content-Type: {{contentType}}
-
-{
-  "profileFileId": {{fileId}}
-}
 
 ### 소개글 변경
 PATCH {{baseUrl}}/api/my-ultary/bio
@@ -289,7 +298,9 @@ Content-Type: {{contentType}}
 {
   "bio": "산책 좋아함",
   "species": "DOG",
-  "breed": "푸들"
+  "breed": "푸들",
+  "profileFileId": {{fileId}},
+  "priority": 1
 }
 
 ### 반려동물 삭제
@@ -445,6 +456,12 @@ GET {{baseUrl}}/api/tags/{{tagId}}
 
 ### 다른 유저 울타리 (102 나리집사 · ACCEPTED)
 GET {{baseUrl}}/api/users/{{otherUserNo}}/ultary
+
+### 다른 유저 펫 목록 (102 나리집사)
+GET {{baseUrl}}/api/users/{{otherUserNo}}/pets
+
+### 다른 유저 게시글 그리드 (102 나리집사)
+GET {{baseUrl}}/api/users/{{otherUserNo}}/feeds?size=21
 
 ### 다른 유저 울타리 (104 대기중 · PENDING)
 GET {{baseUrl}}/api/users/{{pendingUserNo}}/ultary

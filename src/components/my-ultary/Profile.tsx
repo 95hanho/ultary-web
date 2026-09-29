@@ -1,6 +1,6 @@
 import { NO_PROFILE_SRC } from '@/lib/profileImage';
 import clsx from 'clsx';
-import Image from 'next/image';
+import { MediaImage } from '@/components/common/MediaImage';
 import styles from './Profile.module.scss';
 
 /** none: 스토리 없음 · read: 읽음 · unread: 안읽음 */
@@ -33,7 +33,7 @@ export function Profile({
       )}
       style={{ width: size, height: size }}
     >
-      <Image
+      <MediaImage
         src={imageUrl.trim() ? imageUrl : NO_PROFILE_SRC}
         alt=""
         width={size}

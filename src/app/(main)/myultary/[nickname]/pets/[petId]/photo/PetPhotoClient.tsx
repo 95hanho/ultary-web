@@ -3,7 +3,11 @@
 import { FooterMenu } from '@/components/common/FooterMenu';
 import { ImageCropper, type CropResult } from '@/components/common/ImageCropper';
 import { PageHeader } from '@/components/common/PageHeader';
+import { bffPatchJson } from '@/lib/api/bffFetch';
+import { bffEndpoints } from '@/lib/api/endpoints';
+import { isRecord } from '@/lib/api/error';
 import { myUltaryPath } from '@/lib/mock/ultary-accounts';
+import type { BffEnvelope } from '@/types/api';
 import {
   clearPendingPetPhoto,
   getPendingPetPhoto,
@@ -27,6 +31,24 @@ export default function PetPhotoClient() {
   const defaultBackHref = myUltaryPath(nickname);
   const backHref = photo?.returnHref ?? defaultBackHref;
 
+  const uploadCroppedFile = async (blob: Blob, fileName: string) => {
+    const form = new FormData();
+    const name = fileName.trim() || 'pet-profile.png';
+    form.append('file', new File([blob], name, { type: blob.type || 'image/png' }));
+    const res = await fetch(bffEndpoints.files.root, {
+      method: 'POST',
+      body: form,
+      credentials: 'include',
+    });
+    const json = (await res.json().catch(() => null)) as BffEnvelope<unknown> | null;
+    const data = json?.data;
+    const fileId = isRecord(data) && typeof data.fileId === 'number' ? data.fileId : null;
+    if (!res.ok || !json?.success || fileId == null) {
+      throw new Error('프로필 사진을 업로드하지 못했습니다.');
+    }
+    return fileId;
+  };
+
   useEffect(() => {
     const pending = getPendingPetPhoto();
     if (!pending || (petId && pending.petId !== petId)) {
@@ -48,21 +70,11 @@ export default function PetPhotoClient() {
         return;
       }
 
-      console.log('[pet-photo] submit payload', {
-        petId: photo.petId,
-        fileName: photo.fileName,
-        mimeType: 'image/png',
-        originalMimeType: photo.mimeType,
-        sourceCrop: result.source,
-        displayCrop: result.display,
-        naturalSize: result.natural,
-        displaySize: result.displaySize,
-        blobSize: result.blob.size,
-        blobType: result.blob.type,
-        dataUrlPreview: `${result.dataUrl.slice(0, 64)}...`,
-        dataUrl: result.dataUrl,
-        blob: result.blob,
-      });
+      const fileId = await uploadCroppedFile(result.blob, photo.fileName);
+      await bffPatchJson<BffEnvelope<unknown>, { petId: string; profileFileId: number }>(
+        bffEndpoints.pets.detail,
+        { petId: photo.petId, profileFileId: fileId },
+      );
 
       clearPendingPetPhoto();
       router.push(backHref);

@@ -34,6 +34,10 @@ yarn-error.log*
 .env*
 !.env.local.example
 
+# MCP (DB 비밀번호). .env* 에 포함되지만 경로를 명시한다.
+mcp/mariadb/.env
+!mcp/mariadb/.env.example
+
 # vercel
 .vercel
 

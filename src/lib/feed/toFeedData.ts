@@ -1,10 +1,27 @@
-import type { FeedData } from '@/components/feed/Feed';
+import type { FeedData, FeedPhotoTag } from '@/components/feed/Feed';
 import { resolveFileDisplayUrl } from '@/lib/api/fileUrl';
 import { NO_PROFILE_SRC } from '@/lib/profileImage';
 import type { FeedDetailResponse } from '@/types/feed';
 import { isRecord } from '@/lib/api/error';
 
 const FALLBACK_POST = '/images/mock/post.jpg';
+
+function tagRatio(value: unknown): number | null {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return null;
+  const ratio = value > 1 ? value / 100 : value;
+  return Math.min(1, Math.max(0, ratio));
+}
+
+function readPhotoTags(media: unknown): FeedPhotoTag[] {
+  if (!isRecord(media) || !Array.isArray(media.mentions)) return [];
+  return media.mentions.flatMap((item) => {
+    if (!isRecord(item) || typeof item.petId !== 'number') return [];
+    const x = tagRatio(item.posX);
+    const y = tagRatio(item.posY);
+    if (x == null || y == null) return [];
+    return [{ petId: item.petId, x, y }];
+  });
+}
 
 /**
  * Spring 피드 단건 → UI FeedData.
@@ -46,16 +63,28 @@ export function toFeedData(raw: unknown, fallbackId: string): FeedData {
         detail.author?.profileFile,
     ) ?? NO_PROFILE_SRC;
 
-  const images =
-    detail.media
-      ?.map((m) => resolveFileDisplayUrl(m.file ?? m.thumbnailFile))
-      .filter((u): u is string => Boolean(u)) ?? [];
+  const slides = [...(detail.media ?? [])]
+    .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
+    .flatMap((media) => {
+      const src = resolveFileDisplayUrl(media.file ?? media.thumbnailFile);
+      if (!src) return [];
+      return [{ src, tags: readPhotoTags(media) }];
+    });
+
+  const images = slides.map((slide) => slide.src);
+  const photoTags = slides.map((slide) => slide.tags);
 
   const cover = resolveFileDisplayUrl(
     detail.coverFile ?? detail.coverThumbnailFile,
   );
-  if (cover && images.length === 0) images.push(cover);
-  if (images.length === 0) images.push(FALLBACK_POST);
+  if (cover && images.length === 0) {
+    images.push(cover);
+    photoTags.push([]);
+  }
+  if (images.length === 0) {
+    images.push(FALLBACK_POST);
+    photoTags.push([]);
+  }
 
   return {
     id: String(detail.feedId ?? fallbackId),
@@ -63,9 +92,11 @@ export function toFeedData(raw: unknown, fallbackId: string): FeedData {
     nickname,
     profileUrl,
     images,
+    photoTags,
     caption: detail.content?.trim() || '',
     likeCount: detail.likeCount ?? 0,
     commentCount: detail.commentCount ?? 0,
+    isFavorite: detail.likedByMe === true,
     isStored: detail.storedByMe === true,
   };
 }

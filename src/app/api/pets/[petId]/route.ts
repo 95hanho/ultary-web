@@ -8,7 +8,7 @@ import {
   readJsonBody,
   requireAccessToken,
 } from '@/lib/api/bffRoute';
-import { springDelete, springPatchForm } from '@/lib/api/springFetch';
+import { springDelete, springPatchJson } from '@/lib/api/springFetch';
 
 /** BFF /api/pets/[petId] — PATCH */
 export async function PATCH(
@@ -21,7 +21,7 @@ export async function PATCH(
     if (isUnauthorized(accessToken)) return accessToken;
     const { petId } = await params;
     const body = await readJsonBody(request);
-    const data = await springPatchForm(
+    const data = await springPatchJson(
       springEndpoints.pets.detail,
       { petId, ...body },
       bearer(accessToken),

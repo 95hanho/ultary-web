@@ -45,12 +45,22 @@
 | API | 필드 | 의미 |
 |-----|------|------|
 | `GET /main/stories/owners` | `hasUnviewed` | 그 유저 활성 스토리 중 **하나라도** 미열람 |
-| `GET /main/stories/owners` | `profileFile` | 소유자 프로필 `FileSummary`. 미등록이면 `null`. 스토리 미디어는 포함하지 않음 |
-| `GET /main/feeds` · `GET /feeds/{feedId}` | `authorProfileFile` | 작성자 프로필 `FileSummary`. 미등록이면 `null`. 게시글 `media[].file`과 별개 |
+| `GET /main/stories/owners` | `profileFile` | 소유자의 대표 펫 사진 `FileSummary`. 없으면 `null`. 스토리 미디어는 포함하지 않음 |
+| `GET /main/feeds` · `GET /feeds/{feedId}` | `authorProfileFile` | 작성자의 대표 펫 사진 `FileSummary`. 없으면 `null`. 게시글 `media[].file`과 별개 |
 | `GET /main/feeds/recommended` · `GET /main/search/recommended` | 피드 배열 | 나중에 추천 알고리즘 추가해야함. 지금은 조회 가능한 전체 피드를 최신순 `limit`건. 항목은 피드 단건과 동일 |
-| `GET /feeds/{id}/comments` · `.../replies` | `authorProfileFile` | 댓글·답글 작성자 프로필 `FileSummary`. 미등록이면 `null`. 인라인 `replies`에도 동일 |
-| `GET /main/stories?userNo=` · `GET /my-ultary/stories` | 각 항목 `viewedByMe` | **스토리 단건** 읽음 (`ultary_story_view`) |
-| `POST /stories/{storyId}/view` | — | 해당 `storyId`만 INSERT IGNORE (본인 스토리는 미기록) |
+| `GET /main/search/recent` | `items`(5), `nextCursorHistoryId` | 검색창을 열 때. 들어간 유저 울타리. `profileFile`은 대표 펫 사진, 없으면 null |
+| `GET /main/search/recent/more` | `items`(20), `nextCursorHistoryId` | `cursorHistoryId` = 직전 `nextCursorHistoryId`. 없으면 끝 |
+| `POST /main/search/recent` | `{ targetUserNo }` | 검색 후 그 울타리에 들어갈 때 저장. 같은 쌍은 `searched_at`만 갱신 |
+| `DELETE /main/search/recent` | data null | 최근 검색 모두 지우기. 탈퇴·차단으로 목록에 없던 행도 삭제 |
+| `GET /feeds/{id}/comments` · `.../replies` | `authorProfileFile` | 작성자의 대표 펫 사진 `FileSummary`. 없으면 `null`. 인라인 `replies`에도 동일 |
+| `GET /pets` | `priority` | 작을수록 우선. 목록은 이 순서, 같으면 petId. 유저 프로필 사진은 그중 사진 있는 첫 펫. **로그인한 나의 펫만** |
+| `PATCH /pets/{petId}` | `profileFileId` | 다른 파일로 바꾸거나 `removeProfileFile=true`면 이전 `ultary_file`을 삭제 표시(`is_deleted`, `deleted_at`). 다른 곳에서 쓰는 파일은 유지 |
+| `GET /users/{userNo}/pets` | 항목은 `GET /pets`와 동일 | 그 유저의 활성 펫. 정렬도 같다. 나의 `userNo`면 `GET /pets`와 같은 결과 |
+| `GET /my-ultary/feeds` | 그리드 항목 | **로그인한 나의** 게시글. `coverFile`, `coverThumbnailFile` |
+| `GET /users/{userNo}/feeds` | 항목은 `GET /my-ultary/feeds`와 동일 | 그 유저의 게시글 그리드. 쿼리 `limit` 또는 `size`. `PUBLIC` 조회 가능, `NEIGHBORS`는 ACCEPTED 이웃 또는 본인, `PRIVATE`는 본인만. 나의 `userNo`면 `GET /my-ultary/feeds`와 같은 결과 |
+| `GET /my-ultary` · `GET /users/{userNo}/ultary` | `hasStory`, `hasUnviewed` | 울타리 스토리 버튼. 없음 / 안읽음 / 다 읽음. 기준은 조회한 나. 본인 스토리 열람도 읽음에 포함. 프로필만 주고 펫·게시글 목록은 포함하지 않는다 |
+| `GET /main/stories?userNo=` · `GET /my-ultary/stories` | 각 항목 `viewedByMe` | **스토리 단건** 읽음 (`ultary_story_view`). 본인 스토리도 동일 |
+| `POST /stories/{storyId}/view` | — | 해당 `storyId`만 INSERT IGNORE. **본인 스토리도 기록** |
 
 **재생 순서 (FE)**  
 1. 응답 배열은 `created_at` ASC (서버 정렬 유지).  

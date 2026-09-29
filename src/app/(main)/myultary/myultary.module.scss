@@ -17,7 +17,7 @@
 
 .profileSection {
   position: relative;
-  padding: 8px 12px 12px;
+  padding: 8px 5px 12px;
   background: rgba(243, 254, 255, 0.92);
 }
 
@@ -160,7 +160,7 @@
   height: 148px;
   margin-top: 8px;
   border-radius: 15px;
-  background: rgb(129 207 240 / 50%);
+  background: #bfe7f880;
 }
 
 .petEmptyText {
@@ -193,7 +193,6 @@
 
 .petSwiper {
   width: 100%;
-  padding: 0 5px;
 }
 
 .petSlide {
@@ -400,6 +399,15 @@
 .feedSection {
   flex: 1;
   padding-top: 4px;
+}
+
+.feedEmpty {
+  margin: 48px 0 0;
+  color: var(--brand-gray-100);
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 1.4;
+  text-align: center;
 }
 
 .hiddenFileInput {

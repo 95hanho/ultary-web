@@ -5,20 +5,24 @@ import {
   handleBffError,
   isUnauthorized,
   ok,
+  queryParams,
   requireAccessToken,
 } from '@/lib/api/bffRoute';
-import { springPatchMultipart } from '@/lib/api/springFetch';
+import { springGet } from '@/lib/api/springFetch';
 
-/** BFF /api/my-ultary/profile-image — PATCH */
-export async function PATCH(request: NextRequest) {
-  console.log('[API] 프로필 사진 변경');
+/** BFF /api/users/[userNo]/feeds — GET */
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ userNo: string }> },
+) {
+  console.log('[API] 다른 유저 게시글 그리드');
   try {
     const accessToken = await requireAccessToken();
     if (isUnauthorized(accessToken)) return accessToken;
-    const formData = await request.formData();
-    const data = await springPatchMultipart(
-      springEndpoints.myUltary.profileImage,
-      formData,
+    const { userNo } = await params;
+    const data = await springGet(
+      springEndpoints.users.feeds,
+      { userNo, ...queryParams(request) },
       bearer(accessToken),
     );
     return ok(data);

@@ -2,7 +2,7 @@
 
 import type { SearchAccount } from '@/lib/mock/search';
 import { highlightMatch, sortPetTagsByMatch } from '@/lib/search/highlight';
-import Image from 'next/image';
+import { MediaImage } from '@/components/common/MediaImage';
 import styles from './AccountResultList.module.scss';
 
 type AccountResultListProps = {
@@ -38,7 +38,7 @@ export function AccountResultList({
                 aria-label={`${account.nickname} 선택`}
                 onClick={() => onSelectNickname(account)}
               >
-                <Image
+                <MediaImage
                   src={account.imageUrl}
                   alt=""
                   width={47}

@@ -125,7 +125,6 @@ export type UpdateMeRequest = {
   bio?: string | null;
   regionSido?: string | null;
   regionSigungu?: string | null;
-  profileFileId?: number | null;
 };
 
 /** GET /api/v1/auth/me 성공 data */
@@ -137,8 +136,7 @@ export type MeResponse = {
   hasPassword: boolean;
   email: string | null;
   phone: string | null;
-  profileFileId: number | null;
-  /** 읽기 임베드 — share FileSummary */
+  /** 대표 펫 사진. 유저 컬럼이 아니며, 없으면 null */
   profileFile?: FileSummary | null;
   bio: string | null;
   regionSido: string | null;

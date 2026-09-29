@@ -106,15 +106,14 @@ share `API_CONTRACT` / `api-memo` 참고. 피드·스토리 상세·프로필·�
 | GET | `/api/my-ultary/feeds/:feedId` | `/api/v1/my-ultary/feeds/:feedId` | ✅ | 🚧 |
 | GET | `/api/my-ultary/saved-feeds` | `/api/v1/my-ultary/saved-feeds` | ✅ | 🚧 |
 | GET | `/api/my-ultary/tagged-feeds` | `/api/v1/my-ultary/tagged-feeds` | ✅ | 🚧 |
-| PATCH | `/api/my-ultary/profile-image` | `/api/v1/my-ultary/profile-image` | ✅ | 🚧 |
 | PATCH | `/api/my-ultary/bio` | `/api/v1/my-ultary/bio` | ✅ | 🚧 |
 | GET | `/api/my-ultary/stories` | `/api/v1/my-ultary/stories` | ✅ | ✅ |
 | POST | `/api/my-ultary/stories` | `/api/v1/my-ultary/stories` | ✅ | ✅ |
 | DELETE | `/api/my-ultary/stories/:storyId` | `/api/v1/my-ultary/stories/:storyId` | ✅ | ✅ |
 | POST | `/api/stories/:storyId/view` | `/api/v1/stories/:storyId/view` | ✅ | ✅ |
 
-스토리 읽음: `ultary_story_view` INSERT IGNORE. 본인 스토리는 미기록.  
-owners의 `hasUnviewed`는 이 뷰 테이블 기준.
+스토리 읽음: `ultary_story_view` INSERT IGNORE. 본인 스토리도 기록한다.  
+울타리 스토리 버튼은 `hasStory` + `hasUnviewed` (없음 / 안읽음 / 다 읽음). 내 울타리·다른 사람 울타리 동일.
 
 ---
 
@@ -128,6 +127,9 @@ owners의 `hasUnviewed`는 이 뷰 테이블 기준.
 | DELETE | `/api/pets/:petId` | `/api/v1/pets/:petId` | ✅ | 🚧 |
 | POST | `/api/pets/tags/:feedPetId/approve` | `/api/v1/pets/tags/:feedPetId/approve` | ✅ | 🚧 |
 | POST | `/api/pets/tags/:feedPetId/reject` | `/api/v1/pets/tags/:feedPetId/reject` | ✅ | 🚧 |
+
+`priority`는 작을수록 우선(1이 가장 높음). 목록은 이 순서, 같으면 petId.  
+유저로 보이는 프로필 사진은 유저 컬럼이 아니라, 사진 있는 펫 중 priority가 가장 높은 `profileFile`. 변경은 `PATCH /api/pets/:petId`의 `profileFileId`·`priority`.
 
 ---
 
@@ -172,6 +174,8 @@ owners의 `hasUnviewed`는 이 뷰 테이블 기준.
 | Method | BFF | Spring | Auth | 상태 |
 |--------|-----|--------|------|------|
 | GET | `/api/users/:userNo/ultary` | `/api/v1/users/:userNo/ultary` | ✅ | 🚧 |
+| GET | `/api/users/:userNo/pets` | `/api/v1/users/:userNo/pets` | ✅ | ✅ |
+| GET | `/api/users/:userNo/feeds` | `/api/v1/users/:userNo/feeds` | ✅ | ✅ |
 | GET | `/api/users/:userNo/neighbors?type=` | `/api/v1/users/:userNo/neighbors` | ✅ | 🚧 |
 | POST | `/api/users/:userNo/neighbors/request` | `/api/v1/users/:userNo/neighbors/request` | ✅ | 🚧 |
 | POST | `/api/neighbors/:neighborId/accept` | `/api/v1/neighbors/:neighborId/accept` | ✅ | 🚧 |

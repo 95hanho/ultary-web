@@ -1,5 +1,3 @@
-import { getUltaryAccount } from '@/lib/mock/ultary-accounts';
-import { notFound } from 'next/navigation';
 import MyUltaryClient from '../MyUltaryClient';
 
 type PageProps = {
@@ -8,8 +6,6 @@ type PageProps = {
 
 export default async function MyUltaryNicknamePage({ params }: PageProps) {
   const { nickname } = await params;
-  const account = getUltaryAccount(nickname);
-  if (!account) notFound();
-
-  return <MyUltaryClient nickname={nickname} />;
+  const decoded = decodeURIComponent(nickname);
+  return <MyUltaryClient nickname={decoded} />;
 }

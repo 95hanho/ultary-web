@@ -7,6 +7,68 @@ validation · database · docs 모두 **여기 한곳**에 적는다.
 
 ---
 
+## 2026-09-29 14:28
+
+### API · 펫 프로필 사진 교체 시 이전 파일 삭제 표시
+- `PATCH /api/v1/pets/{petId}`에서 `profileFileId`를 다른 파일로 바꾸거나 `removeProfileFile=true`이면, 빠지는 이전 `ultary_file`을 `is_deleted=1`, `deleted_at=NOW()`로 표시
+- 그 파일이 다른 활성 펫, 피드 미디어, 스토리, 태그 이미지에 아직 연결되어 있으면 행은 유지
+- 새 파일 행은 기존처럼 `POST /api/v1/files`로 만든 뒤 `profileFileId`로 연결
+
+## 2026-09-29 11:40
+
+### API · 다른 사람 울타리의 펫 · 게시글 목록
+- `GET /api/v1/users/{userNo}/pets` — 그 유저의 펫 목록. 항목·정렬은 `GET /pets`와 같다 (`priority` 오름차순, 같으면 petId)
+- `GET /api/v1/users/{userNo}/feeds` — 그 유저의 게시글 그리드. 항목·쿼리(`size`)는 `GET /my-ultary/feeds`와 같다
+- `GET /pets`, `GET /my-ultary/feeds`는 계속 **로그인한 나**만 반환한다. 다른 사람 울타리에서 이 둘을 쓰면 안 된다
+- 게시글 공개: `PUBLIC`은 조회 가능, `NEIGHBORS`는 ACCEPTED 이웃(또는 본인)만, `PRIVATE`는 그 `userNo` 본인만. 삭제 글은 제외
+- 상대가 나를 차단했거나 내가 상대를 차단했으면 울타리 조회와 같이 `USER_BLOCKED`
+- 경로의 `userNo`가 나 자신이면 각각 `GET /pets`, `GET /my-ultary/feeds`와 같은 결과
+
+## 2026-09-29 10:33
+
+### API · 울타리 스토리 버튼 (없음 / 안읽음 / 다 읽음)
+- 대상: `GET /api/v1/my-ultary`, `GET /api/v1/users/{userNo}/ultary`
+- 둘 다 `hasStory`, `hasUnviewed`를 준다. 기준은 **지금 로그인한 사람**
+- `hasStory`: 그 울타리 주인의 활성 스토리가 1개라도 있으면 true. 없으면 false
+- `hasUnviewed`: 그 활성 스토리 중 내가 안 읽은 것이 1개라도 있으면 true. 스토리가 없으면 false
+- 버튼: `hasStory=false` → 없음. `hasStory=true && hasUnviewed=true` → 안읽음. `hasStory=true && hasUnviewed=false` → 다 읽음
+- 내 울타리도 같다. 내가 내 스토리를 봤는지로 안읽음/다 읽음을 가른다
+- `POST /api/v1/stories/{storyId}/view`는 **본인 스토리도** `ultary_story_view`에 기록한다 (`INSERT IGNORE`). 기록하지 않으면 내 버튼이 다 읽음이 될 수 없다
+- `GET /my-ultary/stories` · `GET /main/stories`의 `viewedByMe`도 본인 스토리에 같은 기록을 반영한다
+
+## 2026-09-29 09:50
+
+### schema v11 · 프로필 사진은 대표 펫
+- `ultary_user.profile_file_id` 제거. 유저 전용 프로필 사진 없음
+- `ultary_pet.priority` 추가. 작을수록 우선, 1이 가장 높음
+- 화면의 유저 프로필 사진 = 활성 펫 중 `profile_file_id`가 있는 것 가운데 priority가 가장 높은 펫. 같으면 `pet_id`가 작은 쪽. 없으면 null
+- 펫 목록(`GET /pets`)은 priority 오름차순, 그다음 petId
+- 등록 시 priority 생략하면 맨 뒤. 수정은 `PATCH /pets/{petId}` `{ priority }`
+- `PATCH /my-ultary/profile-image` 제거. 사진은 펫 `profileFileId`로 바꿈
+- 기존 DB: `005_pet_priority_profile.sql`
+
+## 2026-09-29 09:32
+
+### API · 최근 검색 모두 지우기
+- `DELETE /api/v1/main/search/recent` — 내 최근 검색 행 전부 삭제
+- 목록에서 빠진 탈퇴·차단 대상도 함께 지움. 응답 data는 null
+
+## 2026-09-29 09:14
+
+### API · 최근 검색 (들어간 유저 울타리)
+- `GET /api/v1/main/search/recent` — 검색창을 열면 5건. `nextCursorHistoryId`
+- `GET /api/v1/main/search/recent/more?cursorHistoryId=` — 더보기 20건
+- `POST /api/v1/main/search/recent` `{ targetUserNo }` — 그 울타리에 들어갈 때 저장. 재방문은 `searched_at` 갱신
+- 항목: `userNo`, `nickname`, `profileFile`(없으면 null)
+
+## 2026-09-29 09:11
+
+### schema v10 · 최근 검색은 유저 울타리만
+- `ultary_user_search_history`에서 `search_type`, `target_pet_id`, `target_tag_id`, `keyword` 제거
+- 남기는 것: 누가(`user_no`) 누구 울타리(`target_user_no`)에 들어갔는지, `searched_at`
+- 같은 쌍은 1행. 다시 들어가면 `searched_at`만 갱신
+- 기존 DB: `004_search_history_user_only.sql`
+
 ## 2026-09-28 17:16
 
 ### API · 추천 게시글 (임시)

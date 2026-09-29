@@ -17,6 +17,7 @@ export type Feed = {
 /** 피드 상세·타임라인 읽기 응답 (media 임베드) */
 export type FeedDetailResponse = Feed & {
   media?: FeedMediaFileEmbed[];
+  /** 작성자의 대표 펫 사진. 없으면 null */
   authorProfileFile?: FileSummary | null;
   /** 작성자 프로필. owners와 같이 `profileFile`로 올 수도 있음 */
   profileFile?: FileSummary | null;
@@ -25,6 +26,8 @@ export type FeedDetailResponse = Feed & {
   authorNickname?: string | null;
   /** 현재 로그인 유저가 이 게시글을 저장했는지 */
   storedByMe?: boolean;
+  /** 현재 로그인 유저가 이 게시글을 좋아요 했는지 */
+  likedByMe?: boolean;
 } & FeedCoverFileEmbed;
 
 /** 피드 그리드 읽기 응답 */

@@ -57,7 +57,7 @@ const data = await springPostJson(springEndpoints.auth.login, body);
 await springPostForm(springEndpoints.feeds.root, { content: '...' }, headers);
 
 // 파일 업로드
-await springPostFormData(springEndpoints.myUltary.profileImage, { file }, headers);
+await springPostMultipart(springEndpoints.files.root, formData, headers);
 ```
 
 ### Path parameter

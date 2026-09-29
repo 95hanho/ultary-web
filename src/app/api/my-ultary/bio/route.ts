@@ -8,7 +8,7 @@ import {
   readJsonBody,
   requireAccessToken,
 } from '@/lib/api/bffRoute';
-import { springPatchForm } from '@/lib/api/springFetch';
+import { springPatchJson } from '@/lib/api/springFetch';
 
 /** BFF /api/my-ultary/bio — PATCH */
 export async function PATCH(request: NextRequest) {
@@ -17,9 +17,9 @@ export async function PATCH(request: NextRequest) {
     const accessToken = await requireAccessToken();
     if (isUnauthorized(accessToken)) return accessToken;
     const body = await readJsonBody(request);
-    const data = await springPatchForm(
+    const data = await springPatchJson(
       springEndpoints.myUltary.bio,
-      body,
+      { bio: body.bio },
       bearer(accessToken),
     );
     return ok(data);

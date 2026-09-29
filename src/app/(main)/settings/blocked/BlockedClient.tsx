@@ -4,7 +4,7 @@ import { FooterMenu } from '@/components/common/FooterMenu';
 import { PageHeader } from '@/components/common/PageHeader';
 import { OTHER_NICKNAME, myUltaryPath } from '@/lib/mock/ultary-accounts';
 import clsx from 'clsx';
-import Image from 'next/image';
+import { MediaImage } from '@/components/common/MediaImage';
 import Link from 'next/link';
 import { useState } from 'react';
 import styles from './blocked.module.scss';
@@ -79,7 +79,7 @@ export default function BlockedClient() {
                     className={styles.imageWrap}
                     aria-label={`${item.nickname} 울타리`}
                   >
-                    <Image
+                    <MediaImage
                       src={item.profileUrl}
                       alt=""
                       width={39}

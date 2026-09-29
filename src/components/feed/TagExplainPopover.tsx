@@ -3,7 +3,7 @@
 import type { TagExplain } from '@/lib/mock/tags';
 import clsx from 'clsx';
 import { X } from 'lucide-react';
-import Image from 'next/image';
+import { MediaImage } from '@/components/common/MediaImage';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import styles from './TagExplainPopover.module.scss';
@@ -215,7 +215,7 @@ export function TagExplainPopover({
         </div>
 
         <div className={styles.body}>
-          <Image
+          <MediaImage
             src={data.imageUrl}
             alt=""
             width={200}

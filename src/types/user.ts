@@ -11,8 +11,7 @@ export type User = {
   isDefaultNickname: Flag;
   email: string | null;
   phone: string | null;
-  profileFileId: number | null;
-  /** 읽기 응답 임베드 */
+  /** 대표 펫 사진. 유저 컬럼이 아니며, 없으면 null */
   profileFile?: FileSummary | null;
   bio: string | null;
   regionSido: string | null;
