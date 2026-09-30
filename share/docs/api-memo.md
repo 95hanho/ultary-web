@@ -81,6 +81,9 @@ BFF: `/api/...` · Spring: `/api/v1/...`
 | 최근 검색 더보기 20건 | GET | `/api/main/search/recent/more?cursorHistoryId=` | `/api/v1/main/search/recent/more?cursorHistoryId=` | 구현 |
 | 최근 검색 저장 | POST | `/api/main/search/recent` | `/api/v1/main/search/recent` | 구현 |
 | 최근 검색 모두 지우기 | DELETE | `/api/main/search/recent` | `/api/v1/main/search/recent` | 구현 |
+| 최근 펫 태그 20건 | GET | `/api/main/pet-tags/recent` | `/api/v1/main/pet-tags/recent` | 구현 |
+| 최근 펫 태그 저장 | POST | `/api/main/pet-tags/recent` | `/api/v1/main/pet-tags/recent` | 구현 |
+| 최근 펫 태그 모두 지우기 | DELETE | `/api/main/pet-tags/recent` | `/api/v1/main/pet-tags/recent` | 구현 |
 
 > 스토리 소유자 목록 = 내가 팔로우(`requester` ACCEPTED)한 유저 중 활성 스토리 보유자. `hasUnviewed`는 `ultary_story_view` 기준(안 읽은 링). **미열람(`hasUnviewed=true`) 먼저**, 그다음 최신 스토리 순.  
 > **프로필**: 항목마다 `profileFile` (`FileSummary | null`). 유저 전용 사진이 아니라, 그 유저의 활성 펫 중 사진이 있는 것 가운데 `priority`가 가장 높은 펫 사진. 없으면 `null`. 스토리 미디어(`file`)는 넣지 않음 — 링 탭 시 `GET /main/stories?userNo=`.  
@@ -89,10 +92,15 @@ BFF: `/api/...` · Spring: `/api/v1/...`
 > 메인 피드: 본인 + 주민 게시글. `PUBLIC` / 본인 / `NEIGHBORS`(ACCEPTED). 차단 쌍 제외. 커서 `cursorFeedId` + `nextCursorFeedId`.  
 > **추천 게시글** (`/main/feeds/recommended`, `/main/search/recommended`): 나중에 추천 알고리즘 추가해야함. 지금은 조회 가능한 전체 피드(공개·본인·이웃공개, 차단 제외)를 최신순 `limit`건(기본 10, 최대 20). 응답은 피드 단건과 같은 `FeedResponse` 배열. 주민 타임라인과 별개.  
 > **작성자 프로필**: 항목마다 `authorProfileFile` (`FileSummary | null`). 작성자의 대표 펫 사진. 없으면 `null`. 게시글 사진(`media[].file`)과 별개. 단건 `GET /feeds/{feedId}`도 동일.  
-> 검색 `type`: `ALL`(기본) \| `USER` \| `PET` \| `TAG` \| `FEED`. `@`/`#` 접두는 서버에서 제거. URL 쿼리에서는 `#`를 `%23`, `@`를 `%40`로 인코딩해야 함(`#`는 fragment라 미인코딩 시 `q`/`type`이 잘림). 차단 유저·펫 제외.  
+> 검색 `type`: `ALL`(기본) \| `USER` \| `PET` \| `TAG` \| `FEED`. `@`/`#` 접두는 서버에서 제거. URL 쿼리에서는 `#`를 `%23`, `@`를 `%40`로 인코딩해야 함(`#`는 fragment라 미인코딩 시 `q`/`type`이 잘림). 차단 유저·펫 제외. **로그인한 본인 계정도 제외.** `users[]`에서 내 `userNo`를 빼고, `pets[]`에서 보호자가 나인 펫을 뺀다. `type=USER`(검색 페이지)와 `type=PET`(사진 태그·스토리 `@`)와 `type=ALL` 모두 같다. `PET`는 `mention_id`, 펫 이름, 보호자 닉네임. 스토리 `@`·사진 태그 후보도 이 검색으로 `petId`를 고른다.  
+> **`pets[]`에 보호자 닉네임**: 각 펫에 `ownerNickname`(문자열). `userNo`는 보호자. 멘션명만 맞아도 닉네임이 있어야 목록에 `닉네임` + `@mentionId`를 같이 그린다. 없으면 펫 이름만 남는다.  
 > **최근 검색**: 검색어가 아니라, 검색 후 들어간 유저 울타리. 검색창을 열면 `GET /main/search/recent` 5건(`items`, `nextCursorHistoryId`). 더보기는 그 커서로 `GET /main/search/recent/more?cursorHistoryId=` 20건. 또 남으면 응답 커서로 반복. `null`이면 끝. 항목은 `userNo`(울타리 주인), `nickname`, `profileFile`(대표 펫 사진, 없으면 null), `searchedAt`. 탈퇴·차단 유저는 목록에서 빠짐.  
 > **저장**: 그 울타리에 들어갈 때 `POST /main/search/recent` `{ "targetUserNo" }`. 같은 울타리는 새 행 없이 `searched_at`만 갱신. 없는 유저 404, 차단 403.  
 > **모두 지우기**: `DELETE /main/search/recent`. 내 행을 전부 삭제한다. 목록에 안 나오던 탈퇴·차단 대상도 포함. 응답 `data`는 null.  
+> **최근 펫 태그** (`/main/pet-tags/recent`): 스토리 `@`와 사진 태그 모달의 「최근 태그」. **검색 최근 울타리와 다른 테이블**(`ultary_user_pet_tag_history`). `POST /main/search/recent`를 여기서 호출하지 않는다. 검색창 최근 목록에도 이 펫이 나오면 안 된다.  
+> **목록**: 모달을 열면 `GET /main/pet-tags/recent`. `items` 최대 20, `usedAt` 내림차순. 커서 없음. 항목은 `petId`, `mentionId`, `name`, `userNo`(보호자), `ownerNickname`, `profileFile`(그 펫 사진, 없으면 null), `usedAt`. 비활성·삭제 펫, 탈퇴 보호자, 차단(내가 막음/상대가 막음)은 목록에서 뺀다.  
+> **저장**: 멘션을 고를 때 `POST /main/pet-tags/recent` `{ "petId" }`. 같은 펫은 새 행 없이 `used_at`만 갱신. 없는 펫·비활성 펫 404, 차단 403.  
+> **모두 지우기**: `DELETE /main/pet-tags/recent`. 내 행을 전부 삭제한다. 목록에 안 나오던 펫도 포함. 응답 `data`는 null.  
 > **미디어 URL**: 피드·스토리 상세·프로필 등 읽기 응답에 `fileId`와 함께 `FileSummary` 임베드. `filePath`는 상대경로(`images/…`) 또는 CDN 절대 URL. `/main/stories/owners`는 스토리 미디어 없이 **`profileFile`만** 임베드. `/main/feeds` 항목은 게시글 `media[].file`과 함께 작성자 **`authorProfileFile`**.  
 > HTTP: `requests/story.http`, `requests/main.http`
 
@@ -115,8 +123,9 @@ BFF: `/api/...` · Spring: `/api/v1/...`
 
 > 주민 = 팔로잉(`requester` ACCEPTED), 이웃 = 팔로워(`receiver` ACCEPTED).  
 > 스토리: IMAGE\|VIDEO, `expires_at = created_at + 24h`. 읽음은 **스토리 단건** (`ultary_story_view`: `story_id`+`viewer_user_no`). 본인 스토리도 `POST /stories/{storyId}/view`로 기록한다. 목록 응답 `viewedByMe`.  
+> **스토리 위 글자·멘션**: `POST /my-ultary/stories`의 `texts`, `mentions`. 조회(`GET /my-ultary/stories`, `GET /main/stories`)에도 같은 배열. `texts[]`: `content`(200자), `fontSize`(12\|16\|20\|24, 기본 16), `bold`, `underline`, `strikethrough`, `color`(`#RRGGBB`), `posX`/`posY`(0~100). `mentions[]`: `petId`(활성 펫), `posX`/`posY`. 응답 멘션은 `mentionId`, `petName` 포함. 후보 검색은 `GET /main/search?type=PET&q=` (닉네임·mention_id·펫 이름). 고른 펫은 `POST /main/pet-tags/recent`. 각 최대 20개. 배열 순서가 위아래.  
 > **스토리 버튼**: `hasStory`, `hasUnviewed`. 기준은 조회한 나. `hasStory=false`면 없음, `hasUnviewed=true`면 안읽음, 스토리는 있는데 `hasUnviewed=false`면 다 읽음. 다른 사람 울타리(`GET /users/{userNo}/ultary`)도 같은 두 필드.  
-> tagged-feeds: 내 펫 `COLLABORATOR` 또는 사진 `@` 멘션된 게시글.  
+> tagged-feeds: 다른 사람이 내 펫을 `COLLABORATOR`로 넣거나 사진에 `@` 멘션한 글. 내가 쓴 글은 제외.  
 > **프로필 사진**: `profileFile`은 유저 컬럼이 아니다. 활성 펫 중 사진이 있는 것 가운데 `priority`가 가장 높은 펫. `PATCH /my-ultary/profile-image`는 제거. 사진은 `PATCH /pets/{petId}`의 `profileFileId`, 순서는 `priority`.  
 > `GET /my-ultary/feeds`는 **로그인한 나의** 그리드다. 다른 사람 게시글 그리드는 `GET /users/{userNo}/feeds`.  
 > HTTP: `requests/my-ultary.http` (시드 user 101 / `google-myultary-test-001`)
@@ -252,19 +261,32 @@ BFF: `/api/...` · Spring: `/api/v1/...`
 
 ## 10. 알림
 
-| 기능 | Method | BFF |
-|------|--------|-----|
-| 알림 목록 조회 | GET | `/api/notifications` |
-| 알림 단건 읽음 | PATCH | `/api/notifications/:notificationId/read` |
-| 알림 전체 읽음 | POST | `/api/notifications/read-all` |
+| 기능 | Method | BFF | Spring | 상태 |
+|------|--------|-----|--------|------|
+| 알림 목록 조회 | GET | `/api/notifications` | `/api/v1/notifications` | 구현 |
+| 알림 단건 읽음 | PATCH | `/api/notifications/:notificationId/read` | `/api/v1/notifications/{notificationId}/read` | 구현 |
+| 알림 전체 읽음 | POST | `/api/notifications/read-all` | `/api/v1/notifications/read-all` | 구현 |
+| 스토리 공감 | POST | `/api/stories/:storyId/like` | `/api/v1/stories/{storyId}/like` | 구현 |
+| 스토리 공감 취소 | DELETE | `/api/stories/:storyId/like` | `/api/v1/stories/{storyId}/like` | 구현 |
 
-### 알림 타입 (참고)
+목록 `data`: `unreadCount`, `items`(기본 30, 최대 50, 쿼리 `limit`). 정렬은 마지막 행위 시각 내림차순. 항목: `type`, `message`, `actorUserNo`, `actorNickname`, `actorProfileFile`(대표 펫 사진, 없으면 null), `actorCount`, `snippet`(텍스트 일부, 최대 40자, 없으면 null), 이동용 `feedId` / `feedCommentId` / `feedReplyId` / `storyId` / `neighborId`, `neighborStatus`, `read`, `updatedAt`. `hasComment`·`hasReply`는 댓글·답글 통합 행만 의미 있다.
 
-- 게시글 좋아요
-- 게시글 태그됨
-- 스토리 좋아요
-- 울타리 주민 요청
-- (스키마) 댓글·답글·멘션·주민 수락·공동작성(FEED_COLLABORATOR)·시스템 등
+같은 대상은 알림 1행이다. `actorCount`가 2 이상이면 `message`는 «닉네임님 외 N명». 새 행위가 있으면 안 읽음으로 되돌리고 목록 맨 위로 올린다. 본인 행위, 탈퇴한 행위자, 서로 차단, 삭제된 게시글·스토리는 빠진다. 이웃 신청의 수락 버튼은 `neighborStatus=PENDING`일 때만. 수락 API는 기존 `POST /neighbors/{neighborId}/accept`.
+
+| type | 생기는 때 | 모이는 단위 | 이동 |
+|------|-----------|-------------|------|
+| `NEIGHBOR_REQUEST` | 다른 유저가 나에게 이웃 신청 | 요청 1건 | `neighborId` |
+| `FEED_LIKE` | 내 게시글 좋아요 | 그 게시글의 좋아요 | `feedId`. `snippet`은 본문 |
+| `COMMENT_LIKE` | 내 댓글 좋아요 | 그 댓글의 좋아요 | `feedId`, `feedCommentId`. `snippet`은 댓글 |
+| `REPLY_LIKE` | 내 답글 좋아요 | 그 답글의 좋아요 | `feedId`, `feedCommentId`, `feedReplyId`. `snippet`은 답글 |
+| `FEED_COMMENT` | 내 게시글에 댓글 또는 답글 | 그 게시글의 댓글·답글 전부 | 최신 글의 `feedId`·`feedCommentId`·(답글이면) `feedReplyId`. `snippet`은 최신 글로 덮어씀. 댓글만 / 답글만 / 둘 다에 따라 `message`가 «게시글에 댓글을» · «댓글에 답글을» · «댓글, 답글을» |
+| `COMMENT_MENTION` | 댓글에서 나 또는 내 펫 언급 | 그 댓글 | `feedId`, `feedCommentId` |
+| `REPLY_MENTION` | 답글에서 나 또는 내 펫 언급 | 그 답글 | `feedId`, `feedCommentId`, `feedReplyId` |
+| `FEED_TAG` | 게시글 사진 태그 또는 등장 펫이 내 펫 | 그 게시글·나 | `feedId`. `snippet`은 본문 |
+| `STORY_TAG` | 스토리 `@`가 내 펫 | 그 스토리·나 | `storyId`. `snippet`은 캡션, 없으면 첫 글자 |
+| `STORY_LIKE` | 내 스토리 공감 | 그 스토리의 공감 | `storyId` |
+
+웹소켓은 아직 없다. 목록을 다시 조회하면 배지(`unreadCount`)와 문구를 맞춘다.
 
 ---
 
@@ -305,11 +327,14 @@ HTTP: `requests/test.http`
 - 코드 상수: `src/lib/api/endpoints.ts` (`bffEndpoints` / `springEndpoints`)
 - BFF 스켈레톤: `src/app/api/**/route.ts`
 - REST Client 틀: `http/bff.http` (프론트) · Spring: `requests/*.http`
-- DB 스키마: `share/database/schema/mariadb_10_1/001_init_schema.sql` (**schema_version 11**)
+- DB 스키마: `share/database/schema/mariadb_10_1/001_init_schema.sql` (**schema_version 14**)
   - 기존 DB v7→v8: `002_file_source_attribution.sql`
   - 기존 DB v8→v9: `003_comment_reply_like.sql`
   - 기존 DB v9→v10: `004_search_history_user_only.sql` (최근 검색 = 들어간 유저 울타리만)
   - 기존 DB v10→v11: `005_pet_priority_profile.sql` (펫 priority, 유저 profile_file_id 제거)
+  - 기존 DB v11→v12: `006_story_overlay.sql` (스토리 글자·펫 멘션)
+  - 기존 DB v12→v13: `007_recent_pet_tag.sql` (사진·스토리 최근 펫 태그. 검색 최근 울타리와 별도)
+  - 기존 DB v13→v14: `008_notification.sql` (알림 집계, 스토리 공감)
   - `ultary_file` 출처: `source_type`(OWNED|UNSPLASH|AI|ETC), `author_name`, `source_url`, `license_url`, `copyright_notice`
 - 로컬 시드(선택): `share/database/seed/mariadb_10_1/001_dev_sample_data.sql`  
   - 스키마 직후 실행. **재실행 가능**(CLEANUP 후 INSERT). 운영/최종 배포에서는 실행하지 않음.  
@@ -363,7 +388,8 @@ HTTP: `requests/test.http`
 | 1-10 | MyUltary + Story (스키마 v7) | HTTP 스모크 테스트함. **최종 E2E는 별도 재검증 예정** |
 | 1-11 | Neighbor (+ block, NEIGHBORS 피드 가시성) | 스모크 테스트함. 시드 user 5·pet 1~2. HTTP `neighbor.http` |
 | 1-12 | Main feeds/search | 타임라인 커서 + 통합 검색. HTTP `main.http` |
-| 다음 | DM·알림 등 | 미착수 |
+| 1-13 | 알림 저장·목록, 스토리 공감 | 화면 10종. 웹소켓은 아직 없음 |
+| 다음 | DM, 알림 웹소켓 | 미착수 |
 
 파일 업로드 상대경로: `images/{uuid}.ext`, `videos/{uuid}.ext` (`UPLOAD_DIR`).  
 시드 CDN·임베드 요약은 위 **FileSummary** 절 참고.

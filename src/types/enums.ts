@@ -28,13 +28,20 @@ export type FeedVisibility = 'PUBLIC' | 'NEIGHBORS' | 'PRIVATE';
 /** ultary_feed_pet.status */
 export type FeedPetStatus = 'APPROVED' | 'PENDING' | 'REJECTED';
 
-/** ultary_notification.type */
+/** ultary_notification.type — share 알림 목록 */
 export type NotificationType =
+  | 'NEIGHBOR_REQUEST'
   | 'FEED_LIKE'
+  | 'COMMENT_LIKE'
+  | 'REPLY_LIKE'
   | 'FEED_COMMENT'
+  | 'COMMENT_MENTION'
+  | 'REPLY_MENTION'
+  | 'FEED_TAG'
+  | 'STORY_TAG'
+  | 'STORY_LIKE'
   | 'FEED_REPLY'
   | 'MENTION'
-  | 'NEIGHBOR_REQUEST'
   | 'NEIGHBOR_ACCEPTED'
   | 'PET_TAG_REQUEST'
   | 'PET_TAG_APPROVED'

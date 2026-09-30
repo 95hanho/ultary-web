@@ -7,7 +7,6 @@ import { isHttpError } from '@/lib/api/error';
 import {
   filterCode,
   filterEmail,
-  filterNickname,
   filterPhone,
   MSG,
   validateEmail,
@@ -69,6 +68,42 @@ function FieldNote({ children }: { children: string }) {
   return <p className={styles.fieldNote}>* {children}</p>;
 }
 
+type ProfileSnapshot = {
+  nickname: string;
+  email: string;
+  phone: string;
+  regionSido: string;
+  regionSigungu: string;
+};
+
+const INITIAL_PROFILE: ProfileSnapshot = {
+  nickname: MOCK_MY_PROFILE.nickname,
+  email: MOCK_MY_PROFILE.email,
+  phone: MOCK_MY_PROFILE.phone,
+  regionSido: MOCK_MY_PROFILE.regionSido,
+  regionSigungu: MOCK_MY_PROFILE.regionSigungu,
+};
+
+function regionPayload(sido: string, sigungu: string) {
+  const disabled = isSigunguDisabled(sido);
+  return {
+    regionSido: sido === REGION_NONE ? null : sido,
+    regionSigungu: disabled || sigungu === REGION_NONE ? null : sigungu,
+  };
+}
+
+function isSameProfile(current: ProfileSnapshot, initial: ProfileSnapshot) {
+  const currentRegion = regionPayload(current.regionSido, current.regionSigungu);
+  const initialRegion = regionPayload(initial.regionSido, initial.regionSigungu);
+  return (
+    current.nickname.trim() === initial.nickname.trim() &&
+    current.email.trim() === initial.email.trim() &&
+    current.phone === initial.phone &&
+    currentRegion.regionSido === initialRegion.regionSido &&
+    currentRegion.regionSigungu === initialRegion.regionSigungu
+  );
+}
+
 /** 설정 > 마이페이지 > 회원정보 수정 */
 export default function MyPageEditClient() {
   const router = useRouter();
@@ -81,7 +116,7 @@ export default function MyPageEditClient() {
   const [code, setCode] = useState('');
   const [regionSido, setRegionSido] = useState(MOCK_MY_PROFILE.regionSido);
   const [regionSigungu, setRegionSigungu] = useState(MOCK_MY_PROFILE.regionSigungu);
-  const [initialPhone, setInitialPhone] = useState(MOCK_MY_PROFILE.phone);
+  const [initialProfile, setInitialProfile] = useState<ProfileSnapshot>(INITIAL_PROFILE);
 
   const [phoneAuthToken, setPhoneAuthToken] = useState('');
   const [phoneAuthCompleteToken, setPhoneAuthCompleteToken] = useState('');
@@ -107,13 +142,20 @@ export default function MyPageEditClient() {
         const res = await bffGet<BffEnvelope<MeResponse>>(bffEndpoints.auth.me);
         const me = res.data;
         if (!me || cancelled) return;
-        setNickname(me.nickname);
-        setEmail(me.email ?? '');
         const phoneDigits = me.phone?.replace(/\D/g, '') ?? '';
-        setPhone(phoneDigits);
-        setInitialPhone(phoneDigits);
-        setRegionSido(me.regionSido?.trim() || REGION_NONE);
-        setRegionSigungu(me.regionSigungu?.trim() || REGION_NONE);
+        const nextProfile: ProfileSnapshot = {
+          nickname: me.nickname,
+          email: me.email ?? '',
+          phone: phoneDigits,
+          regionSido: me.regionSido?.trim() || REGION_NONE,
+          regionSigungu: me.regionSigungu?.trim() || REGION_NONE,
+        };
+        setNickname(nextProfile.nickname);
+        setEmail(nextProfile.email);
+        setPhone(nextProfile.phone);
+        setRegionSido(nextProfile.regionSido);
+        setRegionSigungu(nextProfile.regionSigungu);
+        setInitialProfile(nextProfile);
         setPhoneVerified(true);
         setPhoneAuthCompleteToken(DEV_PHONE_AUTH_COMPLETE_TOKEN);
       } catch (err) {
@@ -226,10 +268,23 @@ export default function MyPageEditClient() {
     setFormError(null);
     setInfoMessage(null);
 
+    const current: ProfileSnapshot = {
+      nickname,
+      email,
+      phone,
+      regionSido,
+      regionSigungu,
+    };
+    if (isSameProfile(current, initialProfile)) {
+      router.push('/settings/mypage');
+      return;
+    }
+
     const next: FieldErrors = {};
-    if (!nickname.trim()) next.nickname = MSG.nicknameRequired;
+    const trimmedNickname = nickname.trim();
+    if (!trimmedNickname) next.nickname = MSG.nicknameRequired;
     else {
-      const nickErr = validateNickname(nickname);
+      const nickErr = validateNickname(trimmedNickname);
       if (nickErr) next.nickname = nickErr;
     }
 
@@ -238,7 +293,7 @@ export default function MyPageEditClient() {
 
     const phoneErr = validatePhone(phone);
     if (phoneErr) next.phone = phoneErr;
-    else if (phone !== initialPhone && !phoneAuthCompleteToken) next.phone = MSG.phoneAuth;
+    else if (phone !== initialProfile.phone && !phoneAuthCompleteToken) next.phone = MSG.phoneAuth;
 
     if (regionSido === REGION_NONE) next.regionSido = MSG.sidoRequired;
     if (!sigunguDisabled && regionSigungu === REGION_NONE) {
@@ -263,7 +318,7 @@ export default function MyPageEditClient() {
     }
 
     const body: UpdateMeRequest = {
-      nickname: nickname.trim(),
+      nickname: trimmedNickname,
       regionSido: regionSido === REGION_NONE ? null : regionSido,
       regionSigungu:
         sigunguDisabled || regionSigungu === REGION_NONE ? null : regionSigungu,
@@ -303,7 +358,7 @@ export default function MyPageEditClient() {
               type="text"
               value={nickname}
               onChange={(e) => {
-                setNickname(filterNickname(e.target.value));
+                setNickname(e.target.value);
                 clearError('nickname');
               }}
               placeholder="닉네임을 입력해주세요."

@@ -25,6 +25,25 @@ export function confirmLeaveWrite(onLeave: () => void) {
   });
 }
 
+/** 스토리 업 텍스트·언급 화면에서 뒤로 갈 때 */
+export function confirmResetStoryEdit(onReset: () => void) {
+  useModalStore.getState().open({
+    variant: 'confirm',
+    title: '알림창',
+    content: '편집 중인 내용이 초기화됩니다. 정말 나가시겠어요?',
+    showCloseButton: true,
+    cancelButton: {
+      label: '계속 작성',
+      tone: 'success',
+    },
+    okButton: {
+      label: '나가기',
+      tone: 'danger',
+      onClick: onReset,
+    },
+  });
+}
+
 /** 게시글 작성 또는 스토리 업 편집 중 */
 export function isWriteFlowPath(pathname: string | null): boolean {
   if (!pathname) return false;

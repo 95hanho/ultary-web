@@ -99,6 +99,13 @@
   gap: 8px;
 }
 
+.itemFocus {
+  margin: 0 -6px;
+  padding: 6px;
+  border-radius: 8px;
+  background: rgba(248, 255, 40, 0.45);
+}
+
 .itemReply {
   gap: 7px;
 }

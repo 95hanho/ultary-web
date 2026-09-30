@@ -1,3 +1,9 @@
+export type SearchPetChoice = {
+  petId: number;
+  /** `@mentionId` */
+  petTag: string;
+};
+
 export type SearchAccount = {
   id: string;
   /** 검색·최근 검색 API의 울타리 주인 */
@@ -5,6 +11,8 @@ export type SearchAccount = {
   nickname: string;
   imageUrl: string;
   petTags: string[];
+  /** 펫 검색 결과. 태그 문자열과 petId를 맞춘다 */
+  petChoices?: SearchPetChoice[];
 };
 
 export type MockHashtag = {

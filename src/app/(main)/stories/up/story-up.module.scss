@@ -221,16 +221,49 @@
   justify-content: center;
 }
 
-.colorPalette {
+.paletteStack {
   position: absolute;
-  bottom: calc(100% - 4px);
+  bottom: calc(100% + 5px);
   left: 50%;
   z-index: 7;
   display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  transform: translateX(-50%);
+  border: 1px solid var(--brand-gray-200);
+}
+
+.colorPalette,
+.sizePalette {
+  display: flex;
   overflow: hidden;
   background: #fff;
-  transform: translateX(-50%);
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.12);
+}
+
+.sizeOption {
+  box-sizing: border-box;
+  display: flex;
+  width: 40px;
+  height: 40px;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 1px solid var(--brand-gray-100);
+  border-left: 0;
+  background: #fff;
+  color: #000;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+
+  &:first-child {
+    border-left: 1px solid var(--brand-gray-100);
+  }
+}
+
+.sizeOptionActive {
+  border: 2px solid #f8ff28;
 }
 
 .colorSwatch {
@@ -253,10 +286,10 @@
 
 .formatBar {
   display: flex;
-  width: 200px;
+  width: 250px;
   height: 54px;
   overflow: hidden;
-  border: 1px solid var(--brand-gray-100);
+  border: 1px solid var(--brand-gray-200);
   border-radius: 7px;
   background: #fff;
 }
@@ -282,6 +315,10 @@
 
 .formatBtnActive {
   color: var(--brand-grass-600);
+}
+
+.formatBtnSize {
+  margin-top: 3px;
 }
 
 .formatUnderline {

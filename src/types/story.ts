@@ -38,15 +38,39 @@ export type Story = {
    * share: FE는 첫 false부터 재생, 전부 true면 index 0.
    */
   viewedByMe: boolean;
+  /** 사진 위 글자. 없으면 빈 배열 */
+  texts?: StoryText[];
+  /** 사진 위 펫 멘션. 없으면 빈 배열 */
+  mentions?: StoryMention[];
   expiresAt: DateTimeString;
   createdAt: DateTimeString;
 } & SoftDelete;
 
-/** POST /my-ultary/stories 등록 요청은 fileId만 (multipart 또는 form) */
+export type StoryText = {
+  content: string;
+  fontSize: number;
+  bold: boolean;
+  underline: boolean;
+  strikethrough: boolean;
+  color: string;
+  posX: number;
+  posY: number;
+};
+
+export type StoryMention = {
+  petId: number;
+  mentionId?: string | null;
+  petName?: string | null;
+  posX: number;
+  posY: number;
+};
+
+/** POST /my-ultary/stories — 파일 업로드 후 fileId와 사진 위 글자·멘션 */
 export type CreateStoryRequest = {
   fileId: number;
   mediaType: StoryMediaType;
-  caption?: string | null;
+  texts: StoryText[];
+  mentions: Array<Pick<StoryMention, 'petId' | 'posX' | 'posY'>>;
 };
 
 /** DB ultary_story_view (참고) */

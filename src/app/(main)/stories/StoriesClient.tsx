@@ -8,7 +8,7 @@ import { resolveFileDisplayUrl } from '@/lib/api/fileUrl';
 import { NO_PROFILE_SRC } from '@/lib/profileImage';
 import { STORY_IMAGE_DURATION_MS } from '@/lib/mock/stories';
 import type { BffEnvelope } from '@/types/api';
-import type { Story, StoryOwner } from '@/types/story';
+import type { Story, StoryMention, StoryOwner, StoryText } from '@/types/story';
 import { Ellipsis, Pause, Play, X } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import {
@@ -25,6 +25,8 @@ type StorySlide = {
   kind: 'image' | 'video';
   src: string;
   viewedByMe: boolean;
+  texts: StoryText[];
+  mentions: StoryMention[];
 };
 
 type StartMode = 'unviewed' | 'last';
@@ -69,6 +71,8 @@ function toSlide(story: Story): StorySlide {
     kind: story.mediaType === 'VIDEO' ? 'video' : 'image',
     src,
     viewedByMe: Boolean(story.viewedByMe),
+    texts: Array.isArray(story.texts) ? story.texts : [],
+    mentions: Array.isArray(story.mentions) ? story.mentions : [],
   };
 }
 
@@ -572,6 +576,51 @@ export default function StoriesClient({
   );
 }
 
+function mentionLabel(mention: StoryMention): string {
+  const id = mention.mentionId?.trim();
+  if (id) return id.startsWith('@') ? id : `@${id}`;
+  const name = mention.petName?.trim();
+  return name || '태그된 펫';
+}
+
+function StoryOverlay({ texts, mentions }: { texts: StoryText[]; mentions: StoryMention[] }) {
+  if (texts.length === 0 && mentions.length === 0) return null;
+  return (
+    <div className={styles.overlay} aria-hidden>
+      {mentions.map((mention, index) => (
+        <span
+          key={`${mention.petId}-${index}`}
+          className={styles.mention}
+          style={{ left: `${mention.posX}%`, top: `${mention.posY}%` }}
+        >
+          {mentionLabel(mention)}
+        </span>
+      ))}
+      {texts.map((text, index) => (
+        <span
+          key={`${text.posX}-${text.posY}-${index}`}
+          className={styles.overlayText}
+          style={{
+            left: `${text.posX}%`,
+            top: `${text.posY}%`,
+            color: text.color,
+            fontSize: text.fontSize || 16,
+            fontWeight: text.bold ? 700 : 400,
+            textDecoration: [
+              text.underline ? 'underline' : null,
+              text.strikethrough ? 'line-through' : null,
+            ]
+              .filter(Boolean)
+              .join(' ') || 'none',
+          }}
+        >
+          {text.content}
+        </span>
+      ))}
+    </div>
+  );
+}
+
 function StoryMedia({
   item,
   videoRef,
@@ -579,9 +628,9 @@ function StoryMedia({
   item: StorySlide;
   videoRef: RefObject<HTMLVideoElement | null>;
 }) {
-  if (item.kind === 'video') {
-    return (
-      <div className={styles.mediaFrame}>
+  return (
+    <div className={styles.mediaFrame}>
+      {item.kind === 'video' ? (
         <video
           key={item.storyId}
           ref={videoRef}
@@ -591,20 +640,17 @@ function StoryMedia({
           muted
           preload="auto"
         />
-      </div>
-    );
-  }
-
-  return (
-    <div className={styles.mediaFrame}>
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        key={item.storyId}
-        src={item.src}
-        alt=""
-        className={styles.media}
-        draggable={false}
-      />
+      ) : (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          key={item.storyId}
+          src={item.src}
+          alt=""
+          className={styles.media}
+          draggable={false}
+        />
+      )}
+      <StoryOverlay texts={item.texts} mentions={item.mentions} />
     </div>
   );
 }

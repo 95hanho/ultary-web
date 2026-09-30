@@ -77,16 +77,16 @@ export function FeedCollectionClient({
   return (
     <FeedListPage
       title={
-        ownerName
-          ? titleKind === 'saved'
+        titleKind === 'tagged'
+          ? '태그된 피드'
+          : ownerName
             ? `${ownerName}님의 저장된 피드`
-            : `${ownerName}님의 태그된 피드`
-          : ''
+            : ''
       }
       backHref={myUltaryPath(nickname)}
       feeds={feeds}
       focusId={postId}
-      showAuthor={false}
+      showAuthor={titleKind === 'tagged'}
     />
   );
 }

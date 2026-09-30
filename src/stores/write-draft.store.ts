@@ -1,3 +1,4 @@
+import type { NormalizedCrop } from '@/lib/write/crop-rect';
 import { create } from 'zustand';
 
 export type WriteDraftItem = {
@@ -9,6 +10,8 @@ export type WriteDraftItem = {
   sourceUrl: string;
   /** 이미지 크롭 결과 data URL */
   croppedDataUrl?: string;
+  /** 원본 위 크롭 박스 (표시 영역 기준 0~1) */
+  cropRect?: NormalizedCrop | null;
   /** 사진 위 펫언급 태그 (좌표 0~1) */
   petTags?: WritePhotoPetTag[];
 };
@@ -17,6 +20,7 @@ export type WritePhotoPetTag = {
   id: string;
   /** `@choco_01` */
   petTag: string;
+  petId?: number;
   /** 이미지 기준 가로 비율 0~1 */
   x: number;
   /** 이미지 기준 세로 비율 0~1 */
@@ -26,8 +30,11 @@ export type WritePhotoPetTag = {
 type WriteDraftState = {
   items: WriteDraftItem[];
   caption: string;
+  /** 사진 설정에서 보고 있던 장. 작성 화면에서 돌아오면 이 장부터 */
+  cropIndex: number;
   setItems: (items: WriteDraftItem[]) => void;
-  updateCrop: (id: string, croppedDataUrl: string) => void;
+  setCropIndex: (cropIndex: number) => void;
+  updateCrop: (id: string, croppedDataUrl: string, cropRect: NormalizedCrop | null) => void;
   setCaption: (caption: string) => void;
   addPetTag: (itemId: string, tag: Omit<WritePhotoPetTag, 'id'> & { id?: string }) => void;
   removePetTag: (itemId: string, tagId: string) => void;
@@ -38,11 +45,13 @@ type WriteDraftState = {
 export const useWriteDraftStore = create<WriteDraftState>((set) => ({
   items: [],
   caption: '',
-  setItems: (items) => set({ items }),
-  updateCrop: (id, croppedDataUrl) =>
+  cropIndex: 0,
+  setItems: (items) => set({ items, cropIndex: 0 }),
+  setCropIndex: (cropIndex) => set({ cropIndex }),
+  updateCrop: (id, croppedDataUrl, cropRect) =>
     set((state) => ({
       items: state.items.map((item) =>
-        item.id === id ? { ...item, croppedDataUrl } : item,
+        item.id === id ? { ...item, croppedDataUrl, cropRect } : item,
       ),
     })),
   setCaption: (caption) => set({ caption }),
@@ -53,6 +62,7 @@ export const useWriteDraftStore = create<WriteDraftState>((set) => ({
         const next: WritePhotoPetTag = {
           id: tag.id ?? `pt-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
           petTag: tag.petTag,
+          petId: tag.petId,
           x: tag.x,
           y: tag.y,
         };
@@ -67,5 +77,5 @@ export const useWriteDraftStore = create<WriteDraftState>((set) => ({
           : { ...item, petTags: (item.petTags ?? []).filter((t) => t.id !== tagId) },
       ),
     })),
-  clear: () => set({ items: [], caption: '' }),
+  clear: () => set({ items: [], caption: '', cropIndex: 0 }),
 }));

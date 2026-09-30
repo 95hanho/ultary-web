@@ -1,5 +1,8 @@
--- schema_version: 11
+-- schema_version: 14
 -- Ultary MariaDB 10.1 초기 스키마
+-- v14: 알림 집계(이웃신청·좋아요·댓글답글·언급·태그·스토리 공감)와 ultary_story_like
+-- v13: 사진·스토리 @ 최근 펫 태그 (ultary_user_pet_tag_history). 검색 최근 울타리와 별도
+-- v12: 스토리 위 글자(ultary_story_text)와 펫 멘션(ultary_story_mention)
 -- v11: 유저 프로필 사진 컬럼 제거. 표시 사진은 프로필 있는 펫 중 priority가 가장 높은 것
 -- v10: ultary_user_search_history 는 들어간 유저 울타리만 (user_no + target_user_no)
 -- v9: ultary_feed_comment_like / ultary_feed_reply_like, 댓글·답글 like_count
@@ -21,6 +24,7 @@
 --   - 닉네임 허용: 영문·한글만. 한글만 2~5자, 영문만 4~10자. 혼합 시 한글1자=2, 영문1자=1, 가중치 합 4~10 (한글 최대 5자)
 --   - mention_id / tag.handle 허용: 영문·숫자·언더바 (^[A-Za-z0-9_]{1,30}$), UNIQUE, utf8_general_ci라 대소문자 동일 취급
 --   - 최근 검색: 검색어가 아니라 들어간 유저 울타리. ultary_user_search_history (user_no, target_user_no) 1행
+--   - 최근 펫 태그: 스토리 @·사진 태그에서 고른 펫. ultary_user_pet_tag_history (user_no, pet_id) 1행. 검색 기록과 섞지 않음
 --   - 피드 삭제: 작성자(user_no) 또는 COLLABORATOR 펫 보호자. deleted_by_user_no에 실제 삭제자 기록
 -- Identity change cooldown (생성 직후부터 잠금, *_changed_at에 기록):
 --   - user.nickname          : 변경 후(및 생성 직후) 7일간 재변경 불가
@@ -46,6 +50,9 @@
 --   v9: 댓글·답글 좋아요 (피드 좋아요와 별도 테이블)
 --   v10: 최근 검색은 유저 울타리 방문만 남김 (search_type·펫·태그·keyword 제거)
 --   v11: ultary_user.profile_file_id 제거. pet.priority (작을수록 우선)로 대표 프로필 사진·펫 목록 순서
+--   v12: 스토리 글자 스티커·펫 위치 멘션
+--   v13: 최근 펫 태그 (검색 최근 울타리와 별 테이블)
+--   v14: 알림 타입·집계 컬럼, 스토리 공감(ultary_story_like)
 
 SET NAMES utf8;
 SET FOREIGN_KEY_CHECKS = 0;
@@ -53,8 +60,12 @@ SET FOREIGN_KEY_CHECKS = 0;
 DROP TABLE IF EXISTS `ultary_ai_request_log`;
 DROP TABLE IF EXISTS `ultary_report`;
 DROP TABLE IF EXISTS `ultary_notification`;
+DROP TABLE IF EXISTS `ultary_story_like`;
+DROP TABLE IF EXISTS `ultary_story_mention`;
+DROP TABLE IF EXISTS `ultary_story_text`;
 DROP TABLE IF EXISTS `ultary_story_view`;
 DROP TABLE IF EXISTS `ultary_story`;
+DROP TABLE IF EXISTS `ultary_user_pet_tag_history`;
 DROP TABLE IF EXISTS `ultary_user_search_history`;
 DROP TABLE IF EXISTS `ultary_tag_image`;
 DROP TABLE IF EXISTS `ultary_feed_tag`;
@@ -456,29 +467,49 @@ CREATE TABLE `ultary_user_search_history` (
   KEY `IDX_ultary_user_search_target_user` (`target_user_no`) USING BTREE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_general_ci COMMENT='검색에서 들어간 유저 울타리. 한 사람당 대상 유저 1행';
 
+CREATE TABLE `ultary_user_pet_tag_history` (
+  `user_pet_tag_history_id` INT(11) NOT NULL AUTO_INCREMENT,
+  `user_no` INT(11) NOT NULL COMMENT '스토리 @ 또는 사진 태그에서 펫을 고른 사용자',
+  `pet_id` INT(11) NOT NULL COMMENT '고른 반려동물',
+  `used_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '같은 펫을 다시 고르면 이 시각만 갱신',
+  PRIMARY KEY (`user_pet_tag_history_id`) USING BTREE,
+  UNIQUE KEY `UK_ultary_user_pet_tag_pair` (`user_no`, `pet_id`) USING BTREE,
+  KEY `IDX_ultary_user_pet_tag_user_time` (`user_no`, `used_at`) USING BTREE,
+  KEY `IDX_ultary_user_pet_tag_pet_id` (`pet_id`) USING BTREE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_general_ci COMMENT='사진·스토리 최근 펫 태그. 검색 최근 울타리와 별도. 한 사람당 펫 1행';
+
 CREATE TABLE `ultary_notification` (
   `notification_id` INT(11) NOT NULL AUTO_INCREMENT,
   `receiver_user_no` INT(11) NOT NULL COMMENT '알림을 받는 사용자',
-  `actor_user_no` INT(11) NULL DEFAULT NULL COMMENT '알림을 발생시킨 사용자. 시스템 알림이면 null 가능',
-  `type` ENUM('FEED_LIKE','FEED_COMMENT','FEED_REPLY','MENTION','NEIGHBOR_REQUEST','NEIGHBOR_ACCEPTED','FEED_COLLABORATOR','SYSTEM') NOT NULL,
+  `actor_user_no` INT(11) NULL DEFAULT NULL COMMENT '가장 최근 행위자. 집계면 대표 이름',
+  `type` ENUM('NEIGHBOR_REQUEST','FEED_LIKE','COMMENT_LIKE','REPLY_LIKE','FEED_COMMENT','COMMENT_MENTION','REPLY_MENTION','FEED_TAG','STORY_TAG','STORY_LIKE') NOT NULL,
   `feed_id` INT(11) NULL DEFAULT NULL,
   `feed_pet_id` INT(11) NULL DEFAULT NULL,
   `feed_comment_id` INT(11) NULL DEFAULT NULL,
   `feed_reply_id` INT(11) NULL DEFAULT NULL,
+  `story_id` INT(11) NULL DEFAULT NULL,
   `neighbor_id` INT(11) NULL DEFAULT NULL,
-  `content` VARCHAR(300) NULL DEFAULT NULL,
+  `content` VARCHAR(80) NULL DEFAULT NULL COMMENT '인용 텍스트 일부. 댓글·답글 통합은 최신 글로 덮어씀',
+  `actor_count` INT(11) NOT NULL DEFAULT 1 COMMENT '받는 사람 제외 행위자 수. 2 이상이면 화면은 외 N명',
+  `has_comment` TINYINT(1) NOT NULL DEFAULT 0 COMMENT 'FEED_COMMENT 전용. 댓글이 포함됨',
+  `has_reply` TINYINT(1) NOT NULL DEFAULT 0 COMMENT 'FEED_COMMENT 전용. 답글이 포함됨',
+  `group_key` VARCHAR(80) NOT NULL COMMENT '같은 대상은 1행. receiver_user_no와 UNIQUE',
   `is_read` TINYINT(1) NOT NULL DEFAULT 0,
   `read_at` DATETIME NULL DEFAULT NULL,
   `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '새 행위가 있으면 갱신. 목록은 이 시각 내림차순',
   PRIMARY KEY (`notification_id`) USING BTREE,
+  UNIQUE KEY `UK_ultary_notification_receiver_group` (`receiver_user_no`, `group_key`) USING BTREE,
   KEY `IDX_ultary_notification_receiver_read` (`receiver_user_no`, `is_read`, `created_at`) USING BTREE,
+  KEY `IDX_ultary_notification_receiver_updated` (`receiver_user_no`, `updated_at`) USING BTREE,
   KEY `IDX_ultary_notification_actor_user_no` (`actor_user_no`) USING BTREE,
   KEY `IDX_ultary_notification_feed_id` (`feed_id`) USING BTREE,
   KEY `IDX_ultary_notification_feed_pet_id` (`feed_pet_id`) USING BTREE,
   KEY `IDX_ultary_notification_comment_id` (`feed_comment_id`) USING BTREE,
   KEY `IDX_ultary_notification_reply_id` (`feed_reply_id`) USING BTREE,
+  KEY `IDX_ultary_notification_story_id` (`story_id`) USING BTREE,
   KEY `IDX_ultary_notification_neighbor_id` (`neighbor_id`) USING BTREE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_general_ci COMMENT='좋아요, 댓글, 답글, 멘션, 이웃, 공동작성 알림';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_general_ci COMMENT='이웃 신청, 좋아요, 댓글·답글, 언급, 태그, 스토리 공감. 같은 대상은 1행으로 집계';
 
 CREATE TABLE `ultary_report` (
   `report_id` INT(11) NOT NULL AUTO_INCREMENT,
@@ -554,6 +585,49 @@ CREATE TABLE `ultary_story_view` (
   UNIQUE KEY `UK_ultary_story_view_story_viewer` (`story_id`, `viewer_user_no`) USING BTREE,
   KEY `IDX_ultary_story_view_viewer` (`viewer_user_no`) USING BTREE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_general_ci COMMENT='스토리 읽음(시청) 기록';
+
+CREATE TABLE `ultary_story_text` (
+  `story_text_id` INT(11) NOT NULL AUTO_INCREMENT,
+  `story_id` INT(11) NOT NULL,
+  `content` VARCHAR(200) NOT NULL COMMENT '사진 위 글자',
+  `font_size` INT(11) NOT NULL DEFAULT 16 COMMENT '12|16|20|24. 기본 16',
+  `is_bold` TINYINT(1) NOT NULL DEFAULT 0,
+  `is_underline` TINYINT(1) NOT NULL DEFAULT 0,
+  `is_strikethrough` TINYINT(1) NOT NULL DEFAULT 0,
+  `color` CHAR(7) NOT NULL COMMENT '#RRGGBB',
+  `pos_x` DECIMAL(5,2) NOT NULL COMMENT '가로 위치 % (0.00~100.00)',
+  `pos_y` DECIMAL(5,2) NOT NULL COMMENT '세로 위치 % (0.00~100.00)',
+  `sort_order` INT(11) NOT NULL DEFAULT 0 COMMENT '요청 배열 순서. 뒤에 올수록 위',
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`story_text_id`) USING BTREE,
+  KEY `IDX_ultary_story_text_story` (`story_id`, `sort_order`) USING BTREE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_general_ci COMMENT='스토리 사진 위 글자';
+
+CREATE TABLE `ultary_story_mention` (
+  `story_mention_id` INT(11) NOT NULL AUTO_INCREMENT,
+  `story_id` INT(11) NOT NULL,
+  `pet_id` INT(11) NOT NULL COMMENT '@mention_id 대상 반려동물. pet_id 1:1',
+  `pos_x` DECIMAL(5,2) NOT NULL COMMENT '가로 위치 % (0.00~100.00)',
+  `pos_y` DECIMAL(5,2) NOT NULL COMMENT '세로 위치 % (0.00~100.00)',
+  `sort_order` INT(11) NOT NULL DEFAULT 0,
+  `added_by_user_no` INT(11) NOT NULL,
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`story_mention_id`) USING BTREE,
+  KEY `IDX_ultary_story_mention_story` (`story_id`, `sort_order`) USING BTREE,
+  KEY `IDX_ultary_story_mention_pet_id` (`pet_id`) USING BTREE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_general_ci COMMENT='스토리 사진 위 @반려동물 위치 멘션';
+
+CREATE TABLE `ultary_story_like` (
+  `story_like_id` INT(11) NOT NULL AUTO_INCREMENT,
+  `story_id` INT(11) NOT NULL,
+  `user_no` INT(11) NOT NULL,
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `is_deleted` TINYINT(1) NOT NULL DEFAULT 0,
+  `deleted_at` DATETIME NULL DEFAULT NULL,
+  PRIMARY KEY (`story_like_id`) USING BTREE,
+  UNIQUE KEY `UK_ultary_story_like_story_user` (`story_id`, `user_no`) USING BTREE,
+  KEY `IDX_ultary_story_like_user_no` (`user_no`) USING BTREE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_general_ci COMMENT='스토리 공감. 피드 좋아요와 별도';
 
 ALTER TABLE `ultary_user_social`
   ADD CONSTRAINT `FK_user_social_user` FOREIGN KEY (`user_no`) REFERENCES `ultary_user` (`user_no`) ON UPDATE CASCADE ON DELETE CASCADE;
@@ -642,6 +716,10 @@ ALTER TABLE `ultary_user_search_history`
   ADD CONSTRAINT `FK_user_search_user` FOREIGN KEY (`user_no`) REFERENCES `ultary_user` (`user_no`) ON UPDATE CASCADE ON DELETE CASCADE,
   ADD CONSTRAINT `FK_user_search_target_user` FOREIGN KEY (`target_user_no`) REFERENCES `ultary_user` (`user_no`) ON UPDATE CASCADE ON DELETE CASCADE;
 
+ALTER TABLE `ultary_user_pet_tag_history`
+  ADD CONSTRAINT `FK_user_pet_tag_user` FOREIGN KEY (`user_no`) REFERENCES `ultary_user` (`user_no`) ON UPDATE CASCADE ON DELETE CASCADE,
+  ADD CONSTRAINT `FK_user_pet_tag_pet` FOREIGN KEY (`pet_id`) REFERENCES `ultary_pet` (`pet_id`) ON UPDATE CASCADE ON DELETE CASCADE;
+
 ALTER TABLE `ultary_notification`
   ADD CONSTRAINT `FK_notification_receiver` FOREIGN KEY (`receiver_user_no`) REFERENCES `ultary_user` (`user_no`) ON UPDATE CASCADE ON DELETE RESTRICT,
   ADD CONSTRAINT `FK_notification_actor` FOREIGN KEY (`actor_user_no`) REFERENCES `ultary_user` (`user_no`) ON UPDATE CASCADE ON DELETE SET NULL,
@@ -649,7 +727,12 @@ ALTER TABLE `ultary_notification`
   ADD CONSTRAINT `FK_notification_feed_pet` FOREIGN KEY (`feed_pet_id`) REFERENCES `ultary_feed_pet` (`feed_pet_id`) ON UPDATE CASCADE ON DELETE SET NULL,
   ADD CONSTRAINT `FK_notification_comment` FOREIGN KEY (`feed_comment_id`) REFERENCES `ultary_feed_comment` (`feed_comment_id`) ON UPDATE CASCADE ON DELETE SET NULL,
   ADD CONSTRAINT `FK_notification_reply` FOREIGN KEY (`feed_reply_id`) REFERENCES `ultary_feed_reply` (`feed_reply_id`) ON UPDATE CASCADE ON DELETE SET NULL,
-  ADD CONSTRAINT `FK_notification_neighbor` FOREIGN KEY (`neighbor_id`) REFERENCES `ultary_neighbor` (`neighbor_id`) ON UPDATE CASCADE ON DELETE SET NULL;
+  ADD CONSTRAINT `FK_notification_neighbor` FOREIGN KEY (`neighbor_id`) REFERENCES `ultary_neighbor` (`neighbor_id`) ON UPDATE CASCADE ON DELETE SET NULL,
+  ADD CONSTRAINT `FK_notification_story` FOREIGN KEY (`story_id`) REFERENCES `ultary_story` (`story_id`) ON UPDATE CASCADE ON DELETE SET NULL;
+
+ALTER TABLE `ultary_story_like`
+  ADD CONSTRAINT `FK_story_like_story` FOREIGN KEY (`story_id`) REFERENCES `ultary_story` (`story_id`) ON UPDATE CASCADE ON DELETE CASCADE,
+  ADD CONSTRAINT `FK_story_like_user` FOREIGN KEY (`user_no`) REFERENCES `ultary_user` (`user_no`) ON UPDATE CASCADE ON DELETE CASCADE;
 
 ALTER TABLE `ultary_report`
   ADD CONSTRAINT `FK_report_reporter` FOREIGN KEY (`reporter_user_no`) REFERENCES `ultary_user` (`user_no`) ON UPDATE CASCADE ON DELETE RESTRICT,
@@ -673,3 +756,11 @@ ALTER TABLE `ultary_story`
 ALTER TABLE `ultary_story_view`
   ADD CONSTRAINT `FK_story_view_story` FOREIGN KEY (`story_id`) REFERENCES `ultary_story` (`story_id`) ON UPDATE CASCADE ON DELETE CASCADE,
   ADD CONSTRAINT `FK_story_view_viewer` FOREIGN KEY (`viewer_user_no`) REFERENCES `ultary_user` (`user_no`) ON UPDATE CASCADE ON DELETE CASCADE;
+
+ALTER TABLE `ultary_story_text`
+  ADD CONSTRAINT `FK_story_text_story` FOREIGN KEY (`story_id`) REFERENCES `ultary_story` (`story_id`) ON UPDATE CASCADE ON DELETE CASCADE;
+
+ALTER TABLE `ultary_story_mention`
+  ADD CONSTRAINT `FK_story_mention_story` FOREIGN KEY (`story_id`) REFERENCES `ultary_story` (`story_id`) ON UPDATE CASCADE ON DELETE CASCADE,
+  ADD CONSTRAINT `FK_story_mention_pet` FOREIGN KEY (`pet_id`) REFERENCES `ultary_pet` (`pet_id`) ON UPDATE CASCADE ON DELETE RESTRICT,
+  ADD CONSTRAINT `FK_story_mention_added_user` FOREIGN KEY (`added_by_user_no`) REFERENCES `ultary_user` (`user_no`) ON UPDATE CASCADE ON DELETE RESTRICT;

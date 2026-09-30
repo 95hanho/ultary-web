@@ -49,9 +49,12 @@ export function nicknameWeight(value: string) {
   return weight;
 }
 
-/** 닉네임: 영문·한글만, 가중치 합 10 이하 (제출 시 검사) */
+/**
+ * 닉네임: 영문·완성 한글만 남긴다.
+ * 조합 중인 자모(ㄱ, ㅏ)는 유지해야 한글 입력이 끊기지 않는다. 제출 검사는 완성 글자만 허용.
+ */
 export function filterNickname(value: string) {
-  return value.replace(/[^A-Za-z가-힣]/g, '');
+  return value.replace(/[^A-Za-z가-힣ㄱ-ㅎㅏ-ㅣ]/g, '');
 }
 
 /** 이름: 최대 20자 */

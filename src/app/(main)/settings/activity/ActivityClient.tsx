@@ -3,6 +3,7 @@
 import { FooterMenu } from '@/components/common/FooterMenu';
 import { PageHeader } from '@/components/common/PageHeader';
 import { MY_NICKNAME, OTHER_NICKNAME, myUltaryPath } from '@/lib/mock/ultary-accounts';
+import { openFeedComment } from '@/lib/notification/openTarget';
 import clsx from 'clsx';
 import { MediaImage } from '@/components/common/MediaImage';
 import Link from 'next/link';
@@ -154,19 +155,30 @@ function KeywordButton({ label, onClick }: { label: string; onClick: () => void 
   );
 }
 
-function logCommentNav(item: ActivityItem) {
-  console.log('[activity] 해당댓글로이동', {
-    feedId: item.feedId,
-    commentId: item.commentId,
-  });
+function goComment(item: ActivityItem, router: ReturnType<typeof useRouter>) {
+  void openFeedComment(
+    router,
+    {
+      feedId: item.feedId,
+      commentId: item.commentId,
+      replyId: item.replyId,
+      feedOwnerNickname: item.targetNickname,
+    },
+    'comment',
+  );
 }
 
-function logReplyNav(item: ActivityItem) {
-  console.log('[activity] 해당답글로이동', {
-    feedId: item.feedId,
-    commentId: item.commentId,
-    replyId: item.replyId,
-  });
+function goReply(item: ActivityItem, router: ReturnType<typeof useRouter>) {
+  void openFeedComment(
+    router,
+    {
+      feedId: item.feedId,
+      commentId: item.commentId,
+      replyId: item.replyId,
+      feedOwnerNickname: item.targetNickname,
+    },
+    'reply',
+  );
 }
 
 function ActivityMessage({ item }: { item: ActivityItem }) {
@@ -200,7 +212,7 @@ function ActivityMessage({ item }: { item: ActivityItem }) {
     case 'likeComment':
       action = (
         <>
-          {nick}님의 <KeywordButton label="댓글" onClick={() => logCommentNav(item)} />에
+          {nick}님의 <KeywordButton label="댓글" onClick={() => goComment(item, router)} />에
           좋아요를 눌렀습니다.
         </>
       );
@@ -208,7 +220,7 @@ function ActivityMessage({ item }: { item: ActivityItem }) {
     case 'likeReply':
       action = (
         <>
-          {nick}님의 <KeywordButton label="답글" onClick={() => logReplyNav(item)} />에
+          {nick}님의 <KeywordButton label="답글" onClick={() => goReply(item, router)} />에
           좋아요를 눌렀습니다.
         </>
       );
@@ -217,14 +229,14 @@ function ActivityMessage({ item }: { item: ActivityItem }) {
       action = (
         <>
           {nick}님의 게시글에{' '}
-          <KeywordButton label="댓글" onClick={() => logCommentNav(item)} />을 남겼습니다.
+          <KeywordButton label="댓글" onClick={() => goComment(item, router)} />을 남겼습니다.
         </>
       );
       break;
     case 'reply':
       action = (
         <>
-          {nick}님의 댓글에 <KeywordButton label="답글" onClick={() => logReplyNav(item)} />을
+          {nick}님의 댓글에 <KeywordButton label="답글" onClick={() => goReply(item, router)} />을
           남겼습니다.
         </>
       );

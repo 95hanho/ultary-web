@@ -67,13 +67,13 @@ export default function WritePhotoTagsClient() {
     setSearchOpen(true);
   };
 
-  const handleSelectPet = (petTag: string) => {
+  const handleSelectPet = (pet: { petId: number; petTag: string }) => {
     const point = pendingPoint.current;
     if (!current || !point) {
       setSearchOpen(false);
       return;
     }
-    addPetTag(current.id, { petTag, x: point.x, y: point.y });
+    addPetTag(current.id, { petTag: pet.petTag, petId: pet.petId, x: point.x, y: point.y });
     pendingPoint.current = null;
     setSearchOpen(false);
   };

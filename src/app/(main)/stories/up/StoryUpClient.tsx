@@ -3,13 +3,16 @@
 import { FooterMenu } from '@/components/common/FooterMenu';
 import { PageHeader } from '@/components/common/PageHeader';
 import { PhotoTagAccountSearch } from '@/components/search/PhotoTagAccountSearch';
-import {
-  useStoryDraftStore,
-  type StoryTextBox,
-} from '@/stores/story-draft.store';
+import { bffPostJson } from '@/lib/api/bffFetch';
+import { bffEndpoints } from '@/lib/api/endpoints';
+import { isRecord } from '@/lib/api/error';
+import { toStoryOverlayPayload } from '@/lib/story/publish';
+import { confirmResetStoryEdit } from '@/lib/write/confirm-leave';
 import { useModalStore } from '@/stores/modal.store';
+import type { BffEnvelope } from '@/types/api';
+import { useStoryDraftStore, type StoryTextBox } from '@/stores/story-draft.store';
 import clsx from 'clsx';
-import { X } from 'lucide-react';
+import { ALargeSmall, X } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState, type MouseEvent, type PointerEvent } from 'react';
 import styles from './story-up.module.scss';
@@ -18,6 +21,8 @@ type EditorMode = 'text' | 'tag';
 
 const MAX_STORY_TEXTS = 2;
 const DEFAULT_TEXT_COLOR = '#ffffff';
+const DEFAULT_TEXT_SIZE = 16;
+const TEXT_SIZES = [12, 16, 20, 24] as const;
 
 const TEXT_COLORS = [
   '#ffffff',
@@ -48,6 +53,7 @@ export default function StoryUpClient() {
   const sourceUrl = useStoryDraftStore((s) => s.sourceUrl);
   const croppedDataUrl = useStoryDraftStore((s) => s.croppedDataUrl);
   const kind = useStoryDraftStore((s) => s.kind);
+  const fileName = useStoryDraftStore((s) => s.fileName);
   const texts = useStoryDraftStore((s) => s.texts);
   const petTags = useStoryDraftStore((s) => s.petTags);
   const upsertText = useStoryDraftStore((s) => s.upsertText);
@@ -55,14 +61,16 @@ export default function StoryUpClient() {
   const addPetTag = useStoryDraftStore((s) => s.addPetTag);
   const removePetTag = useStoryDraftStore((s) => s.removePetTag);
   const clear = useStoryDraftStore((s) => s.clear);
+  const clearEdits = useStoryDraftStore((s) => s.clearEdits);
   const openModal = useModalStore((s) => s.open);
 
-  const displayUrl =
-    kind === 'image' ? (croppedDataUrl ?? sourceUrl) : sourceUrl;
+  const displayUrl = kind === 'image' ? (croppedDataUrl ?? sourceUrl) : sourceUrl;
 
+  const [submitting, setSubmitting] = useState(false);
   const [mode, setMode] = useState<EditorMode>('text');
   const [activeTextId, setActiveTextId] = useState<string | null>(null);
   const [colorOpen, setColorOpen] = useState(false);
+  const [sizeOpen, setSizeOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const pendingPoint = useRef<{ x: number; y: number } | null>(null);
   const stageRef = useRef<HTMLDivElement>(null);
@@ -90,6 +98,7 @@ export default function StoryUpClient() {
     }
     setActiveTextId(null);
     setColorOpen(false);
+    setSizeOpen(false);
   };
 
   useEffect(() => {
@@ -164,17 +173,64 @@ export default function StoryUpClient() {
   }, [upsertText]);
 
   const handleBack = () => {
-    router.push('/stories/up/crop');
+    const draft = useStoryDraftStore.getState();
+    const hasEdit = draft.texts.length > 0 || draft.petTags.length > 0;
+    if (!hasEdit) {
+      router.push('/stories/up/crop');
+      return;
+    }
+    confirmResetStoryEdit(() => {
+      clearEdits();
+      router.push('/stories/up/crop');
+    });
   };
 
-  const handleSubmit = () => {
-    console.log('[story-up] submit', {
-      kind,
-      texts,
-      petTags,
-    });
-    clear();
-    router.push('/');
+  const handleSubmit = async () => {
+    if (submitting || !displayUrl || !kind) return;
+    const draft = useStoryDraftStore.getState();
+    const overlay = toStoryOverlayPayload(draft.texts, draft.petTags);
+    setSubmitting(true);
+    try {
+      const mediaRes = await fetch(displayUrl);
+      const blob = await mediaRes.blob();
+      const mediaType = kind === 'video' ? 'VIDEO' : 'IMAGE';
+      const uploadName =
+        fileName.trim() || (mediaType === 'VIDEO' ? 'story.mp4' : 'story.png');
+      const form = new FormData();
+      form.append('file', new File([blob], uploadName, { type: blob.type || 'application/octet-stream' }));
+      const uploadRes = await fetch(bffEndpoints.files.root, {
+        method: 'POST',
+        body: form,
+        credentials: 'include',
+      });
+      const uploadJson = (await uploadRes.json().catch(() => null)) as BffEnvelope<unknown> | null;
+      const fileId =
+        isRecord(uploadJson?.data) && typeof uploadJson.data.fileId === 'number'
+          ? uploadJson.data.fileId
+          : null;
+      if (!uploadRes.ok || !uploadJson?.success || fileId == null) {
+        throw new Error('story file upload failed');
+      }
+
+      await bffPostJson(bffEndpoints.myUltary.stories, {
+        fileId,
+        mediaType,
+        texts: overlay.texts,
+        mentions: overlay.mentions,
+      });
+      clear();
+      router.push('/');
+    } catch (err) {
+      console.error('[story-up] submit failed', err);
+      openModal({
+        variant: 'alert',
+        title: '알림창',
+        content: '스토리를 올리지 못했습니다. 다시 시도해 주세요.',
+        showCloseButton: true,
+      });
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const pointFromEvent = (clientX: number, clientY: number) => {
@@ -207,6 +263,7 @@ export default function StoryUpClient() {
       pendingPoint.current = point;
       setActiveTextId(null);
       setColorOpen(false);
+      setSizeOpen(false);
       setSearchOpen(true);
       return;
     }
@@ -231,6 +288,7 @@ export default function StoryUpClient() {
       underline: false,
       strike: false,
       color: DEFAULT_TEXT_COLOR,
+      fontSize: DEFAULT_TEXT_SIZE,
     };
     upsertText(box);
     setActiveTextId(id);
@@ -238,9 +296,7 @@ export default function StoryUpClient() {
   };
 
   const patchActive = (patch: Partial<StoryTextBox>) => {
-    const current = useStoryDraftStore
-      .getState()
-      .texts.find((t) => t.id === activeTextId);
+    const current = useStoryDraftStore.getState().texts.find((t) => t.id === activeTextId);
     if (!current) return;
     upsertText({ ...current, ...patch });
   };
@@ -251,6 +307,7 @@ export default function StoryUpClient() {
     if (mode !== 'text') return;
     setActiveTextId(box.id);
     setColorOpen(false);
+    setSizeOpen(false);
     dragSession.current = {
       id: box.id,
       startClientX: e.clientX,
@@ -260,13 +317,13 @@ export default function StoryUpClient() {
     };
   };
 
-  const handleSelectPet = (petTag: string) => {
+  const handleSelectPet = (pet: { petId: number; petTag: string }) => {
     const point = pendingPoint.current;
     if (!point) {
       setSearchOpen(false);
       return;
     }
-    addPetTag({ petTag, x: point.x, y: point.y });
+    addPetTag({ petId: pet.petId, petTag: pet.petTag, x: point.x, y: point.y });
     pendingPoint.current = null;
     setSearchOpen(false);
   };
@@ -287,7 +344,13 @@ export default function StoryUpClient() {
 
   return (
     <div className={styles.shell}>
-      <PageHeader title="스토리 업" onBack={handleBack} onSubmit={handleSubmit} submitLabel="게시" />
+      <PageHeader
+        title="스토리 업"
+        onBack={handleBack}
+        onSubmit={() => void handleSubmit()}
+        submitLabel="게시"
+        submitDisabled={submitting}
+      />
 
       <main className={styles.main}>
         <div className={styles.scroll}>
@@ -332,6 +395,7 @@ export default function StoryUpClient() {
                 const textStyle = {
                   color: box.color,
                   fontWeight: box.bold ? 700 : 400,
+                  fontSize: box.fontSize || DEFAULT_TEXT_SIZE,
                   textDecoration: textDecorationOf(box),
                 } as const;
 
@@ -347,6 +411,7 @@ export default function StoryUpClient() {
                       if (activeTextId && activeTextId !== box.id) return;
                       setActiveTextId(box.id);
                       setColorOpen(false);
+                      setSizeOpen(false);
                     }}
                   >
                     <div
@@ -357,10 +422,7 @@ export default function StoryUpClient() {
                     />
                     <div className={styles.textBody}>
                       <span
-                        className={clsx(
-                          styles.textMeasure,
-                          isActive && styles.textMeasureHidden,
-                        )}
+                        className={clsx(styles.textMeasure, isActive && styles.textMeasureHidden)}
                         style={textStyle}
                         aria-hidden={isActive}
                       >
@@ -381,6 +443,7 @@ export default function StoryUpClient() {
                               if (!box.text.trim()) removeText(box.id);
                               setActiveTextId(null);
                               setColorOpen(false);
+                              setSizeOpen(false);
                             }
                           }}
                           onClick={(e) => e.stopPropagation()}
@@ -398,6 +461,7 @@ export default function StoryUpClient() {
                           removeText(box.id);
                           setActiveTextId(null);
                           setColorOpen(false);
+                          setSizeOpen(false);
                         }}
                       >
                         <X size={14} strokeWidth={2.5} />
@@ -412,31 +476,71 @@ export default function StoryUpClient() {
 
         <div className={styles.toolbarDock}>
           <div ref={textToolsRef} className={styles.textTools}>
-            {showFormat && colorOpen ? (
-              <div className={styles.colorPalette} role="listbox" aria-label="글자 색상">
-                {TEXT_COLORS.map((color) => {
-                  const active = activeText?.color.toLowerCase() === color.toLowerCase();
-                  return (
-                    <button
-                      key={color}
-                      type="button"
-                      className={clsx(styles.colorSwatch, active && styles.colorSwatchActive)}
-                      style={{ background: color }}
-                      aria-label={color}
-                      aria-selected={active}
-                      onClick={() => {
-                        patchActive({ color });
-                        setColorOpen(false);
-                      }}
-                    />
-                  );
-                })}
+            {showFormat && (sizeOpen || colorOpen) ? (
+              <div className={styles.paletteStack}>
+                {sizeOpen ? (
+                  <div className={styles.sizePalette} role="listbox" aria-label="글자 크기">
+                    {TEXT_SIZES.map((size) => {
+                      const active = (activeText?.fontSize || DEFAULT_TEXT_SIZE) === size;
+                      return (
+                        <button
+                          key={size}
+                          type="button"
+                          className={clsx(styles.sizeOption, active && styles.sizeOptionActive)}
+                          style={{ fontSize: size }}
+                          aria-label={`${size}px`}
+                          aria-selected={active}
+                          onClick={() => {
+                            patchActive({ fontSize: size });
+                            setSizeOpen(false);
+                          }}
+                        >
+                          T
+                        </button>
+                      );
+                    })}
+                  </div>
+                ) : null}
+                {colorOpen ? (
+                  <div className={styles.colorPalette} role="listbox" aria-label="글자 색상">
+                    {TEXT_COLORS.map((color) => {
+                      const active = activeText?.color.toLowerCase() === color.toLowerCase();
+                      return (
+                        <button
+                          key={color}
+                          type="button"
+                          className={clsx(styles.colorSwatch, active && styles.colorSwatchActive)}
+                          style={{ background: color }}
+                          aria-label={color}
+                          aria-selected={active}
+                          onClick={() => {
+                            patchActive({ color });
+                            setColorOpen(false);
+                          }}
+                        />
+                      );
+                    })}
+                  </div>
+                ) : null}
               </div>
             ) : null}
 
             <div className={styles.formatSlot}>
               {showFormat ? (
                 <div className={styles.formatBar}>
+                  <button
+                    type="button"
+                    className={clsx(
+                      styles.formatBtn,
+                      sizeOpen && styles.formatBtnActive,
+                      styles.formatBtnSize,
+                    )}
+                    aria-label="글자 크기"
+                    aria-pressed={sizeOpen}
+                    onClick={() => setSizeOpen((v) => !v)}
+                  >
+                    <ALargeSmall size={30} strokeWidth={2} aria-hidden />
+                  </button>
                   <button
                     type="button"
                     className={clsx(styles.formatBtn, activeText?.bold && styles.formatBtnActive)}
@@ -514,6 +618,7 @@ export default function StoryUpClient() {
                 setMode('tag');
                 setActiveTextId(null);
                 setColorOpen(false);
+                setSizeOpen(false);
               }}
             >
               @

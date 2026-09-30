@@ -40,6 +40,9 @@ function commentSheetUrl(feedId: string, withQuery: boolean) {
 function stripCommentQuery(feedId: string) {
   const url = new URL(window.location.href);
   if (url.searchParams.get(COMMENT_QUERY) !== feedId) return;
+  url.searchParams.delete(COMMENT_QUERY);
+  url.searchParams.delete('comment');
+  url.searchParams.delete('reply');
   const prev =
     history.state && typeof history.state === 'object'
       ? { ...(history.state as object) }
@@ -47,8 +50,17 @@ function stripCommentQuery(feedId: string) {
   history.replaceState(
     { ...prev, [COMMENT_HISTORY_KEY]: null },
     '',
-    commentSheetUrl(feedId, false),
+    `${url.pathname}${url.search}${url.hash}`,
   );
+}
+
+function commentFocusDomId(): string {
+  const params = new URLSearchParams(window.location.search);
+  const replyId = params.get('reply')?.trim();
+  const commentId = params.get('comment')?.trim();
+  if (replyId) return `reply-${replyId}`;
+  if (commentId) return `comment-${commentId}`;
+  return '';
 }
 
 type CommentSheetProps = {
@@ -83,11 +95,13 @@ function CommentBody({
   compact,
   parentCommentId,
   onReply,
+  focused,
 }: {
   item: MockCommentReply;
   compact?: boolean;
   parentCommentId: string;
   onReply: (nickname: string, parentCommentId: string) => void;
+  focused?: boolean;
 }) {
   const [expanded, setExpanded] = useState(false);
   const [needsMore, setNeedsMore] = useState(false);
@@ -110,7 +124,10 @@ function CommentBody({
   }, [item.content, item.nickname, expanded]);
 
   return (
-    <div className={clsx(styles.item, compact && styles.itemReply)}>
+    <div
+      id={compact ? `reply-${item.id}` : `comment-${item.id}`}
+      className={clsx(styles.item, compact && styles.itemReply, focused && styles.itemFocus)}
+    >
       <Link
         href={myUltaryPath(item.nickname)}
         className={clsx(styles.avatarWrap, compact && styles.avatarWrapSm)}
@@ -210,6 +227,7 @@ export function CommentSheet({
   const ignorePopRef = useRef(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
+  const [focusDomId, setFocusDomId] = useState('');
 
   const [items, setItems] = useState<MockComment[]>(comments ?? []);
   const [listStatus, setListStatus] = useState<'idle' | 'loading' | 'ready' | 'error'>(
@@ -229,6 +247,7 @@ export function CommentSheet({
     if (!open) return;
     setDraft('');
     setReplyTo(null);
+    setFocusDomId(commentFocusDomId());
 
     if (comments) {
       setItems(comments);
@@ -315,6 +334,12 @@ export function CommentSheet({
       });
     });
   }
+
+  useLayoutEffect(() => {
+    if (!open || listStatus !== 'ready' || !focusDomId) return;
+    const el = document.getElementById(focusDomId);
+    el?.scrollIntoView({ block: 'center' });
+  }, [open, listStatus, focusDomId, items]);
 
   const animateClose = useCallback(() => {
     if (closingRef.current || !presentRef.current) return;
@@ -509,6 +534,7 @@ export function CommentSheet({
                 item={comment}
                 parentCommentId={comment.id}
                 onReply={startReply}
+                focused={focusDomId === `comment-${comment.id}`}
               />
               {comment.replies.length > 0 ? (
                 <div className={styles.replies}>
@@ -519,6 +545,7 @@ export function CommentSheet({
                       compact
                       parentCommentId={comment.id}
                       onReply={startReply}
+                      focused={focusDomId === `reply-${reply.id}`}
                     />
                   ))}
                 </div>

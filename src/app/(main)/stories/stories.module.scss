@@ -124,6 +124,40 @@
   min-height: 0;
 }
 
+.overlay {
+  position: absolute;
+  z-index: 2;
+  inset: 0;
+  pointer-events: none;
+}
+
+.overlayText,
+.mention {
+  position: absolute;
+  max-width: calc(100% - 16px);
+  transform: translate(-50%, -50%);
+  white-space: pre;
+}
+
+.overlayText {
+  padding: 5px;
+  border-radius: 7px;
+  background: rgba(0, 0, 0, 0.3);
+  font-weight: 400;
+  line-height: 1.25;
+  letter-spacing: -0.02em;
+}
+
+.mention {
+  padding: 5px;
+  border-radius: 7px;
+  background: rgba(0, 0, 0, 0.3);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.2;
+}
+
 .mediaFrame {
   position: relative;
   z-index: 1;

@@ -13,7 +13,7 @@ share/
     README.md
     rules.json
   database/
-    schema/mariadb_10_1/    ← 001_init_schema.sql (schema_version 8)
+    schema/mariadb_10_1/    ← 001_init_schema.sql (schema_version 13)
     seed/mariadb_10_1/      ← 001_dev_sample_data.sql (로컬 전용, CDN 시드 포함)
   docs/
     api-memo.md             ← 엔드포인트·도메인 메모

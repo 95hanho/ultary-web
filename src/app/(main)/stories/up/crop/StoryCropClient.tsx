@@ -4,6 +4,7 @@ import { FooterMenu } from '@/components/common/FooterMenu';
 import { ImageCropper, type CropResult } from '@/components/common/ImageCropper';
 import { PageHeader } from '@/components/common/PageHeader';
 import { confirmLeaveWrite } from '@/lib/write/confirm-leave';
+import { normalizedCropOf } from '@/lib/write/crop-rect';
 import { useStoryDraftStore } from '@/stores/story-draft.store';
 import { Play } from 'lucide-react';
 import { useRouter } from 'next/navigation';
@@ -17,6 +18,7 @@ export default function StoryCropClient() {
   const router = useRouter();
   const sourceUrl = useStoryDraftStore((s) => s.sourceUrl);
   const kind = useStoryDraftStore((s) => s.kind);
+  const cropRect = useStoryDraftStore((s) => s.cropRect);
   const setCrop = useStoryDraftStore((s) => s.setCrop);
   const clear = useStoryDraftStore((s) => s.clear);
 
@@ -53,7 +55,7 @@ export default function StoryCropClient() {
           console.warn('[story-crop] crop empty');
           return;
         }
-        setCrop(result.dataUrl);
+        setCrop(result.dataUrl, normalizedCropOf(result.display, result.displaySize));
       }
       router.push(UP_HREF);
     } finally {
@@ -88,6 +90,7 @@ export default function StoryCropClient() {
             key={sourceUrl}
             src={sourceUrl}
             aspect="free"
+            initialCrop={cropRect}
             cropperRef={cropperRef}
             onReadyChange={setReady}
           />

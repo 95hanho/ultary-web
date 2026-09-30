@@ -5,6 +5,7 @@ import { ImageCropper, type CropResult } from '@/components/common/ImageCropper'
 import { PageHeader } from '@/components/common/PageHeader';
 import { myUltaryPath } from '@/lib/mock/ultary-accounts';
 import { confirmLeaveWrite } from '@/lib/write/confirm-leave';
+import { normalizedCropOf } from '@/lib/write/crop-rect';
 import { useWriteDraftStore } from '@/stores/write-draft.store';
 import { Play } from 'lucide-react';
 import { useParams, useRouter } from 'next/navigation';
@@ -21,8 +22,14 @@ export default function WriteCropClient() {
 
   const items = useWriteDraftStore((s) => s.items);
   const updateCrop = useWriteDraftStore((s) => s.updateCrop);
+  const setCropIndex = useWriteDraftStore((s) => s.setCropIndex);
 
-  const [index, setIndex] = useState(0);
+  const [index, setIndex] = useState(() => {
+    const { items: draftItems, cropIndex } = useWriteDraftStore.getState();
+    const last = Math.max(0, draftItems.length - 1);
+    if (!Number.isInteger(cropIndex) || cropIndex < 0) return 0;
+    return Math.min(cropIndex, last);
+  });
   const [ready, setReady] = useState(false);
   const [busy, setBusy] = useState(false);
   const cropperRef = useRef<{ getResult: () => Promise<CropResult | null> } | null>(null);
@@ -39,6 +46,10 @@ export default function WriteCropClient() {
   }, []);
 
   useEffect(() => {
+    setCropIndex(index);
+  }, [index, setCropIndex]);
+
+  useEffect(() => {
     setReady(current?.kind === 'video');
     cropperRef.current = null;
   }, [index, current?.id, current?.kind]);
@@ -50,7 +61,7 @@ export default function WriteCropClient() {
       console.warn('[write-crop] crop empty');
       return false;
     }
-    updateCrop(current.id, result.dataUrl);
+    updateCrop(current.id, result.dataUrl, normalizedCropOf(result.display, result.displaySize));
     return true;
   };
 
@@ -130,6 +141,7 @@ export default function WriteCropClient() {
             key={current.id}
             src={current.sourceUrl}
             aspect="free"
+            initialCrop={current.cropRect}
             cropperRef={cropperRef}
             onReadyChange={setReady}
           />

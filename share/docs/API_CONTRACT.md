@@ -52,6 +52,11 @@
 | `GET /main/search/recent/more` | `items`(20), `nextCursorHistoryId` | `cursorHistoryId` = 직전 `nextCursorHistoryId`. 없으면 끝 |
 | `POST /main/search/recent` | `{ targetUserNo }` | 검색 후 그 울타리에 들어갈 때 저장. 같은 쌍은 `searched_at`만 갱신 |
 | `DELETE /main/search/recent` | data null | 최근 검색 모두 지우기. 탈퇴·차단으로 목록에 없던 행도 삭제 |
+| `GET /main/search` | `users[]`, `pets[]` | 로그인한 본인 계정은 넣지 않는다. 내 `userNo`와, 보호자가 나인 펫을 뺀다. 검색 페이지·사진 태그·스토리 `@` 공통 |
+| `GET /main/search?type=PET` | `pets[].ownerNickname` | 보호자 닉네임. `userNo`는 보호자. 멘션명만 검색돼도 닉네임을 함께 준다 |
+| `GET /main/pet-tags/recent` | `items`(최대 20) | 스토리 `@`·사진 태그의 최근 펫. `usedAt` 내림차순. 검색 최근 울타리와 다른 저장소 |
+| `POST /main/pet-tags/recent` | `{ petId }` | 멘션을 고를 때 저장. 같은 펫은 `used_at`만 갱신. `POST /main/search/recent`와 무관 |
+| `DELETE /main/pet-tags/recent` | data null | 내 최근 펫 태그 전부 삭제 |
 | `GET /feeds/{id}/comments` · `.../replies` | `authorProfileFile` | 작성자의 대표 펫 사진 `FileSummary`. 없으면 `null`. 인라인 `replies`에도 동일 |
 | `GET /pets` | `priority` | 작을수록 우선. 목록은 이 순서, 같으면 petId. 유저 프로필 사진은 그중 사진 있는 첫 펫. **로그인한 나의 펫만** |
 | `PATCH /pets/{petId}` | `profileFileId` | 다른 파일로 바꾸거나 `removeProfileFile=true`면 이전 `ultary_file`을 삭제 표시(`is_deleted`, `deleted_at`). 다른 곳에서 쓰는 파일은 유지 |
@@ -59,8 +64,13 @@
 | `GET /my-ultary/feeds` | 그리드 항목 | **로그인한 나의** 게시글. `coverFile`, `coverThumbnailFile` |
 | `GET /users/{userNo}/feeds` | 항목은 `GET /my-ultary/feeds`와 동일 | 그 유저의 게시글 그리드. 쿼리 `limit` 또는 `size`. `PUBLIC` 조회 가능, `NEIGHBORS`는 ACCEPTED 이웃 또는 본인, `PRIVATE`는 본인만. 나의 `userNo`면 `GET /my-ultary/feeds`와 같은 결과 |
 | `GET /my-ultary` · `GET /users/{userNo}/ultary` | `hasStory`, `hasUnviewed` | 울타리 스토리 버튼. 없음 / 안읽음 / 다 읽음. 기준은 조회한 나. 본인 스토리 열람도 읽음에 포함. 프로필만 주고 펫·게시글 목록은 포함하지 않는다 |
-| `GET /main/stories?userNo=` · `GET /my-ultary/stories` | 각 항목 `viewedByMe` | **스토리 단건** 읽음 (`ultary_story_view`). 본인 스토리도 동일 |
+| `GET /main/stories?userNo=` · `GET /my-ultary/stories` | 각 항목 `viewedByMe`, `texts`, `mentions` | **스토리 단건** 읽음 (`ultary_story_view`). 본인 스토리도 동일. 글자·펫 멘션은 등록 때 넣은 위치 그대로 |
+| `POST /my-ultary/stories` | `texts`, `mentions` | 사진 위 글자(크기 12/16/20/24 기본 16, 굵게·밑줄·취소선, `#RRGGBB`, 위치 %)와 `@펫`(`petId`, 위치 %). 각 최대 20. 후보 검색 `GET /main/search?type=PET` |
 | `POST /stories/{storyId}/view` | — | 해당 `storyId`만 INSERT IGNORE. **본인 스토리도 기록** |
+| `POST /stories/{storyId}/like` · `DELETE` | `likeCount`, `likedByMe` | 스토리 공감. 본인 또는 ACCEPTED 이웃만. 취소는 소프트 삭제 |
+| `GET /notifications` | `unreadCount`, `items` | 알림 목록. 같은 대상 1행. `message`는 서버 문장. `snippet`은 텍스트 일부. 이동은 `feedId`·`feedCommentId`·`feedReplyId`·`storyId`·`neighborId`. 수락 버튼은 `neighborStatus=PENDING` |
+| `PATCH /notifications/{notificationId}/read` | 그 항목 | 내 알림만 읽음 |
+| `POST /notifications/read-all` | data null | 내 알림 전부 읽음 |
 
 **재생 순서 (FE)**  
 1. 응답 배열은 `created_at` ASC (서버 정렬 유지).  

@@ -1,3 +1,4 @@
+import type { NormalizedCrop } from '@/lib/write/crop-rect';
 import { create } from 'zustand';
 
 export type StoryTextBox = {
@@ -9,10 +10,13 @@ export type StoryTextBox = {
   underline: boolean;
   strike: boolean;
   color: string;
+  /** 12 | 16 | 20 | 24 */
+  fontSize: number;
 };
 
 export type StoryPetTag = {
   id: string;
+  petId: number;
   petTag: string;
   x: number;
   y: number;
@@ -22,6 +26,8 @@ type StoryDraftState = {
   sourceUrl: string | null;
   /** 이미지 크롭 결과 */
   croppedDataUrl: string | null;
+  /** 원본 위 크롭 박스 (표시 영역 기준 0~1). 다시 들어오면 이 위치로 복원 */
+  cropRect: NormalizedCrop | null;
   kind: 'image' | 'video' | null;
   fileName: string;
   texts: StoryTextBox[];
@@ -31,7 +37,8 @@ type StoryDraftState = {
     kind: 'image' | 'video';
     fileName: string;
   }) => void;
-  setCrop: (croppedDataUrl: string) => void;
+  setCrop: (croppedDataUrl: string, cropRect: NormalizedCrop | null) => void;
+  clearEdits: () => void;
   setTexts: (texts: StoryTextBox[]) => void;
   upsertText: (box: StoryTextBox) => void;
   removeText: (id: string) => void;
@@ -43,13 +50,23 @@ type StoryDraftState = {
 export const useStoryDraftStore = create<StoryDraftState>((set) => ({
   sourceUrl: null,
   croppedDataUrl: null,
+  cropRect: null,
   kind: null,
   fileName: '',
   texts: [],
   petTags: [],
   setMedia: ({ sourceUrl, kind, fileName }) =>
-    set({ sourceUrl, kind, fileName, croppedDataUrl: null, texts: [], petTags: [] }),
-  setCrop: (croppedDataUrl) => set({ croppedDataUrl }),
+    set({
+      sourceUrl,
+      kind,
+      fileName,
+      croppedDataUrl: null,
+      cropRect: null,
+      texts: [],
+      petTags: [],
+    }),
+  setCrop: (croppedDataUrl, cropRect) => set({ croppedDataUrl, cropRect }),
+  clearEdits: () => set({ texts: [], petTags: [] }),
   setTexts: (texts) => set({ texts }),
   upsertText: (box) =>
     set((state) => {
@@ -66,6 +83,7 @@ export const useStoryDraftStore = create<StoryDraftState>((set) => ({
         ...state.petTags,
         {
           id: tag.id ?? `st-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+          petId: tag.petId,
           petTag: tag.petTag,
           x: tag.x,
           y: tag.y,
@@ -77,6 +95,7 @@ export const useStoryDraftStore = create<StoryDraftState>((set) => ({
     set({
       sourceUrl: null,
       croppedDataUrl: null,
+      cropRect: null,
       kind: null,
       fileName: '',
       texts: [],

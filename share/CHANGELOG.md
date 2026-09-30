@@ -7,6 +7,48 @@ validation · database · docs 모두 **여기 한곳**에 적는다.
 
 ---
 
+## 2026-09-30 15:50
+
+### DB v14 · API · 알림 목록과 발생 저장
+- `GET /api/v1/notifications` 는 화면 문장(`message`), 인용 일부(`snippet`), 이동용 id, 안 읽은 수
+- 같은 대상은 1행. 좋아요·스토리 공감·내 게시글의 댓글/답글은 인원만 늘리고, 댓글·답글 문구는 최신 글로 덮어씀
+- 이웃 신청, 게시글·댓글·답글 좋아요, 댓글/답글 언급, 게시글·스토리 펫 태그, 스토리 공감이 생길 때 저장
+- 스토리 공감 `POST/DELETE /api/v1/stories/{storyId}/like` (`ultary_story_like`)
+- 웹소켓은 아직 없음
+
+## 2026-09-30 15:00
+
+### API · 검색에서 본인 계정 제외
+- `GET /api/v1/main/search`의 `users[]`에서 로그인한 본인 `userNo`를 뺀다
+- 같은 응답의 `pets[]`에서 보호자가 본인인 펫을 뺀다
+- 검색 페이지(`type=USER`)와 사진 태그·스토리 `@`(`type=PET`), `type=ALL` 모두 적용
+
+## 2026-09-30 14:31
+
+### DB v13 · API · 사진·스토리 최근 펫 태그
+- 검색창 최근 검색(`ultary_user_search_history`, 들어간 유저 울타리)과 **다른 테이블** `ultary_user_pet_tag_history`
+- 한 사용자·펫당 1행. 다시 고르면 `used_at`만 갱신
+- `GET /api/v1/main/pet-tags/recent` — 최근 20건. `petId`, `mentionId`, `name`, `userNo`, `ownerNickname`, `profileFile`, `usedAt`
+- `POST /api/v1/main/pet-tags/recent` `{ petId }` — 스토리 `@` 또는 사진 태그에서 펫을 고를 때. 검색 최근 저장 API를 쓰지 않음
+- `DELETE /api/v1/main/pet-tags/recent` — 내 최근 펫 태그 전부 삭제
+- `GET /api/v1/main/search?type=PET`의 `pets[]`에 `ownerNickname` 추가. 멘션명만 맞아도 보호자 닉네임을 준다
+- 기존 DB: `007_recent_pet_tag.sql`
+
+## 2026-09-30 14:08
+
+### DB v12 · API · 스토리 사진 위 글자·펫 멘션
+- `ultary_story_text`: 내용, `font_size`(12\|16\|20\|24, 기본 16), 굵게·밑줄·취소선, `#RRGGBB`, `pos_x`/`pos_y`(0~100)
+- `ultary_story_mention`: `pet_id`와 위치. 활성 펫과 1:1
+- `POST /api/v1/my-ultary/stories`에 `texts`, `mentions`(각 최대 20). 스토리 조회 응답에도 포함. 멘션 응답은 `mentionId`, `petName`
+- 멘션 후보: `GET /api/v1/main/search?type=PET&q=` — `mention_id`, 펫 이름, 보호자 닉네임
+- 기존 DB: `006_story_overlay.sql`
+
+## 2026-09-30 09:07
+
+### API · 태그된 게시글은 그 울타리 주인 글 제외
+- `GET /api/v1/my-ultary/tagged-feeds`는 다른 사람이 내 펫을 `COLLABORATOR`로 넣거나 사진에 `@` 멘션한 글만 반환
+- 작성자가 나인 글은 게시글 그리드에만 있고 태그 탭에는 없음
+
 ## 2026-09-29 14:28
 
 ### API · 펫 프로필 사진 교체 시 이전 파일 삭제 표시

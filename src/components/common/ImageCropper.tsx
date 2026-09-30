@@ -1,5 +1,6 @@
 'use client';
 
+import type { NormalizedCrop } from '@/lib/write/crop-rect';
 import {
   useCallback,
   useEffect,
@@ -31,6 +32,8 @@ type ImageCropperProps = {
   /** square: 정사각형 고정 / free: 직사각형 자유 비율 */
   aspect?: 'square' | 'free';
   className?: string;
+  /** 표시 이미지 기준 0~1. 있으면 기본 위치 대신 이 박스로 시작 */
+  initialCrop?: NormalizedCrop | null;
   onReadyChange?: (ready: boolean) => void;
   cropperRef?: MutableRefObject<{ getResult: () => Promise<CropResult | null> } | null>;
 };
@@ -52,6 +55,37 @@ function clampCrop(rect: CropRect, maxW: number, maxH: number): CropRect {
   x = clamp(x, 0, maxW - width);
   y = clamp(y, 0, maxH - height);
   return { x, y, width, height };
+}
+
+function isUsableNormalizedCrop(saved: NormalizedCrop | null | undefined): saved is NormalizedCrop {
+  return (
+    !!saved &&
+    saved.width > 0 &&
+    saved.height > 0 &&
+    Number.isFinite(saved.x) &&
+    Number.isFinite(saved.y) &&
+    Number.isFinite(saved.width) &&
+    Number.isFinite(saved.height)
+  );
+}
+
+function cropFromNormalized(
+  saved: NormalizedCrop,
+  maxW: number,
+  maxH: number,
+  aspect: 'square' | 'free',
+): CropRect {
+  const rect = {
+    x: saved.x * maxW,
+    y: saved.y * maxH,
+    width: saved.width * maxW,
+    height: saved.height * maxH,
+  };
+  if (aspect === 'square') {
+    const size = clamp(Math.min(rect.width, rect.height), MIN_CROP, Math.min(maxW, maxH));
+    return clampCrop({ x: rect.x, y: rect.y, width: size, height: size }, maxW, maxH);
+  }
+  return clampFreeCrop(rect, maxW, maxH);
 }
 
 /** free 크롭: 프레임 안 + 휴대폰 비율(9:16~16:9) 제한 */
@@ -88,6 +122,7 @@ export function ImageCropper({
   src,
   aspect = 'square',
   className,
+  initialCrop = null,
   onReadyChange,
   cropperRef,
 }: ImageCropperProps) {
@@ -99,8 +134,11 @@ export function ImageCropper({
     origin: CropRect;
   } | null>(null);
   const didInitCrop = useRef(false);
+  const userAdjusted = useRef(false);
   const aspectRef = useRef(aspect);
+  const initialCropRef = useRef(initialCrop);
   aspectRef.current = aspect;
+  initialCropRef.current = initialCrop;
 
   const [displaySize, setDisplaySize] = useState({ width: 0, height: 0 });
   const [natural, setNatural] = useState({ width: 0, height: 0 });
@@ -119,7 +157,11 @@ export function ImageCropper({
       setDisplaySize({ width, height });
       setNatural({ width: img.naturalWidth, height: img.naturalHeight });
 
-      if (resetCrop || !didInitCrop.current) {
+      const saved = initialCropRef.current;
+      if (!userAdjusted.current && isUsableNormalizedCrop(saved)) {
+        setCrop(cropFromNormalized(saved, width, height, aspectRef.current));
+        didInitCrop.current = true;
+      } else if (resetCrop || !didInitCrop.current) {
         if (aspectRef.current === 'square') {
           const size = Math.min(width, height) * (2 / 3);
           setCrop({ x: 0, y: 0, width: size, height: size });
@@ -157,6 +199,7 @@ export function ImageCropper({
 
   useEffect(() => {
     didInitCrop.current = false;
+    userAdjusted.current = false;
     setReady(false);
     setCrop({ x: 0, y: 0, width: 0, height: 0 });
     onReadyChange?.(false);
@@ -260,6 +303,7 @@ export function ImageCropper({
   const onPointerDown = (mode: DragMode) => (e: ReactPointerEvent) => {
     e.preventDefault();
     e.stopPropagation();
+    userAdjusted.current = true;
     dragRef.current = {
       mode,
       startX: e.clientX,
