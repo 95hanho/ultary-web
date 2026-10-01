@@ -2,15 +2,15 @@
 
 import { Profile } from '@/components/my-ultary/Profile';
 import { StoryDevTools } from '@/components/dev/StoryDevTools';
-import { bffGet, bffPostJson } from '@/lib/api/bffFetch';
+import { bffDelete, bffGet, bffPostJson } from '@/lib/api/bffFetch';
 import { bffEndpoints } from '@/lib/api/endpoints';
 import { resolveFileDisplayUrl } from '@/lib/api/fileUrl';
 import { myUltaryPath } from '@/lib/mock/ultary-accounts';
 import { NO_PROFILE_SRC } from '@/lib/profileImage';
 import { STORY_IMAGE_DURATION_MS } from '@/lib/mock/stories';
-import type { BffEnvelope } from '@/types/api';
+import type { BffEnvelope, MeResponse } from '@/types/api';
 import type { Story, StoryMention, StoryOwner, StoryText } from '@/types/story';
-import { Ellipsis, Pause, Play, X } from 'lucide-react';
+import { Heart, Pause, Play, Send, X } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
@@ -18,12 +18,14 @@ import {
   useEffect,
   useRef,
   useState,
+  type FormEvent,
   type RefObject,
 } from 'react';
 import styles from './stories.module.scss';
 
 type StorySlide = {
   storyId: number;
+  userNo: number;
   kind: 'image' | 'video';
   src: string;
   viewedByMe: boolean;
@@ -72,6 +74,7 @@ function toSlide(story: Story): StorySlide {
     FALLBACK_MEDIA;
   return {
     storyId: story.storyId,
+    userNo: story.userNo,
     kind: story.mediaType === 'VIDEO' ? 'video' : 'image',
     src,
     viewedByMe: Boolean(story.viewedByMe),
@@ -138,6 +141,11 @@ export default function StoriesClient({
   const [playId, setPlayId] = useState(0);
   const [progress, setProgress] = useState(0);
   const [paused, setPaused] = useState(false);
+  const [meUserNo, setMeUserNo] = useState<number | null>(null);
+  const [reply, setReply] = useState('');
+  const [replyError, setReplyError] = useState('');
+  const [sendingReply, setSendingReply] = useState(false);
+  const [likedIds, setLikedIds] = useState<Set<number>>(() => new Set());
   const videoRef = useRef<HTMLVideoElement>(null);
   const rafRef = useRef<number | null>(null);
   const startRef = useRef(0);
@@ -146,6 +154,8 @@ export default function StoriesClient({
   const pausedRef = useRef(paused);
   const ownersRef = useRef<StoryOwner[]>([]);
   const markedViewRef = useRef<Set<number>>(new Set());
+  const likeLockRef = useRef(false);
+  const holdForReplyRef = useRef(false);
   indexRef.current = index;
   pausedRef.current = paused;
   ownersRef.current = owners;
@@ -255,6 +265,19 @@ export default function StoriesClient({
     };
   }, [userNo, nicknameHint, router, start, onlyStoryId]);
 
+  useEffect(() => {
+    let cancelled = false;
+    void bffGet<BffEnvelope<MeResponse>>(bffEndpoints.auth.me)
+      .then((res) => {
+        const id = res.data?.userNo;
+        if (!cancelled && typeof id === 'number') setMeUserNo(id);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   /** 현재 스토리 조회 시 읽음 기록 */
   useEffect(() => {
     if (!current) return;
@@ -271,6 +294,11 @@ export default function StoriesClient({
       prev.map((s) => (s.storyId === storyId ? { ...s, viewedByMe: true } : s)),
     );
   }, [current]);
+
+  useEffect(() => {
+    setReply('');
+    setReplyError('');
+  }, [current?.storyId]);
 
   const clearTick = () => {
     if (rafRef.current != null) {
@@ -446,6 +474,73 @@ export default function StoriesClient({
     setPaused((p) => !p);
   };
 
+  const onReplyFocus = () => {
+    if (!pausedRef.current) {
+      holdForReplyRef.current = true;
+      setPaused(true);
+    }
+  };
+
+  const onReplyBlur = () => {
+    if (!holdForReplyRef.current) return;
+    holdForReplyRef.current = false;
+    setPaused(false);
+  };
+
+  const toggleLike = async () => {
+    if (!current || likeLockRef.current) return;
+    const storyId = current.storyId;
+    const next = !likedIds.has(storyId);
+    likeLockRef.current = true;
+    setLikedIds((prev) => {
+      const copy = new Set(prev);
+      if (next) copy.add(storyId);
+      else copy.delete(storyId);
+      return copy;
+    });
+    try {
+      if (next) {
+        await bffPostJson(bffEndpoints.stories.like, { storyId });
+      } else {
+        await bffDelete(bffEndpoints.stories.like, { storyId });
+      }
+    } catch (err) {
+      console.error('[stories] like failed', err);
+      setLikedIds((prev) => {
+        const copy = new Set(prev);
+        if (next) copy.delete(storyId);
+        else copy.add(storyId);
+        return copy;
+      });
+    } finally {
+      likeLockRef.current = false;
+    }
+  };
+
+  const sendReply = async (event: FormEvent) => {
+    event.preventDefault();
+    const text = reply.trim();
+    const targetUserNo = current?.userNo;
+    if (!text || targetUserNo == null || sendingReply) return;
+    setSendingReply(true);
+    setReplyError('');
+    try {
+      const room = await bffPostJson<BffEnvelope<{ roomId?: number }>>(
+        bffEndpoints.dm.rooms,
+        { targetUserNo, content: text },
+      );
+      const roomId = room.data?.roomId;
+      if (roomId == null) throw new Error('room missing');
+      await bffPostJson(bffEndpoints.dm.messages, { roomId, content: text });
+      setReply('');
+    } catch (err) {
+      console.error('[stories] dm send failed', err);
+      setReplyError('답장을 보내지 못했습니다');
+    } finally {
+      setSendingReply(false);
+    }
+  };
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement | null;
@@ -553,6 +648,7 @@ export default function StoriesClient({
               <span className={styles.nickname}>{nickname}</span>
             </Link>
             <div className={styles.actions}>
+              {/* 더보기. 메뉴가 정해지면 다시 연다.
               <button
                 type="button"
                 className={styles.iconBtn}
@@ -563,6 +659,7 @@ export default function StoriesClient({
               >
                 <Ellipsis size={28} strokeWidth={2.25} />
               </button>
+              */}
               <button
                 type="button"
                 className={styles.iconBtn}
@@ -604,6 +701,54 @@ export default function StoriesClient({
 
           <StoryMedia item={current} videoRef={videoRef} />
         </div>
+
+        {meUserNo == null || current.userNo !== meUserNo ? (
+          <form className={styles.replyBar} onSubmit={sendReply}>
+            <div className={styles.replyRow}>
+              <input
+                className={styles.replyField}
+                value={reply}
+                placeholder={`${nickname}님에게 답장하기...`}
+                aria-label={`${nickname}님에게 답장하기`}
+                maxLength={500}
+                autoComplete="off"
+                onChange={(event) => {
+                  setReply(event.target.value);
+                  if (replyError) setReplyError('');
+                }}
+                onFocus={onReplyFocus}
+                onBlur={onReplyBlur}
+              />
+              <button
+                type="button"
+                className={styles.replyIcon}
+                aria-label={likedIds.has(current.storyId) ? '공감 취소' : '공감'}
+                aria-pressed={likedIds.has(current.storyId)}
+                onClick={() => {
+                  void toggleLike();
+                }}
+              >
+                <Heart
+                  size={28}
+                  strokeWidth={2}
+                  className={
+                    likedIds.has(current.storyId) ? styles.replyHeartOn : undefined
+                  }
+                  fill={likedIds.has(current.storyId) ? 'currentColor' : 'none'}
+                />
+              </button>
+              <button
+                type="submit"
+                className={styles.replyIcon}
+                aria-label="답장 보내기"
+                disabled={sendingReply || reply.trim().length === 0}
+              >
+                <Send size={26} strokeWidth={2} />
+              </button>
+            </div>
+            {replyError ? <p className={styles.replyError}>{replyError}</p> : null}
+          </form>
+        ) : null}
       </div>
 
       <StoryDevTools onStoryViewsCleared={onStoryViewsCleared} />

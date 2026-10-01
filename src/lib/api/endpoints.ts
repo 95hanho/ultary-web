@@ -94,6 +94,8 @@ export const bffEndpoints = {
   stories: {
     /** POST 스토리 읽음 (ultary_story_view · 본인 스토리는 미기록) */
     view: '/api/stories/:storyId/view',
+    /** POST 공감 / DELETE 공감 취소 */
+    like: '/api/stories/:storyId/like',
   },
 
   pets: {
@@ -312,6 +314,8 @@ export const springEndpoints = {
   stories: {
     /** POST 읽음 — INSERT IGNORE, 본인 스토리 미기록 */
     view: '/api/v1/stories/:storyId/view',
+    /** POST 공감 / DELETE 공감 취소 */
+    like: '/api/v1/stories/:storyId/like',
   },
 
   pets: {
