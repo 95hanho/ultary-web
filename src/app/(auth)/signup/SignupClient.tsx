@@ -431,7 +431,7 @@ export default function SignupClient() {
               placeholder="닉네임을 입력해주세요."
               className={styles.input}
             />
-            <FieldNote>닉네임은 3개월에 한 번만 변경할 수 있습니다.</FieldNote>
+            <FieldNote>닉네임은 7일에 한 번만 변경할 수 있습니다.</FieldNote>
             <FieldHint message={errors.nickname} />
           </div>
         </label>

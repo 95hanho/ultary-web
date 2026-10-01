@@ -5,11 +5,13 @@ import { StoryDevTools } from '@/components/dev/StoryDevTools';
 import { bffGet, bffPostJson } from '@/lib/api/bffFetch';
 import { bffEndpoints } from '@/lib/api/endpoints';
 import { resolveFileDisplayUrl } from '@/lib/api/fileUrl';
+import { myUltaryPath } from '@/lib/mock/ultary-accounts';
 import { NO_PROFILE_SRC } from '@/lib/profileImage';
 import { STORY_IMAGE_DURATION_MS } from '@/lib/mock/stories';
 import type { BffEnvelope } from '@/types/api';
 import type { Story, StoryMention, StoryOwner, StoryText } from '@/types/story';
 import { Ellipsis, Pause, Play, X } from 'lucide-react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
   useCallback,
@@ -41,6 +43,8 @@ type Props = {
   fromUserNo?: string;
   /** 피드에서 연 경우. 이 유저 스토리만 보고 끝에서는 이전 페이지로 */
   singleUser?: boolean;
+  /** 알림에서 연 경우. 이 스토리 한 장만 재생하고 끝나면 이전 페이지로 */
+  onlyStoryId?: string;
 };
 
 const FALLBACK_MEDIA = '/images/mock/post.jpg';
@@ -122,6 +126,7 @@ export default function StoriesClient({
   unreadChain = false,
   fromUserNo = '',
   singleUser = false,
+  onlyStoryId = '',
 }: Props) {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
@@ -157,7 +162,8 @@ export default function StoriesClient({
     router.back();
   }, [router]);
 
-  const chainFrom = unreadChain ? fromUserNo || userNo : '';
+  const oneStory = Boolean(onlyStoryId) || singleUser;
+  const chainFrom = oneStory || !unreadChain ? '' : fromUserNo || userNo;
 
   const goToOwner = useCallback(
     (owner: StoryOwner, nextStart: StartMode) => {
@@ -173,7 +179,7 @@ export default function StoriesClient({
   );
 
   useEffect(() => {
-    if (!userNo) {
+    if (!userNo && !onlyStoryId) {
       router.replace('/');
       return;
     }
@@ -183,24 +189,43 @@ export default function StoriesClient({
     (async () => {
       setLoading(true);
       try {
-        const [storiesRes, ownersRes] = await Promise.all([
-          bffGet<BffEnvelope<Story[]>>(bffEndpoints.main.stories, { userNo }),
-          bffGet<BffEnvelope<StoryOwner[]>>(bffEndpoints.main.storyOwners),
-        ]);
+        const storiesRes = userNo
+          ? await bffGet<BffEnvelope<Story[]>>(bffEndpoints.main.stories, { userNo })
+          : await bffGet<BffEnvelope<Story[]>>(bffEndpoints.myUltary.stories);
+        const ownersRes = onlyStoryId
+          ? null
+          : await bffGet<BffEnvelope<StoryOwner[]>>(bffEndpoints.main.storyOwners);
         if (cancelled) return;
 
-        const list = unwrapList<Story>(storiesRes.data ?? storiesRes);
-        const ownerList = unwrapList<StoryOwner>(ownersRes.data ?? ownersRes);
+        let loaded = unwrapList<Story>(storiesRes.data ?? storiesRes);
+        if (
+          onlyStoryId &&
+          !loaded.some((story) => String(story.storyId) === onlyStoryId)
+        ) {
+          const mineRes = await bffGet<BffEnvelope<Story[]>>(bffEndpoints.myUltary.stories);
+          if (cancelled) return;
+          loaded = unwrapList<Story>(mineRes.data ?? mineRes);
+        }
+        const list = onlyStoryId
+          ? loaded.filter((story) => String(story.storyId) === onlyStoryId)
+          : loaded;
+        const ownerList = ownersRes
+          ? unwrapList<StoryOwner>(ownersRes.data ?? ownersRes)
+          : [];
         const slides = list.map(toSlide);
         setItems(slides);
         setOwners(ownerList);
 
         const first = list[0];
-        const nick =
-          nicknameHint ||
-          first?.nickname?.trim() ||
-          first?.authorNickname?.trim() ||
-          'ULTARY';
+        const nick = onlyStoryId
+          ? first?.nickname?.trim() ||
+            first?.authorNickname?.trim() ||
+            nicknameHint ||
+            'ULTARY'
+          : nicknameHint ||
+            first?.nickname?.trim() ||
+            first?.authorNickname?.trim() ||
+            'ULTARY';
         setNickname(nick);
         setProfileUrl(
           resolveFileDisplayUrl(first?.authorProfileFile) ?? FALLBACK_PROFILE,
@@ -228,7 +253,7 @@ export default function StoriesClient({
     return () => {
       cancelled = true;
     };
-  }, [userNo, nicknameHint, router, start]);
+  }, [userNo, nicknameHint, router, start, onlyStoryId]);
 
   /** 현재 스토리 조회 시 읽음 기록 */
   useEffect(() => {
@@ -261,7 +286,7 @@ export default function StoriesClient({
       return;
     }
 
-    if (singleUser) {
+    if (oneStory) {
       close();
       return;
     }
@@ -287,7 +312,7 @@ export default function StoriesClient({
       return;
     }
     close();
-  }, [chainFrom, close, goToOwner, items.length, singleUser, userNo]);
+  }, [chainFrom, close, goToOwner, items.length, oneStory, userNo]);
 
   const handlePrevTap = useCallback(() => {
     setPaused(false);
@@ -296,7 +321,7 @@ export default function StoriesClient({
       return;
     }
 
-    if (singleUser) {
+    if (oneStory) {
       close();
       return;
     }
@@ -328,7 +353,7 @@ export default function StoriesClient({
       return;
     }
     close();
-  }, [chainFrom, close, fromUserNo, goToOwner, singleUser, userNo]);
+  }, [chainFrom, close, fromUserNo, goToOwner, oneStory, userNo]);
 
   useEffect(() => {
     clearTick();
@@ -519,10 +544,14 @@ export default function StoriesClient({
           </div>
 
           <div className={styles.profileWrap}>
-            <div className={styles.profileLeft}>
+            <Link
+              href={myUltaryPath(nickname)}
+              className={styles.profileLeft}
+              aria-label={`${nickname} 울타리`}
+            >
               <Profile imageUrl={profileUrl} size={44} story="none" />
               <span className={styles.nickname}>{nickname}</span>
-            </div>
+            </Link>
             <div className={styles.actions}>
               <button
                 type="button"
@@ -554,6 +583,12 @@ export default function StoriesClient({
         </header>
 
         <div className={styles.stage}>
+          <button
+            type="button"
+            className={styles.tapStage}
+            aria-label={paused ? '재생' : '일시정지'}
+            onClick={togglePaused}
+          />
           <button
             type="button"
             className={styles.tapLeft}

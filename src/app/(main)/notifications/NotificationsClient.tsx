@@ -7,7 +7,7 @@ import { bffEndpoints } from '@/lib/api/endpoints';
 import { resolveFileDisplayUrl } from '@/lib/api/fileUrl';
 import { isRecord } from '@/lib/api/error';
 import { MY_NICKNAME, OTHER_NICKNAME, myUltaryPath } from '@/lib/mock/ultary-accounts';
-import { openFeedComment } from '@/lib/notification/openTarget';
+import { openFeedComment, postPagePath } from '@/lib/notification/openTarget';
 import { NO_PROFILE_SRC } from '@/lib/profileImage';
 import type { BffEnvelope } from '@/types/api';
 import type { FileSummary } from '@/types/file';
@@ -54,6 +54,8 @@ type NotificationItem = {
   commentId?: string;
   replyId?: string;
   storyId?: string;
+  /** 스토리를 올린 사람. 태그 알림은 행위자, 공감 알림은 나 */
+  actorUserNo?: string;
   neighborAction?: NeighborAction;
 };
 
@@ -214,13 +216,18 @@ function KeywordButton({ label, onClick }: { label: string; onClick: () => void 
 
 function goPost(item: NotificationItem, router: ReturnType<typeof useRouter>) {
   if (!item.feedId) return;
-  const owner = item.feedOwnerNickname ?? MY_NICKNAME;
-  router.push(`${myUltaryPath(owner)}/posts/${item.feedId}`);
+  router.push(postPagePath(item.feedId));
 }
 
 function goStory(item: NotificationItem, router: ReturnType<typeof useRouter>) {
-  console.log('[notifications] 해당스토리로이동', item.storyId);
-  router.push('/stories');
+  if (!item.storyId) return;
+  const q = new URLSearchParams();
+  if (item.kind === 'tagStory' && item.actorUserNo) {
+    q.set('userNo', item.actorUserNo);
+    if (item.actorNickname.trim()) q.set('nickname', item.actorNickname.trim());
+  }
+  const qs = q.toString();
+  router.push(`/stories/${item.storyId}${qs ? `?${qs}` : ''}`);
 }
 
 function goComment(item: NotificationItem, router: ReturnType<typeof useRouter>) {
@@ -249,13 +256,28 @@ function goReply(item: NotificationItem, router: ReturnType<typeof useRouter>) {
   );
 }
 
+function escapeRegExp(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 function linkifyMessage(
   message: string,
   item: NotificationItem,
   router: ReturnType<typeof useRouter>,
 ) {
-  const parts = message.split(/(댓글|답글|게시글|스토리)/g);
+  const nickname = item.actorNickname.trim();
+  const token = nickname
+    ? `(${escapeRegExp(nickname)}|댓글|답글|게시글|스토리)`
+    : '(댓글|답글|게시글|스토리)';
+  const parts = message.split(new RegExp(token, 'g'));
   return parts.map((part, index) => {
+    if (nickname && part === nickname) {
+      return (
+        <Link key={index} href={myUltaryPath(nickname)} className={styles.nickname}>
+          {part}
+        </Link>
+      );
+    }
     if (part === '댓글') {
       return <KeywordButton key={index} label={part} onClick={() => goComment(item, router)} />;
     }
@@ -500,6 +522,7 @@ function mapApiNotification(raw: unknown): NotificationItem | null {
     commentId: idString(raw.feedCommentId),
     replyId,
     storyId: idString(raw.storyId),
+    actorUserNo: idString(raw.actorUserNo),
     neighborAction:
       kind === 'neighbor' && (neighborStatus === '' || neighborStatus === 'PENDING')
         ? 'accept'

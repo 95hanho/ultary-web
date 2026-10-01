@@ -118,13 +118,18 @@ export type SocialLoginResponse = TokenResponse & {
   defaultNickname: boolean;
 };
 
-/** PATCH /api/v1/auth/me */
+/** PATCH /api/v1/auth/me — 닉네임은 별도 API */
 export type UpdateMeRequest = {
   name?: string | null;
-  nickname?: string;
+  email?: string | null;
   bio?: string | null;
   regionSido?: string | null;
   regionSigungu?: string | null;
+};
+
+/** PATCH /api/v1/auth/me/nickname */
+export type ChangeNicknameRequest = {
+  nickname: string;
 };
 
 /** GET /api/v1/auth/me 성공 data */

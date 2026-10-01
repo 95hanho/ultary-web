@@ -1,17 +1,17 @@
 'use client';
 
+import { MediaImage } from '@/components/common/MediaImage';
 import { Profile, type StoryStatus } from '@/components/my-ultary/Profile';
 import { bffDelete, bffPostJson } from '@/lib/api/bffFetch';
 import { bffEndpoints } from '@/lib/api/endpoints';
 import { isRecord } from '@/lib/api/error';
-import { getTagExplain, splitCaptionTags, type TagExplain } from '@/lib/mock/tags';
 import { resolveFeedPetLabels, type FeedPetLabel } from '@/lib/feed/petLabels';
-import { NO_PROFILE_SRC } from '@/lib/profileImage';
+import { getTagExplain, splitCaptionTags, type TagExplain } from '@/lib/mock/tags';
 import { myUltaryPath } from '@/lib/mock/ultary-accounts';
+import { NO_PROFILE_SRC } from '@/lib/profileImage';
 import { useModalStore } from '@/stores/modal.store';
 import clsx from 'clsx';
 import { User } from 'lucide-react';
-import { MediaImage } from '@/components/common/MediaImage';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -328,70 +328,70 @@ export function Feed({
             {safeImages.map((src, i) => {
               const tags = slideTags[i] ?? [];
               return (
-              <SwiperSlide key={`${src}-${i}`}>
-                <div
-                  className={styles.photoFrame}
-                  onClick={() => {
-                    if (tags.length === 0) return;
-                    setTagListOpen(false);
-                    setTagsOpen((open) => !open);
-                  }}
-                >
-                  <MediaImage
-                    src={src}
-                    alt=""
-                    width={430}
-                    height={430}
-                    className={styles.photo}
-                    style={{ height: 'auto' }}
-                  />
-                  {tagsOpen && i === index
-                    ? tags.map((tag) => (
-                        <span
-                          key={tag.petId}
-                          className={styles.petTag}
-                          style={{ left: `${tag.x * 100}%`, top: `${tag.y * 100}%` }}
-                        >
-                          {petLabels[tag.petId]?.label ?? '태그'}
-                        </span>
-                      ))
-                    : null}
-                  {tags.length > 0 ? (
-                    <button
-                      type="button"
-                      className={styles.tagPeopleBtn}
-                      aria-label="태그된 펫"
-                      aria-expanded={tagListOpen && i === index}
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        setTagsOpen(false);
-                        setTagListOpen((open) => !open);
-                      }}
-                    >
-                      <User size={16} strokeWidth={2.25} aria-hidden />
-                    </button>
-                  ) : null}
-                  {tagListOpen && i === index ? (
-                    <ul className={styles.tagList} onClick={(event) => event.stopPropagation()}>
-                      {tags.map((tag) => {
-                        const info = petLabels[tag.petId];
-                        return (
-                          <li key={tag.petId} className={styles.tagListItem}>
-                            <MediaImage
-                              src={info?.imageUrl ?? NO_PROFILE_SRC}
-                              alt=""
-                              width={28}
-                              height={28}
-                              className={styles.tagListAvatar}
-                            />
-                            <span>{info?.label ?? '태그된 펫'}</span>
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  ) : null}
-                </div>
-              </SwiperSlide>
+                <SwiperSlide key={`${src}-${i}`}>
+                  <div
+                    className={styles.photoFrame}
+                    onClick={() => {
+                      if (tags.length === 0) return;
+                      setTagListOpen(false);
+                      setTagsOpen((open) => !open);
+                    }}
+                  >
+                    <MediaImage
+                      src={src}
+                      alt=""
+                      width={430}
+                      height={430}
+                      className={styles.photo}
+                      style={{ height: 'auto' }}
+                    />
+                    {tagsOpen && i === index
+                      ? tags.map((tag) => (
+                          <span
+                            key={tag.petId}
+                            className={styles.petTag}
+                            style={{ left: `${tag.x * 100}%`, top: `${tag.y * 100}%` }}
+                          >
+                            {petLabels[tag.petId]?.label ?? '태그'}
+                          </span>
+                        ))
+                      : null}
+                    {tags.length > 0 ? (
+                      <button
+                        type="button"
+                        className={styles.tagPeopleBtn}
+                        aria-label="태그된 펫"
+                        aria-expanded={tagListOpen && i === index}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          setTagsOpen(false);
+                          setTagListOpen((open) => !open);
+                        }}
+                      >
+                        <User size={16} strokeWidth={2.25} aria-hidden />
+                      </button>
+                    ) : null}
+                    {tagListOpen && i === index ? (
+                      <ul className={styles.tagList} onClick={(event) => event.stopPropagation()}>
+                        {tags.map((tag) => {
+                          const info = petLabels[tag.petId];
+                          return (
+                            <li key={tag.petId} className={styles.tagListItem}>
+                              <MediaImage
+                                src={info?.imageUrl ?? NO_PROFILE_SRC}
+                                alt=""
+                                width={28}
+                                height={28}
+                                className={styles.tagListAvatar}
+                              />
+                              <span>{info?.label ?? '태그된 펫'}</span>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    ) : null}
+                  </div>
+                </SwiperSlide>
               );
             })}
           </Swiper>
@@ -458,8 +458,8 @@ export function Feed({
               aria-label={`댓글 ${commentCount}`}
               onClick={() => setCommentsOpen(true)}
             >
-              <Image src={CommentIcon} alt="" width={21} height={20} />
-              <span className={clsx(styles.actionCount, 'ml-1')}>{commentCount}</span>
+              <Image src={CommentIcon} alt="" width={31} height={31} />
+              <span className={styles.actionCount}>{commentCount}</span>
             </button>
             <button
               type="button"

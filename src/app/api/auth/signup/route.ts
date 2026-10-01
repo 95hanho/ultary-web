@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { handleBffError } from '@/lib/api/bffRoute';
 import { springEndpoints } from '@/lib/api/endpoints';
 import { springPostJson } from '@/lib/api/springFetch';
+import { validateNickname } from '@/lib/auth/signup-rules';
 import { setAuthCookies } from '@/lib/auth/cookies';
 import type { SignupRequest, TokenResponse } from '@/types/api';
 
@@ -19,7 +20,8 @@ export async function POST(request: NextRequest) {
         { status: 400 },
       );
     }
-    if (!body.password || !body.nickname?.trim()) {
+    const nickname = body.nickname?.trim() ?? '';
+    if (!body.password || !nickname) {
       return NextResponse.json(
         {
           message: 'INVALID_INPUT',
@@ -28,11 +30,18 @@ export async function POST(request: NextRequest) {
         { status: 400 },
       );
     }
+    const nicknameError = validateNickname(nickname);
+    if (nicknameError) {
+      return NextResponse.json(
+        { message: 'INVALID_INPUT', detail: nicknameError },
+        { status: 400 },
+      );
+    }
 
     const payload: SignupRequest = {
       phoneAuthCompleteToken: body.phoneAuthCompleteToken.trim(),
       password: body.password,
-      nickname: body.nickname.trim(),
+      nickname,
       name: body.name?.trim() || undefined,
       email: body.email?.trim() || undefined,
     };

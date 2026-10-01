@@ -9,7 +9,8 @@ import styles from './FeedListPage.module.scss';
 
 type FeedListPageProps = {
   title: string;
-  backHref: string;
+  /** 없으면 브라우저 뒤로 */
+  backHref?: string;
   feeds: FeedData[];
   focusId?: string;
   showAuthor?: boolean;

@@ -1,6 +1,7 @@
 'use client';
 
 import { PageHeader } from '@/components/common/PageHeader';
+import { MyPageEditDevTools } from '@/components/dev/MyPageEditDevTools';
 import { bffGet, bffPatchJson, bffPostJson } from '@/lib/api/bffFetch';
 import { bffEndpoints } from '@/lib/api/endpoints';
 import { isHttpError } from '@/lib/api/error';
@@ -317,17 +318,35 @@ export default function MyPageEditClient() {
       return;
     }
 
-    const body: UpdateMeRequest = {
-      nickname: trimmedNickname,
-      regionSido: regionSido === REGION_NONE ? null : regionSido,
-      regionSigungu:
-        sigunguDisabled || regionSigungu === REGION_NONE ? null : regionSigungu,
-    };
+    const nicknameChanged = trimmedNickname !== initialProfile.nickname.trim();
+    const emailChanged = email.trim() !== initialProfile.email.trim();
+    const nextRegion = regionPayload(regionSido, regionSigungu);
+    const initialRegion = regionPayload(
+      initialProfile.regionSido,
+      initialProfile.regionSigungu,
+    );
+    const regionChanged =
+      nextRegion.regionSido !== initialRegion.regionSido ||
+      nextRegion.regionSigungu !== initialRegion.regionSigungu;
+
+    const profileBody: UpdateMeRequest = {};
+    if (emailChanged) profileBody.email = email.trim();
+    if (regionChanged) {
+      profileBody.regionSido = nextRegion.regionSido;
+      profileBody.regionSigungu = nextRegion.regionSigungu;
+    }
 
     startTransition(async () => {
       setFormError(null);
       try {
-        await bffPatchJson(bffEndpoints.auth.updateMe, body);
+        if (nicknameChanged) {
+          await bffPatchJson(bffEndpoints.auth.changeNickname, {
+            nickname: trimmedNickname,
+          });
+        }
+        if (emailChanged || regionChanged) {
+          await bffPatchJson(bffEndpoints.auth.updateMe, profileBody);
+        }
         router.push('/settings/mypage');
         router.refresh();
       } catch (err) {
@@ -364,7 +383,7 @@ export default function MyPageEditClient() {
               placeholder="닉네임을 입력해주세요."
               className={styles.input}
             />
-            <FieldNote>닉네임은 3개월에 한 번만 변경할 수 있습니다.</FieldNote>
+            <FieldNote>닉네임은 7일에 한 번만 변경할 수 있습니다.</FieldNote>
             <FieldHint message={errors.nickname} />
           </div>
         </label>
@@ -487,6 +506,7 @@ export default function MyPageEditClient() {
           </label>
         </div>
       </div>
+      <MyPageEditDevTools />
     </div>
   );
 }

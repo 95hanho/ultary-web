@@ -23,8 +23,10 @@ export const bffEndpoints = {
     logout: '/api/auth/logout',
     /** GET 내 회원정보 */
     me: '/api/auth/me',
-    /** PATCH 회원정보 변경 */
+    /** PATCH 회원정보 변경 (닉네임 제외) */
     updateMe: '/api/auth/me',
+    /** PATCH 닉네임 변경 */
+    changeNickname: '/api/auth/me/nickname',
     /** DELETE 회원탈퇴 */
     withdraw: '/api/auth/me',
     /** POST 회원가입 */
@@ -213,6 +215,8 @@ export const bffEndpoints = {
   test: {
     /** DELETE 내 스토리 읽음 전부 초기화 */
     storyViews: '/api/test/story-views',
+    /** POST 닉네임 변경 쿨다운 초기화 */
+    nicknameCooldown: '/api/test/nickname-cooldown',
   },
 
   files: {
@@ -243,8 +247,10 @@ export const springEndpoints = {
     logout: '/api/v1/auth/logout',
     /** GET */
     me: '/api/v1/auth/me',
-    /** PATCH */
+    /** PATCH 회원정보 (닉네임 제외) */
     updateMe: '/api/v1/auth/me',
+    /** PATCH 닉네임 */
+    changeNickname: '/api/v1/auth/me/nickname',
     /** DELETE */
     withdraw: '/api/v1/auth/me',
     /** POST */
@@ -425,6 +431,8 @@ export const springEndpoints = {
   test: {
     /** DELETE Bearer — 내 ultary_story_view 전부 삭제 */
     storyViews: '/api/v1/test/story-views',
+    /** POST Bearer — nickname_changed_at 을 올해 1월 1일로 */
+    nicknameCooldown: '/api/v1/test/nickname-cooldown',
   },
 
   files: {

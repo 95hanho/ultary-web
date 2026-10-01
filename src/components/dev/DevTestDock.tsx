@@ -1,5 +1,6 @@
 'use client';
 
+import { isHttpError, isRecord } from '@/lib/api/error';
 import clsx from 'clsx';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useState } from 'react';
@@ -8,9 +9,21 @@ import styles from './DevTestDock.module.scss';
 export type DevTestAction = {
   id: string;
   label: string;
-  onClick: () => void | Promise<void>;
+  /** 문자열을 반환하면 패널에 성공 메시지로 보여 준다 */
+  onClick: () => void | Promise<void | string>;
   disabled?: boolean;
 };
+
+function actionErrorMessage(err: unknown) {
+  if (isHttpError(err) && isRecord(err.data)) {
+    const detail = err.data.detail;
+    const message = err.data.message;
+    if (typeof detail === 'string' && detail.trim()) return detail;
+    if (typeof message === 'string' && message.trim()) return message;
+  }
+  if (err instanceof Error && err.message) return err.message;
+  return '실패';
+}
 
 type Props = {
   /** 패널 제목 (작게) */
@@ -27,6 +40,7 @@ export function DevTestDock({ title = 'DEV', actions }: Props) {
   const [collapsed, setCollapsed] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [messageOk, setMessageOk] = useState(false);
 
   if (process.env.NODE_ENV !== 'development') return null;
   if (actions.length === 0) return null;
@@ -35,11 +49,16 @@ export function DevTestDock({ title = 'DEV', actions }: Props) {
     if (busyId) return;
     setBusyId(action.id);
     setMessage(null);
+    setMessageOk(false);
     try {
-      await action.onClick();
+      const result = await action.onClick();
+      if (typeof result === 'string' && result.trim()) {
+        setMessage(result);
+        setMessageOk(true);
+      }
     } catch (err) {
-      const msg = err instanceof Error ? err.message : '실패';
-      setMessage(msg);
+      setMessage(actionErrorMessage(err));
+      setMessageOk(false);
       console.error('[DevTestDock]', action.id, err);
     } finally {
       setBusyId(null);
@@ -87,7 +106,9 @@ export function DevTestDock({ title = 'DEV', actions }: Props) {
               </button>
             ))}
           </div>
-          {message ? <p className={styles.message}>{message}</p> : null}
+          {message ? (
+            <p className={clsx(styles.message, messageOk && styles.messageOk)}>{message}</p>
+          ) : null}
         </div>
       )}
     </div>
