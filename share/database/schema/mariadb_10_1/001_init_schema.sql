@@ -21,7 +21,7 @@
 --       · 이미지 위치 멘션 = ultary_feed_media_mention (승인 없음, 자유)
 --       · 공동작성 = ultary_feed_pet.role=COLLABORATOR (멘션된 피드 목록 / 삭제 권한)
 --   - # : 태그 hashtag (본문 태그, 상품·소개 태그). hashtag는 중복 가능·생성 후 불변, handle로 좁힘
---   - 닉네임 허용: 영문·한글만. 한글만 2~5자, 영문만 4~10자. 혼합 시 한글1자=2, 영문1자=1, 가중치 합 4~10 (한글 최대 5자)
+--   - 닉네임 허용: 영문·숫자·한글. 한글만 2~5자, 영문·숫자만 4~10자. 혼합 시 한글1자=2, 영문·숫자1자=1, 가중치 합 4~10 (한글 최대 5자)
 --   - mention_id / tag.handle 허용: 영문·숫자·언더바 (^[A-Za-z0-9_]{1,30}$), UNIQUE, utf8_general_ci라 대소문자 동일 취급
 --   - 최근 검색: 검색어가 아니라 들어간 유저 울타리. ultary_user_search_history (user_no, target_user_no) 1행
 --   - 최근 펫 태그: 스토리 @·사진 태그에서 고른 펫. ultary_user_pet_tag_history (user_no, pet_id) 1행. 검색 기록과 섞지 않음
@@ -96,7 +96,7 @@ CREATE TABLE `ultary_user` (
   `user_no` INT(11) NOT NULL AUTO_INCREMENT,
   `password` VARCHAR(200) NULL DEFAULT NULL COMMENT 'BCrypt 해시. 소셜만 사용 시 NULL, 이후 설정 가능',
   `name` VARCHAR(20) NULL DEFAULT NULL,
-  `nickname` VARCHAR(30) NOT NULL COMMENT '표시 이름. 한글 2~5 / 영문 4~10 / 혼합은 한글1=2 가중치 합 4~10. 소셜 가입 시 google|kakao + 랜덤영문(총 10자)',
+  `nickname` VARCHAR(30) NOT NULL COMMENT '표시 이름. 한글 2~5 / 영문·숫자 4~10 / 혼합은 한글1=2·영문·숫자1=1 가중치 합 4~10. 소셜 가입 시 google|kakao + 랜덤영문(총 10자)',
   `nickname_changed_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '닉네임 마지막 변경(또는 최초 부여) 시각. 생성 직후부터 7일간 재변경 불가',
   `is_default_nickname` TINYINT(1) NOT NULL DEFAULT 1 COMMENT '1=자동 생성 닉네임(변경 유도 대상), 0=사용자가 직접 변경함',
   `email` VARCHAR(50) NULL DEFAULT NULL COMMENT '소셜에서 전달되거나 이후 등록. 비밀번호 로그인 식별자로 사용 가능',

@@ -1,19 +1,20 @@
 {
-  "version": "2026-09-18",
+  "version": "2026-10-01",
   "note": "FE/BFF는 이 파일을 복사해 사용. Spring *Rules.java와 동기화 유지.",
   "nickname": {
-    "charRegex": "^[A-Za-z가-힣]+$",
+    "charRegex": "^[A-Za-z0-9가-힣]+$",
     "hangulOnly": { "min": 2, "max": 5 },
-    "englishOnly": { "min": 4, "max": 10 },
+    "englishOnly": { "min": 4, "max": 10, "note": "영문·숫자만. 숫자도 1자" },
     "mixed": {
       "hangulWeight": 2,
       "englishWeight": 1,
+      "digitWeight": 1,
       "weightedMin": 4,
       "weightedMax": 10,
       "hangulMax": 5
     },
     "cooldownDays": 7,
-    "message": "닉네임은 한글 2~5자 또는 영문 4~10자입니다. 혼합 시 한글 1자는 2자로 계산하며 합계 10자를 넘을 수 없습니다."
+    "message": "닉네임은 한글 2~5자 또는 영문·숫자 4~10자입니다. 섞어 쓸 때는 한글 1자를 2자로, 영문·숫자는 1자로 계산해 합 10자를 넘을 수 없습니다."
   },
   "password": {
     "regex": "^(?=.*[A-Za-z])(?=.*\\d)(?=.*[!@#$%^&*()_+\\-={}\\[\\]|;:'\",.<>/?~`\\\\]).{8,100}$",

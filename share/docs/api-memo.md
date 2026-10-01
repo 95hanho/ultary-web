@@ -54,7 +54,7 @@ BFF: `/api/...` · Spring: `/api/v1/...`
 응답 `data`: accessToken, refreshToken, tokenType, expiresIn, **newUser**, **defaultNickname**  
 `defaultNickname === true` → UI에서 「닉네임을 변경해주세요.」(마이울타리 안내 / 마이페이지에서 변경)
 
-닉네임: 영문·한글만. 한글만 2~5자, 영문만 4~10자. 혼합 시 한글 1자=2·영문 1자=1, 가중치 합 4~10(한글 최대 5자).
+닉네임: 영문·숫자·한글. 한글만 2~5자, 영문·숫자만 4~10자. 혼합 시 한글 1자=2·영문·숫자 1자=1, 가중치 합 4~10(한글 최대 5자).
 
 로그인 `phone`: DB·조회는 digits only(`^01[0-9]{8,9}$`). 요청에 하이픈/공백/`+82`가 있어도 서버에서 정규화. HTTP 예시는 항상 `"01011112222"`(JSON 문자열).
 
@@ -317,6 +317,7 @@ BFF: `/api/...` · Spring: `/api/v1/...`
 |------|--------|--------|------|
 | 비밀번호 인코딩 | POST | `/api/v1/test/password/encode` | 인증 불필요 |
 | **내 스토리 읽음 초기화** | DELETE | `/api/v1/test/story-views` | Bearer 필수. `ultary_story_view`에서 내 viewer 행 전부 삭제 → `deletedCount` |
+| **닉네임 변경 기간 초기화** | POST | `/api/v1/test/nickname-cooldown` | Bearer 필수. 내 `nickname_changed_at`을 올해 1월 1일 00:00으로 바꿔 7일 쿨다운을 푼다 |
 
 HTTP: `requests/test.http`
 
