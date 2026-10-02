@@ -20,6 +20,14 @@
   padding-bottom: 72px;
 }
 
+.status {
+  margin: 8px 18px;
+  color: var(--brand-gray-600);
+  font-size: 13px;
+  line-height: 1.4;
+  word-break: keep-all;
+}
+
 .list {
   display: flex;
   flex-direction: column;
@@ -63,8 +71,8 @@
   position: relative;
   display: inline-flex;
   flex-shrink: 0;
-  width: 48px;
-  height: 28px;
+  width: 44px;
+  height: 24px;
   padding: 0;
   border: 1.5px solid var(--brand-gray-200);
   border-radius: 999px;
@@ -80,10 +88,15 @@
   background: var(--brand-grass-600);
 }
 
+.switch:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+
 .switchThumb {
   position: absolute;
   top: 50%;
-  left: 3px;
+  left: 1px;
   width: 20px;
   height: 20px;
   border-radius: 50%;
@@ -94,7 +107,7 @@
 }
 
 .switchOn .switchThumb {
-  transform: translate(22px, -50%);
+  transform: translate(20px, -50%);
 }
 
 .switch:not(.switchOn) .switchThumb {

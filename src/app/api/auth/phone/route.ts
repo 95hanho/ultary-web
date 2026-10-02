@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { handleBffError } from '@/lib/api/bffRoute';
+import { bearer, handleBffError, isUnauthorized, requireAccessToken } from '@/lib/api/bffRoute';
 import { springEndpoints } from '@/lib/api/endpoints';
 import { springPostJson } from '@/lib/api/springFetch';
 import type { PhoneAuthRequest, PhoneAuthResponse } from '@/types/api';
@@ -16,9 +16,18 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const purpose = body.purpose;
+    let headers: { Authorization: string } | undefined;
+    if (purpose === 'PROFILE') {
+      const accessToken = await requireAccessToken();
+      if (isUnauthorized(accessToken)) return accessToken;
+      headers = bearer(accessToken);
+    }
+
     const data = await springPostJson<PhoneAuthResponse, PhoneAuthRequest>(
       springEndpoints.auth.phone,
-      { phone: body.phone.trim() },
+      { phone: body.phone.trim(), ...(purpose ? { purpose } : {}) },
+      headers,
     );
 
     return NextResponse.json(

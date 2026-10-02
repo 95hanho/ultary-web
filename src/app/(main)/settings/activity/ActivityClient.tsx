@@ -1,18 +1,22 @@
 'use client';
 
 import { FooterMenu } from '@/components/common/FooterMenu';
-import { PageHeader } from '@/components/common/PageHeader';
-import { MY_NICKNAME, OTHER_NICKNAME, myUltaryPath } from '@/lib/mock/ultary-accounts';
-import { openFeedComment } from '@/lib/notification/openTarget';
-import clsx from 'clsx';
 import { MediaImage } from '@/components/common/MediaImage';
+import { PageHeader } from '@/components/common/PageHeader';
+import { bffDelete, bffGet } from '@/lib/api/bffFetch';
+import { bffEndpoints } from '@/lib/api/endpoints';
+import { isHttpError, isRecord } from '@/lib/api/error';
+import { resolveFileDisplayUrl } from '@/lib/api/fileUrl';
+import { myUltaryPath } from '@/lib/mock/ultary-accounts';
+import { openFeedComment, postPagePath } from '@/lib/notification/openTarget';
+import { NO_PROFILE_SRC } from '@/lib/profileImage';
+import type { BffEnvelope } from '@/types/api';
+import type { FileSummary } from '@/types/file';
+import clsx from 'clsx';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import styles from './activity.module.scss';
-
-const MY_PROFILE = '/images/mock/profile.jpg';
-const OTHER_PROFILE = '/images/mock/post2.jpg';
 
 type ActivityKind =
   | 'like'
@@ -24,104 +28,139 @@ type ActivityKind =
   | 'post'
   | 'story';
 
-type NeighborAction = 'cancel' | 'accept';
-
 type ActivityItem = {
   id: string;
   kind: ActivityKind;
-  /** 상대 닉네임 (내 게시글/스토리는 내 닉네임) */
   targetNickname: string;
   profileUrl: string;
   timeLabel: string;
-  /** 댓글/게시글 원문 (줄바꿈 제거·6자 스니펫) */
   preview?: string;
   feedId?: string;
   commentId?: string;
   replyId?: string;
   storyId?: string;
-  /** 이웃 신청: 취소(대기중) / 수락(재신청) */
-  neighborAction?: NeighborAction;
+  neighborId?: string;
+  /** PENDING일 때만 취소 버튼 */
+  neighborPending?: boolean;
+  monthKey: string;
+  monthLabel: string;
 };
 
-const INITIAL_ACTIVITIES: ActivityItem[] = [
-  {
-    id: 'a1',
-    kind: 'like',
-    targetNickname: OTHER_NICKNAME,
-    profileUrl: OTHER_PROFILE,
-    preview: '오늘도 산책 나왔어요~',
-    timeLabel: '8월29일 15:59',
-    feedId: '1',
-  },
-  {
-    id: 'a1b',
-    kind: 'likeComment',
-    targetNickname: OTHER_NICKNAME,
-    profileUrl: OTHER_PROFILE,
-    preview: `@${MY_NICKNAME} 귀여워요\nㅎㅎ`,
-    timeLabel: '8월29일 16:05',
-    feedId: '2',
-    commentId: 'c-12',
-  },
-  {
-    id: 'a1c',
-    kind: 'likeReply',
-    targetNickname: OTHER_NICKNAME,
-    profileUrl: OTHER_PROFILE,
-    preview: `@${MY_NICKNAME} 맞아요\n완전!`,
-    timeLabel: '8월29일 16:12',
-    feedId: '2',
-    commentId: 'c-12',
-    replyId: 'r-3',
-  },
-  {
-    id: 'a2',
-    kind: 'comment',
-    targetNickname: OTHER_NICKNAME,
-    profileUrl: OTHER_PROFILE,
-    preview: `@${MY_NICKNAME} 아\n메\n리\n카\n노 맛있겠다!`,
-    timeLabel: '8월29일 15:59',
-    feedId: '2',
-    commentId: 'c-12',
-  },
-  {
-    id: 'a2b',
-    kind: 'reply',
-    targetNickname: OTHER_NICKNAME,
-    profileUrl: OTHER_PROFILE,
-    preview: `@${OTHER_NICKNAME} 저도\n동의해요!`,
-    timeLabel: '8월29일 16:20',
-    feedId: '2',
-    commentId: 'c-12',
-    replyId: 'r-3',
-  },
-  {
-    id: 'a3',
-    kind: 'neighbor',
-    targetNickname: OTHER_NICKNAME,
-    profileUrl: OTHER_PROFILE,
-    timeLabel: '8월28일 21:10',
-    neighborAction: 'cancel',
-  },
-  {
-    id: 'a4',
-    kind: 'post',
-    targetNickname: MY_NICKNAME,
-    profileUrl: MY_PROFILE,
-    preview: '머하\n냥 저녁 메뉴',
-    timeLabel: '8월28일 18:40',
-    feedId: '3',
-  },
-  {
-    id: 'a5',
-    kind: 'story',
-    targetNickname: MY_NICKNAME,
-    profileUrl: MY_PROFILE,
-    preview: '해질녘 공원',
-    timeLabel: '8월27일 19:05',
-    storyId: 'story-1',
-  },
-];
+function pickErrorMessage(err: unknown, fallback: string) {
+  if (isHttpError(err) && isRecord(err.data)) {
+    const detail = err.data.detail;
+    const message = err.data.message;
+    if (typeof detail === 'string' && detail.trim()) return detail;
+    if (typeof message === 'string' && message.trim()) return message;
+  }
+  if (err instanceof Error && err.message) return err.message;
+  return fallback;
+}
+
+function formatActivityTime(iso: string) {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  const hh = String(d.getHours()).padStart(2, '0');
+  const mm = String(d.getMinutes()).padStart(2, '0');
+  return `${d.getMonth() + 1}월${d.getDate()}일 ${hh}:${mm}`;
+}
+
+function monthOf(iso: string) {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return { key: 'unknown', label: '' };
+  const year = d.getFullYear();
+  const month = d.getMonth() + 1;
+  const label =
+    year === new Date().getFullYear() ? `${month}월` : `${year}년 ${month}월`;
+  return { key: `${year}-${month}`, label };
+}
+
+function groupByMonth(items: ActivityItem[]) {
+  const groups: { key: string; label: string; items: ActivityItem[] }[] = [];
+  for (const item of items) {
+    const last = groups[groups.length - 1];
+    if (last && last.key === item.monthKey) last.items.push(item);
+    else groups.push({ key: item.monthKey, label: item.monthLabel, items: [item] });
+  }
+  return groups;
+}
+
+function idString(value: unknown): string | undefined {
+  if (typeof value === 'number' && Number.isFinite(value)) return String(value);
+  if (typeof value === 'string' && value.trim()) return value.trim();
+  return undefined;
+}
+
+function asFile(value: unknown): Pick<FileSummary, 'fileId' | 'filePath'> | null {
+  if (!isRecord(value)) return null;
+  if (typeof value.filePath !== 'string' || !value.filePath.trim()) return null;
+  return {
+    fileId: typeof value.fileId === 'number' ? value.fileId : 0,
+    filePath: value.filePath,
+  };
+}
+
+function mapActivityType(type: string): ActivityKind | null {
+  switch (type) {
+    case 'FEED_LIKE':
+      return 'like';
+    case 'COMMENT_LIKE':
+      return 'likeComment';
+    case 'REPLY_LIKE':
+      return 'likeReply';
+    case 'FEED_COMMENT':
+      return 'comment';
+    case 'FEED_REPLY':
+      return 'reply';
+    case 'NEIGHBOR_REQUEST':
+      return 'neighbor';
+    case 'FEED':
+      return 'post';
+    case 'STORY':
+      return 'story';
+    default:
+      return null;
+  }
+}
+
+function mapActivity(raw: unknown, index: number): ActivityItem | null {
+  if (!isRecord(raw) || typeof raw.type !== 'string') return null;
+  const kind = mapActivityType(raw.type);
+  if (!kind) return null;
+  const feedId = idString(raw.feedId);
+  const commentId = idString(raw.feedCommentId);
+  const replyId = idString(raw.feedReplyId);
+  const storyId = idString(raw.storyId);
+  const neighborId = idString(raw.neighborId);
+  const occurredAt = typeof raw.occurredAt === 'string' ? raw.occurredAt : '';
+  const month = monthOf(occurredAt);
+  const snippet = typeof raw.snippet === 'string' ? raw.snippet.trim() : '';
+  const nickname = typeof raw.targetNickname === 'string' ? raw.targetNickname.trim() : '';
+  return {
+    id: [raw.type, occurredAt, feedId, commentId, replyId, storyId, neighborId, index]
+      .filter((part) => part != null && part !== '')
+      .join('-'),
+    kind,
+    targetNickname: nickname,
+    profileUrl: resolveFileDisplayUrl(asFile(raw.profileFile)) ?? NO_PROFILE_SRC,
+    timeLabel: occurredAt ? formatActivityTime(occurredAt) : '',
+    preview: snippet || undefined,
+    feedId,
+    commentId,
+    replyId,
+    storyId,
+    neighborId,
+    neighborPending: kind === 'neighbor' && raw.neighborStatus === 'PENDING' && Boolean(neighborId),
+    monthKey: month.key,
+    monthLabel: month.label,
+  };
+}
+
+function unwrapItems(data: unknown): unknown[] {
+  if (Array.isArray(data)) return data;
+  if (isRecord(data) && Array.isArray(data.items)) return data.items;
+  return [];
+}
 
 /** 줄바꿈 제거 후 최대 length자 + … (앞쪽 @멘션은 길이에 미포함) */
 function toPreviewSnippet(text: string, max = 6, preserveLeadingMentions = false) {
@@ -181,18 +220,28 @@ function goReply(item: ActivityItem, router: ReturnType<typeof useRouter>) {
   );
 }
 
+function goPost(item: ActivityItem, router: ReturnType<typeof useRouter>) {
+  if (!item.feedId) return;
+  router.push(postPagePath(item.feedId));
+}
+
+function goStory(item: ActivityItem, router: ReturnType<typeof useRouter>) {
+  if (!item.storyId) return;
+  router.push(`/stories/${item.storyId}`);
+}
+
 function ActivityMessage({ item }: { item: ActivityItem }) {
   const router = useRouter();
-  const ultaryHref = myUltaryPath(item.targetNickname);
+  const ultaryHref = item.targetNickname ? myUltaryPath(item.targetNickname) : '';
   const snippet = item.preview
     ? toPreviewSnippet(item.preview, 6, shouldPreserveMentions(item.kind))
     : null;
 
-  const nick = (
+  const nick = item.targetNickname ? (
     <Link href={ultaryHref} className={styles.nickname}>
       {item.targetNickname}
     </Link>
-  );
+  ) : null;
 
   const previewNode =
     snippet != null ? <span className={styles.preview}>&quot;{snippet}&quot;</span> : null;
@@ -268,80 +317,123 @@ function ActivityMessage({ item }: { item: ActivityItem }) {
   );
 }
 
-function goPost(item: ActivityItem, router: ReturnType<typeof useRouter>) {
-  if (!item.feedId) return;
-  router.push(`${myUltaryPath(item.targetNickname)}/posts/${item.feedId}`);
-}
-
-function goStory(item: ActivityItem, router: ReturnType<typeof useRouter>) {
-  console.log('[activity] 해당스토리로이동', item.storyId);
-  router.push('/stories');
-}
-
-/** 설정 > 내 활동 */
+/** 설정 > 내 활동. GET /settings/activities */
 export default function ActivityClient() {
-  const [items, setItems] = useState(INITIAL_ACTIVITIES);
+  const [items, setItems] = useState<ActivityItem[]>([]);
+  const [status, setStatus] = useState('불러오는 중');
+  const [cancelingId, setCancelingId] = useState<string | null>(null);
 
-  function toggleNeighbor(id: string) {
-    setItems((prev) =>
-      prev.map((item) => {
-        if (item.id !== id || item.kind !== 'neighbor') return item;
-        const next: NeighborAction = item.neighborAction === 'cancel' ? 'accept' : 'cancel';
-        console.log('[activity] 이웃신청', { id, action: next });
-        return { ...item, neighborAction: next };
-      }),
-    );
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await bffGet<BffEnvelope<unknown>>(bffEndpoints.settings.activities, {
+          limit: 30,
+        });
+        const mapped = unwrapItems(res.data)
+          .map(mapActivity)
+          .filter((item): item is ActivityItem => item != null);
+        if (cancelled) return;
+        setItems(mapped);
+        setStatus(mapped.length === 0 ? '활동이 없습니다.' : '');
+      } catch (err) {
+        if (!cancelled) {
+          setItems([]);
+          setStatus(pickErrorMessage(err, '활동을 불러오지 못했습니다.'));
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  async function cancelNeighbor(item: ActivityItem) {
+    if (!item.neighborId || cancelingId) return;
+    setCancelingId(item.id);
+    setStatus('');
+    try {
+      await bffDelete<BffEnvelope<unknown>>(bffEndpoints.users.neighborCancel, {
+        neighborId: item.neighborId,
+      });
+      setItems((prev) => {
+        const next = prev.filter((row) => row.id !== item.id);
+        if (next.length === 0) setStatus('활동이 없습니다.');
+        return next;
+      });
+    } catch (err) {
+      setStatus(pickErrorMessage(err, '이웃 신청을 취소하지 못했습니다.'));
+    } finally {
+      setCancelingId(null);
+    }
   }
+
+  const groups = groupByMonth(items);
 
   return (
     <div className={styles.shell}>
       <PageHeader title="내 활동" backHref="/settings" />
 
       <main className={styles.main}>
-        <ul className={styles.list}>
-          {items.map((item) => {
-            const ultaryHref = myUltaryPath(item.targetNickname);
-            const isNeighbor = item.kind === 'neighbor';
-            const neighborAccept = item.neighborAction === 'accept';
+        {status ? <p className={styles.status}>{status}</p> : null}
+        {groups.map((group) => (
+          <section key={group.key} className={styles.month}>
+            {group.label ? <h2 className={styles.monthTitle}>{group.label}</h2> : null}
+            <ul className={styles.list}>
+              {group.items.map((item) => {
+                const ultaryHref = item.targetNickname ? myUltaryPath(item.targetNickname) : '';
+                const showCancel = item.neighborPending;
 
-            return (
-              <li key={item.id} className={styles.item}>
-                <div className={styles.itemBody}>
-                  <Link
-                    href={ultaryHref}
-                    className={styles.imageWrap}
-                    aria-label={`${item.targetNickname} 울타리`}
-                  >
-                    <MediaImage
-                      src={item.profileUrl}
-                      alt=""
-                      width={39}
-                      height={39}
-                      className={styles.image}
-                    />
-                  </Link>
-                  <div className={styles.info}>
-                    <ActivityMessage item={item} />
-                  </div>
-                  {isNeighbor ? (
-                    <div className={styles.actionWrap}>
-                      <button
-                        type="button"
-                        className={clsx(
-                          styles.actionBtn,
-                          neighborAccept ? styles.actionAccept : styles.actionCancel,
-                        )}
-                        onClick={() => toggleNeighbor(item.id)}
-                      >
-                        {neighborAccept ? '수락' : '취소'}
-                      </button>
+                return (
+                  <li key={item.id} className={styles.item}>
+                    <div className={styles.itemBody}>
+                      {ultaryHref ? (
+                        <Link
+                          href={ultaryHref}
+                          className={styles.imageWrap}
+                          aria-label={`${item.targetNickname} 울타리`}
+                        >
+                          <MediaImage
+                            src={item.profileUrl}
+                            alt=""
+                            width={39}
+                            height={39}
+                            className={styles.image}
+                          />
+                        </Link>
+                      ) : (
+                        <span className={styles.imageWrap}>
+                          <MediaImage
+                            src={item.profileUrl}
+                            alt=""
+                            width={39}
+                            height={39}
+                            className={styles.image}
+                          />
+                        </span>
+                      )}
+                      <div className={styles.info}>
+                        <ActivityMessage item={item} />
+                      </div>
+                      {showCancel ? (
+                        <div className={styles.actionWrap}>
+                          <button
+                            type="button"
+                            className={clsx(styles.actionBtn, styles.actionCancel)}
+                            disabled={cancelingId === item.id}
+                            onClick={() => void cancelNeighbor(item)}
+                          >
+                            취소
+                          </button>
+                        </div>
+                      ) : null}
                     </div>
-                  ) : null}
-                </div>
-              </li>
-            );
-          })}
-        </ul>
+                  </li>
+                );
+              })}
+            </ul>
+          </section>
+        ))}
       </main>
 
       <FooterMenu />

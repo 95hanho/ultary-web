@@ -20,6 +20,14 @@
   padding-bottom: 72px;
 }
 
+.status {
+  margin: 8px 18px;
+  color: var(--brand-gray-600);
+  font-size: 13px;
+  line-height: 1.4;
+  word-break: keep-all;
+}
+
 .list {
   display: flex;
   flex-direction: column;

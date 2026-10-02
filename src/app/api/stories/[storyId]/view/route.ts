@@ -10,7 +10,7 @@ import { springPostForm } from '@/lib/api/springFetch';
 
 /**
  * BFF /api/stories/[storyId]/view — POST
- * ultary_story_view INSERT IGNORE. 본인 스토리는 Spring에서 미기록.
+ * ultary_story_view INSERT IGNORE. 응답에 viewedByMe, likedByMe.
  */
 export async function POST(
   _request: Request,

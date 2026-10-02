@@ -3,7 +3,8 @@
 import { isHttpError, isRecord } from '@/lib/api/error';
 import clsx from 'clsx';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import styles from './DevTestDock.module.scss';
 
 export type DevTestAction = {
@@ -41,9 +42,14 @@ export function DevTestDock({ title = 'DEV', actions }: Props) {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [messageOk, setMessageOk] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   if (process.env.NODE_ENV !== 'development') return null;
-  if (actions.length === 0) return null;
+  if (!mounted || actions.length === 0) return null;
 
   const run = async (action: DevTestAction) => {
     if (busyId) return;
@@ -65,7 +71,7 @@ export function DevTestDock({ title = 'DEV', actions }: Props) {
     }
   };
 
-  return (
+  return createPortal(
     <div
       className={clsx(styles.dock, collapsed && styles.collapsed)}
       data-dev-test-dock
@@ -111,6 +117,7 @@ export function DevTestDock({ title = 'DEV', actions }: Props) {
           ) : null}
         </div>
       )}
-    </div>
+    </div>,
+    document.body,
   );
 }

@@ -9,7 +9,7 @@ import {
   readJsonBody,
   requireAccessToken,
 } from '@/lib/api/bffRoute';
-import { springGet, springPostForm, springPostMultipart } from '@/lib/api/springFetch';
+import { springGet, springPostJson, springPostMultipart } from '@/lib/api/springFetch';
 
 /** BFF /api/pets — GET */
 export async function GET(request: NextRequest) {
@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
       return ok(data);
     }
     const body = await readJsonBody(request);
-    const data = await springPostForm(
+    const data = await springPostJson(
       springEndpoints.pets.root,
       body,
       bearer(accessToken),

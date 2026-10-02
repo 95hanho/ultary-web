@@ -64,11 +64,21 @@
 | `GET /my-ultary/feeds` | 그리드 항목 | **로그인한 나의** 게시글. `coverFile`, `coverThumbnailFile` |
 | `GET /users/{userNo}/feeds` | 항목은 `GET /my-ultary/feeds`와 동일 | 그 유저의 게시글 그리드. 쿼리 `limit` 또는 `size`. `PUBLIC` 조회 가능, `NEIGHBORS`는 ACCEPTED 이웃 또는 본인, `PRIVATE`는 본인만. 나의 `userNo`면 `GET /my-ultary/feeds`와 같은 결과 |
 | `GET /my-ultary` · `GET /users/{userNo}/ultary` | `hasStory`, `hasUnviewed` | 울타리 스토리 버튼. 없음 / 안읽음 / 다 읽음. 기준은 조회한 나. 본인 스토리 열람도 읽음에 포함. 프로필만 주고 펫·게시글 목록은 포함하지 않는다 |
-| `GET /main/stories?userNo=` · `GET /my-ultary/stories` | 각 항목 `viewedByMe`, `texts`, `mentions` | **스토리 단건** 읽음 (`ultary_story_view`). 본인 스토리도 동일. 글자·펫 멘션은 등록 때 넣은 위치 그대로 |
+| `GET /main/stories?userNo=` · `GET /my-ultary/stories` | 각 항목 `viewedByMe`, `likedByMe`, `texts`, `mentions` | **스토리 단건** 읽음 (`ultary_story_view`). 본인 스토리도 동일. `likedByMe`는 조회자의 공감(취소 제외). 글자·펫 멘션은 등록 때 넣은 위치 그대로 |
 | `POST /my-ultary/stories` | `texts`, `mentions` | 사진 위 글자(크기 12/16/20/24 기본 16, 굵게·밑줄·취소선, `#RRGGBB`, 위치 %)와 `@펫`(`petId`, 위치 %). 각 최대 20. 후보 검색 `GET /main/search?type=PET` |
-| `POST /stories/{storyId}/view` | — | 해당 `storyId`만 INSERT IGNORE. **본인 스토리도 기록** |
+| `POST /stories/{storyId}/view` | 스토리 단건 (`viewedByMe`, `likedByMe`) | 해당 `storyId`만 INSERT IGNORE. **본인 스토리도 기록** |
 | `POST /stories/{storyId}/like` · `DELETE` | `likeCount`, `likedByMe` | 스토리 공감. 본인 또는 ACCEPTED 이웃만. 취소는 소프트 삭제 |
-| `GET /notifications` | `unreadCount`, `items` | 알림 목록. 같은 대상 1행. `message`는 서버 문장. `snippet`은 텍스트 일부. 이동은 `feedId`·`feedCommentId`·`feedReplyId`·`storyId`·`neighborId`. 수락 버튼은 `neighborStatus=PENDING` |
+| `GET /users/blocks` | 배열 | 내가 차단한 사용자. `nickname`, `profileFile`(대표 펫 사진, 없으면 null), `blockedAt`. 해제는 `DELETE /users/{userNo}/block` |
+| `GET /notifications/unread-count` | `unreadCount` | 하단 배지. 읽음 처리 없음. `/auth/me`에 없음. 나중에 웹소켓이 이 숫자를 밀어 줌 |
+| `GET /notifications` | `unreadCount`, `items` | 알림 페이지. 목록을 준 뒤 그때까지 안 읽은 알림을 읽음 처리. `message`는 서버 문장. `snippet`은 텍스트 일부. 이동은 `feedId`·`feedCommentId`·`feedReplyId`·`storyId`·`neighborId`. 수락 버튼은 `neighborStatus=PENDING` |
+| `GET /settings/activities` | `items` | 내 활동. 내가 한 좋아요·댓글·답글·이웃 신청·게시글·스토리. `type`, `occurredAt`, `targetNickname`, `profileFile`, `snippet`. 취소 버튼은 내가 보낸 신청이 `neighborStatus=PENDING`일 때 |
+| `GET /settings/notifications` · `PATCH` | 스위치 10개 | 알림 종류별 켜기. 없으면 전부 켜짐. PATCH는 넣은 필드만. 끈 종류는 알림 목록에서 빠짐 |
+| `GET /settings/privacy` · `PATCH` | 공개 범위 7개 | 비공개 계정, 게시글·스토리 범위, 이웃 신청·댓글·멘션·태그. 행이 없으면 기본값. PATCH는 넣은 필드만 |
+| `GET /users/{userNo}/neighbors?type=` | 배열 | 울타리 주민·이웃 목록. `RESIDENTS` 주민, `NEIGHBORS` 이웃. 채팅 상대도 이 목록. `userNo`, `nickname`, `profileFile` |
+| `GET /dm/rooms` | `items` | 내 대화방. `peerUserNo`, `peerNickname`, `profileFile`, `lastMessage`, `lastMessageAt`, `unreadCount` |
+| `POST /dm/rooms` | 방 1개 | `{ targetUserNo }`. 주민 또는 이웃만. 있으면 그 방을 다시 연다 |
+| `GET /dm/rooms/{roomId}/messages` | `items`, `nextCursorMessageId` | 오래된 순. 조회하면 읽음. `fromMe`, `body`, `createdAt`, `share` |
+| `POST /dm/rooms/{roomId}/messages` | 메시지 1개 | `{ body, feedId, feedMediaId }` 게시글 사진 공유. `{ body, storyId }` 스토리 사진만. 글만 보내도 된다 |
 | `PATCH /notifications/{notificationId}/read` | 그 항목 | 내 알림만 읽음 |
 | `POST /notifications/read-all` | data null | 내 알림 전부 읽음 |
 

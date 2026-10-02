@@ -9,7 +9,13 @@ import { myUltaryPath } from '@/lib/mock/ultary-accounts';
 import { NO_PROFILE_SRC } from '@/lib/profileImage';
 import { STORY_IMAGE_DURATION_MS } from '@/lib/mock/stories';
 import type { BffEnvelope, MeResponse } from '@/types/api';
-import type { Story, StoryMention, StoryOwner, StoryText } from '@/types/story';
+import type {
+  Story,
+  StoryLikeResponse,
+  StoryMention,
+  StoryOwner,
+  StoryText,
+} from '@/types/story';
 import { Heart, Pause, Play, Send, X } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -19,6 +25,7 @@ import {
   useRef,
   useState,
   type FormEvent,
+  type MouseEvent,
   type RefObject,
 } from 'react';
 import styles from './stories.module.scss';
@@ -29,6 +36,7 @@ type StorySlide = {
   kind: 'image' | 'video';
   src: string;
   viewedByMe: boolean;
+  likedByMe: boolean;
   texts: StoryText[];
   mentions: StoryMention[];
 };
@@ -78,6 +86,7 @@ function toSlide(story: Story): StorySlide {
     kind: story.mediaType === 'VIDEO' ? 'video' : 'image',
     src,
     viewedByMe: Boolean(story.viewedByMe),
+    likedByMe: story.likedByMe === true,
     texts: Array.isArray(story.texts) ? story.texts : [],
     mentions: Array.isArray(story.mentions) ? story.mentions : [],
   };
@@ -122,6 +131,15 @@ function unreadChainQueue(
 }
 
 /** 스토리 보기 — owners 체인 + GET /main/stories?userNo= · 조회 시 view */
+function readRoomId(data: unknown) {
+  if (!data || typeof data !== 'object') return null;
+  const raw = data as { dmRoomId?: unknown; roomId?: unknown };
+  const value = raw.dmRoomId ?? raw.roomId;
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  if (typeof value === 'string' && value.trim()) return value.trim();
+  return null;
+}
+
 export default function StoriesClient({
   userNo,
   nicknameHint = '',
@@ -145,7 +163,6 @@ export default function StoriesClient({
   const [reply, setReply] = useState('');
   const [replyError, setReplyError] = useState('');
   const [sendingReply, setSendingReply] = useState(false);
-  const [likedIds, setLikedIds] = useState<Set<number>>(() => new Set());
   const videoRef = useRef<HTMLVideoElement>(null);
   const rafRef = useRef<number | null>(null);
   const startRef = useRef(0);
@@ -155,7 +172,9 @@ export default function StoriesClient({
   const ownersRef = useRef<StoryOwner[]>([]);
   const markedViewRef = useRef<Set<number>>(new Set());
   const likeLockRef = useRef(false);
+  const likeTouchedRef = useRef<Set<number>>(new Set());
   const holdForReplyRef = useRef(false);
+  const shellRef = useRef<HTMLDivElement>(null);
   indexRef.current = index;
   pausedRef.current = paused;
   ownersRef.current = owners;
@@ -278,6 +297,24 @@ export default function StoriesClient({
     };
   }, []);
 
+  /** 탭·클릭으로 버튼에 포커스가 남지 않게 한다. 답장 입력만 클릭으로 커서를 둔다. */
+  useEffect(() => {
+    const root = shellRef.current;
+    if (!root) return;
+    root
+      .querySelectorAll<HTMLElement>('a, button, input, textarea, select, video, [tabindex]')
+      .forEach((el) => {
+        el.tabIndex = -1;
+      });
+  });
+
+  const skipControlFocus = (event: MouseEvent) => {
+    const target = event.target;
+    if (!(target instanceof Element)) return;
+    if (target.closest('input, textarea')) return;
+    event.preventDefault();
+  };
+
   /** 현재 스토리 조회 시 읽음 기록 */
   useEffect(() => {
     if (!current) return;
@@ -285,10 +322,19 @@ export default function StoriesClient({
     if (markedViewRef.current.has(storyId)) return;
     markedViewRef.current.add(storyId);
 
-    void bffPostJson(bffEndpoints.stories.view, { storyId }).catch((err) => {
-      console.error('[stories] view mark failed', err);
-      markedViewRef.current.delete(storyId);
-    });
+    void bffPostJson<BffEnvelope<Story>>(bffEndpoints.stories.view, { storyId })
+      .then((res) => {
+        if (likeTouchedRef.current.has(storyId)) return;
+        const liked = res.data?.likedByMe;
+        if (typeof liked !== 'boolean') return;
+        setItems((prev) =>
+          prev.map((s) => (s.storyId === storyId ? { ...s, likedByMe: liked } : s)),
+        );
+      })
+      .catch((err) => {
+        console.error('[stories] view mark failed', err);
+        markedViewRef.current.delete(storyId);
+      });
 
     setItems((prev) =>
       prev.map((s) => (s.storyId === storyId ? { ...s, viewedByMe: true } : s)),
@@ -487,31 +533,33 @@ export default function StoriesClient({
     setPaused(false);
   };
 
+  const setStoryLiked = (storyId: number, liked: boolean) => {
+    setItems((prev) =>
+      prev.map((s) => (s.storyId === storyId ? { ...s, likedByMe: liked } : s)),
+    );
+  };
+
   const toggleLike = async () => {
     if (!current || likeLockRef.current) return;
     const storyId = current.storyId;
-    const next = !likedIds.has(storyId);
+    const next = !current.likedByMe;
     likeLockRef.current = true;
-    setLikedIds((prev) => {
-      const copy = new Set(prev);
-      if (next) copy.add(storyId);
-      else copy.delete(storyId);
-      return copy;
-    });
+    likeTouchedRef.current.add(storyId);
+    setStoryLiked(storyId, next);
     try {
-      if (next) {
-        await bffPostJson(bffEndpoints.stories.like, { storyId });
-      } else {
-        await bffDelete(bffEndpoints.stories.like, { storyId });
+      const res = next
+        ? await bffPostJson<BffEnvelope<StoryLikeResponse>>(bffEndpoints.stories.like, {
+            storyId,
+          })
+        : await bffDelete<BffEnvelope<StoryLikeResponse>>(bffEndpoints.stories.like, {
+            storyId,
+          });
+      if (typeof res.data?.likedByMe === 'boolean') {
+        setStoryLiked(storyId, res.data.likedByMe);
       }
     } catch (err) {
       console.error('[stories] like failed', err);
-      setLikedIds((prev) => {
-        const copy = new Set(prev);
-        if (next) copy.delete(storyId);
-        else copy.add(storyId);
-        return copy;
-      });
+      setStoryLiked(storyId, !next);
     } finally {
       likeLockRef.current = false;
     }
@@ -521,17 +569,21 @@ export default function StoriesClient({
     event.preventDefault();
     const text = reply.trim();
     const targetUserNo = current?.userNo;
-    if (!text || targetUserNo == null || sendingReply) return;
+    const storyId = current?.storyId;
+    if (!text || targetUserNo == null || storyId == null || sendingReply) return;
     setSendingReply(true);
     setReplyError('');
     try {
-      const room = await bffPostJson<BffEnvelope<{ roomId?: number }>>(
-        bffEndpoints.dm.rooms,
-        { targetUserNo, content: text },
-      );
-      const roomId = room.data?.roomId;
+      const room = await bffPostJson<BffEnvelope<unknown>>(bffEndpoints.dm.rooms, {
+        targetUserNo,
+      });
+      const roomId = readRoomId(room.data);
       if (roomId == null) throw new Error('room missing');
-      await bffPostJson(bffEndpoints.dm.messages, { roomId, content: text });
+      await bffPostJson(bffEndpoints.dm.messages, {
+        roomId,
+        body: text,
+        storyId,
+      });
       setReply('');
     } catch (err) {
       console.error('[stories] dm send failed', err);
@@ -561,13 +613,29 @@ export default function StoriesClient({
 
       if (e.key === ' ' || e.code === 'Space') {
         e.preventDefault();
+        const active = document.activeElement;
+        if (active instanceof HTMLElement && active !== document.body) {
+          active.blur();
+        }
         togglePaused();
+        return;
+      }
+
+      if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        handlePrevTap();
+        return;
+      }
+
+      if (e.key === 'ArrowRight') {
+        e.preventDefault();
+        finishOrNext();
       }
     };
 
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
-  }, [close]);
+  }, [close, finishOrNext, handlePrevTap]);
 
   const handleNextTap = () => {
     finishOrNext();
@@ -581,7 +649,13 @@ export default function StoriesClient({
 
   if (loading) {
     return (
-      <div className={styles.shell} role="status" aria-label="스토리 불러오는 중">
+      <div
+        ref={shellRef}
+        className={styles.shell}
+        role="status"
+        aria-label="스토리 불러오는 중"
+        onMouseDownCapture={skipControlFocus}
+      >
         <div className={styles.inner} />
         <StoryDevTools onStoryViewsCleared={onStoryViewsCleared} />
       </div>
@@ -590,7 +664,14 @@ export default function StoriesClient({
 
   if (!current) {
     return (
-      <div className={styles.shell} role="dialog" aria-modal="true" aria-label="스토리">
+      <div
+        ref={shellRef}
+        className={styles.shell}
+        role="dialog"
+        aria-modal="true"
+        aria-label="스토리"
+        onMouseDownCapture={skipControlFocus}
+      >
         <div className={styles.inner}>
           <header className={styles.header}>
             <div className={styles.profileWrap}>
@@ -609,7 +690,14 @@ export default function StoriesClient({
   }
 
   return (
-    <div className={styles.shell} role="dialog" aria-modal="true" aria-label="스토리">
+    <div
+      ref={shellRef}
+      className={styles.shell}
+      role="dialog"
+      aria-modal="true"
+      aria-label="스토리"
+      onMouseDownCapture={skipControlFocus}
+    >
       <div className={styles.inner}>
         <div className={styles.blurBackdrop} aria-hidden>
           {current.kind === 'video' ? (
@@ -721,9 +809,13 @@ export default function StoriesClient({
               />
               <button
                 type="button"
-                className={styles.replyIcon}
-                aria-label={likedIds.has(current.storyId) ? '공감 취소' : '공감'}
-                aria-pressed={likedIds.has(current.storyId)}
+                className={
+                  current.likedByMe
+                    ? `${styles.replyIcon} ${styles.replyHeartOn}`
+                    : styles.replyIcon
+                }
+                aria-label={current.likedByMe ? '공감 취소' : '공감'}
+                aria-pressed={current.likedByMe}
                 onClick={() => {
                   void toggleLike();
                 }}
@@ -731,10 +823,7 @@ export default function StoriesClient({
                 <Heart
                   size={28}
                   strokeWidth={2}
-                  className={
-                    likedIds.has(current.storyId) ? styles.replyHeartOn : undefined
-                  }
-                  fill={likedIds.has(current.storyId) ? 'currentColor' : 'none'}
+                  fill={current.likedByMe ? 'currentColor' : 'none'}
                 />
               </button>
               <button

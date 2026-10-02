@@ -4,6 +4,12 @@ import { bffGet } from '@/lib/api/bffFetch';
 import { bffEndpoints } from '@/lib/api/endpoints';
 import { resolveFileDisplayUrl } from '@/lib/api/fileUrl';
 import { MY_NICKNAME, myUltaryPath } from '@/lib/mock/ultary-accounts';
+import {
+  fetchUnreadCount,
+  getUnreadBadge,
+  publishUnreadBadge,
+  subscribeUnreadBadge,
+} from '@/lib/notification/unreadBadge';
 import { NO_PROFILE_SRC } from '@/lib/profileImage';
 import { confirmLeaveWrite, isWriteFlowPath } from '@/lib/write/confirm-leave';
 import type { BffEnvelope, MeResponse } from '@/types/api';
@@ -25,12 +31,19 @@ const MessageIcon = '/images/icon/Message.svg';
 const MessageFillIcon = '/images/icon/Message_fill.svg';
 let cachedAvatarSrc: string | null = null;
 
+function unreadBadgeLabel(count: number) {
+  if (count >= 10) return '9+';
+  return String(count);
+}
+
 /** 하단 공통 메뉴바 */
 export function FooterMenu() {
   const pathname = usePathname();
   const router = useRouter();
   const myPath = myUltaryPath(MY_NICKNAME);
   const [avatarSrc, setAvatarSrc] = useState(NO_PROFILE_SRC);
+  const [unreadCount, setUnreadCount] = useState(getUnreadBadge);
+  const isNotifications = pathname.startsWith('/notifications');
 
   useEffect(() => {
     if (cachedAvatarSrc) {
@@ -53,10 +66,26 @@ export function FooterMenu() {
       cancelled = true;
     };
   }, []);
+
+  useEffect(() => subscribeUnreadBadge(setUnreadCount), []);
+
+  useEffect(() => {
+    if (isNotifications) return;
+    let cancelled = false;
+    void fetchUnreadCount()
+      .then((count) => {
+        if (!cancelled) publishUnreadBadge(count);
+      })
+      .catch((err) => {
+        if (!cancelled) console.error('[footer] unread count failed', err);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isNotifications]);
   const writing = isWriteFlowPath(pathname);
   const isHome = pathname === '/';
   const isSearch = pathname.startsWith('/search');
-  const isNotifications = pathname.startsWith('/notifications');
   const isDm = pathname.startsWith('/dm');
   /** 내 울타리(/myultary/{내닉네임})일 때만 활성 — 타인 울타리 조회 시 off */
   const isMyUltary = pathname === myPath || pathname.startsWith(`${myPath}/`);
@@ -95,15 +124,21 @@ export function FooterMenu() {
       <Link
         href="/notifications"
         className={styles.item}
-        aria-label="알림"
+        aria-label={
+          unreadCount != null && unreadCount > 0
+            ? `알림 ${unreadBadgeLabel(unreadCount)}`
+            : '알림'
+        }
         aria-current={isNotifications ? 'page' : undefined}
         onClick={guardNav('/notifications')}
       >
         <span className={styles.iconWrap}>
           <Image src={isNotifications ? BellFillIcon : BellIcon} alt="" width={30} height={30} />
-          <span className={styles.badge} aria-hidden>
-            9+
-          </span>
+          {unreadCount != null && unreadCount > 0 ? (
+            <span className={styles.badge} aria-hidden>
+              {unreadBadgeLabel(unreadCount)}
+            </span>
+          ) : null}
         </span>
       </Link>
 

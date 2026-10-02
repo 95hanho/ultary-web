@@ -6,6 +6,7 @@ import type { FileSummary } from './file';
 export type Pet = {
   petId: number;
   userNo: number;
+  mentionId: string;
   name: string;
   species: PetSpecies;
   breed: string | null;

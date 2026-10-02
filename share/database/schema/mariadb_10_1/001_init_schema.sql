@@ -1,5 +1,9 @@
--- schema_version: 14
+-- schema_version: 18
 -- Ultary MariaDB 10.1 초기 스키마
+-- v18: ultary_dm_room, ultary_dm_message. 1:1 메시지. 게시글(사진 슬롯)·스토리 공유
+-- v17: ultary_user_privacy. 공개 범위. 행이 없으면 비공개 계정 꺼짐, 게시글 전체, 스토리 이웃, 신청·댓글·멘션·태그 켜짐
+-- v16: ultary_notification_setting. 알림 종류별 켜기/끄기. 행이 없으면 전부 켜짐
+-- v15: ultary_user.withdrawal_requested_at 제거. 탈퇴는 WITHDRAWN 과 withdrawal_completed_at 만 사용
 -- v14: 알림 집계(이웃신청·좋아요·댓글답글·언급·태그·스토리 공감)와 ultary_story_like
 -- v13: 사진·스토리 @ 최근 펫 태그 (ultary_user_pet_tag_history). 검색 최근 울타리와 별도
 -- v12: 스토리 위 글자(ultary_story_text)와 펫 멘션(ultary_story_mention)
@@ -53,12 +57,20 @@
 --   v12: 스토리 글자 스티커·펫 위치 멘션
 --   v13: 최근 펫 태그 (검색 최근 울타리와 별 테이블)
 --   v14: 알림 타입·집계 컬럼, 스토리 공감(ultary_story_like)
+--   v15: ultary_user.withdrawal_requested_at 제거
+--   v16: 알림 설정 (ultary_notification_setting). 종류별 스위치, 기본 켜짐
+--   v17: 공개 범위 (ultary_user_privacy)
+--   v18: DM (ultary_dm_room, ultary_dm_message)
 
 SET NAMES utf8;
 SET FOREIGN_KEY_CHECKS = 0;
 
 DROP TABLE IF EXISTS `ultary_ai_request_log`;
 DROP TABLE IF EXISTS `ultary_report`;
+DROP TABLE IF EXISTS `ultary_dm_message`;
+DROP TABLE IF EXISTS `ultary_dm_room`;
+DROP TABLE IF EXISTS `ultary_user_privacy`;
+DROP TABLE IF EXISTS `ultary_notification_setting`;
 DROP TABLE IF EXISTS `ultary_notification`;
 DROP TABLE IF EXISTS `ultary_story_like`;
 DROP TABLE IF EXISTS `ultary_story_mention`;
@@ -107,7 +119,6 @@ CREATE TABLE `ultary_user` (
   `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   `withdrawal_status` ENUM('ACTIVE','REQUESTED','WITHDRAWN') NOT NULL DEFAULT 'ACTIVE' COMMENT '회원 상태',
-  `withdrawal_requested_at` DATETIME NULL DEFAULT NULL,
   `withdrawal_completed_at` DATETIME NULL DEFAULT NULL,
   PRIMARY KEY (`user_no`) USING BTREE,
   UNIQUE KEY `UK_ultary_user_nickname` (`nickname`) USING BTREE,
@@ -511,6 +522,69 @@ CREATE TABLE `ultary_notification` (
   KEY `IDX_ultary_notification_neighbor_id` (`neighbor_id`) USING BTREE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_general_ci COMMENT='이웃 신청, 좋아요, 댓글·답글, 언급, 태그, 스토리 공감. 같은 대상은 1행으로 집계';
 
+CREATE TABLE `ultary_notification_setting` (
+  `user_no` INT(11) NOT NULL COMMENT '설정 주인. 행이 없으면 알림 전부 켜짐',
+  `neighbor` TINYINT(1) NOT NULL DEFAULT 1 COMMENT '이웃 신청',
+  `like_post` TINYINT(1) NOT NULL DEFAULT 1 COMMENT '게시글 좋아요',
+  `like_comment` TINYINT(1) NOT NULL DEFAULT 1 COMMENT '댓글 좋아요',
+  `like_reply` TINYINT(1) NOT NULL DEFAULT 1 COMMENT '답글 좋아요',
+  `comment_on_post` TINYINT(1) NOT NULL DEFAULT 1 COMMENT '내 게시글 댓글',
+  `reply_on_comment` TINYINT(1) NOT NULL DEFAULT 1 COMMENT '내 댓글 답글',
+  `mention` TINYINT(1) NOT NULL DEFAULT 1 COMMENT '댓글·답글 언급',
+  `tag_post` TINYINT(1) NOT NULL DEFAULT 1 COMMENT '게시글 태그',
+  `tag_story` TINYINT(1) NOT NULL DEFAULT 1 COMMENT '스토리 태그',
+  `story_react` TINYINT(1) NOT NULL DEFAULT 1 COMMENT '스토리 공감',
+  `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`user_no`) USING BTREE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_general_ci COMMENT='알림 종류별 수신 여부. 1=켜짐';
+
+CREATE TABLE `ultary_user_privacy` (
+  `user_no` INT(11) NOT NULL COMMENT '설정 주인. 행이 없으면 아래 기본값',
+  `private_account` TINYINT(1) NOT NULL DEFAULT 0 COMMENT '1이면 전체 공개 게시글·스토리도 이웃만',
+  `feed_visibility` ENUM('PUBLIC','NEIGHBORS','PRIVATE') NOT NULL DEFAULT 'PUBLIC' COMMENT '새 게시글 기본 공개 범위',
+  `story_visibility` ENUM('PUBLIC','NEIGHBORS','PRIVATE') NOT NULL DEFAULT 'NEIGHBORS' COMMENT '스토리 공개 범위',
+  `neighbor_request` TINYINT(1) NOT NULL DEFAULT 1 COMMENT '이웃 신청 받기',
+  `allow_comment` TINYINT(1) NOT NULL DEFAULT 1 COMMENT '게시글 댓글·답글 허용',
+  `allow_mention` TINYINT(1) NOT NULL DEFAULT 1 COMMENT '댓글·답글 멘션 허용',
+  `allow_tag` TINYINT(1) NOT NULL DEFAULT 1 COMMENT '게시글·스토리 태그 허용',
+  `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`user_no`) USING BTREE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_general_ci COMMENT='공개 범위. 행이 없으면 기본값';
+
+CREATE TABLE `ultary_dm_room` (
+  `dm_room_id` INT(11) NOT NULL AUTO_INCREMENT,
+  `pair_key` VARCHAR(32) NOT NULL COMMENT 'minUserNo:maxUserNo. 한 쌍에 방 1개',
+  `user_low` INT(11) NOT NULL COMMENT 'user_no가 더 작은 참여자',
+  `user_high` INT(11) NOT NULL COMMENT 'user_no가 더 큰 참여자',
+  `low_last_read_message_id` INT(11) NULL DEFAULT NULL COMMENT 'user_low가 읽은 마지막 메시지',
+  `high_last_read_message_id` INT(11) NULL DEFAULT NULL COMMENT 'user_high가 읽은 마지막 메시지',
+  `low_left_at` DATETIME NULL DEFAULT NULL COMMENT 'user_low가 나간 시각. 상대 새 메시지가 오면 비움',
+  `high_left_at` DATETIME NULL DEFAULT NULL COMMENT 'user_high가 나간 시각. 상대 새 메시지가 오면 비움',
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`dm_room_id`) USING BTREE,
+  UNIQUE KEY `UK_ultary_dm_room_pair_key` (`pair_key`) USING BTREE,
+  KEY `IDX_ultary_dm_room_user_low` (`user_low`) USING BTREE,
+  KEY `IDX_ultary_dm_room_user_high` (`user_high`) USING BTREE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_general_ci COMMENT='1:1 메시지 방';
+
+CREATE TABLE `ultary_dm_message` (
+  `dm_message_id` INT(11) NOT NULL AUTO_INCREMENT,
+  `dm_room_id` INT(11) NOT NULL,
+  `sender_user_no` INT(11) NOT NULL,
+  `body` VARCHAR(1000) NULL DEFAULT NULL COMMENT '같이 보내는 글. 공유만 있으면 NULL',
+  `share_type` ENUM('NONE','FEED','STORY') NOT NULL DEFAULT 'NONE',
+  `feed_id` INT(11) NULL DEFAULT NULL COMMENT '공유한 게시글',
+  `feed_media_id` INT(11) NULL DEFAULT NULL COMMENT '공유한 캐러셀 사진. sort_order로 몇 번째인지 조회',
+  `story_id` INT(11) NULL DEFAULT NULL COMMENT '공유한 스토리. 미리보기는 그 사진만',
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`dm_message_id`) USING BTREE,
+  KEY `IDX_ultary_dm_message_room` (`dm_room_id`, `dm_message_id`) USING BTREE,
+  KEY `IDX_ultary_dm_message_feed` (`feed_id`) USING BTREE,
+  KEY `IDX_ultary_dm_message_feed_media` (`feed_media_id`) USING BTREE,
+  KEY `IDX_ultary_dm_message_story` (`story_id`) USING BTREE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_general_ci COMMENT='DM 메시지. 글, 게시글 사진, 스토리 사진';
+
 CREATE TABLE `ultary_report` (
   `report_id` INT(11) NOT NULL AUTO_INCREMENT,
   `reporter_user_no` INT(11) NOT NULL,
@@ -729,6 +803,23 @@ ALTER TABLE `ultary_notification`
   ADD CONSTRAINT `FK_notification_reply` FOREIGN KEY (`feed_reply_id`) REFERENCES `ultary_feed_reply` (`feed_reply_id`) ON UPDATE CASCADE ON DELETE SET NULL,
   ADD CONSTRAINT `FK_notification_neighbor` FOREIGN KEY (`neighbor_id`) REFERENCES `ultary_neighbor` (`neighbor_id`) ON UPDATE CASCADE ON DELETE SET NULL,
   ADD CONSTRAINT `FK_notification_story` FOREIGN KEY (`story_id`) REFERENCES `ultary_story` (`story_id`) ON UPDATE CASCADE ON DELETE SET NULL;
+
+ALTER TABLE `ultary_notification_setting`
+  ADD CONSTRAINT `FK_notification_setting_user` FOREIGN KEY (`user_no`) REFERENCES `ultary_user` (`user_no`) ON UPDATE CASCADE ON DELETE CASCADE;
+
+ALTER TABLE `ultary_user_privacy`
+  ADD CONSTRAINT `FK_user_privacy_user` FOREIGN KEY (`user_no`) REFERENCES `ultary_user` (`user_no`) ON UPDATE CASCADE ON DELETE CASCADE;
+
+ALTER TABLE `ultary_dm_room`
+  ADD CONSTRAINT `FK_dm_room_user_low` FOREIGN KEY (`user_low`) REFERENCES `ultary_user` (`user_no`) ON UPDATE CASCADE ON DELETE RESTRICT,
+  ADD CONSTRAINT `FK_dm_room_user_high` FOREIGN KEY (`user_high`) REFERENCES `ultary_user` (`user_no`) ON UPDATE CASCADE ON DELETE RESTRICT;
+
+ALTER TABLE `ultary_dm_message`
+  ADD CONSTRAINT `FK_dm_message_room` FOREIGN KEY (`dm_room_id`) REFERENCES `ultary_dm_room` (`dm_room_id`) ON UPDATE CASCADE ON DELETE CASCADE,
+  ADD CONSTRAINT `FK_dm_message_sender` FOREIGN KEY (`sender_user_no`) REFERENCES `ultary_user` (`user_no`) ON UPDATE CASCADE ON DELETE RESTRICT,
+  ADD CONSTRAINT `FK_dm_message_feed` FOREIGN KEY (`feed_id`) REFERENCES `ultary_feed` (`feed_id`) ON UPDATE CASCADE ON DELETE SET NULL,
+  ADD CONSTRAINT `FK_dm_message_feed_media` FOREIGN KEY (`feed_media_id`) REFERENCES `ultary_feed_media` (`feed_media_id`) ON UPDATE CASCADE ON DELETE SET NULL,
+  ADD CONSTRAINT `FK_dm_message_story` FOREIGN KEY (`story_id`) REFERENCES `ultary_story` (`story_id`) ON UPDATE CASCADE ON DELETE SET NULL;
 
 ALTER TABLE `ultary_story_like`
   ADD CONSTRAINT `FK_story_like_story` FOREIGN KEY (`story_id`) REFERENCES `ultary_story` (`story_id`) ON UPDATE CASCADE ON DELETE CASCADE,

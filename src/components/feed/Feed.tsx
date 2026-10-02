@@ -49,6 +49,8 @@ export type FeedData = {
   profileUrl: string;
   /** 캐러셀용. 목업은 같은 사진 여러 장도 OK */
   images: string[];
+  /** images와 같은 순서의 feedMediaId. 없으면 공유 시 첫 장 */
+  mediaIds?: Array<number | null>;
   /** images와 같은 순서. 사진 위 펫 태그 위치 (0~1) */
   photoTags?: FeedPhotoTag[][];
   caption: string;
@@ -81,6 +83,7 @@ export function Feed({
   nickname,
   profileUrl,
   images,
+  mediaIds,
   photoTags,
   caption,
   story = 'none',
@@ -482,7 +485,10 @@ export function Feed({
                     {
                       label: '메시지로 보내기',
                       onClick: () => {
-                        router.push('/dm');
+                        const params = new URLSearchParams({ feedId: id });
+                        const mediaId = mediaIds?.[index];
+                        if (mediaId != null) params.set('feedMediaId', String(mediaId));
+                        router.push(`/dm?${params.toString()}`);
                       },
                     },
                   ],

@@ -38,6 +38,8 @@ export type Story = {
    * share: FE는 첫 false부터 재생, 전부 true면 index 0.
    */
   viewedByMe: boolean;
+  /** 현재 로그인 유저가 이 스토리에 공감했는지. 취소한 건 false */
+  likedByMe?: boolean;
   /** 사진 위 글자. 없으면 빈 배열 */
   texts?: StoryText[];
   /** 사진 위 펫 멘션. 없으면 빈 배열 */
@@ -71,6 +73,13 @@ export type CreateStoryRequest = {
   mediaType: StoryMediaType;
   texts: StoryText[];
   mentions: Array<Pick<StoryMention, 'petId' | 'posX' | 'posY'>>;
+};
+
+/** POST/DELETE /stories/:storyId/like */
+export type StoryLikeResponse = {
+  storyId: number;
+  likeCount: number;
+  likedByMe: boolean;
 };
 
 /** DB ultary_story_view (참고) */

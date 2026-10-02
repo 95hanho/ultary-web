@@ -11,6 +11,12 @@ import { useRouter } from 'next/navigation';
 import { useState, useTransition, type FormEvent } from 'react';
 import styles from './login.module.scss';
 
+function socialErrorMessage(code?: string) {
+  if (!code) return null;
+  if (code === 'ACCOUNT_WITHDRAWN') return '탈퇴된 계정입니다.';
+  return '소셜 로그인에 실패했습니다. 다시 시도해 주세요.';
+}
+
 const LOGO_SRC = '/images/img/ultary_logo_login.png';
 const GOOGLE_ICON_SRC = '/images/icon/google_social.png';
 const KAKAO_BTN_SRC = '/images/img/kakao_login_large_wide.png';
@@ -24,7 +30,9 @@ function pickLoginError(err: unknown): string {
   if (isHttpError(err) && err.data && typeof err.data === 'object') {
     const data = err.data as Record<string, unknown>;
     if (typeof data.detail === 'string' && data.detail.trim()) return data.detail;
+    if (data.code === 'ACCOUNT_WITHDRAWN') return '탈퇴된 계정입니다.';
     const code = typeof data.message === 'string' ? data.message : '';
+    if (code === 'ACCOUNT_WITHDRAWN') return '탈퇴된 계정입니다.';
     if (code === 'LOGIN_FAILED') return '아이디 또는 비밀번호가 올바르지 않습니다.';
     if (code === 'USER_INACTIVE') return '비활성 계정입니다. 고객센터에 문의해 주세요.';
     if (code === 'INVALID_INPUT' && typeof data.detail === 'string') return data.detail;
@@ -39,9 +47,7 @@ export default function LoginClient({ initialError, returnUrl = '' }: Props) {
   const [pending, startTransition] = useTransition();
   const [loginId, setLoginId] = useState('01011112222');
   const [password, setPassword] = useState('Test1234!');
-  const [error, setError] = useState<string | null>(
-    initialError ? '소셜 로그인에 실패했습니다. 다시 시도해 주세요.' : null,
-  );
+  const [error, setError] = useState<string | null>(socialErrorMessage(initialError));
 
   const safeReturn = sanitizeReturnUrl(returnUrl);
   const returnQuery = safeReturn !== '/' ? `?returnUrl=${encodeURIComponent(safeReturn)}` : '';

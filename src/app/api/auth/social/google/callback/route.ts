@@ -7,7 +7,7 @@ import {
   getOAuthStateCookie,
   parseOAuthState,
 } from '@/lib/auth/oauth-state';
-import { loginWithSpringSocial } from '@/lib/auth/social-login';
+import { loginFailureRedirectCode, loginWithSpringSocial } from '@/lib/auth/social-login';
 import { APP_URL } from '@/lib/env.server';
 
 /** BFF /api/auth/social/google/callback — GET */
@@ -55,6 +55,8 @@ export async function GET(request: NextRequest) {
     return response;
   } catch (err) {
     console.error('[API] 구글 소셜 로그인 콜백 실패', err);
-    return NextResponse.redirect(`${APP_URL}/login?error=google_failed`);
+    return NextResponse.redirect(
+      `${APP_URL}/login?error=${loginFailureRedirectCode(err, 'google_failed')}`,
+    );
   }
 }

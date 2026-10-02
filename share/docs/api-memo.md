@@ -29,16 +29,19 @@ BFF: `/api/...` · Spring: `/api/v1/...`
 | 닉네임 변경 (생성·변경 후 7일 쿨다운) | PATCH | `/api/auth/me/nickname` | `/api/v1/auth/me/nickname` |
 | 회원탈퇴 | DELETE | `/api/auth/me` | `/api/v1/auth/me` |
 | 회원가입 | POST | `/api/auth/signup` | `/api/v1/auth/signup` |
-| 휴대폰 인증 | POST | `/api/auth/phone` | `/api/v1/auth/phone` |
+| 휴대폰 인증 | POST | `/api/auth/phone` | `/api/v1/auth/phone` | 발송 전에 번호 중복. `purpose` 생략·`SIGNUP`은 가입된 번호 거절. `PROFILE`은 Bearer 필수, 내 번호만 허용. `PASSWORD`는 재설정이라 가입된 번호로 발송 |
 | 휴대폰 인증 확인 | POST | `/api/auth/phone/verify` | `/api/v1/auth/phone/verify` |
 | 비밀번호 변경 토큰 생성 | POST | `/api/auth/password/token` | `/api/v1/auth/password/token` |
 | 비밀번호 변경 | PUT | `/api/auth/password` | `/api/v1/auth/password` |
+| 로그인 중 비밀번호 변경 | PUT | `/api/auth/password/me` | `/api/v1/auth/password/me` |
 | 구글 소셜 로그인 시작 (BFF OAuth) | GET | `/api/auth/social/google` | — |
 | 구글 소셜 콜백 (BFF→Spring) | GET | `/api/auth/social/google/callback` | `POST /api/v1/auth/social/login` |
 | 카카오 소셜 로그인 시작 (BFF OAuth) | GET | `/api/auth/social/kakao` | — |
 | 카카오 소셜 콜백 (BFF→Spring) | GET | `/api/auth/social/kakao/callback` | `POST /api/v1/auth/social/login` |
 | 소셜 계정 연동 | POST | `/api/auth/social/link` | `/api/v1/auth/social/link` |
 | 소셜 계정 연동 해제 | DELETE | `/api/auth/social/unlink` | `/api/v1/auth/social/unlink` |
+
+연락처를 바꿀 때만 `PATCH /auth/me`에 `phone`(숫자만)과 `phoneAuthCompleteToken`(인증 확인 응답)을 보낸다. 토큰에 들어 있는 번호와 같을 때만 저장한다. 인증번호 발송(`purpose=PROFILE`)에서 이미 다른 사람 번호면 `PHONE_ALREADY_USED`.
 
 ### 소셜 로그인 body (Spring)
 
@@ -57,6 +60,8 @@ BFF: `/api/...` · Spring: `/api/v1/...`
 닉네임: 영문·숫자·한글. 한글만 2~5자, 영문·숫자만 4~10자. 혼합 시 한글 1자=2·영문·숫자 1자=1, 가중치 합 4~10(한글 최대 5자).
 
 로그인 `phone`: DB·조회는 digits only(`^01[0-9]{8,9}$`). 요청에 하이픈/공백/`+82`가 있어도 서버에서 정규화. HTTP 예시는 항상 `"01011112222"`(JSON 문자열).
+
+탈퇴 계정(`WITHDRAWN`)으로 이메일·휴대폰 로그인 또는 소셜 로그인을 하면 `403`, code `ACCOUNT_WITHDRAWN`, message `탈퇴된 계정입니다.` 비밀번호가 틀린 활성 계정은 `LOGIN_FAILED`.
 
 입력 검사 공통 스펙: `share/validation/rules.json` (닉네임·비번·폰·handle·hashtag). Bean Validation 실패 시 `ApiResponse` `success:false` + `message` + `data`(필드 맵).
 
@@ -87,7 +92,7 @@ BFF: `/api/...` · Spring: `/api/v1/...`
 
 > 스토리 소유자 목록 = 내가 팔로우(`requester` ACCEPTED)한 유저 중 활성 스토리 보유자. `hasUnviewed`는 `ultary_story_view` 기준(안 읽은 링). **미열람(`hasUnviewed=true`) 먼저**, 그다음 최신 스토리 순.  
 > **프로필**: 항목마다 `profileFile` (`FileSummary | null`). 유저 전용 사진이 아니라, 그 유저의 활성 펫 중 사진이 있는 것 가운데 `priority`가 가장 높은 펫 사진. 없으면 `null`. 스토리 미디어(`file`)는 넣지 않음 — 링 탭 시 `GET /main/stories?userNo=`.  
-> **주민 스토리 조회** `GET /main/stories?userNo=`: 해당 유저 활성 스토리 배열(`created_at` ASC). **항목마다 `viewedByMe`**(스토리 단건 읽음, `ultary_story_view`). FileSummary 포함.  
+> **주민 스토리 조회** `GET /main/stories?userNo=`: 해당 유저 활성 스토리 배열(`created_at` ASC). **항목마다 `viewedByMe`**(스토리 단건 읽음, `ultary_story_view`)와 **`likedByMe`**(내 공감, 취소한 건 제외). FileSummary 포함. `GET /my-ultary/stories`, `POST /stories/{storyId}/view`도 같다.  
 > **FE 재생**: 배열은 시간순 유지. 시작 인덱스 = 첫 `viewedByMe === false` (없으면 `0` = 처음부터). 넘긴 뒤 `POST /stories/:storyId/view`로 읽음 기록.  
 > 메인 피드: 본인 + 주민 게시글. `PUBLIC` / 본인 / `NEIGHBORS`(ACCEPTED). 차단 쌍 제외. 커서 `cursorFeedId` + `nextCursorFeedId`.  
 > **추천 게시글** (`/main/feeds/recommended`, `/main/search/recommended`): 나중에 추천 알고리즘 추가해야함. 지금은 조회 가능한 전체 피드(공개·본인·이웃공개, 차단 제외)를 최신순 `limit`건(기본 10, 최대 20). 응답은 피드 단건과 같은 `FeedResponse` 배열. 주민 타임라인과 별개.  
@@ -122,7 +127,7 @@ BFF: `/api/...` · Spring: `/api/v1/...`
 | 스토리 읽음 | POST | `/api/stories/:storyId/view` | `/api/v1/stories/:storyId/view` | 구현 |
 
 > 주민 = 팔로잉(`requester` ACCEPTED), 이웃 = 팔로워(`receiver` ACCEPTED).  
-> 스토리: IMAGE\|VIDEO, `expires_at = created_at + 24h`. 읽음은 **스토리 단건** (`ultary_story_view`: `story_id`+`viewer_user_no`). 본인 스토리도 `POST /stories/{storyId}/view`로 기록한다. 목록 응답 `viewedByMe`.  
+> 스토리: IMAGE\|VIDEO, `expires_at = created_at + 24h`. 읽음은 **스토리 단건** (`ultary_story_view`: `story_id`+`viewer_user_no`). 본인 스토리도 `POST /stories/{storyId}/view`로 기록한다. 목록·읽음 응답에 `viewedByMe`, `likedByMe`.  
 > **스토리 위 글자·멘션**: `POST /my-ultary/stories`의 `texts`, `mentions`. 조회(`GET /my-ultary/stories`, `GET /main/stories`)에도 같은 배열. `texts[]`: `content`(200자), `fontSize`(12\|16\|20\|24, 기본 16), `bold`, `underline`, `strikethrough`, `color`(`#RRGGBB`), `posX`/`posY`(0~100). `mentions[]`: `petId`(활성 펫), `posX`/`posY`. 응답 멘션은 `mentionId`, `petName` 포함. 후보 검색은 `GET /main/search?type=PET&q=` (닉네임·mention_id·펫 이름). 고른 펫은 `POST /main/pet-tags/recent`. 각 최대 20개. 배열 순서가 위아래.  
 > **스토리 버튼**: `hasStory`, `hasUnviewed`. 기준은 조회한 나. `hasStory=false`면 없음, `hasUnviewed=true`면 안읽음, 스토리는 있는데 `hasUnviewed=false`면 다 읽음. 다른 사람 울타리(`GET /users/{userNo}/ultary`)도 같은 두 필드.  
 > tagged-feeds: 다른 사람이 내 펫을 `COLLABORATOR`로 넣거나 사진에 `@` 멘션한 글. 내가 쓴 글은 제외.  
@@ -218,6 +223,7 @@ BFF: `/api/...` · Spring: `/api/v1/...`
 | 주민 요청 거절 | POST | `/api/neighbors/:neighborId/reject` | `/api/v1/neighbors/:neighborId/reject` | 구현 |
 | 주민 요청 취소 · 이웃 해제 | DELETE | `/api/neighbors/:neighborId` | `/api/v1/neighbors/:neighborId` | 구현 |
 | 유저 차단 | POST | `/api/users/:userNo/block` | `/api/v1/users/:userNo/block` | 구현 |
+| 차단한 사용자 목록 | GET | `/api/users/blocks` | `/api/v1/users/blocks` | 구현 |
 | 유저 차단 해제 | DELETE | `/api/users/:userNo/block` | `/api/v1/users/:userNo/block` | 구현 |
 | 신고 | POST | `/api/reports` | — | 미구현 |
 
@@ -229,6 +235,7 @@ BFF: `/api/...` · Spring: `/api/v1/...`
 > **게시글 그리드** `GET /users/{userNo}/feeds`: 그 유저가 쓴 글. 항목은 `GET /my-ultary/feeds`와 같다 (`coverFile`, `coverThumbnailFile`). 쿼리는 `limit` 또는 `size` (기본 30, 최대 50). `GET /my-ultary/feeds`는 `limit`. `PUBLIC`은 조회 가능, `NEIGHBORS`는 ACCEPTED 이웃이거나 본인일 때만, `PRIVATE`는 그 `userNo` 본인만. 삭제된 글은 제외. `GET /my-ultary/feeds`는 나의 글만 주므로 다른 사람 울타리에서 쓰면 안 된다.  
 > 경로의 `userNo`가 로그인한 본인이면 펫·게시글 목록은 각각 `GET /pets`, `GET /my-ultary/feeds`와 같은 결과다.  
 > 차단 시 기존 neighbor 행 삭제. 상대가 나를 차단하면 울타리/목록 조회 `USER_BLOCKED`. 펫·게시글 목록도 같다.  
+> **차단한 사용자** `GET /users/blocks`: 내가 차단한 활성 유저만. 배열. 기본 30, 최대 50, 쿼리 `limit`. 최신 `blockedAt` 순. 항목은 `userNo`, `nickname`, `profileFile`(대표 펫 사진, 없으면 null), `blockedAt`. 탈퇴한 유저는 빠진다. 화면의 취소는 해제 전 확인이라 응답에 없다. 해제는 `DELETE /users/{userNo}/block`.  
 > 피드 `visibility=NEIGHBORS`는 ACCEPTED 쌍만 조회 가능.  
 > HTTP: `requests/neighbor.http` (시드 user 101~105)
 
@@ -248,14 +255,22 @@ BFF: `/api/...` · Spring: `/api/v1/...`
 
 ## 9. DM
 
-| 기능 | Method | BFF |
-|------|--------|-----|
-| 메시지(대화방) 리스트 | GET | `/api/dm/rooms` |
-| 대화방 생성 | POST | `/api/dm/rooms` |
-| 대화방 나가기 | DELETE | `/api/dm/rooms/:roomId` |
-| 읽음 처리 | POST | `/api/dm/rooms/:roomId/read` |
-| 대화방 메시지 조회 | GET | `/api/dm/rooms/:roomId/messages` |
-| 메시지 전송 | POST | `/api/dm/rooms/:roomId/messages` |
+| 기능 | Method | BFF | Spring | 상태 |
+|------|--------|-----|--------|------|
+| 메시지(대화방) 리스트 | GET | `/api/dm/rooms` | `/api/v1/dm/rooms` | 구현 |
+| 대화방 생성 | POST | `/api/dm/rooms` | `/api/v1/dm/rooms` | 구현 |
+| 대화방 나가기 | DELETE | `/api/dm/rooms/:roomId` | `/api/v1/dm/rooms/{roomId}` | 구현 |
+| 읽음 처리 | POST | `/api/dm/rooms/:roomId/read` | `/api/v1/dm/rooms/{roomId}/read` | 구현 |
+| 대화방 메시지 조회 | GET | `/api/dm/rooms/:roomId/messages` | `/api/v1/dm/rooms/{roomId}/messages` | 구현 |
+| 메시지 전송 | POST | `/api/dm/rooms/:roomId/messages` | `/api/v1/dm/rooms/{roomId}/messages` | 구현 |
+
+> 1:1. 같은 두 사람은 방 1개(`pair_key`). 주민·이웃(`ACCEPTED`)만 만들고 보낼 수 있다. 차단이면 `USER_BLOCKED`.
+> **대화 상대 고르기**는 울타리 목록과 같다. `GET /users/{내 userNo}/neighbors?type=RESIDENTS`(주민), `type=NEIGHBORS`(이웃). 항목의 `userNo`로 `POST /dm/rooms` `{ targetUserNo }`.
+> 목록 `items`(기본 30, 최대 50). 최신 메시지 순. `peerUserNo`, `peerNickname`, `profileFile`(대표 펫 사진, 없으면 null), `lastMessage`, `lastMessageAt`, `unreadCount`. 글이 있으면 그 글, 공유만 있으면 «게시글을 공유했습니다» / «스토리를 공유했습니다». 나간 방, 탈퇴·차단 상대는 빠진다.
+> 메시지 `items`는 오래된 순. `beforeMessageId`로 더 이전. `nextCursorMessageId`가 있으면 그 값으로 이어서 조회. 조회하면 그 방의 최신 메시지까지 읽음. `fromMe`, `body`(없으면 null), `createdAt`. 화면의 «방금/어제»는 `createdAt`으로 그린다. 헤더 «울타리»는 `peerUserNo`.
+> **게시글 공유** `{ body, feedId, feedMediaId }`. `feedMediaId`는 캐러셀에서 고른 사진. 없으면 첫 장. 응답 `share.type=FEED`, `mediaIndex`(0이 첫 장), `authorUserNo`, `authorNickname`, `authorProfileFile`, `file`(그 사진. 영상이면 썸네일), `content`(본문). 보낸 사람이 그 글을 볼 수 있어야 한다.
+> **스토리 공유** `{ body, storyId }`. `share.type=STORY`, `file`만. 프로필·닉네임 없음. 활성 스토리만 보낼 수 있고, 받은 뒤에는 만료돼도 그 사진을 보여 준다.
+> 게시글과 스토리는 한 메시지에 같이 못 보낸다. 삭제된 대상은 `share.available=false`이고 사진·본문은 null. 상대가 답장을 보내면 나간 방이 다시 목록에 나온다.
 
 ---
 
@@ -263,6 +278,7 @@ BFF: `/api/...` · Spring: `/api/v1/...`
 
 | 기능 | Method | BFF | Spring | 상태 |
 |------|--------|-----|--------|------|
+| 안 읽은 알림 수 | GET | `/api/notifications/unread-count` | `/api/v1/notifications/unread-count` | 구현 |
 | 알림 목록 조회 | GET | `/api/notifications` | `/api/v1/notifications` | 구현 |
 | 알림 단건 읽음 | PATCH | `/api/notifications/:notificationId/read` | `/api/v1/notifications/{notificationId}/read` | 구현 |
 | 알림 전체 읽음 | POST | `/api/notifications/read-all` | `/api/v1/notifications/read-all` | 구현 |
@@ -271,7 +287,7 @@ BFF: `/api/...` · Spring: `/api/v1/...`
 
 목록 `data`: `unreadCount`, `items`(기본 30, 최대 50, 쿼리 `limit`). 정렬은 마지막 행위 시각 내림차순. 항목: `type`, `message`, `actorUserNo`, `actorNickname`, `actorProfileFile`(대표 펫 사진, 없으면 null), `actorCount`, `snippet`(텍스트 일부, 최대 40자, 없으면 null), 이동용 `feedId` / `feedCommentId` / `feedReplyId` / `storyId` / `neighborId`, `neighborStatus`, `read`, `updatedAt`. `hasComment`·`hasReply`는 댓글·답글 통합 행만 의미 있다.
 
-같은 대상은 알림 1행이다. `actorCount`가 2 이상이면 `message`는 «닉네임님 외 N명». 새 행위가 있으면 안 읽음으로 되돌리고 목록 맨 위로 올린다. 본인 행위, 탈퇴한 행위자, 서로 차단, 삭제된 게시글·스토리는 빠진다. 이웃 신청의 수락 버튼은 `neighborStatus=PENDING`일 때만. 수락 API는 기존 `POST /neighbors/{neighborId}/accept`.
+같은 대상은 알림 1행이다. `actorCount`가 2 이상이면 `message`는 «닉네임님 외 N명». 새 행위가 있으면 안 읽음으로 되돌리고 목록 맨 위로 올린다. 본인 행위, 탈퇴한 행위자, 서로 차단, 삭제된 게시글·스토리는 빠진다. 알림 설정에서 끈 종류도 목록과 `unreadCount`에서 빠지고, 그 사이 생긴 알림은 저장하지 않는다. 이웃 신청의 수락 버튼은 `neighborStatus=PENDING`일 때만. 수락 API는 기존 `POST /neighbors/{neighborId}/accept`.
 
 | type | 생기는 때 | 모이는 단위 | 이동 |
 |------|-----------|-------------|------|
@@ -286,7 +302,7 @@ BFF: `/api/...` · Spring: `/api/v1/...`
 | `STORY_TAG` | 스토리 `@`가 내 펫 | 그 스토리·나 | `storyId`. `snippet`은 캡션, 없으면 첫 글자 |
 | `STORY_LIKE` | 내 스토리 공감 | 그 스토리의 공감 | `storyId` |
 
-웹소켓은 아직 없다. 목록을 다시 조회하면 배지(`unreadCount`)와 문구를 맞춘다.
+하단 배지는 `GET /notifications/unread-count`의 `unreadCount`만 쓴다. `/auth/me`에 넣지 않는다. 이 조회는 읽음 처리하지 않아서, 알림 페이지에 들어오기 전까지 숫자가 쌓인다. 알림 페이지의 `GET /notifications`는 목록을 만든 뒤 그때까지 안 읽은 알림을 읽음으로 바꾼다. 그 다음 배지는 0이고, 새 행위가 있으면 다시 안 읽음으로 쌓인다. 웹소켓은 아직 없고, 나중에 이 숫자만 밀어 준다.
 
 ---
 
@@ -296,6 +312,56 @@ BFF: `/api/...` · Spring: `/api/v1/...`
 |------|--------|-----|
 | 설정 조회 (프로필 공개 범위 등) | GET | `/api/settings` |
 | 설정 변경 | PATCH | `/api/settings` |
+
+| 기능 | Method | BFF | Spring | 상태 |
+|------|--------|-----|--------|------|
+| 내 활동 | GET | `/api/settings/activities` | `/api/v1/settings/activities` | 구현 |
+| 알림 설정 조회 | GET | `/api/settings/notifications` | `/api/v1/settings/notifications` | 구현 |
+| 알림 설정 변경 | PATCH | `/api/settings/notifications` | `/api/v1/settings/notifications` | 구현 |
+| 공개 범위 조회 | GET | `/api/settings/privacy` | `/api/v1/settings/privacy` | 구현 |
+| 공개 범위 변경 | PATCH | `/api/settings/privacy` | `/api/v1/settings/privacy` | 구현 |
+
+내가 한 일만. `data.items`(기본 30, 최대 50, 쿼리 `limit`). 최신 `occurredAt` 순. 별도 로그 테이블 없이 좋아요·댓글·답글·이웃 신청·게시글·스토리를 합친다. 삭제된 글, 탈퇴한 대상은 빠진다. 만료된 스토리도 올린 기록으로 남는다.
+
+항목: `type`, `occurredAt`, `targetUserNo`, `targetNickname`, `profileFile`(그 유저의 대표 펫 사진, 없으면 null), `snippet`(미리보기 원문. 화면에서 6자로 자른다. 없으면 null), 이동용 `feedId` / `feedCommentId` / `feedReplyId` / `storyId` / `neighborId`, `neighborStatus`.
+
+| type | 화면 | 대상 닉네임 | snippet | 이동 |
+|------|------|-------------|---------|------|
+| `FEED_LIKE` | OO님의 게시글에 좋아요 | 게시글 작성자 | 게시글 본문 | `feedId` |
+| `COMMENT_LIKE` | OO님의 댓글에 좋아요 | 댓글 작성자 | 댓글 | `feedId`, `feedCommentId` |
+| `REPLY_LIKE` | OO님의 답글에 좋아요 | 답글 작성자 | 답글 | `feedId`, `feedCommentId`, `feedReplyId` |
+| `FEED_COMMENT` | OO님의 게시글에 댓글 | 게시글 작성자 | 내가 쓴 댓글 | `feedId`, `feedCommentId` |
+| `FEED_REPLY` | OO님의 댓글에 답글 | 댓글 작성자 | 내가 쓴 답글 | `feedId`, `feedCommentId`, `feedReplyId` |
+| `NEIGHBOR_REQUEST` | OO님에게 이웃을 신청 | 받은 사람 | 없음 | `neighborId`. `PENDING`이면 취소 `DELETE /neighbors/{neighborId}`. `ACCEPTED`·`REJECTED`는 버튼 없음 |
+| `FEED` | 게시글을 올렸습니다 | 나 | 본문 | `feedId` |
+| `STORY` | 스토리를 올렸습니다 | 나 | 캡션 | `storyId` |
+
+**알림 설정** `GET`/`PATCH /settings/notifications`. 행이 없으면 전부 `true`. PATCH는 넣은 필드만 바꾼다. 하나도 없으면 `400`. 끈 종류는 알림 목록에 안 나오고, 그때 생긴 알림은 저장하지 않는다. 다시 켜면 그 전에 저장된 알림은 다시 보인다.
+
+| 필드 | 화면 | 알림 type |
+|------|------|-----------|
+| `neighbor` | 이웃 신청 | `NEIGHBOR_REQUEST` |
+| `likePost` | 게시글 좋아요 | `FEED_LIKE` |
+| `likeComment` | 댓글 좋아요 | `COMMENT_LIKE` |
+| `likeReply` | 답글 좋아요 | `REPLY_LIKE` |
+| `commentOnPost` | 내 게시글 댓글 | `FEED_COMMENT`의 댓글 |
+| `replyOnComment` | 내 댓글 답글 | `FEED_COMMENT`의 답글 |
+| `mention` | 댓글·답글 언급 | `COMMENT_MENTION`, `REPLY_MENTION` |
+| `tagPost` | 게시글 태그 | `FEED_TAG` |
+| `tagStory` | 스토리 태그 | `STORY_TAG` |
+| `storyReact` | 스토리 공감 | `STORY_LIKE` |
+
+**공개 범위** `GET`/`PATCH /settings/privacy`. 행이 없으면 비공개 계정 꺼짐, `feedVisibility=PUBLIC`, `storyVisibility=NEIGHBORS`, 이웃 신청·댓글·멘션·태그 켜짐. PATCH는 넣은 필드만. `feedVisibility`·`storyVisibility`는 `PUBLIC` | `NEIGHBORS` | `PRIVATE`.
+
+| 필드 | 화면 | 적용 |
+|------|------|------|
+| `privateAccount` | 비공개 계정 | 켜면 전체 공개 게시글·스토리도 이웃만 본다. 저장된 기본값은 그대로 |
+| `feedVisibility` | 게시글 기본 공개 범위 | 글을 쓸 때 공개 범위를 비우면 이 값 |
+| `storyVisibility` | 스토리 공개 범위 | `PRIVATE`는 본인만. `PUBLIC`는 이웃이 아니어도 본다 |
+| `neighborRequest` | 이웃 신청 받기 | 끄면 신청 `403` `NEIGHBOR_REQUEST_CLOSED` |
+| `allowComment` | 게시글 댓글 허용 | 끄면 남의 댓글·답글 `403` `COMMENT_NOT_ALLOWED`. 본인 글은 가능 |
+| `allowMention` | 멘션 허용 | 끄면 댓글·답글에서 그 사람·그 펫 멘션 `403` `MENTION_NOT_ALLOWED` |
+| `allowTag` | 태그 허용 | 끄면 게시글·스토리에서 그 펫 태그 `403` `TAG_NOT_ALLOWED` |
 
 ---
 
@@ -318,6 +384,7 @@ BFF: `/api/...` · Spring: `/api/v1/...`
 | 비밀번호 인코딩 | POST | `/api/v1/test/password/encode` | 인증 불필요 |
 | **내 스토리 읽음 초기화** | DELETE | `/api/v1/test/story-views` | Bearer 필수. `ultary_story_view`에서 내 viewer 행 전부 삭제 → `deletedCount` |
 | **닉네임 변경 기간 초기화** | POST | `/api/v1/test/nickname-cooldown` | Bearer 필수. 내 `nickname_changed_at`을 올해 1월 1일 00:00으로 바꿔 7일 쿨다운을 푼다 |
+| **펫 멘션 ID 변경 기간 초기화** | POST | `/api/v1/test/pets/{petId}/mention-id-cooldown` | Bearer 필수. 내 펫의 `mention_id_changed_at`을 올해 1월 1일 00:00으로 바꿔 30일 쿨다운을 푼다. 없거나 내 펫이 아니면 404 |
 
 HTTP: `requests/test.http`
 
@@ -328,7 +395,7 @@ HTTP: `requests/test.http`
 - 코드 상수: `src/lib/api/endpoints.ts` (`bffEndpoints` / `springEndpoints`)
 - BFF 스켈레톤: `src/app/api/**/route.ts`
 - REST Client 틀: `http/bff.http` (프론트) · Spring: `requests/*.http`
-- DB 스키마: `share/database/schema/mariadb_10_1/001_init_schema.sql` (**schema_version 14**)
+- DB 스키마: `share/database/schema/mariadb_10_1/001_init_schema.sql` (**schema_version 18**)
   - 기존 DB v7→v8: `002_file_source_attribution.sql`
   - 기존 DB v8→v9: `003_comment_reply_like.sql`
   - 기존 DB v9→v10: `004_search_history_user_only.sql` (최근 검색 = 들어간 유저 울타리만)
@@ -336,6 +403,10 @@ HTTP: `requests/test.http`
   - 기존 DB v11→v12: `006_story_overlay.sql` (스토리 글자·펫 멘션)
   - 기존 DB v12→v13: `007_recent_pet_tag.sql` (사진·스토리 최근 펫 태그. 검색 최근 울타리와 별도)
   - 기존 DB v13→v14: `008_notification.sql` (알림 집계, 스토리 공감)
+  - 기존 DB v14→v15: `009_drop_withdrawal_requested_at.sql` (`withdrawal_requested_at` 제거)
+  - 기존 DB v15→v16: `010_notification_setting.sql` (알림 종류별 스위치. 행이 없으면 전부 켜짐)
+  - 기존 DB v16→v17: `011_user_privacy.sql` (공개 범위. 행이 없으면 화면 기본값)
+  - 기존 DB v17→v18: `012_dm.sql` (1:1 메시지. 게시글 사진·스토리 사진 공유)
   - `ultary_file` 출처: `source_type`(OWNED|UNSPLASH|AI|ETC), `author_name`, `source_url`, `license_url`, `copyright_notice`
 - 로컬 시드(선택): `share/database/seed/mariadb_10_1/001_dev_sample_data.sql`  
   - 스키마 직후 실행. **재실행 가능**(CLEANUP 후 INSERT). 운영/최종 배포에서는 실행하지 않음.  
@@ -390,7 +461,8 @@ HTTP: `requests/test.http`
 | 1-11 | Neighbor (+ block, NEIGHBORS 피드 가시성) | 스모크 테스트함. 시드 user 5·pet 1~2. HTTP `neighbor.http` |
 | 1-12 | Main feeds/search | 타임라인 커서 + 통합 검색. HTTP `main.http` |
 | 1-13 | 알림 저장·목록, 스토리 공감 | 화면 10종. 웹소켓은 아직 없음 |
-| 다음 | DM, 알림 웹소켓 | 미착수 |
+| 1-14 | DM | 1:1 방, 글·게시글 사진·스토리 사진. HTTP `dm.http`. 웹소켓 없음 |
+| 다음 | 알림 웹소켓 | 미착수 |
 
 파일 업로드 상대경로: `images/{uuid}.ext`, `videos/{uuid}.ext` (`UPLOAD_DIR`).  
 시드 CDN·임베드 요약은 위 **FileSummary** 절 참고.

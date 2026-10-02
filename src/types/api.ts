@@ -10,6 +10,7 @@ export const API_ERROR_CODES = [
   'NOT_FOUND',
   'DB_CONNECTION_FAILED',
   'LOGIN_FAILED',
+  'ACCOUNT_WITHDRAWN',
   'USER_INACTIVE',
   'TOKEN_EXPIRED',
   'INVALID_TOKEN',
@@ -75,6 +76,8 @@ export type SignupRequest = {
 /** POST /api/v1/auth/phone */
 export type PhoneAuthRequest = {
   phone: string;
+  /** 생략·SIGNUP=가입, PROFILE=회원정보 변경, PASSWORD=비밀번호 재설정 */
+  purpose?: 'SIGNUP' | 'PROFILE' | 'PASSWORD';
 };
 
 export type PhoneAuthResponse = {
@@ -118,13 +121,21 @@ export type SocialLoginResponse = TokenResponse & {
   defaultNickname: boolean;
 };
 
-/** PATCH /api/v1/auth/me — 닉네임은 별도 API */
+/** PATCH /api/v1/auth/me — 닉네임은 별도 API. 번호가 바뀔 때만 phone과 인증 완료 토큰 */
 export type UpdateMeRequest = {
   name?: string | null;
   email?: string | null;
   bio?: string | null;
   regionSido?: string | null;
   regionSigungu?: string | null;
+  phone?: string;
+  phoneAuthCompleteToken?: string;
+};
+
+/** PUT /api/v1/auth/password/me — 로그인 중 변경. 비밀번호가 없으면 currentPassword 생략 */
+export type ChangeMyPasswordRequest = {
+  currentPassword?: string;
+  newPassword: string;
 };
 
 /** PATCH /api/v1/auth/me/nickname */

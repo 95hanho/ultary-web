@@ -8,6 +8,7 @@ import { resolveFileDisplayUrl } from '@/lib/api/fileUrl';
 import { isRecord } from '@/lib/api/error';
 import { MY_NICKNAME, OTHER_NICKNAME, myUltaryPath } from '@/lib/mock/ultary-accounts';
 import { openFeedComment, postPagePath } from '@/lib/notification/openTarget';
+import { fetchUnreadCount, publishUnreadBadge } from '@/lib/notification/unreadBadge';
 import { NO_PROFILE_SRC } from '@/lib/profileImage';
 import type { BffEnvelope } from '@/types/api';
 import type { FileSummary } from '@/types/file';
@@ -561,6 +562,11 @@ export default function NotificationsClient() {
           .map(mapApiNotification)
           .filter((v): v is NotificationItem => v != null);
         if (cancelled) return;
+        void fetchUnreadCount()
+          .then((count) => {
+            if (!cancelled) publishUnreadBadge(count);
+          })
+          .catch((err) => console.warn('[notifications] unread count', err));
         if (mapped.length > 0) {
           setItems(mapped);
           setStatus(null);

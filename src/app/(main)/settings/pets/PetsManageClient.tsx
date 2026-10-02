@@ -2,15 +2,25 @@
 
 import { FooterMenu } from '@/components/common/FooterMenu';
 import { PageHeader } from '@/components/common/PageHeader';
-import { MOCK_MANAGED_PETS, type ManagedPet } from '@/lib/mock/pets';
+import { PetsManageDevTools } from '@/components/dev/PetsManageDevTools';
+import { bffDelete, bffGet, bffPatchJson, bffPostJson } from '@/lib/api/bffFetch';
+import { bffEndpoints } from '@/lib/api/endpoints';
+import { isHttpError } from '@/lib/api/error';
+import { resolveFileDisplayUrl } from '@/lib/api/fileUrl';
+import { type ManagedPet } from '@/lib/mock/pets';
 import { myUltaryPath } from '@/lib/mock/ultary-accounts';
 import { readFileAsDataUrl, setPendingPetPhoto } from '@/lib/pending-pet-photo';
+import { NO_PROFILE_SRC } from '@/lib/profileImage';
 import { useModalStore } from '@/stores/modal.store';
+import type { BffEnvelope } from '@/types/api';
+import type { PetGender } from '@/types/enums';
+import type { Pet } from '@/types/pet';
 import clsx from 'clsx';
 import { GripVertical, Plus, X } from 'lucide-react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import {
+  useCallback,
   useEffect,
   useRef,
   useState,
@@ -23,13 +33,22 @@ import styles from './pets.module.scss';
 
 const SettingFillIcon = '/images/icon/Setting_fill.svg';
 const RETURN_HREF = '/settings/pets';
+/** 추가·수정 모달 바깥 클릭 시 닫기. 이 페이지는 입력 중 닫히지 않는다. */
+const CLOSE_FORM_ON_DIM_CLICK = false;
 
 type FormMode = 'create' | 'edit';
+
+const GENDER_OPTIONS: { value: PetGender; label: string }[] = [
+  { value: 'MALE', label: '남자' },
+  { value: 'FEMALE', label: '여자' },
+  { value: 'UNKNOWN', label: '모르겠음' },
+];
 
 type PetFormState = {
   name: string;
   tag: string;
   bio: string;
+  gender: PetGender;
   birth: string;
 };
 
@@ -47,7 +66,13 @@ type DragSession = {
 };
 
 function emptyForm(): PetFormState {
-  return { name: '', tag: '', bio: '', birth: '' };
+  return { name: '', tag: '', bio: '', gender: 'UNKNOWN', birth: '' };
+}
+
+function genderCode(mark: ManagedPet['gender']): PetGender {
+  if (mark === 'M') return 'MALE';
+  if (mark === 'F') return 'FEMALE';
+  return 'UNKNOWN';
 }
 
 function formFromPet(pet: ManagedPet): PetFormState {
@@ -55,6 +80,7 @@ function formFromPet(pet: ManagedPet): PetFormState {
     name: pet.name,
     tag: pet.tag,
     bio: pet.bio,
+    gender: genderCode(pet.gender),
     birth: pet.birth,
   };
 }
@@ -67,11 +93,54 @@ function reorderByIndex(list: ManagedPet[], from: number, to: number) {
   return next;
 }
 
+function pickErrorMessage(err: unknown, fallback: string) {
+  if (isHttpError(err) && err.data && typeof err.data === 'object') {
+    const data = err.data as Record<string, unknown>;
+    if (typeof data.detail === 'string' && data.detail.trim()) return data.detail;
+    if (typeof data.message === 'string' && data.message.trim()) return data.message;
+  }
+  if (err instanceof Error && err.message) return err.message;
+  return fallback;
+}
+
+function genderMark(gender: string | null | undefined) {
+  if (gender === 'MALE') return 'M';
+  if (gender === 'FEMALE') return 'F';
+  return '?';
+}
+
+function birthDate(value: string | null | undefined) {
+  if (!value) return '';
+  const match = value.match(/^(\d{4}-\d{2}-\d{2})/);
+  return match ? match[1] : '';
+}
+
+function toBirthdayPayload(birth: string) {
+  return birth ? `${birth}T00:00:00` : undefined;
+}
+
+function toManaged(pet: Pet): ManagedPet {
+  return {
+    id: String(pet.petId),
+    name: pet.name,
+    tag: pet.mentionId,
+    gender: genderMark(pet.gender),
+    bio: pet.bio ?? '',
+    birth: birthDate(pet.birthday),
+    imageUrl: resolveFileDisplayUrl(pet.profileFile) ?? NO_PROFILE_SRC,
+    priority: pet.priority,
+  };
+}
+
 /** 설정 > 반려동물 관리 */
 export default function PetsManageClient() {
   const router = useRouter();
   const openModal = useModalStore((s) => s.open);
-  const [pets, setPets] = useState<ManagedPet[]>(MOCK_MANAGED_PETS);
+  const [pets, setPets] = useState<ManagedPet[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [listError, setListError] = useState('');
+  const [formError, setFormError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
   const [drag, setDrag] = useState<DragSession | null>(null);
   const [photoTargetPetId, setPhotoTargetPetId] = useState<string | null>(null);
   const [formOpen, setFormOpen] = useState(false);
@@ -89,9 +158,67 @@ export default function PetsManageClient() {
   petsRef.current = pets;
   dragRef.current = drag;
 
+  const loadPets = useCallback(async () => {
+    const res = await bffGet<BffEnvelope<Pet[]>>(bffEndpoints.pets.root);
+    const list = Array.isArray(res.data) ? res.data : [];
+    const next = list.map(toManaged);
+    petsRef.current = next;
+    setPets(next);
+    setListError('');
+  }, []);
+
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        await loadPets();
+      } catch (err) {
+        if (!cancelled) {
+          setListError(pickErrorMessage(err, '반려동물 목록을 불러오지 못했습니다.'));
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [loadPets]);
+
+  const persistOrder = useCallback(
+    async (ordered: ManagedPet[]) => {
+      const jobs = ordered.flatMap((pet, index) => {
+        const priority = index + 1;
+        if (pet.priority === priority) return [];
+        return [
+          bffPatchJson<BffEnvelope<Pet>>(bffEndpoints.pets.detail, {
+            petId: pet.id,
+            priority,
+          }).then(() => pet.id),
+        ];
+      });
+      if (jobs.length === 0) return;
+      try {
+        await Promise.all(jobs);
+        const next = ordered.map((pet, index) => ({ ...pet, priority: index + 1 }));
+        petsRef.current = next;
+        setPets(next);
+        setListError('');
+      } catch (err) {
+        setListError(pickErrorMessage(err, '순서를 저장하지 못했습니다.'));
+        try {
+          await loadPets();
+        } catch {
+          /* 목록 오류는 위에서 이미 표시 */
+        }
+      }
+    },
+    [loadPets],
+  );
 
   useEffect(() => {
     if (!drag) return;
@@ -135,7 +262,9 @@ export default function PetsManageClient() {
       }
 
       if (insertAt !== from) {
-        setPets(reorderByIndex(currentPets, from, insertAt));
+        const next = reorderByIndex(currentPets, from, insertAt);
+        petsRef.current = next;
+        setPets(next);
       }
     };
 
@@ -146,10 +275,7 @@ export default function PetsManageClient() {
         window.setTimeout(() => {
           suppressClickRef.current = false;
         }, 0);
-        console.log(
-          '[settings-pets] reorder',
-          petsRef.current.map((p) => p.id),
-        );
+        void persistOrder(petsRef.current);
       }
       dragRef.current = null;
       setDrag(null);
@@ -165,12 +291,13 @@ export default function PetsManageClient() {
       window.removeEventListener('pointerup', onUp);
       window.removeEventListener('pointercancel', onUp);
     };
-  }, [drag]);
+  }, [drag, persistOrder]);
 
   const openCreate = () => {
     setFormMode('create');
     setEditingId(null);
     setForm(emptyForm());
+    setFormError('');
     setFormOpen(true);
   };
 
@@ -179,12 +306,14 @@ export default function PetsManageClient() {
     setFormMode('edit');
     setEditingId(pet.id);
     setForm(formFromPet(pet));
+    setFormError('');
     setFormOpen(true);
   };
 
   const closeForm = () => {
     setFormOpen(false);
     setEditingId(null);
+    setFormError('');
   };
 
   const openPhotoPicker = (petId: string) => {
@@ -248,9 +377,17 @@ export default function PetsManageClient() {
         label: '삭제',
         tone: 'danger',
         onClick: () => {
-          console.log('[settings-pets] delete', { petId: editingId });
-          setPets((prev) => prev.filter((p) => p.id !== editingId));
-          closeForm();
+          void (async () => {
+            try {
+              await bffDelete<BffEnvelope<unknown>>(bffEndpoints.pets.detail, {
+                petId: editingId,
+              });
+              closeForm();
+              await loadPets();
+            } catch (err) {
+              setFormError(pickErrorMessage(err, '반려동물을 삭제하지 못했습니다.'));
+            }
+          })();
         },
       },
       cancelButton: {
@@ -262,45 +399,59 @@ export default function PetsManageClient() {
 
   const handleSubmitForm = (e: FormEvent) => {
     e.preventDefault();
-    const payload = {
-      mode: formMode,
-      petId: editingId,
-      name: form.name.trim(),
-      tag: form.tag.trim().replace(/^@/, ''),
-      bio: form.bio.trim(),
-      birth: form.birth.trim(),
-    };
-    console.log('[settings-pets] submit', payload);
+    if (submitting) return;
+    const name = form.name.trim();
+    const tag = form.tag.trim().replace(/^@/, '');
+    const bio = form.bio.trim();
+    const birth = form.birth.trim();
 
-    if (formMode === 'create') {
-      const id = `pet-${Date.now()}`;
-      setPets((prev) => [
-        ...prev,
-        {
-          id,
-          name: payload.name || '이름없음',
-          tag: payload.tag || `pet_${prev.length + 1}`,
-          gender: 'M',
-          bio: payload.bio,
-          birth: payload.birth || '2020-01-01',
-          imageUrl: '/images/mock/profile.jpg',
-        },
-      ]);
-    } else if (editingId) {
-      setPets((prev) =>
-        prev.map((p) =>
-          p.id === editingId
-            ? {
-                ...p,
-                tag: payload.tag || p.tag,
-                bio: payload.bio,
-                birth: payload.birth || p.birth,
-              }
-            : p,
-        ),
-      );
+    if (formMode === 'create' && !name) {
+      setFormError('이름을 입력해주세요.');
+      return;
     }
-    closeForm();
+    if (!tag) {
+      setFormError('펫 태그를 입력해주세요.');
+      return;
+    }
+
+    void (async () => {
+      setSubmitting(true);
+      setFormError('');
+      try {
+        if (formMode === 'create') {
+          await bffPostJson<BffEnvelope<Pet>>(bffEndpoints.pets.root, {
+            name,
+            mentionId: tag,
+            gender: form.gender,
+            ...(bio ? { bio } : {}),
+            ...(toBirthdayPayload(birth) ? { birthday: toBirthdayPayload(birth) } : {}),
+          });
+        } else if (editingId) {
+          const current = pets.find((p) => p.id === editingId);
+          const genderChanged = current ? form.gender !== genderCode(current.gender) : true;
+          await bffPatchJson<BffEnvelope<Pet>>(bffEndpoints.pets.detail, {
+            petId: editingId,
+            bio,
+            ...(genderChanged ? { gender: form.gender } : {}),
+            ...(birth !== (current?.birth ?? '') && toBirthdayPayload(birth)
+              ? { birthday: toBirthdayPayload(birth) }
+              : {}),
+          });
+          if (current && tag !== current.tag) {
+            await bffPatchJson<BffEnvelope<Pet>>(bffEndpoints.pets.mentionId, {
+              petId: editingId,
+              mentionId: tag,
+            });
+          }
+        }
+        closeForm();
+        await loadPets();
+      } catch (err) {
+        setFormError(pickErrorMessage(err, '저장하지 못했습니다.'));
+      } finally {
+        setSubmitting(false);
+      }
+    })();
   };
 
   const draggingPet = drag ? pets.find((p) => p.id === drag.id) : null;
@@ -371,6 +522,11 @@ export default function PetsManageClient() {
           </button>
         </div>
 
+        {listError ? <p className={styles.status}>{listError}</p> : null}
+        {!loading && pets.length === 0 && !listError ? (
+          <p className={styles.empty}>등록된 반려동물이 없습니다.</p>
+        ) : null}
+
         <div ref={listRef} className={styles.list}>
           {pets.map((pet, index) => {
             const isDragging = drag?.id === pet.id;
@@ -396,6 +552,7 @@ export default function PetsManageClient() {
       </main>
 
       <FooterMenu />
+      <PetsManageDevTools petId={formOpen && formMode === 'edit' ? editingId : null} />
 
       <input
         ref={fileInputRef}
@@ -434,6 +591,7 @@ export default function PetsManageClient() {
               className={styles.dim}
               role="presentation"
               onClick={(e) => {
+                if (!CLOSE_FORM_ON_DIM_CLICK) return;
                 if (e.target === e.currentTarget) closeForm();
               }}
             >
@@ -497,6 +655,22 @@ export default function PetsManageClient() {
                       />
                     </label>
                     <label className={styles.fieldRow}>
+                      <span className={styles.fieldLabel}>성별</span>
+                      <select
+                        className={styles.fieldInput}
+                        value={form.gender}
+                        onChange={(e) =>
+                          setForm((f) => ({ ...f, gender: e.target.value as PetGender }))
+                        }
+                      >
+                        {GENDER_OPTIONS.map((option) => (
+                          <option key={option.value} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className={styles.fieldRow}>
                       <span className={styles.fieldLabel}>출생</span>
                       <input
                         type="date"
@@ -519,8 +693,10 @@ export default function PetsManageClient() {
                     ) : null}
                   </div>
 
+                  {formError ? <p className={styles.formError}>{formError}</p> : null}
+
                   <div className={styles.panelFooter}>
-                    <button type="submit" className={styles.submitBtn}>
+                    <button type="submit" className={styles.submitBtn} disabled={submitting}>
                       {formMode === 'create' ? '등록' : '수정'}
                     </button>
                     <button type="button" className={styles.cancelBtn} onClick={closeForm}>

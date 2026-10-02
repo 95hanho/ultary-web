@@ -5,10 +5,12 @@ export type ManagedPet = {
   name: string;
   /** @ 없이 저장, 표시 시 @ 붙임 */
   tag: string;
-  gender: 'M' | 'F';
+  gender: 'M' | 'F' | '?';
   bio: string;
   birth: string;
   imageUrl: string;
+  /** 작을수록 위. 화면 순서와 맞춘다 */
+  priority: number;
 };
 
 export const MOCK_MANAGED_PETS: ManagedPet[] = [
@@ -20,6 +22,7 @@ export const MOCK_MANAGED_PETS: ManagedPet[] = [
     bio: '산책 좋아함',
     birth: '1995-08-14',
     imageUrl: '/images/mock/profile.jpg',
+    priority: 1,
   },
   {
     id: 'pet-2',
@@ -29,6 +32,7 @@ export const MOCK_MANAGED_PETS: ManagedPet[] = [
     bio: '낮잠 전문',
     birth: '2018-03-22',
     imageUrl: '/images/mock/profile.jpg',
+    priority: 2,
   },
   {
     id: 'pet-3',
@@ -38,5 +42,6 @@ export const MOCK_MANAGED_PETS: ManagedPet[] = [
     bio: '간식 러버',
     birth: '2020-11-05',
     imageUrl: '/images/mock/profile.jpg',
+    priority: 3,
   },
 ];

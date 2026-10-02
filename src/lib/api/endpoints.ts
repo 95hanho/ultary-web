@@ -37,8 +37,10 @@ export const bffEndpoints = {
     phoneVerify: '/api/auth/phone/verify',
     /** POST 비밀번호 변경 토큰 생성 */
     passwordToken: '/api/auth/password/token',
-    /** PUT 비밀번호 변경 */
+    /** PUT 비밀번호 변경 (비로그인 · passwordChangeToken) */
     password: '/api/auth/password',
+    /** PUT 로그인 중 비밀번호 변경/최초 설정 */
+    passwordMe: '/api/auth/password/me',
     /** GET 구글 소셜 로그인 시작 (BFF OAuth) */
     google: '/api/auth/social/google',
     /** GET 구글 콜백 (BFF OAuth → Spring social/login) */
@@ -103,6 +105,8 @@ export const bffEndpoints = {
     root: '/api/pets',
     /** PATCH 수정 (profileFileId·priority 포함) / DELETE 삭제 */
     detail: '/api/pets/:petId',
+    /** PATCH 멘션 ID 변경 */
+    mentionId: '/api/pets/:petId/mention-id',
     /** POST 피드 반려동물 태그 승인 */
     tagApprove: '/api/pets/tags/:feedPetId/approve',
     /** POST 피드 반려동물 태그 거절 */
@@ -168,6 +172,8 @@ export const bffEndpoints = {
     block: '/api/users/:userNo/block',
     /** DELETE 차단 해제 */
     unblock: '/api/users/:userNo/block',
+    /** GET 내가 차단한 사용자 */
+    blocks: '/api/users/blocks',
     /** POST 신고 */
     report: '/api/reports',
   },
@@ -193,8 +199,10 @@ export const bffEndpoints = {
   },
 
   notifications: {
-    /** GET 알림 목록 */
+    /** GET 알림 목록. 조회 시 그때까지 쌓인 안 읽음을 읽음 처리 */
     root: '/api/notifications',
+    /** GET 안 읽은 알림 수. 읽음 처리 없음 */
+    unreadCount: '/api/notifications/unread-count',
     /** PATCH 단건 읽음 */
     read: '/api/notifications/:notificationId/read',
     /** POST 전체 읽음 */
@@ -202,8 +210,14 @@ export const bffEndpoints = {
   },
 
   settings: {
-    /** GET 설정 조회 / PATCH 설정 변경(공개범위 등) */
+    /** GET 설정 조회 / PATCH 설정 변경 */
     root: '/api/settings',
+    /** GET 내 활동 */
+    activities: '/api/settings/activities',
+    /** GET / PATCH 알림 설정 */
+    notifications: '/api/settings/notifications',
+    /** GET / PATCH 공개 범위 */
+    privacy: '/api/settings/privacy',
   },
 
   admin: {
@@ -219,6 +233,8 @@ export const bffEndpoints = {
     storyViews: '/api/test/story-views',
     /** POST 닉네임 변경 쿨다운 초기화 */
     nicknameCooldown: '/api/test/nickname-cooldown',
+    /** POST 펫 멘션 ID 변경 쿨다운 초기화 */
+    mentionIdCooldown: '/api/test/pets/:petId/mention-id-cooldown',
   },
 
   files: {
@@ -263,8 +279,10 @@ export const springEndpoints = {
     phoneVerify: '/api/v1/auth/phone/verify',
     /** POST */
     passwordToken: '/api/v1/auth/password/token',
-    /** PUT */
+    /** PUT 비로그인 변경 (passwordChangeToken) */
     password: '/api/v1/auth/password',
+    /** PUT 로그인 중 변경. 비밀번호가 있으면 currentPassword 필수 */
+    passwordMe: '/api/v1/auth/password/me',
     /** POST SocialLoginRequest → SocialLoginResponse */
     socialLogin: '/api/v1/auth/social/login',
     /** POST 소셜 계정 연동 (인증 필요) */
@@ -323,6 +341,8 @@ export const springEndpoints = {
     root: '/api/v1/pets',
     /** PATCH / DELETE */
     detail: '/api/v1/pets/:petId',
+    /** PATCH 멘션 ID */
+    mentionId: '/api/v1/pets/:petId/mention-id',
     /** POST */
     tagApprove: '/api/v1/pets/tags/:feedPetId/approve',
     /** POST */
@@ -386,6 +406,8 @@ export const springEndpoints = {
     neighborCancel: '/api/v1/neighbors/:neighborId',
     /** POST / DELETE */
     block: '/api/v1/users/:userNo/block',
+    /** GET 내가 차단한 사용자 */
+    blocks: '/api/v1/users/blocks',
     /** POST */
     report: '/api/v1/reports',
   },
@@ -411,8 +433,10 @@ export const springEndpoints = {
   },
 
   notifications: {
-    /** GET */
+    /** GET. 목록을 준 뒤 그때까지 안 읽은 알림을 읽음 처리 */
     root: '/api/v1/notifications',
+    /** GET 안 읽은 알림 수. 읽음 처리 없음 */
+    unreadCount: '/api/v1/notifications/unread-count',
     /** PATCH */
     read: '/api/v1/notifications/:notificationId/read',
     /** POST */
@@ -422,6 +446,12 @@ export const springEndpoints = {
   settings: {
     /** GET / PATCH */
     root: '/api/v1/settings',
+    /** GET 내 활동 */
+    activities: '/api/v1/settings/activities',
+    /** GET / PATCH 알림 설정 */
+    notifications: '/api/v1/settings/notifications',
+    /** GET / PATCH 공개 범위 */
+    privacy: '/api/v1/settings/privacy',
   },
 
   admin: {
@@ -437,6 +467,8 @@ export const springEndpoints = {
     storyViews: '/api/v1/test/story-views',
     /** POST Bearer — nickname_changed_at 을 올해 1월 1일로 */
     nicknameCooldown: '/api/v1/test/nickname-cooldown',
+    /** POST Bearer — mention_id_changed_at 을 올해 1월 1일로 */
+    mentionIdCooldown: '/api/v1/test/pets/:petId/mention-id-cooldown',
   },
 
   files: {

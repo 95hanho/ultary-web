@@ -19,7 +19,6 @@ export type User = {
   createdAt: DateTimeString;
   updatedAt: DateTimeString;
   withdrawalStatus: WithdrawalStatus;
-  withdrawalRequestedAt: DateTimeString | null;
   withdrawalCompletedAt: DateTimeString | null;
 };
 

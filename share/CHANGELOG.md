@@ -7,6 +7,115 @@ validation · database · docs 모두 **여기 한곳**에 적는다.
 
 ---
 
+## 2026-10-02 17:10
+
+### DB · API · DM
+- 스키마 v18 `ultary_dm_room`, `ultary_dm_message`. 두 사람당 방 1개
+- `GET`/`POST /api/v1/dm/rooms`, 나가기, 읽음, 메시지 조회·전송
+- 채팅 상대는 기존 울타리 주민·이웃 목록
+- 게시글은 고른 사진(`feedMediaId`)과 작성자 프로필·닉네임·본문, 스토리는 그 사진만
+
+---
+
+## 2026-10-02 16:06
+
+### DB · API · 공개 범위
+- 스키마 v17 `ultary_user_privacy`. 유저당 1행, 없으면 화면 기본값
+- `GET`/`PATCH /api/v1/settings/privacy`
+- 비공개 계정은 전체 공개 게시글·스토리를 이웃에게만 보여 줌
+- 이웃 신청·댓글·멘션·태그를 끄면 해당 동작이 거절됨
+
+---
+
+## 2026-10-02 15:10
+
+### API · 안 읽은 알림 수
+- `GET /api/v1/notifications/unread-count` — 하단 배지. 읽음 처리 없음. `/auth/me`에 넣지 않음
+- `GET /api/v1/notifications` — 알림 페이지 진입 시 그때까지 쌓인 안 읽음을 읽음 처리
+- 읽음 컬럼은 기존 `ultary_notification.is_read`
+
+---
+
+## 2026-10-02 13:55
+
+### DB · API · 알림 설정
+- 스키마 v16 `ultary_notification_setting`. 유저당 1행, 없으면 전부 켜짐
+- `GET`/`PATCH /api/v1/settings/notifications` — 화면 스위치 10개
+- 끈 종류는 알림 목록·배지에서 빠지고, 그 사이 생긴 알림은 저장하지 않음
+
+---
+
+## 2026-10-02 13:47
+
+### API · 차단한 사용자 목록
+- `GET /api/v1/users/blocks` — 내가 차단한 활성 유저. `nickname`, `profileFile`, `blockedAt`
+- 해제는 기존 `DELETE /api/v1/users/{userNo}/block`
+
+---
+
+## 2026-10-02 11:32
+
+### API · 내 활동
+- `GET /api/v1/settings/activities` — 내가 한 일만 최신순
+- 종류: 게시글·댓글·답글 좋아요, 댓글, 답글, 내가 보낸 이웃 신청, 게시글, 스토리
+- `snippet`은 미리보기 원문. `neighborStatus=PENDING`이면 기존 이웃 취소 API
+
+---
+
+## 2026-10-02 11:13
+
+### API · 탈퇴 계정 로그인
+- 이메일·휴대폰 로그인과 소셜 로그인에서 탈퇴 계정이면 `403` `ACCOUNT_WITHDRAWN`
+- message는 `탈퇴된 계정입니다.`
+- 비밀번호가 틀린 활성 계정은 기존 `LOGIN_FAILED`
+
+## 2026-10-02 11:11
+
+### DB v15 · 탈퇴 요청 시각 제거
+- `ultary_user.withdrawal_requested_at` 삭제. 이 컬럼을 쓰는 API는 없었다
+- 탈퇴 `DELETE /auth/me`는 그대로 `WITHDRAWN`과 `withdrawal_completed_at`
+- 기존 DB: `009_drop_withdrawal_requested_at.sql`
+
+## 2026-10-02 11:00
+
+### 검증 · 펫 태그 형식 오류 문구
+- 펫 멘션 ID(`mentionId`) 형식 오류는 `펫 태그는 영문, 숫자, 언더바(_)만 사용할 수 있습니다. (1~30자)`
+- 태그 핸들 문구는 그대로 `핸들은 …`
+
+## 2026-10-02 10:33
+
+### API · 로컬 펫 멘션 ID 쿨다운 초기화
+- `POST /api/v1/test/pets/{petId}/mention-id-cooldown` (`local` 프로필만)
+- 로그인 유저 소유 펫의 `mention_id_changed_at`을 올해 1월 1일로 되돌린다
+- prod에서는 컨트롤러가 없어 404
+
+## 2026-10-02 09:49
+
+### API · 로그인 중 비밀번호 변경
+- `PUT /auth/password/me`. 이미 비밀번호가 있으면 `currentPassword`, 없으면 생략하고 `newPassword`만
+- 성공하면 그 계정의 기존 토큰을 폐기
+
+## 2026-10-02 09:44
+
+### API · 휴대폰 인증번호 발송 때 번호 중복
+- `POST /auth/phone`이 코드를 저장하기 전에 검사한다
+- 회원가입은 이미 가입된 번호면 `PHONE_ALREADY_USED`
+- 회원정보 변경(`purpose=PROFILE`, Bearer)은 다른 사람 번호만 거절하고 내 번호는 다시 보낼 수 있다
+- 비밀번호 재설정(`purpose=PASSWORD`)은 가입된 번호로 보낸다
+- 가입·회원정보 저장 때의 중복 검사는 그대로 둔다
+
+## 2026-10-02 09:36
+
+### API · 회원정보 수정에서 연락처 변경
+- `PATCH /auth/me`에 `phone`, `phoneAuthCompleteToken`
+- 기존 번호와 다를 때만 인증 완료 토큰의 번호와 맞는지 확인하고 저장
+
+## 2026-10-02 09:12
+
+### API · 스토리 조회에 내 공감 여부
+- `GET /main/stories`, `GET /my-ultary/stories`, `POST /stories/{storyId}/view` 항목에 `likedByMe`
+- 조회자가 그 스토리에 공감한 상태(소프트 삭제 제외)면 true
+
 ## 2026-10-01 10:51
 
 ### 검증 · 닉네임에 숫자 허용

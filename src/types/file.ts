@@ -39,6 +39,7 @@ export type FileMeta = {
 
 /** 피드 media[] 항목 (읽기 응답) */
 export type FeedMediaFileEmbed = {
+  feedMediaId?: number;
   fileId: number;
   thumbnailFileId?: number | null;
   file?: FileSummary | null;

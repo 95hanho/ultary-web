@@ -28,10 +28,6 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState, useTransition } from 'react';
 import styles from '../mypage.module.scss';
 
-const DEV_SKIP_PHONE_AUTH = process.env.NODE_ENV === 'development' && true;
-const DEV_PHONE_AUTH_TOKEN = 'dev-phone-auth-token';
-const DEV_PHONE_AUTH_COMPLETE_TOKEN = 'dev-phone-auth-complete-token';
-
 type ApiEnvelope<T> = BffEnvelope<T>;
 
 type FieldErrors = {
@@ -158,13 +154,10 @@ export default function MyPageEditClient() {
         setRegionSigungu(nextProfile.regionSigungu);
         setInitialProfile(nextProfile);
         setPhoneVerified(true);
-        setPhoneAuthCompleteToken(DEV_PHONE_AUTH_COMPLETE_TOKEN);
       } catch (err) {
         console.error('[mypage-edit] load', err);
         if (!cancelled) {
           setFormError('회원정보를 불러오지 못했습니다. 임시 값으로 편집합니다.');
-          setPhoneVerified(true);
-          setPhoneAuthCompleteToken(DEV_PHONE_AUTH_COMPLETE_TOKEN);
         }
       } finally {
         if (!cancelled) setLoaded(true);
@@ -201,25 +194,18 @@ export default function MyPageEditClient() {
     }
     clearError('phone');
 
-    if (DEV_SKIP_PHONE_AUTH) {
-      setPhoneAuthToken(DEV_PHONE_AUTH_TOKEN);
-      setPhoneAuthCompleteToken('');
-      setPhoneVerified(false);
-      setInfoMessage('개발 모드: 인증번호를 발송한 것으로 처리했습니다.');
-      return;
-    }
-
     startTransition(async () => {
       try {
         const res = await bffPostJson<ApiEnvelope<PhoneAuthResponse>>(bffEndpoints.auth.phone, {
           phone,
+          purpose: 'PROFILE',
         });
         const token = res.data?.phoneAuthToken;
         if (!token) throw new Error('인증 토큰을 받지 못했습니다.');
         setPhoneAuthToken(token);
         setPhoneAuthCompleteToken('');
         setPhoneVerified(false);
-        setInfoMessage('인증번호를 발송했습니다.');
+        setInfoMessage('인증번호를 발송했습니다. 로컬은 서버 로그의 code를 입력하세요.');
       } catch (err) {
         setFormError(pickErrorMessage(err, '인증번호 발송에 실패했습니다.'));
       }
@@ -233,18 +219,11 @@ export default function MyPageEditClient() {
       setErrors((prev) => ({ ...prev, phone: '먼저 인증번호를 요청해주세요.' }));
       return;
     }
-    if (!DEV_SKIP_PHONE_AUTH && !code.trim()) {
+    if (!code.trim()) {
       setErrors((prev) => ({ ...prev, phone: MSG.code }));
       return;
     }
     clearError('phone');
-
-    if (DEV_SKIP_PHONE_AUTH) {
-      setPhoneAuthCompleteToken(DEV_PHONE_AUTH_COMPLETE_TOKEN);
-      setPhoneVerified(true);
-      setInfoMessage('개발 모드: 휴대폰 인증을 완료한 것으로 처리했습니다.');
-      return;
-    }
 
     startTransition(async () => {
       try {
@@ -329,11 +308,16 @@ export default function MyPageEditClient() {
       nextRegion.regionSido !== initialRegion.regionSido ||
       nextRegion.regionSigungu !== initialRegion.regionSigungu;
 
+    const phoneChanged = phone !== initialProfile.phone;
     const profileBody: UpdateMeRequest = {};
     if (emailChanged) profileBody.email = email.trim();
     if (regionChanged) {
       profileBody.regionSido = nextRegion.regionSido;
       profileBody.regionSigungu = nextRegion.regionSigungu;
+    }
+    if (phoneChanged) {
+      profileBody.phone = phone;
+      profileBody.phoneAuthCompleteToken = phoneAuthCompleteToken;
     }
 
     startTransition(async () => {
@@ -344,7 +328,7 @@ export default function MyPageEditClient() {
             nickname: trimmedNickname,
           });
         }
-        if (emailChanged || regionChanged) {
+        if (emailChanged || regionChanged || phoneChanged) {
           await bffPatchJson(bffEndpoints.auth.updateMe, profileBody);
         }
         router.push('/settings/mypage');

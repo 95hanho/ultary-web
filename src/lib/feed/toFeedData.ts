@@ -68,10 +68,13 @@ export function toFeedData(raw: unknown, fallbackId: string): FeedData {
     .flatMap((media) => {
       const src = resolveFileDisplayUrl(media.file ?? media.thumbnailFile);
       if (!src) return [];
-      return [{ src, tags: readPhotoTags(media) }];
+      const feedMediaId =
+        typeof media.feedMediaId === 'number' ? media.feedMediaId : null;
+      return [{ src, tags: readPhotoTags(media), feedMediaId }];
     });
 
   const images = slides.map((slide) => slide.src);
+  const mediaIds = slides.map((slide) => slide.feedMediaId);
   const photoTags = slides.map((slide) => slide.tags);
 
   const cover = resolveFileDisplayUrl(
@@ -79,10 +82,12 @@ export function toFeedData(raw: unknown, fallbackId: string): FeedData {
   );
   if (cover && images.length === 0) {
     images.push(cover);
+    mediaIds.push(null);
     photoTags.push([]);
   }
   if (images.length === 0) {
     images.push(FALLBACK_POST);
+    mediaIds.push(null);
     photoTags.push([]);
   }
 
@@ -92,6 +97,7 @@ export function toFeedData(raw: unknown, fallbackId: string): FeedData {
     nickname,
     profileUrl,
     images,
+    mediaIds,
     photoTags,
     caption: detail.content?.trim() || '',
     likeCount: detail.likeCount ?? 0,

@@ -9,7 +9,7 @@ import {
   readJsonBody,
   requireAccessToken,
 } from '@/lib/api/bffRoute';
-import { springGet, springPostForm } from '@/lib/api/springFetch';
+import { springGet, springPostJson } from '@/lib/api/springFetch';
 
 /** BFF /api/dm/rooms — GET */
 export async function GET(request: NextRequest) {
@@ -35,7 +35,7 @@ export async function POST(request: NextRequest) {
     const accessToken = await requireAccessToken();
     if (isUnauthorized(accessToken)) return accessToken;
     const body = await readJsonBody(request);
-    const data = await springPostForm(
+    const data = await springPostJson(
       springEndpoints.dm.rooms,
       body,
       bearer(accessToken),

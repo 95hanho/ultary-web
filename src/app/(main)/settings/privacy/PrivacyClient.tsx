@@ -4,10 +4,11 @@ import { FooterMenu } from '@/components/common/FooterMenu';
 import { PageHeader } from '@/components/common/PageHeader';
 import { bffGet, bffPatchJson } from '@/lib/api/bffFetch';
 import { bffEndpoints } from '@/lib/api/endpoints';
-import type { BffEnvelope, UserSettings } from '@/types/api';
+import { isHttpError, isRecord } from '@/lib/api/error';
+import type { BffEnvelope } from '@/types/api';
 import type { FeedVisibility } from '@/types/enums';
 import clsx from 'clsx';
-import { useEffect, useState, useTransition } from 'react';
+import { useEffect, useState } from 'react';
 import styles from './privacy.module.scss';
 
 const VISIBILITY_OPTIONS: { value: FeedVisibility; label: string }[] = [
@@ -15,8 +16,6 @@ const VISIBILITY_OPTIONS: { value: FeedVisibility; label: string }[] = [
   { value: 'NEIGHBORS', label: '이웃' },
   { value: 'PRIVATE', label: '나만' },
 ];
-
-type ToggleKey = 'privateAccount' | 'neighborRequest' | 'allowTag' | 'allowMention' | 'allowComment';
 
 function Switch({
   checked,
@@ -77,40 +76,93 @@ function VisibilityPicker({
   );
 }
 
+type PrivacySettings = {
+  privateAccount: boolean;
+  feedVisibility: FeedVisibility;
+  storyVisibility: FeedVisibility;
+  neighborRequest: boolean;
+  allowComment: boolean;
+  allowMention: boolean;
+  allowTag: boolean;
+};
+
+const DEFAULT_PRIVACY: PrivacySettings = {
+  privateAccount: false,
+  feedVisibility: 'PUBLIC',
+  storyVisibility: 'NEIGHBORS',
+  neighborRequest: true,
+  allowComment: true,
+  allowMention: true,
+  allowTag: true,
+};
+
 function parseVisibility(value: unknown): FeedVisibility | null {
   if (value === 'PUBLIC' || value === 'NEIGHBORS' || value === 'PRIVATE') return value;
   return null;
 }
 
-/** 설정 > 공개 범위 */
+function readFlag(value: unknown): boolean | undefined {
+  if (typeof value === 'boolean') return value;
+  if (value === 1 || value === '1' || value === 'true') return true;
+  if (value === 0 || value === '0' || value === 'false') return false;
+  return undefined;
+}
+
+function readPrivacy(data: unknown): PrivacySettings {
+  const source = isRecord(data) ? data : {};
+  return {
+    privateAccount: readFlag(source.privateAccount) ?? DEFAULT_PRIVACY.privateAccount,
+    feedVisibility: parseVisibility(source.feedVisibility) ?? DEFAULT_PRIVACY.feedVisibility,
+    storyVisibility: parseVisibility(source.storyVisibility) ?? DEFAULT_PRIVACY.storyVisibility,
+    neighborRequest: readFlag(source.neighborRequest) ?? DEFAULT_PRIVACY.neighborRequest,
+    allowComment: readFlag(source.allowComment) ?? DEFAULT_PRIVACY.allowComment,
+    allowMention: readFlag(source.allowMention) ?? DEFAULT_PRIVACY.allowMention,
+    allowTag: readFlag(source.allowTag) ?? DEFAULT_PRIVACY.allowTag,
+  };
+}
+
+function applyPrivacy(prev: PrivacySettings, data: unknown): PrivacySettings {
+  if (!isRecord(data)) return prev;
+  return {
+    privateAccount: readFlag(data.privateAccount) ?? prev.privateAccount,
+    feedVisibility: parseVisibility(data.feedVisibility) ?? prev.feedVisibility,
+    storyVisibility: parseVisibility(data.storyVisibility) ?? prev.storyVisibility,
+    neighborRequest: readFlag(data.neighborRequest) ?? prev.neighborRequest,
+    allowComment: readFlag(data.allowComment) ?? prev.allowComment,
+    allowMention: readFlag(data.allowMention) ?? prev.allowMention,
+    allowTag: readFlag(data.allowTag) ?? prev.allowTag,
+  };
+}
+
+function pickErrorMessage(err: unknown, fallback: string) {
+  if (isHttpError(err) && isRecord(err.data)) {
+    const detail = err.data.detail;
+    const message = err.data.message;
+    if (typeof detail === 'string' && detail.trim()) return detail;
+    if (typeof message === 'string' && message.trim()) return message;
+  }
+  if (err instanceof Error && err.message) return err.message;
+  return fallback;
+}
+
+/** 설정 > 공개 범위. GET/PATCH /settings/privacy */
 export default function PrivacyClient() {
-  const [pending, startTransition] = useTransition();
-  const [error, setError] = useState<string | null>(null);
-  const [privateAccount, setPrivateAccount] = useState(false);
-  const [feedVisibility, setFeedVisibility] = useState<FeedVisibility>('PUBLIC');
-  const [storyVisibility, setStoryVisibility] = useState<FeedVisibility>('NEIGHBORS');
-  const [neighborRequest, setNeighborRequest] = useState(true);
-  const [allowTag, setAllowTag] = useState(true);
-  const [allowMention, setAllowMention] = useState(true);
-  const [allowComment, setAllowComment] = useState(true);
+  const [privacy, setPrivacy] = useState(DEFAULT_PRIVACY);
+  const [ready, setReady] = useState(false);
+  const [pending, setPending] = useState(false);
+  const [status, setStatus] = useState('불러오는 중');
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
-        const res = await bffGet<BffEnvelope<UserSettings>>(bffEndpoints.settings.root);
-        const settings = res.data;
-        if (!settings || cancelled) return;
-        const visibility = parseVisibility(settings.profileVisibility);
-        if (visibility) {
-          setFeedVisibility(visibility);
-          setPrivateAccount(visibility !== 'PUBLIC');
-        }
+        const res = await bffGet<BffEnvelope<unknown>>(bffEndpoints.settings.privacy);
+        if (cancelled) return;
+        setPrivacy(readPrivacy(res.data));
+        setStatus('');
+        setReady(true);
       } catch (err) {
-        console.error('[privacy] load', err);
-        if (!cancelled) {
-          setError('설정을 불러오지 못했습니다. 로컬 기본값으로 표시합니다.');
-        }
+        if (!cancelled) setStatus(pickErrorMessage(err, '공개 범위를 불러오지 못했습니다.'));
       }
     })();
     return () => {
@@ -118,69 +170,45 @@ export default function PrivacyClient() {
     };
   }, []);
 
-  function saveProfileVisibility(next: FeedVisibility) {
-    setError(null);
-    startTransition(async () => {
-      try {
-        await bffPatchJson(bffEndpoints.settings.root, {
-          profileVisibility: next,
-        });
-      } catch (err) {
-        console.error('[privacy] save', err);
-        setError('공개 범위 저장에 실패했습니다.');
-      }
-    });
-  }
-
-  function setToggle(key: ToggleKey, next: boolean) {
-    console.log('[privacy]', { key, enabled: next });
-    switch (key) {
-      case 'privateAccount':
-        setPrivateAccount(next);
-        if (next) {
-          setFeedVisibility('NEIGHBORS');
-          setStoryVisibility('NEIGHBORS');
-          saveProfileVisibility('NEIGHBORS');
-        } else {
-          setFeedVisibility('PUBLIC');
-          saveProfileVisibility('PUBLIC');
-        }
-        break;
-      case 'neighborRequest':
-        setNeighborRequest(next);
-        break;
-      case 'allowTag':
-        setAllowTag(next);
-        break;
-      case 'allowMention':
-        setAllowMention(next);
-        break;
-      case 'allowComment':
-        setAllowComment(next);
-        break;
+  async function patch(partial: Partial<PrivacySettings>) {
+    if (!ready || pending) return;
+    const previous = privacy;
+    setPrivacy({ ...privacy, ...partial });
+    setPending(true);
+    setStatus('');
+    try {
+      const res = await bffPatchJson<BffEnvelope<unknown>>(bffEndpoints.settings.privacy, partial);
+      setPrivacy((prev) => applyPrivacy(prev, res.data));
+    } catch (err) {
+      setPrivacy(previous);
+      setStatus(pickErrorMessage(err, '공개 범위를 바꾸지 못했습니다.'));
+    } finally {
+      setPending(false);
     }
   }
+
+  const locked = !ready || pending;
 
   return (
     <div className={styles.shell}>
       <PageHeader title="공개 범위" backHref="/settings" />
 
       <main className={styles.main}>
-        {error ? <p className={styles.hint}>{error}</p> : null}
+        {status ? <p className={styles.status}>{status}</p> : null}
         <ul className={styles.list}>
           <li className={styles.item}>
             <div className={styles.itemBody}>
               <div className={styles.textCol}>
                 <span className={styles.label}>비공개 계정</span>
                 <span className={styles.hint}>
-                  켜면 이웃만 게시글·스토리를 볼 수 있어요.
+                  켜면 전체 공개 게시글·스토리도 이웃만 볼 수 있어요.
                 </span>
               </div>
               <Switch
-                checked={privateAccount}
+                checked={privacy.privateAccount}
                 label="비공개 계정"
-                disabled={pending}
-                onChange={(next) => setToggle('privateAccount', next)}
+                disabled={locked}
+                onChange={(next) => void patch({ privateAccount: next })}
               />
             </div>
           </li>
@@ -188,25 +216,18 @@ export default function PrivacyClient() {
           <li className={styles.item}>
             <VisibilityPicker
               label="게시글 기본 공개 범위"
-              value={feedVisibility}
-              disabled={pending}
-              onChange={(next) => {
-                setFeedVisibility(next);
-                setPrivateAccount(next !== 'PUBLIC');
-                saveProfileVisibility(next);
-              }}
+              value={privacy.feedVisibility}
+              disabled={locked}
+              onChange={(next) => void patch({ feedVisibility: next })}
             />
           </li>
 
           <li className={styles.item}>
             <VisibilityPicker
               label="스토리 공개 범위"
-              value={storyVisibility}
-              disabled={pending}
-              onChange={(next) => {
-                setStoryVisibility(next);
-                console.log('[privacy]', { key: 'storyVisibility', value: next });
-              }}
+              value={privacy.storyVisibility}
+              disabled={locked}
+              onChange={(next) => void patch({ storyVisibility: next })}
             />
           </li>
 
@@ -214,9 +235,10 @@ export default function PrivacyClient() {
             <div className={styles.itemBody}>
               <span className={styles.label}>이웃 신청 받기</span>
               <Switch
-                checked={neighborRequest}
+                checked={privacy.neighborRequest}
                 label="이웃 신청 받기"
-                onChange={(next) => setToggle('neighborRequest', next)}
+                disabled={locked}
+                onChange={(next) => void patch({ neighborRequest: next })}
               />
             </div>
           </li>
@@ -225,9 +247,10 @@ export default function PrivacyClient() {
             <div className={styles.itemBody}>
               <span className={styles.label}>게시글 댓글 허용</span>
               <Switch
-                checked={allowComment}
+                checked={privacy.allowComment}
                 label="게시글 댓글 허용"
-                onChange={(next) => setToggle('allowComment', next)}
+                disabled={locked}
+                onChange={(next) => void patch({ allowComment: next })}
               />
             </div>
           </li>
@@ -236,9 +259,10 @@ export default function PrivacyClient() {
             <div className={styles.itemBody}>
               <span className={styles.label}>멘션 허용</span>
               <Switch
-                checked={allowMention}
+                checked={privacy.allowMention}
                 label="멘션 허용"
-                onChange={(next) => setToggle('allowMention', next)}
+                disabled={locked}
+                onChange={(next) => void patch({ allowMention: next })}
               />
             </div>
           </li>
@@ -247,9 +271,10 @@ export default function PrivacyClient() {
             <div className={styles.itemBody}>
               <span className={styles.label}>태그 허용</span>
               <Switch
-                checked={allowTag}
+                checked={privacy.allowTag}
                 label="태그 허용"
-                onChange={(next) => setToggle('allowTag', next)}
+                disabled={locked}
+                onChange={(next) => void patch({ allowTag: next })}
               />
             </div>
           </li>
