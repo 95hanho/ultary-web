@@ -10,6 +10,7 @@ import {
   publishUnreadBadge,
   subscribeUnreadBadge,
 } from '@/lib/notification/unreadBadge';
+import { isLiveSocketAuthed } from '@/lib/ws/liveSocket';
 import { NO_PROFILE_SRC } from '@/lib/profileImage';
 import { confirmLeaveWrite, isWriteFlowPath } from '@/lib/write/confirm-leave';
 import type { BffEnvelope, MeResponse } from '@/types/api';
@@ -74,7 +75,7 @@ export function FooterMenu() {
     let cancelled = false;
     void fetchUnreadCount()
       .then((count) => {
-        if (!cancelled) publishUnreadBadge(count);
+        if (!cancelled && !isLiveSocketAuthed()) publishUnreadBadge(count);
       })
       .catch((err) => {
         if (!cancelled) console.error('[footer] unread count failed', err);

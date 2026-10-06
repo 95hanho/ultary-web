@@ -69,11 +69,24 @@ export type FeedPhotoTag = {
   /** 사진 기준 0~1 */
   x: number;
   y: number;
+  /** 멘션 응답에 보호자 닉네임이 있으면 그 울타리로 이동 */
+  ownerNickname?: string;
+  /** 보호자. 펫 목록으로 닉네임을 찾을 때 사용 */
+  userNo?: number;
+  mentionId?: string;
+  petName?: string;
 };
+
+function tagOwnerHref(tag: FeedPhotoTag, labels: Record<number, FeedPetLabel>) {
+  const nick = labels[tag.petId]?.ownerNickname?.trim() || tag.ownerNickname?.trim();
+  return nick ? myUltaryPath(nick) : null;
+}
 
 type FeedProps = FeedData & {
   /** 마이울타리 게시글 목록에서는 작성자 사진·닉네임을 숨긴다 */
   showAuthor?: boolean;
+  /** 캐러셀 시작 위치. 0이 첫 장 */
+  initialMediaIndex?: number;
 };
 
 /** 메인 피드 게시글 카드 */
@@ -92,10 +105,16 @@ export function Feed({
   likeCount = 0,
   commentCount = 0,
   showAuthor = true,
+  initialMediaIndex = 0,
 }: FeedProps) {
   const router = useRouter();
   const openModal = useModalStore((s) => s.open);
-  const [index, setIndex] = useState(0);
+  const slideCount = Math.max(images.length, 1);
+  const startIndex = Math.min(
+    Math.max(0, Math.floor(initialMediaIndex) || 0),
+    slideCount - 1,
+  );
+  const [index, setIndex] = useState(startIndex);
   const [expanded, setExpanded] = useState(false);
   const [needsMore, setNeedsMore] = useState(false);
   const [liked, setLiked] = useState(isFavorite);
@@ -103,6 +122,7 @@ export function Feed({
   const [stored, setStored] = useState(isStored);
   const [storePending, setStorePending] = useState(false);
   const swiperRef = useRef<SwiperType | null>(null);
+  const photoFrameRef = useRef<HTMLDivElement | null>(null);
   const captionRef = useRef<HTMLParagraphElement>(null);
   const leaveTimerRef = useRef<number | null>(null);
   /** PC: 태그 호버 0.5초 후 프리뷰 */
@@ -148,13 +168,26 @@ export function Feed({
     const ids = [...new Set((photoTags ?? []).flat().map((tag) => tag.petId))];
     if (ids.length === 0) return;
     let cancelled = false;
-    resolveFeedPetLabels(ids, userNo).then((found) => {
+    resolveFeedPetLabels(ids, userNo, nickname, (photoTags ?? []).flat()).then((found) => {
       if (!cancelled) setPetLabels(found);
     });
     return () => {
       cancelled = true;
     };
-  }, [id, photoTags, userNo]);
+  }, [id, nickname, photoTags, userNo]);
+
+  useEffect(() => {
+    if (!tagListOpen && !tagsOpen) return;
+    const onPointerDown = (event: PointerEvent) => {
+      const frame = photoFrameRef.current;
+      const target = event.target;
+      if (frame && target instanceof Node && frame.contains(target)) return;
+      setTagListOpen(false);
+      setTagsOpen(false);
+    };
+    document.addEventListener('pointerdown', onPointerDown);
+    return () => document.removeEventListener('pointerdown', onPointerDown);
+  }, [tagListOpen, tagsOpen]);
 
   const toggleStore = useCallback(async () => {
     if (storePending) return;
@@ -322,6 +355,7 @@ export function Feed({
           <Swiper
             slidesPerView={1}
             spaceBetween={0}
+            initialSlide={startIndex}
             onSwiper={(swiper) => {
               swiperRef.current = swiper;
             }}
@@ -333,11 +367,16 @@ export function Feed({
               return (
                 <SwiperSlide key={`${src}-${i}`}>
                   <div
+                    ref={i === index ? photoFrameRef : undefined}
                     className={styles.photoFrame}
                     onClick={() => {
                       if (tags.length === 0) return;
-                      setTagListOpen(false);
-                      setTagsOpen((open) => !open);
+                      if (tagListOpen || tagsOpen) {
+                        setTagListOpen(false);
+                        setTagsOpen(false);
+                        return;
+                      }
+                      setTagsOpen(true);
                     }}
                   >
                     <MediaImage
@@ -349,15 +388,29 @@ export function Feed({
                       style={{ height: 'auto' }}
                     />
                     {tagsOpen && i === index
-                      ? tags.map((tag) => (
-                          <span
-                            key={tag.petId}
-                            className={styles.petTag}
-                            style={{ left: `${tag.x * 100}%`, top: `${tag.y * 100}%` }}
-                          >
-                            {petLabels[tag.petId]?.label ?? '태그'}
-                          </span>
-                        ))
+                      ? tags.map((tag) => {
+                          const href = tagOwnerHref(tag, petLabels);
+                          const label = petLabels[tag.petId]?.label ?? '태그';
+                          const style = { left: `${tag.x * 100}%`, top: `${tag.y * 100}%` };
+                          if (!href) {
+                            return (
+                              <span key={tag.petId} className={styles.petTag} style={style}>
+                                {label}
+                              </span>
+                            );
+                          }
+                          return (
+                            <Link
+                              key={tag.petId}
+                              href={href}
+                              className={clsx(styles.petTag, styles.petTagLink)}
+                              style={style}
+                              onClick={(event) => event.stopPropagation()}
+                            >
+                              {label}
+                            </Link>
+                          );
+                        })
                       : null}
                     {tags.length > 0 ? (
                       <button
@@ -375,11 +428,12 @@ export function Feed({
                       </button>
                     ) : null}
                     {tagListOpen && i === index ? (
-                      <ul className={styles.tagList} onClick={(event) => event.stopPropagation()}>
+                      <ul className={styles.tagList}>
                         {tags.map((tag) => {
                           const info = petLabels[tag.petId];
-                          return (
-                            <li key={tag.petId} className={styles.tagListItem}>
+                          const href = tagOwnerHref(tag, petLabels);
+                          const body = (
+                            <>
                               <MediaImage
                                 src={info?.imageUrl ?? NO_PROFILE_SRC}
                                 alt=""
@@ -388,6 +442,21 @@ export function Feed({
                                 className={styles.tagListAvatar}
                               />
                               <span>{info?.label ?? '태그된 펫'}</span>
+                            </>
+                          );
+                          return (
+                            <li key={tag.petId} className={styles.tagListItem}>
+                              {href ? (
+                                <Link
+                                  href={href}
+                                  className={styles.tagListLink}
+                                  onClick={(event) => event.stopPropagation()}
+                                >
+                                  {body}
+                                </Link>
+                              ) : (
+                                body
+                              )}
                             </li>
                           );
                         })}

@@ -6,7 +6,7 @@ import { bffGet, bffPatchJson } from '@/lib/api/bffFetch';
 import { bffEndpoints } from '@/lib/api/endpoints';
 import { resolveFileDisplayUrl } from '@/lib/api/fileUrl';
 import { isRecord } from '@/lib/api/error';
-import { MY_NICKNAME, OTHER_NICKNAME, myUltaryPath } from '@/lib/mock/ultary-accounts';
+import { myUltaryPath } from '@/lib/mock/ultary-accounts';
 import { openFeedComment, postPagePath } from '@/lib/notification/openTarget';
 import { fetchUnreadCount, publishUnreadBadge } from '@/lib/notification/unreadBadge';
 import { NO_PROFILE_SRC } from '@/lib/profileImage';
@@ -18,9 +18,6 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState, type ReactNode } from 'react';
 import styles from './notifications.module.scss';
-
-const OTHER_PROFILE = '/images/mock/post2.jpg';
-const OTHER_PROFILE_2 = '/images/mock/post.jpg';
 
 type NeighborAction = 'accept' | 'cancel';
 
@@ -59,127 +56,6 @@ type NotificationItem = {
   actorUserNo?: string;
   neighborAction?: NeighborAction;
 };
-
-const INITIAL_NOTIFICATIONS: NotificationItem[] = [
-  {
-    id: 'n1',
-    kind: 'neighbor',
-    actorNickname: OTHER_NICKNAME,
-    profileUrl: OTHER_PROFILE,
-    timeLabel: '8월29일 15:59',
-    neighborAction: 'accept',
-  },
-  {
-    id: 'n2',
-    kind: 'likePost',
-    actorNickname: OTHER_NICKNAME,
-    profileUrl: OTHER_PROFILE,
-    othersCount: 4,
-    preview: '오늘도 산책 나왔어요~',
-    timeLabel: '8월29일 15:40',
-    feedOwnerNickname: MY_NICKNAME,
-    feedId: '1',
-  },
-  {
-    id: 'n3',
-    kind: 'likeComment',
-    actorNickname: OTHER_NICKNAME,
-    profileUrl: OTHER_PROFILE,
-    othersCount: 2,
-    preview: `@${MY_NICKNAME} 귀여워요\nㅎㅎ`,
-    timeLabel: '8월29일 15:20',
-    feedOwnerNickname: MY_NICKNAME,
-    feedId: '2',
-    commentId: 'c-12',
-  },
-  {
-    id: 'n4',
-    kind: 'likeReply',
-    actorNickname: OTHER_NICKNAME,
-    profileUrl: OTHER_PROFILE,
-    preview: `@${OTHER_NICKNAME} 맞아요\n완전!`,
-    timeLabel: '8월29일 15:10',
-    feedOwnerNickname: MY_NICKNAME,
-    feedId: '2',
-    commentId: 'c-12',
-    replyId: 'r-3',
-  },
-  {
-    id: 'n5',
-    kind: 'commentOnPost',
-    actorNickname: OTHER_NICKNAME,
-    profileUrl: OTHER_PROFILE,
-    preview: `@${MY_NICKNAME} 아\n메\n리\n카\n노 맛있겠다!`,
-    timeLabel: '8월29일 14:55',
-    feedOwnerNickname: MY_NICKNAME,
-    feedId: '1',
-    commentId: 'c-20',
-  },
-  {
-    id: 'n6',
-    kind: 'replyOnComment',
-    actorNickname: OTHER_NICKNAME,
-    profileUrl: OTHER_PROFILE,
-    preview: `@${MY_NICKNAME} 저도\n동의해요!`,
-    timeLabel: '8월29일 14:40',
-    feedOwnerNickname: MY_NICKNAME,
-    feedId: '1',
-    commentId: 'c-20',
-    replyId: 'r-8',
-  },
-  {
-    id: 'n7',
-    kind: 'mentionComment',
-    actorNickname: OTHER_NICKNAME,
-    profileUrl: OTHER_PROFILE,
-    preview: `@${MY_NICKNAME} 이거\n같이 가요`,
-    timeLabel: '8월28일 21:10',
-    feedOwnerNickname: OTHER_NICKNAME,
-    feedId: '5',
-    commentId: 'c-33',
-  },
-  {
-    id: 'n8',
-    kind: 'mentionReply',
-    actorNickname: OTHER_NICKNAME,
-    profileUrl: OTHER_PROFILE_2,
-    preview: `@${MY_NICKNAME} 오\n좋다!`,
-    timeLabel: '8월28일 20:50',
-    feedOwnerNickname: OTHER_NICKNAME,
-    feedId: '5',
-    commentId: 'c-33',
-    replyId: 'r-9',
-  },
-  {
-    id: 'n9',
-    kind: 'tagPost',
-    actorNickname: OTHER_NICKNAME,
-    profileUrl: OTHER_PROFILE,
-    preview: '우리집\n강아지랑',
-    timeLabel: '8월28일 18:40',
-    feedOwnerNickname: OTHER_NICKNAME,
-    feedId: '7',
-  },
-  {
-    id: 'n10',
-    kind: 'tagStory',
-    actorNickname: OTHER_NICKNAME,
-    profileUrl: OTHER_PROFILE,
-    preview: '해질녘\n공원',
-    timeLabel: '8월28일 18:10',
-    storyId: 'story-2',
-  },
-  {
-    id: 'n11',
-    kind: 'storyReact',
-    actorNickname: OTHER_NICKNAME,
-    profileUrl: OTHER_PROFILE,
-    othersCount: 4,
-    preview: '산책\n인증',
-    timeLabel: '8월27일 19:05',
-    storyId: 'story-1',
-  },
-];
 
 /** 줄바꿈 제거 후 최대 length자 + … (앞쪽 @멘션은 길이에 미포함) */
 function toPreviewSnippet(text: string, max = 6, preserveLeadingMentions = false) {
@@ -547,7 +423,7 @@ function isUnread(raw: unknown): boolean {
 
 /** 알림 페이지 */
 export default function NotificationsClient() {
-  const [items, setItems] = useState(INITIAL_NOTIFICATIONS);
+  const [items, setItems] = useState<NotificationItem[]>([]);
   const [status, setStatus] = useState<string | null>(null);
 
   useEffect(() => {
@@ -567,23 +443,22 @@ export default function NotificationsClient() {
             if (!cancelled) publishUnreadBadge(count);
           })
           .catch((err) => console.warn('[notifications] unread count', err));
-        if (mapped.length > 0) {
-          setItems(mapped);
-          setStatus(null);
-          for (const n of list) {
-            if (!isUnread(n) || !isRecord(n)) continue;
-            const notificationId = idString(n.notificationId);
-            if (!notificationId) continue;
-            bffPatchJson(bffEndpoints.notifications.read, { notificationId }).catch((err) =>
-              console.warn('[notifications] read', err),
-            );
-          }
-        } else {
-          setStatus('새 알림이 없어 예시 목록을 표시합니다.');
+        setItems(mapped);
+        setStatus(null);
+        for (const n of list) {
+          if (!isUnread(n) || !isRecord(n)) continue;
+          const notificationId = idString(n.notificationId);
+          if (!notificationId) continue;
+          bffPatchJson(bffEndpoints.notifications.read, { notificationId }).catch((err) =>
+            console.warn('[notifications] read', err),
+          );
         }
       } catch (err) {
-        console.warn('[notifications] BFF fallback', err);
-        if (!cancelled) setStatus('알림을 불러오지 못해 예시 목록을 표시합니다.');
+        console.warn('[notifications] BFF load failed', err);
+        if (!cancelled) {
+          setItems([]);
+          setStatus('알림을 불러오지 못했습니다.');
+        }
       }
     })();
     return () => {

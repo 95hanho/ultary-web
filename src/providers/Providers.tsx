@@ -1,6 +1,7 @@
 'use client';
 
 import { ModalHost } from '@/components/common/Modal';
+import { DevTestProvider } from '@/components/dev/DevTestProvider';
 import { EmotionRegistry } from '@/providers/EmotionRegistry';
 import { QueryProvider } from '@/providers/QueryProvider';
 import type { ReactNode } from 'react';
@@ -14,8 +15,10 @@ export function Providers({ children }: ProvidersProps) {
   return (
     <EmotionRegistry>
       <QueryProvider>
-        {children}
-        <ModalHost />
+        <DevTestProvider>
+          {children}
+          <ModalHost />
+        </DevTestProvider>
       </QueryProvider>
     </EmotionRegistry>
   );

@@ -18,6 +18,7 @@
 --         알림 수락 버튼용 PENDING 추가: 105→102, 102→103, 103→104, 104→105
 --       알림: user 101~105 각 15건 (구경 계정 201~220 제외). 댓글·답글 id로 이동
 --       최근 검색: 101이 102~105 울타리에 각 1번 들어감
+--       DM: 101↔102(안 읽음 3, 게시글·스토리 공유, 스토리+메시지), 101↔103, 101↔105
 --       펫 priority: 같은 유저 안에서는 pet_id 순 (1이 가장 높음). 유저 표시 사진은 그중 사진 있는 첫 펫
 -- HTTP: user 101 (google-myultary-test-001) / phone 01011112222
 -- ============================================================
@@ -26,6 +27,16 @@ SET NAMES utf8mb4;
 SET FOREIGN_KEY_CHECKS = 0;
 
 -- ---------- CLEANUP ----------
+DELETE FROM `ultary_dm_message`
+WHERE `dm_message_id` BETWEEN 101 AND 112
+   OR `dm_room_id` BETWEEN 101 AND 103
+   OR `sender_user_no` IN (101, 102, 103, 104, 105);
+
+DELETE FROM `ultary_dm_room`
+WHERE `dm_room_id` BETWEEN 101 AND 103
+   OR `user_low` IN (101, 102, 103, 104, 105)
+   OR `user_high` IN (101, 102, 103, 104, 105);
+
 DELETE FROM `ultary_notification`
 WHERE `receiver_user_no` IN (1, 2, 101, 102, 103, 104, 105)
    OR `actor_user_no` IN (1, 2, 101, 102, 103, 104, 105)
@@ -817,3 +828,32 @@ INSERT INTO `ultary_notification` (
 (1075, 105, 103, 'FEED_TAG', 103, NULL, NULL, NULL, NULL, '주말 공원 산책 #산책', 1, 0, 0, 'FEED_TAG:103', 1, DATE_SUB(NOW(), INTERVAL 15 MINUTE), DATE_SUB(NOW(), INTERVAL 15 MINUTE));
 
 ALTER TABLE `ultary_notification` AUTO_INCREMENT = 1100;
+
+-- ---------- DM (101의 주민 102·103, 이웃 105) ----------
+-- 101↔102: 101은 104까지 읽음 → 안 읽음 3. 112는 스토리와 메시지를 같이 보냄.
+INSERT INTO `ultary_dm_room` (
+  `dm_room_id`, `pair_key`, `user_low`, `user_high`,
+  `low_last_read_message_id`, `high_last_read_message_id`, `created_at`
+) VALUES
+(101, '101:102', 101, 102, 104, 112, DATE_SUB(NOW(), INTERVAL 1 DAY)),
+(102, '101:103', 101, 103, 108, 108, DATE_SUB(NOW(), INTERVAL 3 HOUR)),
+(103, '101:105', 101, 105, 110, 110, DATE_SUB(NOW(), INTERVAL 1 DAY));
+
+INSERT INTO `ultary_dm_message` (
+  `dm_message_id`, `dm_room_id`, `sender_user_no`, `body`,
+  `share_type`, `feed_id`, `feed_media_id`, `story_id`, `created_at`
+) VALUES
+(101, 101, 102, '안녕하세요! 울타리에서 봤어요.', 'NONE', NULL, NULL, NULL, CONCAT(DATE_SUB(CURDATE(), INTERVAL 1 DAY), ' 18:20:00')),
+(102, 101, 101, '안녕하세요 :) 반갑습니다.', 'NONE', NULL, NULL, NULL, CONCAT(DATE_SUB(CURDATE(), INTERVAL 1 DAY), ' 18:22:00')),
+(103, 101, 102, '이 사진 봐', 'FEED', 102, 104, NULL, DATE_SUB(NOW(), INTERVAL 40 MINUTE)),
+(104, 101, 102, NULL, 'STORY', NULL, NULL, 102, DATE_SUB(NOW(), INTERVAL 25 MINUTE)),
+(105, 101, 102, '공원에서 만나요', 'NONE', NULL, NULL, NULL, DATE_SUB(NOW(), INTERVAL 8 MINUTE)),
+(106, 101, 102, '다음에 산책 같이 가요!', 'NONE', NULL, NULL, NULL, DATE_SUB(NOW(), INTERVAL 2 MINUTE)),
+(107, 102, 101, '코코 사진 봤어요', 'NONE', NULL, NULL, NULL, DATE_SUB(NOW(), INTERVAL 2 HOUR)),
+(108, 102, 103, '코코 너무 귀여워요', 'NONE', NULL, NULL, NULL, DATE_SUB(NOW(), INTERVAL 1 HOUR)),
+(109, 103, 101, '구도는 낮게 찍으면 좋아요', 'NONE', NULL, NULL, NULL, CONCAT(DATE_SUB(CURDATE(), INTERVAL 1 DAY), ' 15:10:00')),
+(110, 103, 105, '사진 구도 팁 알려주셔서 감사해요', 'NONE', NULL, NULL, NULL, CONCAT(DATE_SUB(CURDATE(), INTERVAL 1 DAY), ' 16:40:00')),
+(112, 101, 102, '방금 올린 스토리야. 공원에서 찍었어', 'STORY', NULL, NULL, 105, DATE_SUB(NOW(), INTERVAL 1 MINUTE));
+
+ALTER TABLE `ultary_dm_room` AUTO_INCREMENT = 200;
+ALTER TABLE `ultary_dm_message` AUTO_INCREMENT = 200;

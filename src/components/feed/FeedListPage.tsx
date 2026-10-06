@@ -14,6 +14,8 @@ type FeedListPageProps = {
   feeds: FeedData[];
   focusId?: string;
   showAuthor?: boolean;
+  /** 0이 첫 장 */
+  initialMediaIndex?: number;
 };
 
 /** 스토리 없는 게시글 리스트 페이지 (마이울타리 그리드에서 진입) */
@@ -23,6 +25,7 @@ export function FeedListPage({
   feeds,
   focusId,
   showAuthor = true,
+  initialMediaIndex = 0,
 }: FeedListPageProps) {
   useEffect(() => {
     if (!focusId) return;
@@ -35,7 +38,11 @@ export function FeedListPage({
     <div className={styles.shell}>
       <PageHeader title={title} backHref={backHref} />
       <main className={styles.main}>
-        <FeedList feeds={feeds} showAuthor={showAuthor} />
+        <FeedList
+          feeds={feeds}
+          showAuthor={showAuthor}
+          initialMediaIndex={initialMediaIndex}
+        />
       </main>
       <FooterMenu />
     </div>

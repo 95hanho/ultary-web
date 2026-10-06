@@ -6,6 +6,15 @@ import { isRecord } from '@/lib/api/error';
 
 const FALLBACK_POST = '/images/mock/post.jpg';
 
+function readText(value: unknown): string | undefined {
+  return typeof value === 'string' && value.trim() ? value.trim() : undefined;
+}
+
+function readOwnerNick(value: unknown): string | undefined {
+  if (!isRecord(value)) return undefined;
+  return readText(value.nickname);
+}
+
 function tagRatio(value: unknown): number | null {
   if (typeof value !== 'number' || !Number.isFinite(value)) return null;
   const ratio = value > 1 ? value / 100 : value;
@@ -19,7 +28,26 @@ function readPhotoTags(media: unknown): FeedPhotoTag[] {
     const x = tagRatio(item.posX);
     const y = tagRatio(item.posY);
     if (x == null || y == null) return [];
-    return [{ petId: item.petId, x, y }];
+    const pet = isRecord(item.pet) ? item.pet : null;
+    const ownerNickname =
+      readText(item.ownerNickname) ??
+      readText(item.nickname) ??
+      readOwnerNick(item.owner) ??
+      (pet ? readText(pet.ownerNickname) ?? readOwnerNick(pet.owner) : undefined);
+    const mentionId = readText(item.mentionId) ?? (pet ? readText(pet.mentionId) : undefined);
+    const petName =
+      readText(item.petName) ??
+      readText(item.name) ??
+      (pet ? readText(pet.name) : undefined);
+    const userNo =
+      typeof item.userNo === 'number'
+        ? item.userNo
+        : typeof item.ownerUserNo === 'number'
+          ? item.ownerUserNo
+          : pet && typeof pet.userNo === 'number'
+            ? pet.userNo
+            : undefined;
+    return [{ petId: item.petId, x, y, ownerNickname, mentionId, petName, userNo }];
   });
 }
 

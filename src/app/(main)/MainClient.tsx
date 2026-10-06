@@ -10,7 +10,6 @@ import { bffEndpoints } from '@/lib/api/endpoints';
 import { toFeedDataList } from '@/lib/feed/toFeedData';
 import { resolveFileDisplayUrl } from '@/lib/api/fileUrl';
 import { NO_PROFILE_SRC } from '@/lib/profileImage';
-import { MOCK_HOME_FEEDS } from '@/lib/mock/feeds';
 import { myUltaryPath } from '@/lib/mock/ultary-accounts';
 import type { BffEnvelope } from '@/types/api';
 import type { StoryOwner } from '@/types/story';
@@ -105,7 +104,7 @@ export default function MainClient() {
   const storySwiperRef = useRef<SwiperType | null>(null);
   const [canStoryPrev, setCanStoryPrev] = useState(false);
   const [canStoryNext, setCanStoryNext] = useState(false);
-  const [feeds, setFeeds] = useState<FeedData[]>(MOCK_HOME_FEEDS);
+  const [feeds, setFeeds] = useState<FeedData[]>([]);
   const [recommended, setRecommended] = useState<FeedData[]>([]);
   const [showRecommended, setShowRecommended] = useState(false);
   const [recommendLoading, setRecommendLoading] = useState(false);
@@ -125,11 +124,12 @@ export default function MainClient() {
         const owners = unwrapOwners(ownersRes.data ?? ownersRes);
         ownersRef.current = owners;
         const mapped = toFeedDataList(feedsRes.data ?? feedsRes);
-        if (mapped.length > 0) setFeeds(applyOwnerStory(mapped, owners));
+        setFeeds(applyOwnerStory(mapped, owners));
 
-        if (owners.length > 0) setStoryUsers(ownersToRings(owners));
+        setStoryUsers(owners.length > 0 ? ownersToRings(owners) : []);
       } catch (err) {
-        console.error('[main] BFF load failed, using mock', err);
+        console.error('[main] BFF load failed', err);
+        if (!cancelled) setFeeds([]);
       }
     })();
     return () => {

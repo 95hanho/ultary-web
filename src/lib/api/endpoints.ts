@@ -198,6 +198,11 @@ export const bffEndpoints = {
     messages: '/api/dm/rooms/:roomId/messages',
   },
 
+  ws: {
+    /** POST 웹소켓 입장 토큰. 소켓은 Spring에 직접 연결 */
+    ticket: '/api/ws/ticket',
+  },
+
   notifications: {
     /** GET 알림 목록. 조회 시 그때까지 쌓인 안 읽음을 읽음 처리 */
     root: '/api/notifications',
@@ -235,6 +240,8 @@ export const bffEndpoints = {
     nicknameCooldown: '/api/test/nickname-cooldown',
     /** POST 펫 멘션 ID 변경 쿨다운 초기화 */
     mentionIdCooldown: '/api/test/pets/:petId/mention-id-cooldown',
+    /** POST development — refreshToken 쿠키만 삭제. Spring 호출 없음 */
+    refreshTokenReset: '/api/dev/refresh-token/reset',
   },
 
   files: {
@@ -430,6 +437,11 @@ export const springEndpoints = {
     roomRead: '/api/v1/dm/rooms/:roomId/read',
     /** GET / POST */
     messages: '/api/v1/dm/rooms/:roomId/messages',
+  },
+
+  ws: {
+    /** POST 입장 토큰 */
+    ticket: '/api/v1/ws/ticket',
   },
 
   notifications: {

@@ -69,7 +69,9 @@
 | `POST /stories/{storyId}/view` | 스토리 단건 (`viewedByMe`, `likedByMe`) | 해당 `storyId`만 INSERT IGNORE. **본인 스토리도 기록** |
 | `POST /stories/{storyId}/like` · `DELETE` | `likeCount`, `likedByMe` | 스토리 공감. 본인 또는 ACCEPTED 이웃만. 취소는 소프트 삭제 |
 | `GET /users/blocks` | 배열 | 내가 차단한 사용자. `nickname`, `profileFile`(대표 펫 사진, 없으면 null), `blockedAt`. 해제는 `DELETE /users/{userNo}/block` |
-| `GET /notifications/unread-count` | `unreadCount` | 하단 배지. 읽음 처리 없음. `/auth/me`에 없음. 나중에 웹소켓이 이 숫자를 밀어 줌 |
+| `GET /notifications/unread-count` | `unreadCount` | 하단 배지. 읽음 처리 없음. `/auth/me`에 없음. 소켓이 같은 숫자를 `NOTIFICATION_UNREAD`로 밀어 줌 |
+| `POST /ws/ticket` | `ticket`, `expiresIn` | 웹소켓 입장 토큰. 30초, 한 번. Bearer. 소켓은 `ws://{Spring}/api/v1/ws` 로 브라우저가 직접 연결 |
+| 웹소켓 `/api/v1/ws` | 텍스트 JSON | 첫 메시지 `{type:AUTH,ticket}`. 성공 `AUTH_OK` 후 `NOTIFICATION_UNREAD`. 새 DM은 `DM_MESSAGE`(받는 사람 기준 `fromMe`). 25초마다 `PING` |
 | `GET /notifications` | `unreadCount`, `items` | 알림 페이지. 목록을 준 뒤 그때까지 안 읽은 알림을 읽음 처리. `message`는 서버 문장. `snippet`은 텍스트 일부. 이동은 `feedId`·`feedCommentId`·`feedReplyId`·`storyId`·`neighborId`. 수락 버튼은 `neighborStatus=PENDING` |
 | `GET /settings/activities` | `items` | 내 활동. 내가 한 좋아요·댓글·답글·이웃 신청·게시글·스토리. `type`, `occurredAt`, `targetNickname`, `profileFile`, `snippet`. 취소 버튼은 내가 보낸 신청이 `neighborStatus=PENDING`일 때 |
 | `GET /settings/notifications` · `PATCH` | 스위치 10개 | 알림 종류별 켜기. 없으면 전부 켜짐. PATCH는 넣은 필드만. 끈 종류는 알림 목록에서 빠짐 |

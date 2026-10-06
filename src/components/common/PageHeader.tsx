@@ -13,6 +13,8 @@ type PageHeaderProps = {
   title: string;
   /** 있으면 Link, 없으면 onBack 또는 router.back() */
   backHref?: string;
+  /** 뒤로 버튼을 두지 않는다 */
+  hideBack?: boolean;
   /** backHref보다 우선. 커스텀 뒤로 동작 */
   onBack?: () => void;
   /** 커스텀 우측 영역. 있으면 onSubmit보다 우선 */
@@ -27,6 +29,7 @@ type PageHeaderProps = {
 export function PageHeader({
   title,
   backHref,
+  hideBack = false,
   onBack,
   right,
   onSubmit,
@@ -51,7 +54,9 @@ export function PageHeader({
       <span className={styles.headerBtn} aria-hidden />
     ));
 
-  const backButton = onBack ? (
+  const backButton = hideBack ? (
+    <span className={styles.headerBtn} aria-hidden />
+  ) : onBack ? (
     <button type="button" className={styles.headerBtn} aria-label="뒤로" onClick={onBack}>
       <Image src={ArrowLeftIcon} alt="" width={16} height={16} />
     </button>

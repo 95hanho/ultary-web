@@ -271,6 +271,15 @@ BFF: `/api/...` · Spring: `/api/v1/...`
 > **게시글 공유** `{ body, feedId, feedMediaId }`. `feedMediaId`는 캐러셀에서 고른 사진. 없으면 첫 장. 응답 `share.type=FEED`, `mediaIndex`(0이 첫 장), `authorUserNo`, `authorNickname`, `authorProfileFile`, `file`(그 사진. 영상이면 썸네일), `content`(본문). 보낸 사람이 그 글을 볼 수 있어야 한다.
 > **스토리 공유** `{ body, storyId }`. `share.type=STORY`, `file`만. 프로필·닉네임 없음. 활성 스토리만 보낼 수 있고, 받은 뒤에는 만료돼도 그 사진을 보여 준다.
 > 게시글과 스토리는 한 메시지에 같이 못 보낸다. 삭제된 대상은 `share.available=false`이고 사진·본문은 null. 상대가 답장을 보내면 나간 방이 다시 목록에 나온다.
+> 보내기는 이 POST를 그대로 쓴다. 상대(와 내 다른 탭)에는 웹소켓 `DM_MESSAGE`가 간다. [웹소켓](#웹소켓).
+
+### 웹소켓
+
+입장 토큰 `POST /api/v1/ws/ticket` (Bearer). `data.ticket`, `expiresIn` 30초, 한 번만 쓸 수 있다. BFF가 쿠키로 이 API를 호출하고, 브라우저 소켓은 Next를 거치지 않고 Spring `ws://localhost:9377/api/v1/ws`(운영은 `wss`)로 연다. Origin 기본값은 `http://localhost:3000`.
+
+연결되면 5초 안에 첫 텍스트로 `{ "type": "AUTH", "ticket": "..." }` 를 보낸다. 맞으면 `{ "type": "AUTH_OK" }` 다음에 현재 배지 `{ "type": "NOTIFICATION_UNREAD", "unreadCount" }`. 틀리거나 늦으면 연결이 끊긴다. 서버는 25초마다 `{ "type": "PING" }` 을 보낸다.
+
+알림이 생기거나 읽히면 같은 `NOTIFICATION_UNREAD`가 간다. DM을 보내면 양쪽 탭에 `{ "type": "DM_MESSAGE", "dmRoomId", "room", "message" }`. `room`은 대화방 목록 한 줄, `message`는 메시지 한 건이고 `fromMe`는 그 소켓 주인 기준이다. 보내기·목록·읽음 HTTP는 그대로다.
 
 ---
 
@@ -302,7 +311,7 @@ BFF: `/api/...` · Spring: `/api/v1/...`
 | `STORY_TAG` | 스토리 `@`가 내 펫 | 그 스토리·나 | `storyId`. `snippet`은 캡션, 없으면 첫 글자 |
 | `STORY_LIKE` | 내 스토리 공감 | 그 스토리의 공감 | `storyId` |
 
-하단 배지는 `GET /notifications/unread-count`의 `unreadCount`만 쓴다. `/auth/me`에 넣지 않는다. 이 조회는 읽음 처리하지 않아서, 알림 페이지에 들어오기 전까지 숫자가 쌓인다. 알림 페이지의 `GET /notifications`는 목록을 만든 뒤 그때까지 안 읽은 알림을 읽음으로 바꾼다. 그 다음 배지는 0이고, 새 행위가 있으면 다시 안 읽음으로 쌓인다. 웹소켓은 아직 없고, 나중에 이 숫자만 밀어 준다.
+하단 배지는 `unreadCount`만 쓴다. `/auth/me`에 넣지 않는다. 처음 숫자와 소켓이 끊긴 동안은 `GET /notifications/unread-count`. 이 조회는 읽음 처리하지 않아서, 알림 페이지에 들어오기 전까지 숫자가 쌓인다. 알림 페이지의 `GET /notifications`는 목록을 만든 뒤 그때까지 안 읽은 알림을 읽음으로 바꾼다. 그 다음 배지는 0이고, 새 행위가 있으면 다시 안 읽음으로 쌓인다. 연결되어 있으면 같은 숫자를 `NOTIFICATION_UNREAD`로 밀어 준다. [웹소켓](#웹소켓).
 
 ---
 
@@ -461,8 +470,9 @@ HTTP: `requests/test.http`
 | 1-11 | Neighbor (+ block, NEIGHBORS 피드 가시성) | 스모크 테스트함. 시드 user 5·pet 1~2. HTTP `neighbor.http` |
 | 1-12 | Main feeds/search | 타임라인 커서 + 통합 검색. HTTP `main.http` |
 | 1-13 | 알림 저장·목록, 스토리 공감 | 화면 10종. 웹소켓은 아직 없음 |
-| 1-14 | DM | 1:1 방, 글·게시글 사진·스토리 사진. HTTP `dm.http`. 웹소켓 없음 |
-| 다음 | 알림 웹소켓 | 미착수 |
+| 1-14 | DM | 1:1 방, 글·게시글 사진·스토리 사진. HTTP `dm.http` |
+| 1-15 | 웹소켓 | 입장 토큰 후 Spring에 직접 연결. 알림 배지·DM 푸시. HTTP `ws.http` |
+| 다음 | — | |
 
 파일 업로드 상대경로: `images/{uuid}.ext`, `videos/{uuid}.ext` (`UPLOAD_DIR`).  
 시드 CDN·임베드 요약은 위 **FileSummary** 절 참고.

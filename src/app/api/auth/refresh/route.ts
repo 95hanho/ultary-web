@@ -40,7 +40,7 @@ export async function POST() {
       { success: true, message: 'REFRESH_SUCCESS' },
       { status: 200 },
     );
-    setAuthCookies(response, session.tokens);
+    setAuthCookies(response, session.tokens, true);
     return response;
   } catch (err) {
     return handleBffError(err);

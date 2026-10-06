@@ -7,6 +7,15 @@ validation · database · docs 모두 **여기 한곳**에 적는다.
 
 ---
 
+## 2026-10-06 13:45
+
+### API · 웹소켓
+- `POST /api/v1/ws/ticket` 입장 토큰(30초, 1회). 소켓은 Spring `/api/v1/ws` 에 브라우저가 직접 연결
+- 첫 메시지로 티켓을 보낸 뒤 `NOTIFICATION_UNREAD`, 새 DM은 `DM_MESSAGE`
+- 알림 배지와 DM 보내기는 기존 HTTP를 유지
+
+---
+
 ## 2026-10-02 17:10
 
 ### DB · API · DM

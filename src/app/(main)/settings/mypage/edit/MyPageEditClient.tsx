@@ -14,7 +14,6 @@ import {
   validateNickname,
   validatePhone,
 } from '@/lib/auth/signup-rules';
-import { MOCK_MY_PROFILE } from '@/lib/mock/mypage';
 import { getSigunguOptions, isSigunguDisabled, REGION_NONE, SIDO_OPTIONS } from '@/lib/region';
 import type {
   BffEnvelope,
@@ -74,11 +73,11 @@ type ProfileSnapshot = {
 };
 
 const INITIAL_PROFILE: ProfileSnapshot = {
-  nickname: MOCK_MY_PROFILE.nickname,
-  email: MOCK_MY_PROFILE.email,
-  phone: MOCK_MY_PROFILE.phone,
-  regionSido: MOCK_MY_PROFILE.regionSido,
-  regionSigungu: MOCK_MY_PROFILE.regionSigungu,
+  nickname: '',
+  email: '',
+  phone: '',
+  regionSido: REGION_NONE,
+  regionSigungu: REGION_NONE,
 };
 
 function regionPayload(sido: string, sigungu: string) {
@@ -107,12 +106,12 @@ export default function MyPageEditClient() {
   const [pending, startTransition] = useTransition();
   const [loaded, setLoaded] = useState(false);
 
-  const [nickname, setNickname] = useState(MOCK_MY_PROFILE.nickname);
-  const [email, setEmail] = useState(MOCK_MY_PROFILE.email);
-  const [phone, setPhone] = useState(MOCK_MY_PROFILE.phone);
+  const [nickname, setNickname] = useState('');
+  const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
   const [code, setCode] = useState('');
-  const [regionSido, setRegionSido] = useState(MOCK_MY_PROFILE.regionSido);
-  const [regionSigungu, setRegionSigungu] = useState(MOCK_MY_PROFILE.regionSigungu);
+  const [regionSido, setRegionSido] = useState(REGION_NONE);
+  const [regionSigungu, setRegionSigungu] = useState(REGION_NONE);
   const [initialProfile, setInitialProfile] = useState<ProfileSnapshot>(INITIAL_PROFILE);
 
   const [phoneAuthToken, setPhoneAuthToken] = useState('');
@@ -157,7 +156,7 @@ export default function MyPageEditClient() {
       } catch (err) {
         console.error('[mypage-edit] load', err);
         if (!cancelled) {
-          setFormError('회원정보를 불러오지 못했습니다. 임시 값으로 편집합니다.');
+          setFormError('회원정보를 불러오지 못했습니다.');
         }
       } finally {
         if (!cancelled) setLoaded(true);
@@ -352,7 +351,10 @@ export default function MyPageEditClient() {
       <div className={styles.form}>
         {formError ? <p className={styles.errorBanner}>{formError}</p> : null}
         {infoMessage ? <p className={styles.infoBanner}>{infoMessage}</p> : null}
-
+        {!loaded ? (
+          <p className={styles.fieldNote}>불러오는 중…</p>
+        ) : (
+          <>
         <label className={styles.field}>
           <span className={styles.label}>닉네임</span>
           <div className={styles.inputWrap}>
@@ -489,6 +491,8 @@ export default function MyPageEditClient() {
             </div>
           </label>
         </div>
+          </>
+        )}
       </div>
       <MyPageEditDevTools />
     </div>

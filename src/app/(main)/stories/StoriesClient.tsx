@@ -226,15 +226,7 @@ export default function StoriesClient({
           : await bffGet<BffEnvelope<StoryOwner[]>>(bffEndpoints.main.storyOwners);
         if (cancelled) return;
 
-        let loaded = unwrapList<Story>(storiesRes.data ?? storiesRes);
-        if (
-          onlyStoryId &&
-          !loaded.some((story) => String(story.storyId) === onlyStoryId)
-        ) {
-          const mineRes = await bffGet<BffEnvelope<Story[]>>(bffEndpoints.myUltary.stories);
-          if (cancelled) return;
-          loaded = unwrapList<Story>(mineRes.data ?? mineRes);
-        }
+        const loaded = unwrapList<Story>(storiesRes.data ?? storiesRes);
         const list = onlyStoryId
           ? loaded.filter((story) => String(story.storyId) === onlyStoryId)
           : loaded;

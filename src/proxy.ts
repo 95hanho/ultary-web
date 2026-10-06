@@ -15,16 +15,23 @@ import { NextRequest, NextResponse } from 'next/server';
  */
 export function proxy(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
+  const access = request.cookies.get(ACCESS_TOKEN_COOKIE)?.value?.trim();
+  const refresh = request.cookies.get(REFRESH_TOKEN_COOKIE)?.value?.trim();
+  const loggedIn = Boolean(access || refresh);
+
+  if (pathname === '/login' || pathname.startsWith('/login/')) {
+    if (loggedIn) {
+      return NextResponse.redirect(new URL('/', request.url));
+    }
+    return NextResponse.next();
+  }
 
   if (isAuthPublicPath(pathname)) {
     return NextResponse.next();
   }
 
-  const access = request.cookies.get(ACCESS_TOKEN_COOKIE)?.value?.trim();
-  const refresh = request.cookies.get(REFRESH_TOKEN_COOKIE)?.value?.trim();
-
   // refresh 또는 access 중 하나라도 있으면 페이지 통과 (만료 access는 API에서 refresh)
-  if (access || refresh) {
+  if (loggedIn) {
     return NextResponse.next();
   }
 

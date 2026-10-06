@@ -8,7 +8,12 @@ import {
   REFRESH_TOKEN_COOKIE,
   REFRESH_TOKEN_MAX_AGE,
 } from '@/lib/auth/cookie-names';
-import { clearAuthCookies, setAuthCookies } from '@/lib/auth/cookies';
+import {
+  clearAuthCookies,
+  clearDevAccessCookieJar,
+  rememberDevAccessRefresh,
+  setAuthCookies,
+} from '@/lib/auth/cookies';
 import { isProd, SPRING_BASE_URL } from '@/lib/env.server';
 import type { RefreshTokenRequest, TokenResponse } from '@/types/api';
 import { NextRequest, NextResponse } from 'next/server';
@@ -156,16 +161,18 @@ export async function applyTokensToCookieJar(tokens: TokenResponse) {
     ...cookieOpts,
     maxAge: REFRESH_TOKEN_MAX_AGE,
   });
+  await rememberDevAccessRefresh(tokens.expiresIn);
 }
 
 export async function clearAuthCookieJar() {
   const jar = await cookies();
   jar.set(ACCESS_TOKEN_COOKIE, '', { ...cookieOpts, maxAge: 0 });
   jar.set(REFRESH_TOKEN_COOKIE, '', { ...cookieOpts, maxAge: 0 });
+  await clearDevAccessCookieJar();
 }
 
 export function applySessionCookies(response: NextResponse, session: SessionOk) {
-  if (session.tokens) setAuthCookies(response, session.tokens);
+  if (session.tokens) setAuthCookies(response, session.tokens, true);
   return response;
 }
 

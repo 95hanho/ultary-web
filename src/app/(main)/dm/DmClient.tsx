@@ -1,16 +1,18 @@
 'use client';
 
-import { FooterMenu } from '@/components/common/FooterMenu';
-import { PageHeader } from '@/components/common/PageHeader';
 import { EmptyState } from '@/components/common/EmptyState';
+import { FooterMenu } from '@/components/common/FooterMenu';
 import { MediaImage } from '@/components/common/MediaImage';
+import { PageHeader } from '@/components/common/PageHeader';
 import { bffGet, bffPostJson } from '@/lib/api/bffFetch';
 import { bffEndpoints } from '@/lib/api/endpoints';
-import { resolveFileDisplayUrl } from '@/lib/api/fileUrl';
 import { isHttpError, isRecord } from '@/lib/api/error';
+import { resolveFileDisplayUrl } from '@/lib/api/fileUrl';
 import { myUltaryPath } from '@/lib/mock/ultary-accounts';
 import { NO_PROFILE_SRC } from '@/lib/profileImage';
+import { subscribeDmMessage } from '@/lib/ws/liveSocket';
 import type { BffEnvelope, MeResponse } from '@/types/api';
+import type { FileSummary } from '@/types/file';
 import clsx from 'clsx';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -21,8 +23,7 @@ import styles from './dm.module.scss';
 const SendIcon = '/images/icon/Send.svg';
 
 type PendingShare =
-  | { kind: 'feed'; feedId: string; feedMediaId?: string }
-  | { kind: 'story'; storyId: string };
+  { kind: 'feed'; feedId: string; feedMediaId?: string } | { kind: 'story'; storyId: string };
 
 type DmRoom = {
   id: string;
@@ -43,11 +44,17 @@ type DmShareCard = {
   content: string;
   feedId: string | null;
   storyId: string | null;
+  /** 스토리 주인. 있으면 그 유저 목록에서 연다 */
+  ownerUserNo: string | null;
+  /** 0이 첫 장 */
+  mediaIndex: number | null;
+  feedMediaId: string | null;
 };
 
 type DmMessage = {
   id: string;
   fromMe: boolean;
+  senderUserNo: string | null;
   body: string;
   timeLabel: string;
   share: DmShareCard | null;
@@ -62,6 +69,7 @@ type Peer = {
 type PeerTab = 'RESIDENTS' | 'NEIGHBORS';
 
 type DmClientProps = {
+  roomId?: string;
   feedId?: string;
   feedMediaId?: string;
   storyId?: string;
@@ -73,6 +81,18 @@ function initialShare(props: DmClientProps): PendingShare | null {
   }
   if (props.storyId) return { kind: 'story', storyId: props.storyId };
   return null;
+}
+
+function shareSearch(share: PendingShare | null) {
+  const params = new URLSearchParams();
+  if (share?.kind === 'feed') {
+    params.set('feedId', share.feedId);
+    if (share.feedMediaId) params.set('feedMediaId', share.feedMediaId);
+  } else if (share?.kind === 'story') {
+    params.set('storyId', share.storyId);
+  }
+  const query = params.toString();
+  return query ? `?${query}` : '';
 }
 
 function idString(value: unknown) {
@@ -87,8 +107,13 @@ function unwrapItems(data: unknown): unknown[] {
   return [];
 }
 
-function asFile(raw: unknown) {
-  return isRecord(raw) ? raw : null;
+function asFile(raw: unknown): Pick<FileSummary, 'fileId' | 'filePath'> | null {
+  if (!isRecord(raw)) return null;
+  if (typeof raw.filePath !== 'string' || !raw.filePath.trim()) return null;
+  return {
+    fileId: typeof raw.fileId === 'number' ? raw.fileId : 0,
+    filePath: raw.filePath,
+  };
 }
 
 function formatDmTime(iso: string) {
@@ -126,8 +151,7 @@ function mapRoom(raw: unknown): DmRoom | null {
   const id = idString(raw.dmRoomId) ?? idString(raw.roomId);
   const peerUserNo = idString(raw.peerUserNo);
   if (!id || !peerUserNo) return null;
-  const nickname =
-    (typeof raw.peerNickname === 'string' && raw.peerNickname.trim()) || '이웃';
+  const nickname = (typeof raw.peerNickname === 'string' && raw.peerNickname.trim()) || '이웃';
   const lastMessage = typeof raw.lastMessage === 'string' ? raw.lastMessage : '';
   const when = typeof raw.lastMessageAt === 'string' ? raw.lastMessageAt : '';
   const unread = typeof raw.unreadCount === 'number' ? raw.unreadCount : 0;
@@ -149,14 +173,22 @@ function mapShare(raw: unknown, message: Record<string, unknown>): DmShareCard |
     type: raw.type,
     available,
     fileUrl: available ? (resolveFileDisplayUrl(asFile(raw.file)) ?? null) : null,
-    authorNickname:
-      (typeof raw.authorNickname === 'string' && raw.authorNickname.trim()) || '',
-    authorProfileUrl:
-      resolveFileDisplayUrl(asFile(raw.authorProfileFile)) ?? NO_PROFILE_SRC,
+    authorNickname: (typeof raw.authorNickname === 'string' && raw.authorNickname.trim()) || '',
+    authorProfileUrl: resolveFileDisplayUrl(asFile(raw.authorProfileFile)) ?? NO_PROFILE_SRC,
     content: available && typeof raw.content === 'string' ? raw.content.trim() : '',
     feedId: idString(raw.feedId) ?? idString(message.feedId),
     storyId: idString(raw.storyId) ?? idString(message.storyId),
+    ownerUserNo:
+      idString(raw.userNo) ?? idString(raw.authorUserNo) ?? idString(message.senderUserNo),
+    mediaIndex: readMediaIndex(raw.mediaIndex) ?? readMediaIndex(message.mediaIndex),
+    feedMediaId: idString(raw.feedMediaId) ?? idString(message.feedMediaId),
   };
+}
+
+function readMediaIndex(value: unknown) {
+  const index = typeof value === 'number' ? value : Number(value);
+  if (!Number.isFinite(index) || index < 0) return null;
+  return Math.floor(index);
 }
 
 function mapMessage(raw: unknown): DmMessage | null {
@@ -167,6 +199,7 @@ function mapMessage(raw: unknown): DmMessage | null {
   return {
     id,
     fromMe: raw.fromMe === true,
+    senderUserNo: idString(raw.senderUserNo),
     body: typeof raw.body === 'string' ? raw.body : '',
     timeLabel: when ? formatDmTime(when) : '',
     share: mapShare(raw.share, raw),
@@ -185,15 +218,37 @@ function mapPeer(raw: unknown): Peer | null {
   };
 }
 
-function ShareCard({ share }: { share: DmShareCard }) {
+function ShareCard({
+  share,
+  storyUserNo,
+  storyNickname,
+}: {
+  share: DmShareCard;
+  storyUserNo?: string | null;
+  storyNickname?: string | null;
+}) {
   if (!share.available || share.type === 'STORY') {
     if (!share.fileUrl) return null;
     const image = (
-      <MediaImage src={share.fileUrl} alt="" width={180} height={180} className={styles.shareImage} />
+      <MediaImage
+        src={share.fileUrl}
+        alt=""
+        width={180}
+        height={180}
+        className={styles.shareImage}
+      />
     );
     if (share.storyId) {
+      const q = new URLSearchParams();
+      const userNo = share.ownerUserNo || storyUserNo;
+      if (userNo) q.set('userNo', userNo);
+      if (storyNickname) q.set('nickname', storyNickname);
+      const query = q.toString();
       return (
-        <Link href={`/stories/${share.storyId}`} className={styles.shareStory}>
+        <Link
+          href={query ? `/stories/${share.storyId}?${query}` : `/stories/${share.storyId}`}
+          className={styles.shareStory}
+        >
           {image}
         </Link>
       );
@@ -214,21 +269,39 @@ function ShareCard({ share }: { share: DmShareCard }) {
         <span>{share.authorNickname}</span>
       </span>
       {share.fileUrl ? (
-        <MediaImage src={share.fileUrl} alt="" width={180} height={180} className={styles.shareImage} />
+        <MediaImage
+          src={share.fileUrl}
+          alt=""
+          width={180}
+          height={180}
+          className={styles.shareImage}
+        />
       ) : null}
       {share.content ? <p className={styles.shareContent}>{share.content}</p> : null}
     </div>
   );
-  if (share.feedId) return <Link href={`/posts/${share.feedId}`}>{body}</Link>;
+  if (share.feedId) {
+    const params = new URLSearchParams();
+    if (share.mediaIndex != null && share.mediaIndex > 0) {
+      params.set('mediaIndex', String(share.mediaIndex));
+    } else if (share.feedMediaId) {
+      params.set('feedMediaId', share.feedMediaId);
+    }
+    const query = params.toString();
+    return (
+      <Link href={query ? `/posts/${share.feedId}?${query}` : `/posts/${share.feedId}`}>
+        {body}
+      </Link>
+    );
+  }
   return body;
 }
 
 /** 메시지(DM) — 방 목록 + 스레드 */
-export default function DmClient({ feedId, feedMediaId, storyId }: DmClientProps) {
+export default function DmClient({ roomId, feedId, feedMediaId, storyId }: DmClientProps) {
   const router = useRouter();
   const [rooms, setRooms] = useState<DmRoom[]>([]);
   const [status, setStatus] = useState('불러오는 중');
-  const [activeId, setActiveId] = useState<string | null>(null);
   const [messages, setMessages] = useState<DmMessage[]>([]);
   const [olderCursor, setOlderCursor] = useState<string | null>(null);
   const [threadStatus, setThreadStatus] = useState('');
@@ -244,16 +317,46 @@ export default function DmClient({ feedId, feedMediaId, storyId }: DmClientProps
   const threadEndRef = useRef<HTMLDivElement>(null);
   const meUserNoRef = useRef<string | null>(null);
   const threadReqRef = useRef(0);
+  const socketEpochRef = useRef(0);
 
-  const active = rooms.find((room) => room.id === activeId) ?? null;
+  const active = roomId
+    ? (rooms.find((room) => room.id === roomId) ?? {
+        id: roomId,
+        peerUserNo: '',
+        nickname: '',
+        profileUrl: NO_PROFILE_SRC,
+        lastMessage: '',
+        timeLabel: '',
+        unread: 0,
+      })
+    : null;
 
   useEffect(() => {
     let cancelled = false;
+    const epoch = socketEpochRef.current;
     (async () => {
       try {
         const res = await bffGet<BffEnvelope<unknown>>(bffEndpoints.dm.rooms, { limit: 30 });
         if (cancelled) return;
-        setRooms(unwrapItems(res.data).map(mapRoom).filter((room): room is DmRoom => room != null));
+        const loaded = unwrapItems(res.data)
+          .map(mapRoom)
+          .filter((room): room is DmRoom => room != null);
+        setRooms((prev) => {
+          if (socketEpochRef.current === epoch) return loaded;
+          const seen = new Set<string>();
+          const ordered: DmRoom[] = [];
+          for (const room of prev) {
+            if (seen.has(room.id)) continue;
+            seen.add(room.id);
+            ordered.push(room);
+          }
+          for (const room of loaded) {
+            if (seen.has(room.id)) continue;
+            seen.add(room.id);
+            ordered.push(room);
+          }
+          return ordered;
+        });
         setStatus('');
       } catch (err) {
         if (!cancelled) setStatus(pickErrorMessage(err, '메시지를 불러오지 못했습니다.'));
@@ -287,7 +390,11 @@ export default function DmClient({ feedId, feedMediaId, storyId }: DmClientProps
           type: peerTab,
         });
         if (cancelled) return;
-        setPeers(unwrapItems(res.data).map(mapPeer).filter((peer): peer is Peer => peer != null));
+        setPeers(
+          unwrapItems(res.data)
+            .map(mapPeer)
+            .filter((peer): peer is Peer => peer != null),
+        );
         setPeerStatus('');
       } catch (err) {
         if (!cancelled) setPeerStatus(pickErrorMessage(err, '목록을 불러오지 못했습니다.'));
@@ -302,29 +409,62 @@ export default function DmClient({ feedId, feedMediaId, storyId }: DmClientProps
     const params: Record<string, string> = { roomId, limit: '30' };
     if (beforeMessageId) params.beforeMessageId = beforeMessageId;
     const res = await bffGet<BffEnvelope<unknown>>(bffEndpoints.dm.messages, params);
-    const list = unwrapItems(res.data).map(mapMessage).filter((item): item is DmMessage => item != null);
+    const list = unwrapItems(res.data)
+      .map(mapMessage)
+      .filter((item): item is DmMessage => item != null);
     const cursor = isRecord(res.data) ? idString(res.data.nextCursorMessageId) : null;
     return { list, cursor };
   }
 
-  async function openRoom(room: DmRoom) {
+  useEffect(() => {
+    if (!roomId) return;
     const req = ++threadReqRef.current;
-    setActiveId(room.id);
-    setDraft('');
     setThreadStatus('불러오는 중');
     setMessages([]);
     setOlderCursor(null);
-    setRooms((prev) => prev.map((item) => (item.id === room.id ? { ...item, unread: 0 } : item)));
-    try {
-      const { list, cursor } = await loadMessages(room.id);
-      if (threadReqRef.current !== req) return;
-      setMessages(list);
-      setOlderCursor(cursor);
-      setThreadStatus('');
-    } catch (err) {
-      if (threadReqRef.current !== req) return;
-      setThreadStatus(pickErrorMessage(err, '대화를 불러오지 못했습니다.'));
-    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const { list, cursor } = await loadMessages(roomId);
+        if (cancelled || threadReqRef.current !== req) return;
+        setMessages((prev) => {
+          const ids = new Set(list.map((item) => item.id));
+          const extra = prev.filter((item) => !ids.has(item.id));
+          return extra.length > 0 ? [...list, ...extra] : list;
+        });
+        setOlderCursor(cursor);
+        setThreadStatus('');
+        setRooms((prev) =>
+          prev.map((item) => (item.id === roomId ? { ...item, unread: 0 } : item)),
+        );
+      } catch (err) {
+        if (cancelled || threadReqRef.current !== req) return;
+        setThreadStatus(pickErrorMessage(err, '대화를 불러오지 못했습니다.'));
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [roomId]);
+
+  useEffect(() => {
+    return subscribeDmMessage((event) => {
+      socketEpochRef.current += 1;
+      const room = mapRoom(event.room);
+      if (room) {
+        setRooms((prev) => [room, ...prev.filter((item) => item.id !== room.id)]);
+      }
+      if (!roomId || event.dmRoomId !== roomId) return;
+      const message = mapMessage(event.message);
+      if (!message) return;
+      setMessages((prev) =>
+        prev.some((item) => item.id === message.id) ? prev : [...prev, message],
+      );
+    });
+  }, [roomId]);
+
+  function openRoom(room: DmRoom) {
+    router.push(`/dm/${room.id}${shareSearch(pendingShare)}`);
   }
 
   async function loadOlder() {
@@ -347,7 +487,7 @@ export default function DmClient({ feedId, feedMediaId, storyId }: DmClientProps
         targetUserNo: Number(peer.userNo),
       });
       const room = mapRoom(res.data) ?? {
-        id: idString(isRecord(res.data) ? res.data.dmRoomId ?? res.data.roomId : null) ?? '',
+        id: idString(isRecord(res.data) ? (res.data.dmRoomId ?? res.data.roomId) : null) ?? '',
         peerUserNo: peer.userNo,
         nickname: peer.nickname,
         profileUrl: peer.profileUrl,
@@ -356,9 +496,8 @@ export default function DmClient({ feedId, feedMediaId, storyId }: DmClientProps
         unread: 0,
       };
       if (!room.id) throw new Error('대화방을 만들지 못했습니다.');
-      setRooms((prev) => [room, ...prev.filter((item) => item.id !== room.id)]);
       setPicking(false);
-      await openRoom(room);
+      router.push(`/dm/${room.id}${shareSearch(pendingShare)}`);
     } catch (err) {
       setPeerStatus(pickErrorMessage(err, '대화를 시작하지 못했습니다.'));
     }
@@ -382,7 +521,11 @@ export default function DmClient({ feedId, feedMediaId, storyId }: DmClientProps
       }
       const res = await bffPostJson<BffEnvelope<unknown>>(bffEndpoints.dm.messages, payload);
       const created = mapMessage(res.data);
-      if (created) setMessages((prev) => [...prev, created]);
+      if (created) {
+        setMessages((prev) =>
+          prev.some((item) => item.id === created.id) ? prev : [...prev, created],
+        );
+      }
       setRooms((prev) =>
         prev.map((room) =>
           room.id === active.id
@@ -400,7 +543,7 @@ export default function DmClient({ feedId, feedMediaId, storyId }: DmClientProps
       setDraft('');
       if (pendingShare) {
         setPendingShare(null);
-        router.replace('/dm');
+        router.replace(`/dm/${active.id}`);
       }
     } catch (err) {
       setThreadStatus(pickErrorMessage(err, '메시지를 보내지 못했습니다.'));
@@ -414,12 +557,14 @@ export default function DmClient({ feedId, feedMediaId, storyId }: DmClientProps
     return (
       <div className={styles.shell}>
         <PageHeader
-          title={active.nickname}
-          onBack={() => setActiveId(null)}
+          title={active.nickname || '메시지'}
+          onBack={() => router.replace(`/dm${shareSearch(pendingShare)}`)}
           right={
-            <Link href={myUltaryPath(active.nickname)} className={styles.profileLink}>
-              울타리
-            </Link>
+            active.peerUserNo ? (
+              <Link href={myUltaryPath(active.nickname)} className={styles.profileLink}>
+                울타리
+              </Link>
+            ) : null
           }
         />
         <div className={styles.thread}>
@@ -436,8 +581,25 @@ export default function DmClient({ feedId, feedMediaId, storyId }: DmClientProps
                 className={clsx(styles.bubbleRow, message.fromMe && styles.bubbleRowMe)}
               >
                 <div className={clsx(styles.bubble, message.fromMe && styles.bubbleMe)}>
-                  {message.share ? <ShareCard share={message.share} /> : null}
+                  {message.share ? (
+                    <ShareCard
+                      share={message.share}
+                      storyUserNo={
+                        message.senderUserNo || (message.fromMe ? null : active.peerUserNo)
+                      }
+                      storyNickname={
+                        message.share.authorNickname || (message.fromMe ? '' : active.nickname)
+                      }
+                    />
+                  ) : null}
                   {message.body ? <p className={styles.bubbleText}>{message.body}</p> : null}
+                  {message.share ? (
+                    <span className={styles.bubbleTime}>
+                      {message.share.type === 'STORY'
+                        ? '스토리를 공유했습니다'
+                        : '게시글을 공유했습니다'}
+                    </span>
+                  ) : null}
                   <span className={styles.bubbleTime}>{message.timeLabel}</span>
                 </div>
               </div>
@@ -463,7 +625,7 @@ export default function DmClient({ feedId, feedMediaId, storyId }: DmClientProps
               disabled={!canSend || sending}
               aria-label="전송"
             >
-              <Image src={SendIcon} alt="" width={22} height={22} />
+              <Image src={SendIcon} alt="" width={30} height={30} />
             </button>
           </form>
         </div>
@@ -498,12 +660,19 @@ export default function DmClient({ feedId, feedMediaId, storyId }: DmClientProps
           </div>
           {peerStatus ? <p className={styles.status}>{peerStatus}</p> : null}
           {peers.length === 0 && !peerStatus ? (
-            <EmptyState title="목록이 비어 있어요" description="주민이나 이웃이 있으면 여기서 고를 수 있어요." />
+            <EmptyState
+              title="목록이 비어 있어요"
+              description="주민이나 이웃이 있으면 여기서 고를 수 있어요."
+            />
           ) : (
             <ul className={styles.roomList}>
               {peers.map((peer) => (
                 <li key={peer.userNo}>
-                  <button type="button" className={styles.roomItem} onClick={() => void openPeer(peer)}>
+                  <button
+                    type="button"
+                    className={styles.roomItem}
+                    onClick={() => void openPeer(peer)}
+                  >
                     <span className={styles.roomAvatar}>
                       <MediaImage
                         src={peer.profileUrl}
@@ -528,6 +697,7 @@ export default function DmClient({ feedId, feedMediaId, storyId }: DmClientProps
     <div className={styles.shell}>
       <PageHeader
         title="메시지"
+        hideBack
         right={
           <button type="button" className={styles.textBtn} onClick={() => setPicking(true)}>
             새 메시지
@@ -537,7 +707,9 @@ export default function DmClient({ feedId, feedMediaId, storyId }: DmClientProps
       <main className={styles.main}>
         {pendingShare ? (
           <p className={styles.status}>
-            {pendingShare.kind === 'story' ? '스토리를 보낼 대화를 고르세요.' : '게시글을 보낼 대화를 고르세요.'}
+            {pendingShare.kind === 'story'
+              ? '스토리를 보낼 대화를 고르세요.'
+              : '게시글을 보낼 대화를 고르세요.'}
           </p>
         ) : null}
         {status ? <p className={styles.status}>{status}</p> : null}
@@ -550,7 +722,11 @@ export default function DmClient({ feedId, feedMediaId, storyId }: DmClientProps
           <ul className={styles.roomList}>
             {rooms.map((room) => (
               <li key={room.id}>
-                <button type="button" className={styles.roomItem} onClick={() => void openRoom(room)}>
+                <button
+                  type="button"
+                  className={styles.roomItem}
+                  onClick={() => void openRoom(room)}
+                >
                   <span className={styles.roomAvatar}>
                     <MediaImage
                       src={room.profileUrl}

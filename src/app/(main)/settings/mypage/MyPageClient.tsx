@@ -5,11 +5,7 @@ import { PageHeader } from '@/components/common/PageHeader';
 import { bffGet } from '@/lib/api/bffFetch';
 import { bffEndpoints } from '@/lib/api/endpoints';
 import { isHttpError } from '@/lib/api/error';
-import {
-  formatPhoneDisplay,
-  formatRegionDisplay,
-  MOCK_MY_PROFILE,
-} from '@/lib/mock/mypage';
+import { formatPhoneDisplay, formatRegionDisplay } from '@/lib/mock/mypage';
 import type { BffEnvelope, MeResponse } from '@/types/api';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
@@ -53,14 +49,6 @@ export default function MyPageClient() {
       } catch (err) {
         console.error('[mypage]', err);
         if (!cancelled) {
-          setProfile({
-            name: MOCK_MY_PROFILE.name,
-            nickname: MOCK_MY_PROFILE.nickname,
-            email: MOCK_MY_PROFILE.email,
-            phone: MOCK_MY_PROFILE.phone,
-            regionSido: MOCK_MY_PROFILE.regionSido,
-            regionSigungu: MOCK_MY_PROFILE.regionSigungu,
-          });
           const detail =
             isHttpError(err) && err.data && typeof err.data === 'object'
               ? String(
@@ -69,10 +57,7 @@ export default function MyPageClient() {
                     '',
                 )
               : '';
-          setError(
-            detail.trim() ||
-              '회원정보를 불러오지 못해 임시 데이터를 표시합니다.',
-          );
+          setError(detail.trim() || '회원정보를 불러오지 못했습니다.');
         }
       } finally {
         if (!cancelled) setLoading(false);
@@ -91,9 +76,9 @@ export default function MyPageClient() {
 
       <div className={styles.main}>
         {error ? <p className={styles.errorBanner}>{error}</p> : null}
-        {loading || !view ? (
+        {loading ? (
           <p className={styles.fieldNote}>불러오는 중…</p>
-        ) : (
+        ) : view ? (
           <>
             <div className={styles.rows}>
               <div className={styles.row}>
@@ -140,7 +125,7 @@ export default function MyPageClient() {
               회원정보 수정
             </Link>
           </>
-        )}
+        ) : null}
       </div>
 
       <FooterMenu />
