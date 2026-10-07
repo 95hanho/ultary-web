@@ -5,21 +5,17 @@ import type { FeedData } from '@/components/feed/Feed';
 import { bffGet } from '@/lib/api/bffFetch';
 import { bffEndpoints } from '@/lib/api/endpoints';
 import { toFeedData } from '@/lib/feed/toFeedData';
-import { MY_NICKNAME, myUltaryPath } from '@/lib/mock/ultary-accounts';
+import { MOCK_SAVED_FEEDS } from '@/lib/mock/feeds';
+import { getUltaryAccount, MY_NICKNAME, myUltaryPath } from '@/lib/mock/ultary-accounts';
 import { gridFeedIds } from '@/lib/myultary/fromApi';
+import { mapSearchUsers } from '@/lib/search/accounts';
 import type { BffEnvelope, MeResponse } from '@/types/api';
 import { useParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
 type FeedCollectionClientProps = {
-  /** 저장·태그 그리드. 항목은 cover만 있고 사진은 단건 상세에서 채운다 */
-  listEndpoint: string;
-  titleKind: 'saved' | 'tagged';
-  /** 내 계정이 아닐 때 (예시 울타리) */
-  mockFeeds?: FeedData[];
+  kind: 'pinned' | 'tagged';
 };
-
-const EMPTY_FEEDS: FeedData[] = [];
 
 async function loadFeedCards(ids: string[]): Promise<FeedData[]> {
   const details = await Promise.all(
@@ -30,12 +26,8 @@ async function loadFeedCards(ids: string[]): Promise<FeedData[]> {
   return details.map((res, i) => toFeedData(res.data, ids[i] ?? `feed-${i}`));
 }
 
-/** 저장·태그 그리드에서 들어온 게시글 리스트. 화면은 내 게시글 페이지와 같다 */
-export function FeedCollectionClient({
-  listEndpoint,
-  titleKind,
-  mockFeeds = EMPTY_FEEDS,
-}: FeedCollectionClientProps) {
+/** 고정·태그 그리드에서 들어온 게시글 리스트 */
+export function FeedCollectionClient({ kind }: FeedCollectionClientProps) {
   const params = useParams<{ nickname: string; id: string }>();
   const nicknameParam =
     typeof params.nickname === 'string' ? params.nickname : params.nickname?.[0];
@@ -50,16 +42,48 @@ export function FeedCollectionClient({
 
     (async () => {
       try {
+        const mockAccount = getUltaryAccount(nickname);
+        if (mockAccount && !mockAccount.isOwnAccount) {
+          if (!cancelled) {
+            setOwnerName(mockAccount.nickname);
+            setFeeds(kind === 'pinned' ? MOCK_SAVED_FEEDS : []);
+          }
+          return;
+        }
+
         const meRes = await bffGet<BffEnvelope<MeResponse>>(bffEndpoints.auth.me);
         const meNick = meRes.data?.nickname?.trim() ?? '';
         const isMine = nickname === MY_NICKNAME || (meNick !== '' && nickname === meNick);
         if (!cancelled) setOwnerName(isMine && meNick ? meNick : nickname);
-        if (!isMine) {
-          if (!cancelled) setFeeds(mockFeeds);
-          return;
+
+        let listRes: BffEnvelope<unknown>;
+        if (isMine) {
+          listRes = await bffGet<BffEnvelope<unknown>>(
+            kind === 'pinned'
+              ? bffEndpoints.myUltary.pinnedFeeds
+              : bffEndpoints.myUltary.taggedFeeds,
+            { limit: 50 },
+          );
+        } else {
+          const searchRes = await bffGet<BffEnvelope<unknown>>(bffEndpoints.main.search, {
+            q: nickname,
+            type: 'USER',
+          });
+          const matched = mapSearchUsers(searchRes.data).find(
+            (user) => user.nickname === nickname && user.userNo != null,
+          );
+          if (!matched?.userNo) {
+            if (!cancelled) setFeeds([]);
+            return;
+          }
+          listRes = await bffGet<BffEnvelope<unknown>>(
+            kind === 'pinned'
+              ? bffEndpoints.users.pinnedFeeds
+              : bffEndpoints.users.taggedFeeds,
+            { userNo: matched.userNo, limit: 50 },
+          );
         }
 
-        const listRes = await bffGet<BffEnvelope<unknown>>(listEndpoint, { limit: 50 });
         const ids = gridFeedIds(listRes.data);
         const next = ids.length > 0 ? await loadFeedCards(ids) : [];
         if (!cancelled) setFeeds(next);
@@ -72,21 +96,21 @@ export function FeedCollectionClient({
     return () => {
       cancelled = true;
     };
-  }, [listEndpoint, mockFeeds, nickname]);
+  }, [kind, nickname]);
 
   return (
     <FeedListPage
       title={
-        titleKind === 'tagged'
+        kind === 'tagged'
           ? '태그된 피드'
           : ownerName
-            ? `${ownerName}님의 저장된 피드`
+            ? `${ownerName}님의 고정 피드`
             : ''
       }
       backHref={myUltaryPath(nickname)}
       feeds={feeds}
       focusId={postId}
-      showAuthor={titleKind === 'tagged'}
+      showAuthor={kind === 'tagged'}
     />
   );
 }

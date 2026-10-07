@@ -27,7 +27,7 @@ export function HashtagResultList({
       aria-label="해시태그 검색 결과"
     >
       {items.map((item) => (
-        <li key={item.tag} className={styles.item} role="option">
+        <li key={item.tagId ?? item.tag} className={styles.item} role="option">
           <button
             type="button"
             className={clsx(

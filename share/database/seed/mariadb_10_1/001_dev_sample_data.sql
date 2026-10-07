@@ -4,14 +4,15 @@
 -- 재실행: CLEANUP 후 INSERT (그대로 다시 실행 가능).
 --
 -- CDN (Cafe24): https://ehfqntuqntu.cdn1.cafe24.com/ultary/{filename}
---   profile.jpg ~ profile5.png 은 모두 펫 프로필. profile.jpg=pet 108, profile2=pet 109
---   post.jpg, post2~4, post6 (기존 피드) + post5, post7~post15 (추가 피드, 구경 계정 제외)
---   story.png ~ story10.png (스토리 10)
---   goods.png, goods2.png (태그/상품 2)
+--   profile.jpg ~ profile9.png 은 모두 펫 프로필. profile.jpg=pet 108, profile2=pet 109, profile6~9=초코·멍이·나비·코코
+--   post.jpg, post2~4, post6 (기존 피드) + post5, post7~post30 (추가 피드, 구경 계정 제외)
+--   story.png ~ story16.png (스토리 16)
+--   goods.png, goods2.png, goods3~goods12 (태그/상품 12. goods3~12는 상품 그리드 왼쪽→오른쪽)
+--   상품 사진을 게시글에 다시 쓸 때는 file 행을 새로 만든다. file_id 하나는 태그·게시글·스토리 중 한 곳에만 연결
 --
--- 시드: user 101~105 / pet 101~109 / file 110~151 (CDN만. 로컬 업로드 파일은 재실행 시 삭제)
+-- 시드: user 101~105, 광고 전용 106~108 / pet 101~109 / file 110~224 (CDN만. 로컬 업로드 파일은 재실행 시 삭제)
 --       구경 계정 user 201~220 (피드·펫 없음, 비밀번호 Test1234!)
---       feed 101~113 (104~113은 post5·post7~15, 유저 101~105 각 2건) / story 101~110 / tag 101~103
+--       feed 101~158 (129~158은 상품 광고·후기. 같은 CDN을 file 행만 나눠 씀) / story 101~116 / tag 101~117
 --       피드·댓글·답글 좋아요는 구경 계정이 기존 글에 무작위로 누른 값
 --       주민 102·103 스토리 각 4개 (링 테스트용 viewedByMe)
 --       neighbor: 101→102·103 ACCEPTED, 105→101 ACCEPTED, 104→101 PENDING
@@ -30,39 +31,39 @@ SET FOREIGN_KEY_CHECKS = 0;
 DELETE FROM `ultary_dm_message`
 WHERE `dm_message_id` BETWEEN 101 AND 112
    OR `dm_room_id` BETWEEN 101 AND 103
-   OR `sender_user_no` IN (101, 102, 103, 104, 105);
+   OR `sender_user_no` IN (101, 102, 103, 104, 105, 106, 107, 108);
 
 DELETE FROM `ultary_dm_room`
 WHERE `dm_room_id` BETWEEN 101 AND 103
-   OR `user_low` IN (101, 102, 103, 104, 105)
-   OR `user_high` IN (101, 102, 103, 104, 105);
+   OR `user_low` IN (101, 102, 103, 104, 105, 106, 107, 108)
+   OR `user_high` IN (101, 102, 103, 104, 105, 106, 107, 108);
 
 DELETE FROM `ultary_notification`
-WHERE `receiver_user_no` IN (1, 2, 101, 102, 103, 104, 105)
-   OR `actor_user_no` IN (1, 2, 101, 102, 103, 104, 105)
+WHERE `receiver_user_no` IN (1, 2, 101, 102, 103, 104, 105, 106, 107, 108)
+   OR `actor_user_no` IN (1, 2, 101, 102, 103, 104, 105, 106, 107, 108)
    OR `notification_id` BETWEEN 1001 AND 1099;
 
 DELETE FROM `ultary_story_view`
-WHERE `viewer_user_no` IN (1, 2, 101, 102, 103, 104, 105)
-   OR `story_id` BETWEEN 101 AND 110
+WHERE `viewer_user_no` IN (1, 2, 101, 102, 103, 104, 105, 106, 107, 108)
+   OR `story_id` BETWEEN 101 AND 116
    OR `story_id` IN (1);
 
 DELETE FROM `ultary_story`
-WHERE `user_no` IN (1, 2, 101, 102, 103, 104, 105)
-   OR `story_id` BETWEEN 101 AND 110
+WHERE `user_no` IN (1, 2, 101, 102, 103, 104, 105, 106, 107, 108)
+   OR `story_id` BETWEEN 101 AND 116
    OR `story_id` IN (1)
-   OR `file_id` BETWEEN 100 AND 159
+   OR `file_id` BETWEEN 100 AND 299
    OR `file_id` IN (SELECT `file_id` FROM `ultary_file` WHERE `file_path` NOT LIKE 'https://ehfqntuqntu.cdn1.cafe24.com/%')
    OR `thumbnail_file_id` IN (SELECT `file_id` FROM `ultary_file` WHERE `file_path` NOT LIKE 'https://ehfqntuqntu.cdn1.cafe24.com/%');
 
 DELETE FROM `ultary_feed_comment_like`
-WHERE `user_no` IN (1, 2, 101, 102, 103, 104, 105)
+WHERE `user_no` IN (1, 2, 101, 102, 103, 104, 105, 106, 107, 108)
    OR `user_no` BETWEEN 201 AND 220
    OR `feed_comment_id` IN (1, 101)
    OR `feed_comment_id` BETWEEN 201 AND 220;
 
 DELETE FROM `ultary_feed_reply_like`
-WHERE `user_no` IN (1, 2, 101, 102, 103, 104, 105)
+WHERE `user_no` IN (1, 2, 101, 102, 103, 104, 105, 106, 107, 108)
    OR `user_no` BETWEEN 201 AND 220
    OR `feed_reply_id` IN (1, 101)
    OR `feed_reply_id` BETWEEN 201 AND 220;
@@ -72,14 +73,14 @@ WHERE `feed_comment_id` IN (1, 101)
    OR `feed_comment_id` BETWEEN 201 AND 220
    OR `feed_reply_id` IN (1, 101)
    OR `feed_reply_id` BETWEEN 201 AND 220
-   OR `mentioned_user_no` IN (1, 2, 101, 102, 103, 104, 105)
+   OR `mentioned_user_no` IN (1, 2, 101, 102, 103, 104, 105, 106, 107, 108)
    OR `mentioned_user_no` BETWEEN 201 AND 220
    OR `mentioned_pet_id` IN (1, 2, 101, 102, 103, 104, 105, 106, 107)
    OR `feed_comment_mention_id` IN (1, 2, 3, 101, 102, 103)
    OR `feed_comment_mention_id` BETWEEN 201 AND 220;
 
 DELETE FROM `ultary_feed_reply`
-WHERE `user_no` IN (1, 2, 101, 102, 103, 104, 105)
+WHERE `user_no` IN (1, 2, 101, 102, 103, 104, 105, 106, 107, 108)
    OR `user_no` BETWEEN 201 AND 220
    OR `feed_reply_id` IN (1, 101)
    OR `feed_reply_id` BETWEEN 201 AND 220
@@ -87,80 +88,89 @@ WHERE `user_no` IN (1, 2, 101, 102, 103, 104, 105)
    OR `feed_comment_id` BETWEEN 201 AND 220;
 
 DELETE FROM `ultary_feed_comment`
-WHERE `user_no` IN (1, 2, 101, 102, 103, 104, 105)
+WHERE `user_no` IN (1, 2, 101, 102, 103, 104, 105, 106, 107, 108)
    OR `feed_comment_id` IN (1, 101)
    OR `feed_id` IN (1, 2, 101, 102, 103);
 
-DELETE FROM `ultary_feed_store`
-WHERE `user_no` IN (1, 2, 101, 102, 103, 104, 105)
+DELETE FROM `ultary_feed_save`
+WHERE `user_no` IN (1, 2, 101, 102, 103, 104, 105, 106, 107, 108)
+   OR `feed_id` IN (1, 2, 101, 102, 103);
+
+DELETE FROM `ultary_feed_pin`
+WHERE `user_no` IN (1, 2, 101, 102, 103, 104, 105, 106, 107, 108)
    OR `feed_id` IN (1, 2, 101, 102, 103);
 
 DELETE FROM `ultary_feed_like`
-WHERE `user_no` IN (1, 2, 101, 102, 103, 104, 105)
+WHERE `user_no` IN (1, 2, 101, 102, 103, 104, 105, 106, 107, 108)
    OR `user_no` BETWEEN 201 AND 220
    OR `feed_id` IN (1, 2, 101, 102, 103);
 
 DELETE FROM `ultary_feed_tag`
 WHERE `feed_id` IN (1, 2, 101, 102, 103)
-   OR `tag_id` IN (1, 2, 3, 101, 102, 103);
+   OR `feed_id` BETWEEN 104 AND 158
+   OR `tag_id` IN (1, 2, 3, 101, 102, 103)
+   OR `tag_id` BETWEEN 104 AND 130;
 
 DELETE FROM `ultary_tag_image`
 WHERE `tag_id` IN (1, 2, 3, 101, 102, 103)
-   OR `file_id` BETWEEN 100 AND 159
+   OR `file_id` BETWEEN 100 AND 299
    OR `file_id` IN (SELECT `file_id` FROM `ultary_file` WHERE `file_path` NOT LIKE 'https://ehfqntuqntu.cdn1.cafe24.com/%');
 
 DELETE FROM `ultary_feed_media_mention`
 WHERE `feed_media_id` IN (1, 2, 3, 101, 102, 103, 104, 105)
    OR `pet_id` IN (1, 2, 101, 102, 103, 104, 105, 106, 107)
-   OR `added_by_user_no` IN (1, 2, 101, 102, 103, 104, 105);
+   OR `added_by_user_no` IN (1, 2, 101, 102, 103, 104, 105, 106, 107, 108);
 
 DELETE FROM `ultary_feed_media`
 WHERE `feed_id` IN (1, 2, 101, 102, 103)
-   OR `file_id` BETWEEN 100 AND 159
-   OR `thumbnail_file_id` BETWEEN 100 AND 159
+   OR `file_id` BETWEEN 100 AND 299
+   OR `thumbnail_file_id` BETWEEN 100 AND 299
    OR `file_id` IN (SELECT `file_id` FROM `ultary_file` WHERE `file_path` NOT LIKE 'https://ehfqntuqntu.cdn1.cafe24.com/%')
    OR `thumbnail_file_id` IN (SELECT `file_id` FROM `ultary_file` WHERE `file_path` NOT LIKE 'https://ehfqntuqntu.cdn1.cafe24.com/%');
 
 DELETE FROM `ultary_feed_pet`
 WHERE `feed_id` IN (1, 2, 101, 102, 103)
    OR `pet_id` IN (1, 2, 101, 102, 103, 104, 105, 106, 107)
-   OR `added_by_user_no` IN (1, 2, 101, 102, 103, 104, 105);
+   OR `added_by_user_no` IN (1, 2, 101, 102, 103, 104, 105, 106, 107, 108);
 
 DELETE FROM `ultary_feed`
-WHERE `user_no` IN (1, 2, 101, 102, 103, 104, 105)
+WHERE `user_no` IN (1, 2, 101, 102, 103, 104, 105, 106, 107, 108)
    OR `feed_id` IN (1, 2, 101, 102, 103);
 
 DELETE FROM `ultary_user_block`
-WHERE `blocker_user_no` IN (1, 2, 101, 102, 103, 104, 105)
-   OR `blocked_user_no` IN (1, 2, 101, 102, 103, 104, 105);
+WHERE `blocker_user_no` IN (1, 2, 101, 102, 103, 104, 105, 106, 107, 108)
+   OR `blocked_user_no` IN (1, 2, 101, 102, 103, 104, 105, 106, 107, 108);
 
 DELETE FROM `ultary_neighbor`
 WHERE `neighbor_id` IN (1, 101, 102, 103, 104, 105)
-   OR `requester_user_no` IN (1, 2, 101, 102, 103, 104, 105)
-   OR `receiver_user_no` IN (1, 2, 101, 102, 103, 104, 105);
+   OR `requester_user_no` IN (1, 2, 101, 102, 103, 104, 105, 106, 107, 108)
+   OR `receiver_user_no` IN (1, 2, 101, 102, 103, 104, 105, 106, 107, 108);
 
 DELETE FROM `ultary_tag`
 WHERE `tag_id` IN (1, 2, 3, 101, 102, 103)
-   OR `created_by_user_no` IN (1, 2, 101, 102, 103, 104, 105)
+   OR `created_by_user_no` IN (1, 2, 101, 102, 103, 104, 105, 106, 107, 108)
    OR `handle` IN ('royal_canin_01');
 
+DELETE FROM `ultary_user_privacy`
+WHERE `user_no` IN (1, 2, 101, 102, 103, 104, 105, 106, 107, 108);
+
 DELETE FROM `ultary_pet`
-WHERE `user_no` IN (1, 2, 101, 102, 103, 104, 105)
+WHERE `user_no` IN (1, 2, 101, 102, 103, 104, 105, 106, 107, 108)
    OR `pet_id` IN (1, 2, 101, 102, 103, 104, 105, 106, 107)
    OR `mention_id` IN ('choco_01', 'nabi_01', 'mung_01', 'coco_01', 'tori_01', 'kong_01', 'bori_01', 'dal_01', 'momo_01');
 
 DELETE FROM `ultary_token`
-WHERE `user_no` IN (1, 2, 101, 102, 103, 104, 105)
+WHERE `user_no` IN (1, 2, 101, 102, 103, 104, 105, 106, 107, 108)
    OR `user_no` BETWEEN 201 AND 220;
 
 DELETE FROM `ultary_user_search_history`
-WHERE `user_no` IN (1, 2, 101, 102, 103, 104, 105)
+WHERE `user_no` IN (1, 2, 101, 102, 103, 104, 105, 106, 107, 108)
    OR `user_no` BETWEEN 201 AND 220
-   OR `target_user_no` IN (1, 2, 101, 102, 103, 104, 105)
+   OR `target_user_no` IN (1, 2, 101, 102, 103, 104, 105, 106, 107, 108)
    OR `target_user_no` BETWEEN 201 AND 220;
 
 DELETE FROM `ultary_user_social`
-WHERE `user_no` IN (1, 2, 101, 102, 103, 104, 105)
+WHERE `user_no` IN (1, 2, 101, 102, 103, 104, 105, 106, 107, 108)
    OR `user_no` BETWEEN 201 AND 220
    OR `provider_user_id` IN (
      'google-seed-user-001',
@@ -169,12 +179,15 @@ WHERE `user_no` IN (1, 2, 101, 102, 103, 104, 105)
      'kakao-seed-neighbor-102',
      'google-seed-user-103',
      'google-seed-user-104',
-     'kakao-seed-user-105'
+     'kakao-seed-user-105',
+     'google-seed-ad-106',
+     'google-seed-ad-107',
+     'google-seed-ad-108'
    )
    OR `provider_user_id` LIKE 'google-seed-viewer-%';
 
 DELETE FROM `ultary_file`
-WHERE `file_id` BETWEEN 100 AND 159
+WHERE `file_id` BETWEEN 100 AND 299
    OR `file_path` NOT LIKE 'https://ehfqntuqntu.cdn1.cafe24.com/%'
    OR `store_name` IN (
      'profile.jpg', 'profile2.png', 'profile3.png', 'profile4.png', 'profile5.png',
@@ -192,7 +205,7 @@ WHERE `file_id` BETWEEN 100 AND 159
    );
 
 DELETE FROM `ultary_user`
-WHERE `user_no` IN (1, 2, 101, 102, 103, 104, 105)
+WHERE `user_no` IN (1, 2, 101, 102, 103, 104, 105, 106, 107, 108)
    OR `user_no` BETWEEN 201 AND 220
    OR `email` IN (
      'seed.dog@example.com',
@@ -201,7 +214,10 @@ WHERE `user_no` IN (1, 2, 101, 102, 103, 104, 105)
      'seed.neighbor@example.com',
      'seed.u103@example.com',
      'seed.u104@example.com',
-     'seed.u105@example.com'
+     'seed.u105@example.com',
+     'seed.ad106@example.com',
+     'seed.ad107@example.com',
+     'seed.ad108@example.com'
    )
    OR `email` LIKE 'viewer2%@example.com'
    OR `nickname` IN (
@@ -210,7 +226,8 @@ WHERE `user_no` IN (1, 2, 101, 102, 103, 104, 105)
      '구경꾼', '산책손님', '냥덕후', '강아지팬', '한강러',
      '공원지기', '간식러', '냥집사', '멍멍이', '냥냥이',
      '구름이', '바람돌', '달빛', '별빛', '풀잎',
-     '모래알', '하늘색', '노을빛', '아침이슬', '저녁노을'
+     '모래알', '하늘색', '노을빛', '아침이슬', '저녁노을',
+     '펫샵', '용품몰', '산책샵'
    );
 
 SET FOREIGN_KEY_CHECKS = 1;
@@ -287,7 +304,24 @@ INSERT INTO `ultary_user_social` (
 (219, 'GOOGLE', 'google-seed-viewer-219', 'viewer219@example.com'),
 (220, 'GOOGLE', 'google-seed-viewer-220', 'viewer220@example.com');
 
--- ---------- CDN 파일 22개 ----------
+-- ---------- 광고 전용 계정 3명 (상품 글만. 비밀번호: {noop}Test1234!) ----------
+INSERT INTO `ultary_user` (
+  `user_no`, `password`, `name`, `nickname`, `nickname_changed_at`,
+  `is_default_nickname`, `email`, `phone`, `bio`,
+  `region_sido`, `region_sigungu`, `withdrawal_status`
+) VALUES
+(106, '{noop}Test1234!', '한빛', '펫샵',   NOW(), 0, 'seed.ad106@example.com', '01010600106', '상품 광고만 올리는 계정', '서울특별시', '마포구', 'ACTIVE'),
+(107, '{noop}Test1234!', '도윤', '용품몰', NOW(), 0, 'seed.ad107@example.com', '01010700107', '상품 광고만 올리는 계정', '경기도', '성남시', 'ACTIVE'),
+(108, '{noop}Test1234!', '서준', '산책샵', NOW(), 0, 'seed.ad108@example.com', '01010800108', '상품 광고만 올리는 계정', '부산광역시', '해운대구', 'ACTIVE');
+
+INSERT INTO `ultary_user_social` (
+  `user_no`, `provider`, `provider_user_id`, `provider_email`
+) VALUES
+(106, 'GOOGLE', 'google-seed-ad-106', 'seed.ad106@example.com'),
+(107, 'GOOGLE', 'google-seed-ad-107', 'seed.ad107@example.com'),
+(108, 'GOOGLE', 'google-seed-ad-108', 'seed.ad108@example.com');
+
+-- ---------- CDN 파일 (profile 9, post 15+15, story 16, goods 2) ----------
 -- file_path = 절대 URL (FE가 그대로 표시). source_type=OWNED (Cafe24 CDN 테스트 자산)
 INSERT INTO `ultary_file` (
   `file_id`, `original_name`, `store_name`, `extension`, `mime_type`,
@@ -329,17 +363,87 @@ INSERT INTO `ultary_file` (
 (139, 'story10.png', 'story10.png', 'png', 'image/png', 0, 'https://ehfqntuqntu.cdn1.cafe24.com/ultary/story10.png', 'OWNED', 103, NOW(), 0),
 -- 태그/상품 140~141
 (140, 'goods.png',  'goods.png',  'png', 'image/png', 0, 'https://ehfqntuqntu.cdn1.cafe24.com/ultary/goods.png',  'OWNED', 101, NOW(), 0),
-(141, 'goods2.png', 'goods2.png', 'png', 'image/png', 0, 'https://ehfqntuqntu.cdn1.cafe24.com/ultary/goods2.png', 'OWNED', 102, NOW(), 0);
+(141, 'goods2.png', 'goods2.png', 'png', 'image/png', 0, 'https://ehfqntuqntu.cdn1.cafe24.com/ultary/goods2.png', 'OWNED', 102, NOW(), 0),
+-- 펫 프로필 추가 profile6~9 (초코·멍이·나비·코코)
+(160, 'profile6.png', 'profile6.png', 'png', 'image/png', 0, 'https://ehfqntuqntu.cdn1.cafe24.com/ultary/profile6.png', 'OWNED', 101, NOW(), 0),
+(161, 'profile7.png', 'profile7.png', 'png', 'image/png', 0, 'https://ehfqntuqntu.cdn1.cafe24.com/ultary/profile7.png', 'OWNED', 101, NOW(), 0),
+(162, 'profile8.png', 'profile8.png', 'png', 'image/png', 0, 'https://ehfqntuqntu.cdn1.cafe24.com/ultary/profile8.png', 'OWNED', 102, NOW(), 0),
+(163, 'profile9.png', 'profile9.png', 'png', 'image/png', 0, 'https://ehfqntuqntu.cdn1.cafe24.com/ultary/profile9.png', 'OWNED', 103, NOW(), 0),
+-- 피드 post16~30
+(164, 'post16.png', 'post16.png', 'png', 'image/png', 0, 'https://ehfqntuqntu.cdn1.cafe24.com/ultary/post16.png', 'OWNED', 101, NOW(), 0),
+(165, 'post17.png', 'post17.png', 'png', 'image/png', 0, 'https://ehfqntuqntu.cdn1.cafe24.com/ultary/post17.png', 'OWNED', 101, NOW(), 0),
+(166, 'post18.png', 'post18.png', 'png', 'image/png', 0, 'https://ehfqntuqntu.cdn1.cafe24.com/ultary/post18.png', 'OWNED', 101, NOW(), 0),
+(167, 'post19.png', 'post19.png', 'png', 'image/png', 0, 'https://ehfqntuqntu.cdn1.cafe24.com/ultary/post19.png', 'OWNED', 102, NOW(), 0),
+(168, 'post20.png', 'post20.png', 'png', 'image/png', 0, 'https://ehfqntuqntu.cdn1.cafe24.com/ultary/post20.png', 'OWNED', 102, NOW(), 0),
+(169, 'post21.png', 'post21.png', 'png', 'image/png', 0, 'https://ehfqntuqntu.cdn1.cafe24.com/ultary/post21.png', 'OWNED', 102, NOW(), 0),
+(170, 'post22.png', 'post22.png', 'png', 'image/png', 0, 'https://ehfqntuqntu.cdn1.cafe24.com/ultary/post22.png', 'OWNED', 103, NOW(), 0),
+(171, 'post23.png', 'post23.png', 'png', 'image/png', 0, 'https://ehfqntuqntu.cdn1.cafe24.com/ultary/post23.png', 'OWNED', 103, NOW(), 0),
+(172, 'post24.png', 'post24.png', 'png', 'image/png', 0, 'https://ehfqntuqntu.cdn1.cafe24.com/ultary/post24.png', 'OWNED', 103, NOW(), 0),
+(173, 'post25.png', 'post25.png', 'png', 'image/png', 0, 'https://ehfqntuqntu.cdn1.cafe24.com/ultary/post25.png', 'OWNED', 104, NOW(), 0),
+(174, 'post26.png', 'post26.png', 'png', 'image/png', 0, 'https://ehfqntuqntu.cdn1.cafe24.com/ultary/post26.png', 'OWNED', 104, NOW(), 0),
+(175, 'post27.png', 'post27.png', 'png', 'image/png', 0, 'https://ehfqntuqntu.cdn1.cafe24.com/ultary/post27.png', 'OWNED', 104, NOW(), 0),
+(176, 'post28.png', 'post28.png', 'png', 'image/png', 0, 'https://ehfqntuqntu.cdn1.cafe24.com/ultary/post28.png', 'OWNED', 105, NOW(), 0),
+(177, 'post29.png', 'post29.png', 'png', 'image/png', 0, 'https://ehfqntuqntu.cdn1.cafe24.com/ultary/post29.png', 'OWNED', 105, NOW(), 0),
+(178, 'post30.png', 'post30.png', 'png', 'image/png', 0, 'https://ehfqntuqntu.cdn1.cafe24.com/ultary/post30.png', 'OWNED', 105, NOW(), 0),
+-- 스토리 story11~16
+(179, 'story11.png', 'story11.png', 'png', 'image/png', 0, 'https://ehfqntuqntu.cdn1.cafe24.com/ultary/story11.png', 'OWNED', 101, NOW(), 0),
+(180, 'story12.png', 'story12.png', 'png', 'image/png', 0, 'https://ehfqntuqntu.cdn1.cafe24.com/ultary/story12.png', 'OWNED', 101, NOW(), 0),
+(181, 'story13.png', 'story13.png', 'png', 'image/png', 0, 'https://ehfqntuqntu.cdn1.cafe24.com/ultary/story13.png', 'OWNED', 104, NOW(), 0),
+(182, 'story14.png', 'story14.png', 'png', 'image/png', 0, 'https://ehfqntuqntu.cdn1.cafe24.com/ultary/story14.png', 'OWNED', 104, NOW(), 0),
+(183, 'story15.png', 'story15.png', 'png', 'image/png', 0, 'https://ehfqntuqntu.cdn1.cafe24.com/ultary/story15.png', 'OWNED', 105, NOW(), 0),
+(184, 'story16.png', 'story16.png', 'png', 'image/png', 0, 'https://ehfqntuqntu.cdn1.cafe24.com/ultary/story16.png', 'OWNED', 105, NOW(), 0),
+-- 상품 goods3~12 (그리드 왼쪽→오른쪽, 위→아래)
+(185, 'goods3.png',  'goods3.png',  'png', 'image/png', 0, 'https://ehfqntuqntu.cdn1.cafe24.com/ultary/goods3.png',  'OWNED', 101, NOW(), 0),
+(186, 'goods4.png',  'goods4.png',  'png', 'image/png', 0, 'https://ehfqntuqntu.cdn1.cafe24.com/ultary/goods4.png',  'OWNED', 101, NOW(), 0),
+(187, 'goods5.png',  'goods5.png',  'png', 'image/png', 0, 'https://ehfqntuqntu.cdn1.cafe24.com/ultary/goods5.png',  'OWNED', 101, NOW(), 0),
+(188, 'goods6.png',  'goods6.png',  'png', 'image/png', 0, 'https://ehfqntuqntu.cdn1.cafe24.com/ultary/goods6.png',  'OWNED', 101, NOW(), 0),
+(189, 'goods7.png',  'goods7.png',  'png', 'image/png', 0, 'https://ehfqntuqntu.cdn1.cafe24.com/ultary/goods7.png',  'OWNED', 101, NOW(), 0),
+(190, 'goods8.png',  'goods8.png',  'png', 'image/png', 0, 'https://ehfqntuqntu.cdn1.cafe24.com/ultary/goods8.png',  'OWNED', 101, NOW(), 0),
+(191, 'goods9.png',  'goods9.png',  'png', 'image/png', 0, 'https://ehfqntuqntu.cdn1.cafe24.com/ultary/goods9.png',  'OWNED', 101, NOW(), 0),
+(192, 'goods10.png', 'goods10.png', 'png', 'image/png', 0, 'https://ehfqntuqntu.cdn1.cafe24.com/ultary/goods10.png', 'OWNED', 101, NOW(), 0),
+(193, 'goods11.png', 'goods11.png', 'png', 'image/png', 0, 'https://ehfqntuqntu.cdn1.cafe24.com/ultary/goods11.png', 'OWNED', 101, NOW(), 0),
+(194, 'goods12.png', 'goods12.png', 'png', 'image/png', 0, 'https://ehfqntuqntu.cdn1.cafe24.com/ultary/goods12.png', 'OWNED', 101, NOW(), 0),
+-- 상품 사진을 게시글에 다시 씀. URL은 goods3~12와 같고 file_id만 새로 둔다 (195~224, 글 129~158과 1:1)
+(195, 'goods3.png',  'goods3.png',  'png', 'image/png', 0, 'https://ehfqntuqntu.cdn1.cafe24.com/ultary/goods3.png',  'OWNED', 106, NOW(), 0),
+(196, 'goods3.png',  'goods3.png',  'png', 'image/png', 0, 'https://ehfqntuqntu.cdn1.cafe24.com/ultary/goods3.png',  'OWNED', 107, NOW(), 0),
+(197, 'goods3.png',  'goods3.png',  'png', 'image/png', 0, 'https://ehfqntuqntu.cdn1.cafe24.com/ultary/goods3.png',  'OWNED', 101, NOW(), 0),
+(198, 'goods4.png',  'goods4.png',  'png', 'image/png', 0, 'https://ehfqntuqntu.cdn1.cafe24.com/ultary/goods4.png',  'OWNED', 108, NOW(), 0),
+(199, 'goods4.png',  'goods4.png',  'png', 'image/png', 0, 'https://ehfqntuqntu.cdn1.cafe24.com/ultary/goods4.png',  'OWNED', 106, NOW(), 0),
+(200, 'goods4.png',  'goods4.png',  'png', 'image/png', 0, 'https://ehfqntuqntu.cdn1.cafe24.com/ultary/goods4.png',  'OWNED', 102, NOW(), 0),
+(201, 'goods5.png',  'goods5.png',  'png', 'image/png', 0, 'https://ehfqntuqntu.cdn1.cafe24.com/ultary/goods5.png',  'OWNED', 107, NOW(), 0),
+(202, 'goods5.png',  'goods5.png',  'png', 'image/png', 0, 'https://ehfqntuqntu.cdn1.cafe24.com/ultary/goods5.png',  'OWNED', 108, NOW(), 0),
+(203, 'goods5.png',  'goods5.png',  'png', 'image/png', 0, 'https://ehfqntuqntu.cdn1.cafe24.com/ultary/goods5.png',  'OWNED', 103, NOW(), 0),
+(204, 'goods6.png',  'goods6.png',  'png', 'image/png', 0, 'https://ehfqntuqntu.cdn1.cafe24.com/ultary/goods6.png',  'OWNED', 106, NOW(), 0),
+(205, 'goods6.png',  'goods6.png',  'png', 'image/png', 0, 'https://ehfqntuqntu.cdn1.cafe24.com/ultary/goods6.png',  'OWNED', 107, NOW(), 0),
+(206, 'goods6.png',  'goods6.png',  'png', 'image/png', 0, 'https://ehfqntuqntu.cdn1.cafe24.com/ultary/goods6.png',  'OWNED', 101, NOW(), 0),
+(207, 'goods7.png',  'goods7.png',  'png', 'image/png', 0, 'https://ehfqntuqntu.cdn1.cafe24.com/ultary/goods7.png',  'OWNED', 108, NOW(), 0),
+(208, 'goods7.png',  'goods7.png',  'png', 'image/png', 0, 'https://ehfqntuqntu.cdn1.cafe24.com/ultary/goods7.png',  'OWNED', 106, NOW(), 0),
+(209, 'goods7.png',  'goods7.png',  'png', 'image/png', 0, 'https://ehfqntuqntu.cdn1.cafe24.com/ultary/goods7.png',  'OWNED', 104, NOW(), 0),
+(210, 'goods8.png',  'goods8.png',  'png', 'image/png', 0, 'https://ehfqntuqntu.cdn1.cafe24.com/ultary/goods8.png',  'OWNED', 107, NOW(), 0),
+(211, 'goods8.png',  'goods8.png',  'png', 'image/png', 0, 'https://ehfqntuqntu.cdn1.cafe24.com/ultary/goods8.png',  'OWNED', 108, NOW(), 0),
+(212, 'goods8.png',  'goods8.png',  'png', 'image/png', 0, 'https://ehfqntuqntu.cdn1.cafe24.com/ultary/goods8.png',  'OWNED', 102, NOW(), 0),
+(213, 'goods9.png',  'goods9.png',  'png', 'image/png', 0, 'https://ehfqntuqntu.cdn1.cafe24.com/ultary/goods9.png',  'OWNED', 106, NOW(), 0),
+(214, 'goods9.png',  'goods9.png',  'png', 'image/png', 0, 'https://ehfqntuqntu.cdn1.cafe24.com/ultary/goods9.png',  'OWNED', 107, NOW(), 0),
+(215, 'goods9.png',  'goods9.png',  'png', 'image/png', 0, 'https://ehfqntuqntu.cdn1.cafe24.com/ultary/goods9.png',  'OWNED', 105, NOW(), 0),
+(216, 'goods10.png', 'goods10.png', 'png', 'image/png', 0, 'https://ehfqntuqntu.cdn1.cafe24.com/ultary/goods10.png', 'OWNED', 108, NOW(), 0),
+(217, 'goods10.png', 'goods10.png', 'png', 'image/png', 0, 'https://ehfqntuqntu.cdn1.cafe24.com/ultary/goods10.png', 'OWNED', 106, NOW(), 0),
+(218, 'goods10.png', 'goods10.png', 'png', 'image/png', 0, 'https://ehfqntuqntu.cdn1.cafe24.com/ultary/goods10.png', 'OWNED', 103, NOW(), 0),
+(219, 'goods11.png', 'goods11.png', 'png', 'image/png', 0, 'https://ehfqntuqntu.cdn1.cafe24.com/ultary/goods11.png', 'OWNED', 107, NOW(), 0),
+(220, 'goods11.png', 'goods11.png', 'png', 'image/png', 0, 'https://ehfqntuqntu.cdn1.cafe24.com/ultary/goods11.png', 'OWNED', 108, NOW(), 0),
+(221, 'goods11.png', 'goods11.png', 'png', 'image/png', 0, 'https://ehfqntuqntu.cdn1.cafe24.com/ultary/goods11.png', 'OWNED', 104, NOW(), 0),
+(222, 'goods12.png', 'goods12.png', 'png', 'image/png', 0, 'https://ehfqntuqntu.cdn1.cafe24.com/ultary/goods12.png', 'OWNED', 106, NOW(), 0),
+(223, 'goods12.png', 'goods12.png', 'png', 'image/png', 0, 'https://ehfqntuqntu.cdn1.cafe24.com/ultary/goods12.png', 'OWNED', 107, NOW(), 0),
+(224, 'goods12.png', 'goods12.png', 'png', 'image/png', 0, 'https://ehfqntuqntu.cdn1.cafe24.com/ultary/goods12.png', 'OWNED', 105, NOW(), 0);
 
 -- ---------- 반려동물 (priority 작을수록 우선. 유저 표시 사진은 그중 프로필 있는 첫 펫) ----------
 INSERT INTO `ultary_pet` (
   `pet_id`, `user_no`, `mention_id`, `mention_id_changed_at`, `name`,
   `species`, `breed`, `gender`, `is_neutered`, `birthday`, `profile_file_id`, `priority`, `bio`
 ) VALUES
-(101, 101, 'choco_01', NOW(), '초코', 'DOG', '푸들', 'MALE', 1, '2020-05-01 00:00:00', 120, 1, '산책 좋아함'),
-(102, 101, 'mung_01', NOW(), '멍이', 'DOG', '말티즈', 'FEMALE', 0, '2022-01-10 00:00:00', 121, 2, '집돌이'),
-(103, 102, 'nabi_01', NOW(), '나비', 'CAT', '코리안숏헤어', 'FEMALE', 1, '2021-03-15 00:00:00', 122, 1, '캣타워 점령 중'),
-(104, 103, 'coco_01', NOW(), '코코', 'DOG', '비숑', 'MALE', 1, '2019-08-20 00:00:00', 123, 1, '공놀이'),
+(101, 101, 'choco_01', NOW(), '초코', 'DOG', '푸들', 'MALE', 1, '2020-05-01 00:00:00', 160, 1, '산책 좋아함'),
+(102, 101, 'mung_01', NOW(), '멍이', 'DOG', '말티즈', 'FEMALE', 0, '2022-01-10 00:00:00', 161, 2, '집돌이'),
+(103, 102, 'nabi_01', NOW(), '나비', 'CAT', '코리안숏헤어', 'FEMALE', 1, '2021-03-15 00:00:00', 162, 1, '캣타워 점령 중'),
+(104, 103, 'coco_01', NOW(), '코코', 'DOG', '비숑', 'MALE', 1, '2019-08-20 00:00:00', 163, 1, '공놀이'),
 (105, 103, 'tori_01', NOW(), '토리', 'CAT', '러시안블루', 'MALE', 1, '2020-11-01 00:00:00', 112, 2, '조용함'),
 (106, 104, 'kong_01', NOW(), '콩이', 'DOG', '시바', 'FEMALE', 0, '2023-02-02 00:00:00', 113, 1, '호기심 많음'),
 (107, 105, 'bori_01', NOW(), '보리', 'DOG', '코기', 'MALE', 1, '2021-07-07 00:00:00', 114, 1, '산책 필수'),
@@ -353,11 +457,36 @@ INSERT INTO `ultary_tag` (
 ) VALUES
 (101, '산책', NULL, NULL, NULL, NULL, NULL, 2, 101),
 (102, 'royalcanin', '로얄캐닌 어덜트', 'royal_canin_01', NOW(), '강아지 사료', 'https://example.com/product/1', 1, 101),
-(103, '냥스타그램', '냥이 일상', NULL, NULL, '고양이 피드용', NULL, 1, 102);
+(103, '냥스타그램', '냥이 일상', NULL, NULL, '고양이 피드용', NULL, 1, 102),
+-- 상품 10개. 사진 그리드 왼쪽→오른쪽, 위 줄 다음 아래 줄. content 가 가격
+(104, '도넛방석', '포근한 도넛 방석', 'donut_bed_01', NOW(), '29,900원', 'https://example.com/product/donut-bed', 0, 101),
+(105, '식기세트', '원목 높이조절 식기 세트', 'wood_bowl_01', NOW(), '34,900원', 'https://example.com/product/wood-bowl', 0, 102),
+(106, '체크하네스', '체크 하네스 & 리드줄 세트', 'check_harness_01', NOW(), '28,900원', 'https://example.com/product/check-harness', 0, 103),
+(107, '노즈워크', '강아지 노즈워크 장난감', 'nosework_toy_01', NOW(), '15,900원', 'https://example.com/product/nosework', 0, 104),
+(108, '털브러쉬', '반려동물 털 제거 브러쉬', 'pet_brush_01', NOW(), '18,900원', 'https://example.com/product/pet-brush', 0, 105),
+(109, '반려동물샴푸', '저자극 반려동물 샴푸', 'pet_shampoo_01', NOW(), '22,900원', 'https://example.com/product/pet-shampoo', 0, 101),
+(110, '이동가방', '반려동물 이동가방', 'pet_carrier_01', NOW(), '49,900원', 'https://example.com/product/pet-carrier', 0, 102),
+(111, '자동급수기', '자동 급수기', 'pet_fountain_01', NOW(), '39,900원', 'https://example.com/product/pet-fountain', 0, 103),
+(112, '반려동물블랭킷', '포근한 반려동물 블랭킷', 'pet_blanket_01', NOW(), '24,900원', 'https://example.com/product/pet-blanket', 0, 104),
+(113, '반려동물물티슈', '반려동물 전용 물티슈', 'pet_wipes_01', NOW(), '9,900원', 'https://example.com/product/pet-wipes', 0, 105),
+(114, '낮잠', NULL, NULL, NULL, NULL, NULL, 0, 101),
+(115, '간식', NULL, NULL, NULL, NULL, NULL, 0, 102),
+(116, '공원', NULL, NULL, NULL, NULL, NULL, 0, 103),
+(117, '집사일상', NULL, NULL, NULL, NULL, NULL, 0, 104);
 
 INSERT INTO `ultary_tag_image` (`tag_image_id`, `tag_id`, `file_id`, `sort_order`) VALUES
 (101, 102, 140, 0),
-(102, 103, 141, 0);
+(102, 103, 141, 0),
+(103, 104, 185, 0),
+(104, 105, 186, 0),
+(105, 106, 187, 0),
+(106, 107, 188, 0),
+(107, 108, 189, 0),
+(108, 109, 190, 0),
+(109, 110, 191, 0),
+(110, 111, 192, 0),
+(111, 112, 193, 0),
+(112, 113, 194, 0);
 
 -- ---------- 이웃 ----------
 INSERT INTO `ultary_neighbor` (
@@ -376,7 +505,7 @@ INSERT INTO `ultary_neighbor` (
 -- ---------- 피드 101 (user 101 · 캐러셀 2장 + 상품태그) ----------
 INSERT INTO `ultary_feed` (
   `feed_id`, `user_no`, `content`, `visibility`,
-  `like_count`, `comment_count`, `store_count`
+  `like_count`, `comment_count`, `pin_count`
 ) VALUES
 (101, 101, '초코랑 한강 산책 #산책 #royalcanin', 'PUBLIC', 1, 1, 0);
 
@@ -404,7 +533,7 @@ INSERT INTO `ultary_feed_tag` (`feed_tag_id`, `feed_id`, `tag_id`) VALUES
 -- ---------- 피드 102 (user 102) ----------
 INSERT INTO `ultary_feed` (
   `feed_id`, `user_no`, `content`, `visibility`,
-  `like_count`, `comment_count`, `store_count`
+  `like_count`, `comment_count`, `pin_count`
 ) VALUES
 (102, 102, '초코도 등장! #냥스타그램', 'PUBLIC', 1, 0, 1);
 
@@ -432,7 +561,7 @@ INSERT INTO `ultary_feed_tag` (`feed_tag_id`, `feed_id`, `tag_id`) VALUES
 -- ---------- 피드 103 (user 103 · 주민 타임라인) ----------
 INSERT INTO `ultary_feed` (
   `feed_id`, `user_no`, `content`, `visibility`,
-  `like_count`, `comment_count`, `store_count`
+  `like_count`, `comment_count`, `pin_count`
 ) VALUES
 (103, 103, '주말 공원 산책 #산책', 'PUBLIC', 0, 0, 0);
 
@@ -453,7 +582,7 @@ INSERT INTO `ultary_feed_tag` (`feed_tag_id`, `feed_id`, `tag_id`) VALUES
 -- ---------- 추가 피드 104~113 (연결 안 된 post5·post7~15, 유저 101~105 각 2건. 구경 계정 제외) ----------
 INSERT INTO `ultary_feed` (
   `feed_id`, `user_no`, `content`, `visibility`,
-  `like_count`, `comment_count`, `store_count`, `created_at`
+  `like_count`, `comment_count`, `pin_count`, `created_at`
 ) VALUES
 (104, 101, '초코 낮잠', 'PUBLIC', 0, 0, 0, DATE_SUB(NOW(), INTERVAL 20 HOUR)),
 (105, 101, '멍이 소파', 'PUBLIC', 0, 0, 0, DATE_SUB(NOW(), INTERVAL 18 HOUR)),
@@ -495,12 +624,79 @@ INSERT INTO `ultary_feed_pet` (
 (113, 112, 107, 105, 'COLLABORATOR', 1),
 (114, 113, 107, 105, 'COLLABORATOR', 1);
 
+-- ---------- 추가 피드 114~128 (post16~30, 유저 101~105 각 3건) ----------
+INSERT INTO `ultary_feed` (
+  `feed_id`, `user_no`, `content`, `visibility`,
+  `like_count`, `comment_count`, `pin_count`, `created_at`
+) VALUES
+(114, 101, '초코 간식', 'PUBLIC', 0, 0, 0, DATE_SUB(NOW(), INTERVAL 89 MINUTE)),
+(115, 101, '멍이 베개', 'PUBLIC', 0, 0, 0, DATE_SUB(NOW(), INTERVAL 83 MINUTE)),
+(116, 101, '달이 낮잠', 'PUBLIC', 0, 0, 0, DATE_SUB(NOW(), INTERVAL 77 MINUTE)),
+(117, 102, '나비 창밖', 'PUBLIC', 0, 0, 0, DATE_SUB(NOW(), INTERVAL 71 MINUTE)),
+(118, 102, '모모 캣타워', 'PUBLIC', 0, 0, 0, DATE_SUB(NOW(), INTERVAL 65 MINUTE)),
+(119, 102, '나비 그루밍', 'PUBLIC', 0, 0, 0, DATE_SUB(NOW(), INTERVAL 59 MINUTE)),
+(120, 103, '코코 공원', 'PUBLIC', 0, 0, 0, DATE_SUB(NOW(), INTERVAL 53 MINUTE)),
+(121, 103, '토리 창가', 'PUBLIC', 0, 0, 0, DATE_SUB(NOW(), INTERVAL 47 MINUTE)),
+(122, 103, '코코 공놀이', 'PUBLIC', 0, 0, 0, DATE_SUB(NOW(), INTERVAL 41 MINUTE)),
+(123, 104, '콩이 산책', 'PUBLIC', 0, 0, 0, DATE_SUB(NOW(), INTERVAL 35 MINUTE)),
+(124, 104, '콩이 앉기', 'PUBLIC', 0, 0, 0, DATE_SUB(NOW(), INTERVAL 29 MINUTE)),
+(125, 104, '콩이 간식', 'PUBLIC', 0, 0, 0, DATE_SUB(NOW(), INTERVAL 23 MINUTE)),
+(126, 105, '보리 달리기', 'PUBLIC', 0, 0, 0, DATE_SUB(NOW(), INTERVAL 17 MINUTE)),
+(127, 105, '보리 모래', 'PUBLIC', 0, 0, 0, DATE_SUB(NOW(), INTERVAL 11 MINUTE)),
+(128, 105, '보리 저녁', 'PUBLIC', 0, 0, 0, DATE_SUB(NOW(), INTERVAL 5 MINUTE));
+
+INSERT INTO `ultary_feed_media` (
+  `feed_media_id`, `feed_id`, `file_id`, `media_type`,
+  `thumbnail_file_id`, `duration_sec`, `sort_order`
+) VALUES
+(116, 114, 164, 'IMAGE', NULL, NULL, 0),
+(117, 115, 165, 'IMAGE', NULL, NULL, 0),
+(118, 116, 166, 'IMAGE', NULL, NULL, 0),
+(119, 117, 167, 'IMAGE', NULL, NULL, 0),
+(120, 118, 168, 'IMAGE', NULL, NULL, 0),
+(121, 119, 169, 'IMAGE', NULL, NULL, 0),
+(122, 120, 170, 'IMAGE', NULL, NULL, 0),
+(123, 121, 171, 'IMAGE', NULL, NULL, 0),
+(124, 122, 172, 'IMAGE', NULL, NULL, 0),
+(125, 123, 173, 'IMAGE', NULL, NULL, 0),
+(126, 124, 174, 'IMAGE', NULL, NULL, 0),
+(127, 125, 175, 'IMAGE', NULL, NULL, 0),
+(128, 126, 176, 'IMAGE', NULL, NULL, 0),
+(129, 127, 177, 'IMAGE', NULL, NULL, 0),
+(130, 128, 178, 'IMAGE', NULL, NULL, 0);
+
+INSERT INTO `ultary_feed_pet` (
+  `feed_pet_id`, `feed_id`, `pet_id`, `added_by_user_no`, `role`, `is_main`
+) VALUES
+(115, 114, 101, 101, 'COLLABORATOR', 1),
+(116, 115, 102, 101, 'COLLABORATOR', 1),
+(117, 116, 108, 101, 'COLLABORATOR', 1),
+(118, 117, 103, 102, 'COLLABORATOR', 1),
+(119, 118, 109, 102, 'COLLABORATOR', 1),
+(120, 119, 103, 102, 'COLLABORATOR', 1),
+(121, 120, 104, 103, 'COLLABORATOR', 1),
+(122, 121, 105, 103, 'COLLABORATOR', 1),
+(123, 122, 104, 103, 'COLLABORATOR', 1),
+(124, 123, 106, 104, 'COLLABORATOR', 1),
+(125, 124, 106, 104, 'COLLABORATOR', 1),
+(126, 125, 106, 104, 'COLLABORATOR', 1),
+(127, 126, 107, 105, 'COLLABORATOR', 1),
+(128, 127, 107, 105, 'COLLABORATOR', 1),
+(129, 128, 107, 105, 'COLLABORATOR', 1);
+
 INSERT INTO `ultary_feed_like` (`feed_like_id`, `feed_id`, `user_no`) VALUES
 (101, 101, 102),
 (102, 102, 101);
 
-INSERT INTO `ultary_feed_store` (`feed_store_id`, `feed_id`, `user_no`) VALUES
+INSERT INTO `ultary_feed_pin` (`feed_pin_id`, `feed_id`, `user_no`) VALUES
 (101, 102, 101);
+
+INSERT INTO `ultary_feed_save` (`feed_save_id`, `feed_id`, `user_no`, `created_at`) VALUES
+(101, 103, 101, DATE_SUB(NOW(), INTERVAL 5 HOUR)),
+(102, 102, 101, DATE_SUB(NOW(), INTERVAL 4 HOUR)),
+(103, 106, 101, DATE_SUB(NOW(), INTERVAL 3 HOUR)),
+(104, 108, 101, DATE_SUB(NOW(), INTERVAL 2 HOUR)),
+(105, 112, 101, DATE_SUB(NOW(), INTERVAL 1 HOUR));
 
 INSERT INTO `ultary_feed_comment` (
   `feed_comment_id`, `feed_id`, `user_no`, `content`
@@ -675,7 +871,7 @@ INNER JOIN (
 SET f.comment_count = x.cnt
 WHERE f.feed_id IN (101, 102, 103);
 
--- ---------- 스토리 (101 본인 1 + 주민 102·103 각 4 + 이웃 105 1) ----------
+-- ---------- 스토리 (101 본인 3 + 주민 102·103 각 4 + 104 2 + 이웃 105 3) ----------
 -- created_at 간격: ASC 재생·viewedByMe 테스트용 (오래된 것부터)
 INSERT INTO `ultary_story` (
   `story_id`, `user_no`, `file_id`, `media_type`,
@@ -703,22 +899,381 @@ INSERT INTO `ultary_story` (
 (110, 103, 139, 'IMAGE', NULL, NULL, '산책러 스토리 4',
  DATE_SUB(NOW(), INTERVAL 5 MINUTE), DATE_ADD(DATE_SUB(NOW(), INTERVAL 5 MINUTE), INTERVAL 24 HOUR)),
 (104, 105, 133, 'IMAGE', NULL, NULL, '팔로워 스토리',
- DATE_SUB(NOW(), INTERVAL 45 MINUTE), DATE_ADD(DATE_SUB(NOW(), INTERVAL 45 MINUTE), INTERVAL 24 HOUR));
+ DATE_SUB(NOW(), INTERVAL 45 MINUTE), DATE_ADD(DATE_SUB(NOW(), INTERVAL 45 MINUTE), INTERVAL 24 HOUR)),
+-- story11~16: 101 2장, 104 2장, 105 2장
+(111, 101, 179, 'IMAGE', NULL, NULL, '초코 오늘',
+ DATE_SUB(NOW(), INTERVAL 24 MINUTE), DATE_ADD(DATE_SUB(NOW(), INTERVAL 24 MINUTE), INTERVAL 24 HOUR)),
+(112, 101, 180, 'IMAGE', NULL, NULL, '멍이 소파',
+ DATE_SUB(NOW(), INTERVAL 12 MINUTE), DATE_ADD(DATE_SUB(NOW(), INTERVAL 12 MINUTE), INTERVAL 24 HOUR)),
+(113, 104, 181, 'IMAGE', NULL, NULL, '콩이 첫 스토리',
+ DATE_SUB(NOW(), INTERVAL 22 MINUTE), DATE_ADD(DATE_SUB(NOW(), INTERVAL 22 MINUTE), INTERVAL 24 HOUR)),
+(114, 104, 182, 'IMAGE', NULL, NULL, '콩이 저녁',
+ DATE_SUB(NOW(), INTERVAL 8 MINUTE), DATE_ADD(DATE_SUB(NOW(), INTERVAL 8 MINUTE), INTERVAL 24 HOUR)),
+(115, 105, 183, 'IMAGE', NULL, NULL, '보리 해변',
+ DATE_SUB(NOW(), INTERVAL 18 MINUTE), DATE_ADD(DATE_SUB(NOW(), INTERVAL 18 MINUTE), INTERVAL 24 HOUR)),
+(116, 105, 184, 'IMAGE', NULL, NULL, '보리 집앞',
+ DATE_SUB(NOW(), INTERVAL 4 MINUTE), DATE_ADD(DATE_SUB(NOW(), INTERVAL 4 MINUTE), INTERVAL 24 HOUR));
+
+-- ---------- 게시글 본문에 태그. 상품 10개는 각 글에 한 번씩 ----------
+UPDATE `ultary_feed` SET `content` = '초코 낮잠 #낮잠 #도넛방석' WHERE `feed_id` = 104;
+UPDATE `ultary_feed` SET `content` = '멍이 소파 #집사일상' WHERE `feed_id` = 105;
+UPDATE `ultary_feed` SET `content` = '나비 창가 #냥스타그램 #자동급수기' WHERE `feed_id` = 106;
+UPDATE `ultary_feed` SET `content` = '나비 박스 #냥스타그램' WHERE `feed_id` = 107;
+UPDATE `ultary_feed` SET `content` = '코코 산책 #산책' WHERE `feed_id` = 108;
+UPDATE `ultary_feed` SET `content` = '토리 햇살 #냥스타그램' WHERE `feed_id` = 109;
+UPDATE `ultary_feed` SET `content` = '콩이 첫 산책 #산책' WHERE `feed_id` = 110;
+UPDATE `ultary_feed` SET `content` = '콩이 간식 #간식 #식기세트' WHERE `feed_id` = 111;
+UPDATE `ultary_feed` SET `content` = '보리 공원 #공원 #산책' WHERE `feed_id` = 112;
+UPDATE `ultary_feed` SET `content` = '보리 집 #집사일상' WHERE `feed_id` = 113;
+UPDATE `ultary_feed` SET `content` = '초코 간식 #간식 #노즈워크' WHERE `feed_id` = 114;
+UPDATE `ultary_feed` SET `content` = '멍이 베개 #도넛방석' WHERE `feed_id` = 115;
+UPDATE `ultary_feed` SET `content` = '달이 낮잠 #낮잠 #반려동물블랭킷' WHERE `feed_id` = 116;
+UPDATE `ultary_feed` SET `content` = '나비 창밖 #냥스타그램' WHERE `feed_id` = 117;
+UPDATE `ultary_feed` SET `content` = '모모 캣타워 #냥스타그램' WHERE `feed_id` = 118;
+UPDATE `ultary_feed` SET `content` = '나비 그루밍 #반려동물샴푸 #냥스타그램' WHERE `feed_id` = 119;
+UPDATE `ultary_feed` SET `content` = '코코 공원 #산책 #공원' WHERE `feed_id` = 120;
+UPDATE `ultary_feed` SET `content` = '토리 창가 #냥스타그램' WHERE `feed_id` = 121;
+UPDATE `ultary_feed` SET `content` = '코코 공놀이 #간식 #털브러쉬' WHERE `feed_id` = 122;
+UPDATE `ultary_feed` SET `content` = '콩이 산책 #산책 #체크하네스' WHERE `feed_id` = 123;
+UPDATE `ultary_feed` SET `content` = '콩이 앉기 #집사일상' WHERE `feed_id` = 124;
+UPDATE `ultary_feed` SET `content` = '콩이 간식 #간식' WHERE `feed_id` = 125;
+UPDATE `ultary_feed` SET `content` = '보리 달리기 #산책 #이동가방' WHERE `feed_id` = 126;
+UPDATE `ultary_feed` SET `content` = '보리 모래 #공원' WHERE `feed_id` = 127;
+UPDATE `ultary_feed` SET `content` = '보리 저녁 #반려동물물티슈 #집사일상' WHERE `feed_id` = 128;
+
+INSERT INTO `ultary_feed_tag` (`feed_tag_id`, `feed_id`, `tag_id`) VALUES
+(105, 104, 114), (106, 104, 104),
+(107, 105, 117),
+(108, 106, 103), (109, 106, 111),
+(110, 107, 103),
+(111, 108, 101),
+(112, 109, 103),
+(113, 110, 101),
+(114, 111, 115), (115, 111, 105),
+(116, 112, 116), (117, 112, 101),
+(118, 113, 117),
+(119, 114, 115), (120, 114, 107),
+(121, 115, 104),
+(122, 116, 114), (123, 116, 112),
+(124, 117, 103),
+(125, 118, 103),
+(126, 119, 109), (127, 119, 103),
+(128, 120, 101), (129, 120, 116),
+(130, 121, 103),
+(131, 122, 115), (132, 122, 108),
+(133, 123, 101), (134, 123, 106),
+(135, 124, 117),
+(136, 125, 115),
+(137, 126, 101), (138, 126, 110),
+(139, 127, 116),
+(140, 128, 113), (141, 128, 117);
+
+-- ---------- 상품 광고·후기 129~158 ----------
+-- 광고 계정 106~108은 상품 글만. 일반 유저 글은 후기이고 상품 사진을 같이 단다.
+-- 태그 이미지(185~194)와 file_id를 공유하지 않는다.
+INSERT INTO `ultary_feed` (
+  `feed_id`, `user_no`, `content`, `visibility`,
+  `like_count`, `comment_count`, `pin_count`, `created_at`
+) VALUES
+(129, 106, '포근한 도넛 방석. 세탁 가능한 커버 #도넛방석', 'PUBLIC', 0, 0, 0, DATE_SUB(NOW(), INTERVAL 36 HOUR)),
+(130, 107, '도넛 방석 29,900원. 작은 강아지 낮잠용 #도넛방석', 'PUBLIC', 0, 0, 0, DATE_SUB(NOW(), INTERVAL 38 HOUR)),
+(131, 101, '도넛 방석 깔아주니까 초코가 바로 눕는다 #도넛방석 #낮잠', 'PUBLIC', 0, 0, 0, DATE_SUB(NOW(), INTERVAL 40 HOUR)),
+(132, 108, '원목 높이조절 식기 세트 #식기세트', 'PUBLIC', 0, 0, 0, DATE_SUB(NOW(), INTERVAL 42 HOUR)),
+(133, 106, '식기 높이를 맞추면 목 부담이 줄어듭니다 #식기세트', 'PUBLIC', 0, 0, 0, DATE_SUB(NOW(), INTERVAL 44 HOUR)),
+(134, 102, '높이 조절 식기 바꾸니 나비 목 각도가 편해 보인다 #식기세트', 'PUBLIC', 0, 0, 0, DATE_SUB(NOW(), INTERVAL 46 HOUR)),
+(135, 107, '체크 하네스와 리드줄 세트 #체크하네스', 'PUBLIC', 0, 0, 0, DATE_SUB(NOW(), INTERVAL 48 HOUR)),
+(136, 108, '산책용 체크 하네스 28,900원 #체크하네스', 'PUBLIC', 0, 0, 0, DATE_SUB(NOW(), INTERVAL 50 HOUR)),
+(137, 103, '체크 하네스 채워 보고 공원 한 바퀴. 코코가 잘 따라온다 #체크하네스 #산책', 'PUBLIC', 0, 0, 0, DATE_SUB(NOW(), INTERVAL 52 HOUR)),
+(138, 106, '노즈워크 장난감. 간식을 숨겨 주세요 #노즈워크', 'PUBLIC', 0, 0, 0, DATE_SUB(NOW(), INTERVAL 54 HOUR)),
+(139, 107, '강아지 노즈워크 매트 15,900원 #노즈워크', 'PUBLIC', 0, 0, 0, DATE_SUB(NOW(), INTERVAL 56 HOUR)),
+(140, 101, '노즈워크 장난감에 간식 숨기니까 멍이가 한참을 찾는다 #노즈워크 #간식', 'PUBLIC', 0, 0, 0, DATE_SUB(NOW(), INTERVAL 58 HOUR)),
+(141, 108, '빠지는 털을 모아 주는 브러쉬 #털브러쉬', 'PUBLIC', 0, 0, 0, DATE_SUB(NOW(), INTERVAL 60 HOUR)),
+(142, 106, '반려동물 털 제거 브러쉬 18,900원 #털브러쉬', 'PUBLIC', 0, 0, 0, DATE_SUB(NOW(), INTERVAL 62 HOUR)),
+(143, 104, '털 브러쉬로 콩이 빗겨 줬더니 소파 털이 줄었다 #털브러쉬', 'PUBLIC', 0, 0, 0, DATE_SUB(NOW(), INTERVAL 64 HOUR)),
+(144, 107, '저자극 반려동물 샴푸 #반려동물샴푸', 'PUBLIC', 0, 0, 0, DATE_SUB(NOW(), INTERVAL 66 HOUR)),
+(145, 108, '목욕 후 피부 당김이 적은 샴푸 22,900원 #반려동물샴푸', 'PUBLIC', 0, 0, 0, DATE_SUB(NOW(), INTERVAL 68 HOUR)),
+(146, 102, '저자극 샴푸로 모모 목욕. 향이 순하다 #반려동물샴푸', 'PUBLIC', 0, 0, 0, DATE_SUB(NOW(), INTERVAL 70 HOUR)),
+(147, 106, '이동이 편한 반려동물 가방 #이동가방', 'PUBLIC', 0, 0, 0, DATE_SUB(NOW(), INTERVAL 72 HOUR)),
+(148, 107, '병원·여행용 이동가방 49,900원 #이동가방', 'PUBLIC', 0, 0, 0, DATE_SUB(NOW(), INTERVAL 74 HOUR)),
+(149, 105, '이동가방에 보리 태우고 병원 다녀왔다. 흔들림이 덜하다 #이동가방', 'PUBLIC', 0, 0, 0, DATE_SUB(NOW(), INTERVAL 76 HOUR)),
+(150, 108, '흐르는 물 자동 급수기 #자동급수기', 'PUBLIC', 0, 0, 0, DATE_SUB(NOW(), INTERVAL 78 HOUR)),
+(151, 106, '필터 교체형 자동 급수기 39,900원 #자동급수기', 'PUBLIC', 0, 0, 0, DATE_SUB(NOW(), INTERVAL 80 HOUR)),
+(152, 103, '자동 급수기 놓고 나니 토리가 물 마시는 횟수가 늘었다 #자동급수기', 'PUBLIC', 0, 0, 0, DATE_SUB(NOW(), INTERVAL 82 HOUR)),
+(153, 107, '포근한 반려동물 블랭킷 #반려동물블랭킷', 'PUBLIC', 0, 0, 0, DATE_SUB(NOW(), INTERVAL 84 HOUR)),
+(154, 108, '세탁 가능한 블랭킷 24,900원 #반려동물블랭킷', 'PUBLIC', 0, 0, 0, DATE_SUB(NOW(), INTERVAL 86 HOUR)),
+(155, 104, '블랭킷 덮어주니 콩이가 그 위에서만 잔다 #반려동물블랭킷 #낮잠', 'PUBLIC', 0, 0, 0, DATE_SUB(NOW(), INTERVAL 88 HOUR)),
+(156, 106, '발바닥용 반려동물 물티슈 #반려동물물티슈', 'PUBLIC', 0, 0, 0, DATE_SUB(NOW(), INTERVAL 90 HOUR)),
+(157, 107, '무향 물티슈 9,900원 #반려동물물티슈', 'PUBLIC', 0, 0, 0, DATE_SUB(NOW(), INTERVAL 92 HOUR)),
+(158, 105, '산책 다녀와서 발 물티슈로 닦았다. 보리가 싫어하지 않는다 #반려동물물티슈', 'PUBLIC', 0, 0, 0, DATE_SUB(NOW(), INTERVAL 94 HOUR));
+
+INSERT INTO `ultary_feed_media` (
+  `feed_media_id`, `feed_id`, `file_id`, `media_type`,
+  `thumbnail_file_id`, `duration_sec`, `sort_order`
+) VALUES
+(131, 129, 195, 'IMAGE', NULL, NULL, 0),
+(132, 130, 196, 'IMAGE', NULL, NULL, 0),
+(133, 131, 197, 'IMAGE', NULL, NULL, 0),
+(134, 132, 198, 'IMAGE', NULL, NULL, 0),
+(135, 133, 199, 'IMAGE', NULL, NULL, 0),
+(136, 134, 200, 'IMAGE', NULL, NULL, 0),
+(137, 135, 201, 'IMAGE', NULL, NULL, 0),
+(138, 136, 202, 'IMAGE', NULL, NULL, 0),
+(139, 137, 203, 'IMAGE', NULL, NULL, 0),
+(140, 138, 204, 'IMAGE', NULL, NULL, 0),
+(141, 139, 205, 'IMAGE', NULL, NULL, 0),
+(142, 140, 206, 'IMAGE', NULL, NULL, 0),
+(143, 141, 207, 'IMAGE', NULL, NULL, 0),
+(144, 142, 208, 'IMAGE', NULL, NULL, 0),
+(145, 143, 209, 'IMAGE', NULL, NULL, 0),
+(146, 144, 210, 'IMAGE', NULL, NULL, 0),
+(147, 145, 211, 'IMAGE', NULL, NULL, 0),
+(148, 146, 212, 'IMAGE', NULL, NULL, 0),
+(149, 147, 213, 'IMAGE', NULL, NULL, 0),
+(150, 148, 214, 'IMAGE', NULL, NULL, 0),
+(151, 149, 215, 'IMAGE', NULL, NULL, 0),
+(152, 150, 216, 'IMAGE', NULL, NULL, 0),
+(153, 151, 217, 'IMAGE', NULL, NULL, 0),
+(154, 152, 218, 'IMAGE', NULL, NULL, 0),
+(155, 153, 219, 'IMAGE', NULL, NULL, 0),
+(156, 154, 220, 'IMAGE', NULL, NULL, 0),
+(157, 155, 221, 'IMAGE', NULL, NULL, 0),
+(158, 156, 222, 'IMAGE', NULL, NULL, 0),
+(159, 157, 223, 'IMAGE', NULL, NULL, 0),
+(160, 158, 224, 'IMAGE', NULL, NULL, 0);
+
+INSERT INTO `ultary_feed_pet` (
+  `feed_pet_id`, `feed_id`, `pet_id`, `added_by_user_no`, `role`, `is_main`
+) VALUES
+(130, 131, 101, 101, 'COLLABORATOR', 1),
+(131, 134, 103, 102, 'COLLABORATOR', 1),
+(132, 137, 104, 103, 'COLLABORATOR', 1),
+(133, 140, 102, 101, 'COLLABORATOR', 1),
+(134, 143, 106, 104, 'COLLABORATOR', 1),
+(135, 146, 109, 102, 'COLLABORATOR', 1),
+(136, 149, 107, 105, 'COLLABORATOR', 1),
+(137, 152, 105, 103, 'COLLABORATOR', 1),
+(138, 155, 106, 104, 'COLLABORATOR', 1),
+(139, 158, 107, 105, 'COLLABORATOR', 1);
+
+INSERT INTO `ultary_feed_tag` (`feed_tag_id`, `feed_id`, `tag_id`) VALUES
+(142, 129, 104), (143, 130, 104), (144, 131, 104), (145, 131, 114),
+(146, 132, 105), (147, 133, 105), (148, 134, 105),
+(149, 135, 106), (150, 136, 106), (151, 137, 106), (152, 137, 101),
+(153, 138, 107), (154, 139, 107), (155, 140, 107), (156, 140, 115),
+(157, 141, 108), (158, 142, 108), (159, 143, 108),
+(160, 144, 109), (161, 145, 109), (162, 146, 109),
+(163, 147, 110), (164, 148, 110), (165, 149, 110),
+(166, 150, 111), (167, 151, 111), (168, 152, 111),
+(169, 153, 112), (170, 154, 112), (171, 155, 112), (172, 155, 114),
+(173, 156, 113), (174, 157, 113), (175, 158, 113);
+
+UPDATE `ultary_tag` t
+INNER JOIN (
+  SELECT `tag_id`, COUNT(*) AS cnt
+  FROM `ultary_feed_tag`
+  WHERE `is_deleted` = 0 AND `tag_id` BETWEEN 101 AND 117
+  GROUP BY `tag_id`
+) x ON x.tag_id = t.tag_id
+SET t.use_count = x.cnt;
+
+-- 댓글이 없던 글 + 좋아요가 없던 글
+INSERT INTO `ultary_feed_comment` (`feed_comment_id`, `feed_id`, `user_no`, `content`) VALUES
+(221, 107, 101, '박스 안이 제일 좋은가 봐'),
+(222, 108, 102, '코코 산책 코스 좋다'),
+(223, 109, 105, '토리 햇살 받는 표정'),
+(224, 114, 102, '초코 간식 시간인가'),
+(225, 115, 103, '멍이 베개 점령'),
+(226, 116, 102, '달이 자는 얼굴'),
+(227, 117, 101, '나비 창밖 구경'),
+(228, 118, 103, '모모 캣타워 위'),
+(229, 119, 105, '그루밍하는 나비'),
+(230, 120, 101, '코코 공원 신났다'),
+(231, 121, 102, '토리 창가 단골'),
+(232, 122, 104, '공놀이 한 판'),
+(233, 123, 103, '콩이 하네스 잘 어울려'),
+(234, 124, 101, '콩이 앉은 자세'),
+(235, 125, 102, '간식 눈빛이다'),
+(236, 126, 103, '보리 달리기 빨라'),
+(237, 127, 101, '모래 놀이'),
+(238, 128, 102, '저녁 보리');
+
+INSERT INTO `ultary_feed_reply` (`feed_reply_id`, `feed_comment_id`, `user_no`, `content`) VALUES
+(212, 221, 102, '매일 그 박스야'),
+(213, 224, 101, '오늘 새로 샀어'),
+(214, 230, 103, '성남 중앙공원'),
+(215, 233, 104, '처음 채워 봤어'),
+(216, 236, 105, '해변에서 뛰었어');
+
+INSERT INTO `ultary_feed_like` (`feed_like_id`, `feed_id`, `user_no`) VALUES
+(260, 106, 201), (261, 106, 203), (262, 106, 205),
+(263, 107, 201), (264, 107, 203), (265, 107, 205),
+(266, 108, 201), (267, 108, 203), (268, 108, 205),
+(269, 109, 201), (270, 109, 203), (271, 109, 205),
+(272, 110, 201), (273, 110, 203), (274, 110, 205),
+(275, 111, 201), (276, 111, 203), (277, 111, 205),
+(278, 112, 201), (279, 112, 203), (280, 112, 205),
+(281, 113, 201), (282, 113, 203), (283, 113, 205),
+(284, 114, 201), (285, 114, 203), (286, 114, 205),
+(287, 115, 201), (288, 115, 203), (289, 115, 205),
+(290, 116, 201), (291, 116, 203), (292, 116, 205),
+(293, 117, 201), (294, 117, 203), (295, 117, 205),
+(296, 118, 201), (297, 118, 203), (298, 118, 205),
+(299, 119, 201), (300, 119, 203), (301, 119, 205),
+(302, 120, 201), (303, 120, 203), (304, 120, 205),
+(305, 121, 201), (306, 121, 203), (307, 121, 205),
+(308, 122, 201), (309, 122, 203), (310, 122, 205),
+(311, 123, 201), (312, 123, 203), (313, 123, 205),
+(314, 124, 201), (315, 124, 203), (316, 124, 205),
+(317, 125, 201), (318, 125, 203), (319, 125, 205),
+(320, 126, 201), (321, 126, 203), (322, 126, 205),
+(323, 127, 201), (324, 127, 203), (325, 127, 205),
+(326, 128, 201), (327, 128, 203), (328, 128, 205);
+
+INSERT INTO `ultary_feed_like` (`feed_like_id`, `feed_id`, `user_no`) VALUES
+(330, 129, 201), (331, 129, 203), (332, 129, 205),
+(333, 130, 201), (334, 130, 203), (335, 130, 205),
+(336, 131, 201), (337, 131, 203), (338, 131, 205),
+(339, 132, 201), (340, 132, 203), (341, 132, 205),
+(342, 133, 201), (343, 133, 203), (344, 133, 205),
+(345, 134, 201), (346, 134, 203), (347, 134, 205),
+(348, 135, 201), (349, 135, 203), (350, 135, 205),
+(351, 136, 201), (352, 136, 203), (353, 136, 205),
+(354, 137, 201), (355, 137, 203), (356, 137, 205),
+(357, 138, 201), (358, 138, 203), (359, 138, 205),
+(360, 139, 201), (361, 139, 203), (362, 139, 205),
+(363, 140, 201), (364, 140, 203), (365, 140, 205),
+(366, 141, 201), (367, 141, 203), (368, 141, 205),
+(369, 142, 201), (370, 142, 203), (371, 142, 205),
+(372, 143, 201), (373, 143, 203), (374, 143, 205),
+(375, 144, 201), (376, 144, 203), (377, 144, 205),
+(378, 145, 201), (379, 145, 203), (380, 145, 205),
+(381, 146, 201), (382, 146, 203), (383, 146, 205),
+(384, 147, 201), (385, 147, 203), (386, 147, 205),
+(387, 148, 201), (388, 148, 203), (389, 148, 205),
+(390, 149, 201), (391, 149, 203), (392, 149, 205),
+(393, 150, 201), (394, 150, 203), (395, 150, 205),
+(396, 151, 201), (397, 151, 203), (398, 151, 205),
+(399, 152, 201), (400, 152, 203), (401, 152, 205),
+(402, 153, 201), (403, 153, 203), (404, 153, 205),
+(405, 154, 201), (406, 154, 203), (407, 154, 205),
+(408, 155, 201), (409, 155, 203), (410, 155, 205),
+(411, 156, 201), (412, 156, 203), (413, 156, 205),
+(414, 157, 201), (415, 157, 203), (416, 157, 205),
+(417, 158, 201), (418, 158, 203), (419, 158, 205);
+
+UPDATE `ultary_feed` f
+INNER JOIN (
+  SELECT `feed_id`, COUNT(*) AS cnt
+  FROM `ultary_feed_like`
+  WHERE `is_deleted` = 0 AND `feed_id` BETWEEN 106 AND 158
+  GROUP BY `feed_id`
+) x ON x.feed_id = f.feed_id
+SET f.like_count = x.cnt;
+
+UPDATE `ultary_feed` f
+INNER JOIN (
+  SELECT `feed_id`, COUNT(*) AS cnt
+  FROM `ultary_feed_comment`
+  WHERE `is_deleted` = 0 AND `feed_id` BETWEEN 107 AND 128
+  GROUP BY `feed_id`
+) x ON x.feed_id = f.feed_id
+SET f.comment_count = x.cnt;
+
+-- 이웃 목록이 보이도록 구경 계정과 ACCEPTED. 기존 PENDING(알림 수락)은 유지
+INSERT INTO `ultary_neighbor` (
+  `neighbor_id`, `requester_user_no`, `receiver_user_no`, `pair_key`,
+  `status`, `requested_at`, `accepted_at`
+) VALUES
+(109, 101, 201, '101:201', 'ACCEPTED', NOW(), NOW()),
+(110, 101, 202, '101:202', 'ACCEPTED', NOW(), NOW()),
+(111, 101, 203, '101:203', 'ACCEPTED', NOW(), NOW()),
+(112, 101, 204, '101:204', 'ACCEPTED', NOW(), NOW()),
+(113, 101, 205, '101:205', 'ACCEPTED', NOW(), NOW()),
+(114, 101, 206, '101:206', 'ACCEPTED', NOW(), NOW()),
+(115, 207, 101, '101:207', 'PENDING', NOW(), NULL),
+(116, 208, 101, '101:208', 'PENDING', NOW(), NULL),
+(117, 102, 209, '102:209', 'ACCEPTED', NOW(), NOW()),
+(118, 102, 210, '102:210', 'ACCEPTED', NOW(), NOW()),
+(119, 103, 211, '103:211', 'ACCEPTED', NOW(), NOW()),
+(120, 103, 212, '103:212', 'ACCEPTED', NOW(), NOW()),
+(121, 101, 106, '101:106', 'ACCEPTED', NOW(), NOW()),
+(122, 101, 107, '101:107', 'ACCEPTED', NOW(), NOW()),
+(123, 101, 108, '101:108', 'ACCEPTED', NOW(), NOW()),
+(124, 102, 106, '102:106', 'ACCEPTED', NOW(), NOW()),
+(125, 103, 107, '103:107', 'ACCEPTED', NOW(), NOW()),
+(126, 105, 108, '105:108', 'ACCEPTED', NOW(), NOW());
+
+INSERT INTO `ultary_user_privacy` (
+  `user_no`, `private_account`, `feed_visibility`, `story_visibility`,
+  `neighbor_request`, `allow_comment`, `allow_mention`, `allow_tag`
+) VALUES
+(101, 0, 'PUBLIC', 'NEIGHBORS', 1, 1, 1, 1),
+(102, 0, 'NEIGHBORS', 'NEIGHBORS', 1, 1, 1, 1),
+(103, 0, 'PUBLIC', 'PUBLIC', 1, 1, 1, 1),
+(104, 0, 'PUBLIC', 'NEIGHBORS', 0, 1, 1, 1),
+(105, 1, 'PUBLIC', 'NEIGHBORS', 1, 0, 1, 1),
+(106, 0, 'PUBLIC', 'PUBLIC', 1, 1, 1, 1),
+(107, 0, 'PUBLIC', 'PUBLIC', 1, 1, 1, 1),
+(108, 0, 'PUBLIC', 'PUBLIC', 1, 1, 1, 1);
+
+-- 스토리 위 글자·펫 태그·공감·조회
+INSERT INTO `ultary_story_text` (
+  `story_text_id`, `story_id`, `content`, `font_size`, `is_bold`, `color`, `pos_x`, `pos_y`, `sort_order`
+) VALUES
+(101, 111, '오늘 산책', 20, 1, '#FFFFFF', 50.00, 18.00, 0),
+(102, 102, '낮잠 중', 16, 0, '#FFFFFF', 50.00, 80.00, 0),
+(103, 103, '공원', 24, 1, '#FFFFFF', 30.00, 40.00, 0),
+(104, 116, '집 앞', 16, 0, '#FFFFFF', 70.00, 75.00, 0);
+
+INSERT INTO `ultary_story_mention` (
+  `story_mention_id`, `story_id`, `pet_id`, `pos_x`, `pos_y`, `sort_order`, `added_by_user_no`
+) VALUES
+(101, 101, 101, 40.00, 60.00, 0, 101),
+(102, 111, 101, 48.00, 55.00, 0, 101),
+(103, 112, 102, 52.00, 62.00, 0, 101),
+(104, 102, 103, 46.00, 50.00, 0, 102),
+(105, 105, 109, 55.00, 48.00, 0, 102),
+(106, 103, 104, 42.00, 58.00, 0, 103),
+(107, 113, 106, 50.00, 60.00, 0, 104),
+(108, 114, 106, 44.00, 52.00, 0, 104),
+(109, 115, 107, 60.00, 70.00, 0, 105),
+(110, 116, 107, 38.00, 64.00, 0, 105);
+
+INSERT INTO `ultary_story_like` (`story_like_id`, `story_id`, `user_no`) VALUES
+(101, 102, 101),
+(102, 106, 101),
+(103, 108, 101),
+(104, 115, 101),
+(105, 101, 102),
+(106, 111, 102),
+(107, 116, 102),
+(108, 104, 103),
+(109, 112, 103),
+(110, 113, 105);
+
+INSERT INTO `ultary_story_view` (`story_view_id`, `story_id`, `viewer_user_no`) VALUES
+(101, 102, 101),
+(102, 106, 101),
+(103, 101, 102),
+(104, 111, 102),
+(105, 104, 103),
+(106, 113, 101);
 
 ALTER TABLE `ultary_user` AUTO_INCREMENT = 300;
-ALTER TABLE `ultary_file` AUTO_INCREMENT = 200;
+ALTER TABLE `ultary_file` AUTO_INCREMENT = 300;
 ALTER TABLE `ultary_pet` AUTO_INCREMENT = 200;
 ALTER TABLE `ultary_tag` AUTO_INCREMENT = 200;
 ALTER TABLE `ultary_tag_image` AUTO_INCREMENT = 200;
-ALTER TABLE `ultary_feed` AUTO_INCREMENT = 200;
-ALTER TABLE `ultary_feed_media` AUTO_INCREMENT = 200;
+ALTER TABLE `ultary_feed` AUTO_INCREMENT = 300;
+ALTER TABLE `ultary_feed_media` AUTO_INCREMENT = 300;
 ALTER TABLE `ultary_feed_media_mention` AUTO_INCREMENT = 200;
 ALTER TABLE `ultary_feed_pet` AUTO_INCREMENT = 200;
-ALTER TABLE `ultary_feed_tag` AUTO_INCREMENT = 200;
-ALTER TABLE `ultary_feed_like` AUTO_INCREMENT = 300;
+ALTER TABLE `ultary_feed_tag` AUTO_INCREMENT = 300;
+ALTER TABLE `ultary_feed_like` AUTO_INCREMENT = 500;
 ALTER TABLE `ultary_feed_comment_like` AUTO_INCREMENT = 400;
 ALTER TABLE `ultary_feed_reply_like` AUTO_INCREMENT = 400;
-ALTER TABLE `ultary_feed_store` AUTO_INCREMENT = 200;
+ALTER TABLE `ultary_feed_pin` AUTO_INCREMENT = 200;
+ALTER TABLE `ultary_feed_save` AUTO_INCREMENT = 200;
 ALTER TABLE `ultary_feed_comment` AUTO_INCREMENT = 300;
 ALTER TABLE `ultary_feed_reply` AUTO_INCREMENT = 300;
 ALTER TABLE `ultary_feed_comment_mention` AUTO_INCREMENT = 300;

@@ -45,8 +45,8 @@ function pickLoginError(err: unknown): string {
 export default function LoginClient({ initialError, returnUrl = '' }: Props) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
-  const [loginId, setLoginId] = useState('01011112222');
-  const [password, setPassword] = useState('Test1234!');
+  const [loginId, setLoginId] = useState('');
+  const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(socialErrorMessage(initialError));
 
   const safeReturn = sanitizeReturnUrl(returnUrl);
@@ -99,7 +99,7 @@ export default function LoginClient({ initialError, returnUrl = '' }: Props) {
               value={loginId}
               onChange={(e) => setLoginId(e.target.value)}
               placeholder="휴대폰번호 또는 이메일을 입력해주세요."
-              autoComplete="username"
+              autoComplete="off"
               className={styles.input}
               disabled={pending}
             />
@@ -109,7 +109,7 @@ export default function LoginClient({ initialError, returnUrl = '' }: Props) {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="비밀번호를 입력해주세요."
-              autoComplete="current-password"
+              autoComplete="off"
               className={styles.input}
               disabled={pending}
             />

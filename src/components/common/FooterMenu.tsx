@@ -10,6 +10,11 @@ import {
   publishUnreadBadge,
   subscribeUnreadBadge,
 } from '@/lib/notification/unreadBadge';
+import {
+  fetchDmUnread,
+  getDmUnreadBadge,
+  subscribeDmUnread,
+} from '@/lib/dm/unreadBadge';
 import { isLiveSocketAuthed } from '@/lib/ws/liveSocket';
 import { NO_PROFILE_SRC } from '@/lib/profileImage';
 import { confirmLeaveWrite, isWriteFlowPath } from '@/lib/write/confirm-leave';
@@ -44,6 +49,7 @@ export function FooterMenu() {
   const myPath = myUltaryPath(MY_NICKNAME);
   const [avatarSrc, setAvatarSrc] = useState(NO_PROFILE_SRC);
   const [unreadCount, setUnreadCount] = useState(getUnreadBadge);
+  const [dmUnreadCount, setDmUnreadCount] = useState(getDmUnreadBadge);
   const isNotifications = pathname.startsWith('/notifications');
 
   useEffect(() => {
@@ -69,6 +75,7 @@ export function FooterMenu() {
   }, []);
 
   useEffect(() => subscribeUnreadBadge(setUnreadCount), []);
+  useEffect(() => subscribeDmUnread(setDmUnreadCount), []);
 
   useEffect(() => {
     if (isNotifications) return;
@@ -84,6 +91,16 @@ export function FooterMenu() {
       cancelled = true;
     };
   }, [isNotifications]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void fetchDmUnread().catch((err) => {
+      if (!cancelled) console.error('[footer] dm unread failed', err);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [pathname]);
   const writing = isWriteFlowPath(pathname);
   const isHome = pathname === '/';
   const isSearch = pathname.startsWith('/search');
@@ -146,11 +163,22 @@ export function FooterMenu() {
       <Link
         href="/dm"
         className={styles.item}
-        aria-label="메시지"
+        aria-label={
+          dmUnreadCount != null && dmUnreadCount > 0
+            ? `메시지 ${unreadBadgeLabel(dmUnreadCount)}`
+            : '메시지'
+        }
         aria-current={isDm ? 'page' : undefined}
         onClick={guardNav('/dm')}
       >
-        <Image src={isDm ? MessageFillIcon : MessageIcon} alt="" width={30} height={30} />
+        <span className={styles.iconWrap}>
+          <Image src={isDm ? MessageFillIcon : MessageIcon} alt="" width={30} height={30} />
+          {dmUnreadCount != null && dmUnreadCount > 0 ? (
+            <span className={styles.badge} aria-hidden>
+              {unreadBadgeLabel(dmUnreadCount)}
+            </span>
+          ) : null}
+        </span>
       </Link>
 
       <Link

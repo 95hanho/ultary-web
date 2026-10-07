@@ -156,9 +156,21 @@
   justify-content: flex-end;
 }
 
-.bubble {
+.bubbleCol {
   display: flex;
   max-width: 78%;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
+
+.bubbleRowMe .bubbleCol {
+  align-items: flex-end;
+}
+
+.bubble {
+  display: flex;
+  max-width: 100%;
   flex-direction: column;
   gap: 4px;
   padding: 10px 12px;
@@ -179,10 +191,27 @@
   word-break: break-word;
 }
 
-.bubbleTime {
-  align-self: flex-end;
+.bubbleMeta {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.bubbleRead {
+  font-weight: bold;
+  font-size: 12px;
+  color: var(--brand-grass-600);
+}
+
+.bubbleTime,
+.bubbleShare {
   color: var(--brand-gray-400);
   font-size: 11px;
+  line-height: 1.2;
+}
+
+.bubbleShare {
+  align-self: flex-end;
 }
 
 .status {
@@ -297,6 +326,55 @@
   margin: 0;
   color: var(--brand-gray-600);
   font-size: 12px;
+}
+
+.typing {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  color: var(--brand-gray-600);
+  font-size: 13px;
+  line-height: 1;
+  background: #fff;
+  padding: 10px 15px;
+  border: 1px solid var(--brand-gray-100);
+  border-radius: 50px;
+  align-self: center;
+}
+
+.typingDots {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.typingDot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--brand-gray-300);
+  animation: typingDot 1.2s infinite;
+
+  &:nth-child(2) {
+    animation-delay: 0.2s;
+  }
+
+  &:nth-child(3) {
+    animation-delay: 0.4s;
+  }
+}
+
+@keyframes typingDot {
+  0%,
+  70%,
+  100% {
+    background: var(--brand-gray-300);
+  }
+
+  35% {
+    background: var(--brand-grass-600);
+  }
 }
 
 .composerInput {

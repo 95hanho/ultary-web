@@ -10,15 +10,15 @@ import { springDelete, springPostForm } from '@/lib/api/springFetch';
 
 type Ctx = { params: Promise<{ feedId: string }> };
 
-/** BFF /api/feeds/[feedId]/store — POST */
+/** BFF /api/feeds/[feedId]/pin — POST */
 export async function POST(_request: Request, { params }: Ctx) {
-  console.log('[API] 게시글 저장');
+  console.log('[API] 게시글 고정');
   try {
     const accessToken = await requireAccessToken();
     if (isUnauthorized(accessToken)) return accessToken;
     const { feedId } = await params;
     const data = await springPostForm(
-      springEndpoints.feeds.store,
+      springEndpoints.feeds.pin,
       { feedId },
       bearer(accessToken),
     );
@@ -28,15 +28,15 @@ export async function POST(_request: Request, { params }: Ctx) {
   }
 }
 
-/** BFF /api/feeds/[feedId]/store — DELETE */
+/** BFF /api/feeds/[feedId]/pin — DELETE */
 export async function DELETE(_request: Request, { params }: Ctx) {
-  console.log('[API] 게시글 저장 해제');
+  console.log('[API] 게시글 고정 해제');
   try {
     const accessToken = await requireAccessToken();
     if (isUnauthorized(accessToken)) return accessToken;
     const { feedId } = await params;
     const data = await springDelete(
-      springEndpoints.feeds.store,
+      springEndpoints.feeds.pin,
       { feedId },
       bearer(accessToken),
     );

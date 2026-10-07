@@ -6,6 +6,11 @@ import { isRecord } from '@/lib/api/error';
 
 const FALLBACK_POST = '/images/mock/post.jpg';
 
+function readTagIds(value: unknown): number[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter((id): id is number => typeof id === 'number' && Number.isFinite(id));
+}
+
 function readText(value: unknown): string | undefined {
   return typeof value === 'string' && value.trim() ? value.trim() : undefined;
 }
@@ -128,10 +133,12 @@ export function toFeedData(raw: unknown, fallbackId: string): FeedData {
     mediaIds,
     photoTags,
     caption: detail.content?.trim() || '',
+    tagIds: readTagIds(detail.tagIds),
     likeCount: detail.likeCount ?? 0,
     commentCount: detail.commentCount ?? 0,
     isFavorite: detail.likedByMe === true,
-    isStored: detail.storedByMe === true,
+    isPinned: detail.pinnedByMe === true,
+    isSaved: detail.savedByMe === true,
   };
 }
 

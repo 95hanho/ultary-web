@@ -1,9 +1,10 @@
 'use client';
 
+import { MediaImage } from '@/components/common/MediaImage';
 import type { TagExplain } from '@/lib/mock/tags';
 import clsx from 'clsx';
 import { X } from 'lucide-react';
-import { MediaImage } from '@/components/common/MediaImage';
+import { useRouter } from 'next/navigation';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import styles from './TagExplainPopover.module.scss';
@@ -77,6 +78,7 @@ export function TagExplainPopover({
   onPopoverEnter,
   onPopoverLeave,
 }: TagExplainPopoverProps) {
+  const router = useRouter();
   const rootRef = useRef<HTMLDivElement>(null);
   const ignoreCloseUntilRef = useRef(Date.now() + CLOSE_GUARD_MS);
   const [coords, setCoords] = useState<Coords | null>(null);
@@ -215,25 +217,45 @@ export function TagExplainPopover({
         </div>
 
         <div className={styles.body}>
-          <MediaImage
-            src={data.imageUrl}
-            alt=""
-            width={200}
-            height={200}
-            className={styles.image}
-          />
+          {data.imageUrl ? (
+            <MediaImage
+              src={data.imageUrl}
+              alt=""
+              width={200}
+              height={200}
+              className={styles.image}
+            />
+          ) : null}
           <div className={styles.textWrap}>
             <p className={styles.description}>{data.description}</p>
-            {data.linkUrl ? (
-              <a
-                href={data.linkUrl}
-                className={styles.link}
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={(e) => e.stopPropagation()}
-              >
-                {data.linkLabel ?? '→관련 링크 보기'}
-              </a>
+            {typeof data.postCount === 'number' || data.linkUrl ? (
+              <div className={styles.actions}>
+                {typeof data.postCount === 'number' ? (
+                  <button
+                    type="button"
+                    className={styles.morePosts}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      const tag = data.tag.replace(/^#/, '').trim();
+                      if (!tag) return;
+                      router.push(`/search?q=${encodeURIComponent(`#${tag}`)}`);
+                    }}
+                  >
+                    다른 게시글보기({data.postCount})
+                  </button>
+                ) : null}
+                {data.linkUrl ? (
+                  <a
+                    href={data.linkUrl}
+                    className={styles.link}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    {data.linkLabel ?? '관련 링크'}
+                  </a>
+                ) : null}
+              </div>
             ) : null}
           </div>
         </div>

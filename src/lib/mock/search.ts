@@ -19,6 +19,7 @@ export type MockHashtag = {
   /** `#` 포함 */
   tag: string;
   postCount: number;
+  tagId?: number;
 };
 
 const PROFILE = '/images/mock/profile.jpg';

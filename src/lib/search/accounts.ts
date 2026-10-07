@@ -24,6 +24,11 @@ function pickUserNo(raw: Record<string, unknown>): number | null {
   return null;
 }
 
+function mentionLabel(value: string): string {
+  const name = value.trim().replace(/^@+/, '');
+  return name ? `@${name}` : '';
+}
+
 function pickPetTags(raw: Record<string, unknown>): string[] {
   const source = Array.isArray(raw.petTags)
     ? raw.petTags
@@ -32,15 +37,14 @@ function pickPetTags(raw: Record<string, unknown>): string[] {
       : [];
   return source
     .map((pet) => {
-      if (typeof pet === 'string') return pet;
+      if (typeof pet === 'string') return mentionLabel(pet);
       if (!isRecord(pet)) return '';
       const name =
         (typeof pet.mentionId === 'string' && pet.mentionId) ||
         (typeof pet.petName === 'string' && pet.petName) ||
         (typeof pet.name === 'string' && pet.name) ||
         '';
-      if (!name) return '';
-      return name.startsWith('@') ? name : `@${name}`;
+      return mentionLabel(name);
     })
     .filter(Boolean);
 }
@@ -78,9 +82,33 @@ export function mapRecentAccounts(raw: unknown): SearchAccount[] {
     .filter((account): account is SearchAccount => account != null);
 }
 
-/** GET /main/search?type=USER 의 유저 목록 */
+/** GET /main/search?type=USER|MENTION 의 유저 목록 */
 export function mapSearchUsers(raw: unknown): SearchAccount[] {
   return listFrom(raw, ['users', 'userList', 'items', 'content', 'list'])
     .map(toAccount)
     .filter((account): account is SearchAccount => account != null);
+}
+
+export type SearchTagHit = {
+  tagId: number;
+  /** `#` 포함 */
+  tag: string;
+  postCount: number;
+};
+
+/** GET /main/search?type=TAG 의 tags */
+export function mapSearchTags(raw: unknown): SearchTagHit[] {
+  return listFrom(raw, ['tags'])
+    .map((item) => {
+      if (!isRecord(item) || typeof item.tagId !== 'number') return null;
+      const hashtag =
+        typeof item.hashtag === 'string' ? item.hashtag.trim().replace(/^#/, '') : '';
+      if (!hashtag) return null;
+      return {
+        tagId: item.tagId,
+        tag: `#${hashtag}`,
+        postCount: typeof item.feedCount === 'number' ? item.feedCount : 0,
+      };
+    })
+    .filter((tag): tag is SearchTagHit => tag != null);
 }

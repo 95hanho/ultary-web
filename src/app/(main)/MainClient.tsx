@@ -109,6 +109,7 @@ export default function MainClient() {
   const [showRecommended, setShowRecommended] = useState(false);
   const [recommendLoading, setRecommendLoading] = useState(false);
   const [storyUsers, setStoryUsers] = useState<StoryRing[]>([]);
+  const [storiesReady, setStoriesReady] = useState(false);
   const ownersRef = useRef<StoryOwner[]>([]);
 
   useEffect(() => {
@@ -130,6 +131,8 @@ export default function MainClient() {
       } catch (err) {
         console.error('[main] BFF load failed', err);
         if (!cancelled) setFeeds([]);
+      } finally {
+        if (!cancelled) setStoriesReady(true);
       }
     })();
     return () => {
@@ -241,6 +244,8 @@ export default function MainClient() {
                 </button>
               ) : null}
             </>
+          ) : storiesReady ? (
+            <p className={styles.storyEmpty}>스토리가 없습니다</p>
           ) : null}
         </section>
 

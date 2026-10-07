@@ -10,7 +10,7 @@ export type Feed = {
   visibility: FeedVisibility;
   likeCount: number;
   commentCount: number;
-  storeCount: number;
+  pinCount: number;
 } & Timestamps &
   SoftDelete;
 
@@ -24,10 +24,14 @@ export type FeedDetailResponse = Feed & {
   /** 작성자 표시명 — Spring 게스트 단건에도 포함 (spring-auth-api.md) */
   nickname?: string | null;
   authorNickname?: string | null;
-  /** 현재 로그인 유저가 이 게시글을 저장했는지 */
-  storedByMe?: boolean;
+  /** 현재 로그인 유저가 이 글을 울타리에 고정했는지 */
+  pinnedByMe?: boolean;
+  /** 현재 로그인 유저가 나만 보기로 저장했는지 */
+  savedByMe?: boolean;
   /** 현재 로그인 유저가 이 게시글을 좋아요 했는지 */
   likedByMe?: boolean;
+  /** 이 글에 연결된 태그 id */
+  tagIds?: number[];
 } & FeedCoverFileEmbed;
 
 /** 피드 그리드 읽기 응답 */
@@ -106,9 +110,17 @@ export type FeedCommentMention = {
   createdAt: DateTimeString;
 };
 
-/** ultary_feed_store */
-export type FeedStore = {
-  feedStoreId: number;
+/** ultary_feed_pin. 울타리에 보이는 고정 */
+export type FeedPin = {
+  feedPinId: number;
+  feedId: number;
+  userNo: number;
+  createdAt: DateTimeString;
+} & SoftDelete;
+
+/** ultary_feed_save. 목록은 본인만 */
+export type FeedSave = {
+  feedSaveId: number;
   feedId: number;
   userNo: number;
   createdAt: DateTimeString;

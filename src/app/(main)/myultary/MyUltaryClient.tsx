@@ -61,7 +61,7 @@ const GroupOffIcon = '/images/icon/Group_light.svg';
 const GroupOnIcon = '/images/icon/Group_light_on.svg';
 
 type AccountStoryStatus = 'none' | 'read' | 'unread';
-type ContentTab = 'feed' | 'saved' | 'tagged';
+type ContentTab = 'feed' | 'pinned' | 'tagged';
 
 type Pet = MyUltaryPetCard;
 
@@ -170,10 +170,10 @@ export default function MyUltaryClient({ nickname }: MyUltaryClientProps) {
   const [unknownAccount, setUnknownAccount] = useState(false);
   const [apiPets, setApiPets] = useState<Pet[]>([]);
   const [apiFeedPosts, setApiFeedPosts] = useState<FeedGridItem[]>([]);
-  const [savedApiPosts, setSavedApiPosts] = useState<FeedGridItem[]>([]);
+  const [pinnedPosts, setPinnedPosts] = useState<FeedGridItem[]>([]);
   const [taggedPosts, setTaggedPosts] = useState<FeedGridItem[]>([]);
   const [feedsReady, setFeedsReady] = useState(!expectsOwn);
-  const [savedReady, setSavedReady] = useState(!expectsOwn);
+  const [pinnedReady, setPinnedReady] = useState(!expectsOwn);
   const [taggedReady, setTaggedReady] = useState(!expectsOwn);
   const [bio, setBio] = useState(() => (expectsOwn ? '' : (mockAccount?.bio ?? '')));
   const [savedBio, setSavedBio] = useState(() => (expectsOwn ? '' : (mockAccount?.bio ?? '')));
@@ -241,6 +241,12 @@ export default function MyUltaryClient({ nickname }: MyUltaryClientProps) {
   useEffect(() => {
     if (!expectsOwn) return;
     let cancelled = false;
+    setProfileReady(false);
+    setFeedsReady(false);
+    setPinnedReady(false);
+    setTaggedReady(false);
+    setPinnedPosts([]);
+    setTaggedPosts([]);
     (async () => {
       try {
         const res = await bffGet<BffEnvelope<unknown>>(bffEndpoints.myUltary.profile);
@@ -314,8 +320,6 @@ export default function MyUltaryClient({ nickname }: MyUltaryClientProps) {
         );
         setProfileReady(true);
         setFeedsReady(true);
-        setSavedReady(true);
-        setTaggedReady(true);
       } catch (err) {
         console.error('[myultary] profile load failed', err);
         if (!cancelled) {
@@ -330,35 +334,49 @@ export default function MyUltaryClient({ nickname }: MyUltaryClientProps) {
   }, [basePath, expectsOwn, nickname]);
 
   useEffect(() => {
-    if (!viewingOwn || contentTab !== 'saved' || savedReady) return;
+    if (!profileReady || contentTab !== 'pinned' || pinnedReady) return;
+    const ownerUserNo = profile?.userNo;
+    if (!viewingOwn && ownerUserNo == null) return;
     let cancelled = false;
     (async () => {
       try {
-        const res = await bffGet<BffEnvelope<unknown>>(bffEndpoints.myUltary.savedFeeds, {
-          limit: 21,
-        });
+        const res = viewingOwn
+          ? await bffGet<BffEnvelope<unknown>>(bffEndpoints.myUltary.pinnedFeeds, {
+              limit: 21,
+            })
+          : await bffGet<BffEnvelope<unknown>>(bffEndpoints.users.pinnedFeeds, {
+              userNo: ownerUserNo,
+              limit: 21,
+            });
         if (cancelled) return;
-        setSavedApiPosts(mapFeedGrid(res.data, (id) => `${basePath}/saved/${id}`));
+        setPinnedPosts(mapFeedGrid(res.data, (id) => `${basePath}/pinned/${id}`));
       } catch (err) {
-        console.error('[myultary] saved feeds failed', err);
-        if (!cancelled) setSavedApiPosts([]);
+        console.error('[myultary] pinned feeds failed', err);
+        if (!cancelled) setPinnedPosts([]);
       } finally {
-        if (!cancelled) setSavedReady(true);
+        if (!cancelled) setPinnedReady(true);
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, [basePath, contentTab, savedReady, viewingOwn]);
+  }, [basePath, contentTab, pinnedReady, profile?.userNo, profileReady, viewingOwn]);
 
   useEffect(() => {
-    if (!viewingOwn || contentTab !== 'tagged' || taggedReady) return;
+    if (!profileReady || contentTab !== 'tagged' || taggedReady) return;
+    const ownerUserNo = profile?.userNo;
+    if (!viewingOwn && ownerUserNo == null) return;
     let cancelled = false;
     (async () => {
       try {
-        const res = await bffGet<BffEnvelope<unknown>>(bffEndpoints.myUltary.taggedFeeds, {
-          limit: 21,
-        });
+        const res = viewingOwn
+          ? await bffGet<BffEnvelope<unknown>>(bffEndpoints.myUltary.taggedFeeds, {
+              limit: 21,
+            })
+          : await bffGet<BffEnvelope<unknown>>(bffEndpoints.users.taggedFeeds, {
+              userNo: ownerUserNo,
+              limit: 21,
+            });
         if (cancelled) return;
         setTaggedPosts(mapFeedGrid(res.data, (id) => `${basePath}/tagged/${id}`));
       } catch (err) {
@@ -371,7 +389,7 @@ export default function MyUltaryClient({ nickname }: MyUltaryClientProps) {
     return () => {
       cancelled = true;
     };
-  }, [basePath, contentTab, taggedReady, viewingOwn]);
+  }, [basePath, contentTab, profile?.userNo, profileReady, taggedReady, viewingOwn]);
 
   const openCreateMenu = () => {
     openModal({
@@ -465,21 +483,21 @@ export default function MyUltaryClient({ nickname }: MyUltaryClientProps) {
     }));
   }, [apiFeedPosts, basePath, expectsOwn]);
 
-  const savedPosts = useMemo(() => {
-    if (expectsOwn) return savedApiPosts;
+  const pinnedGrid = useMemo(() => {
+    if (expectsOwn) return pinnedPosts;
     return MOCK_SAVED_FEEDS.map((feed) => ({
       id: feed.id,
       imageUrl: feed.images[0] ?? '/images/mock/post.jpg',
       isMulti: feed.images.length > 1,
-      href: `${basePath}/saved/${feed.id}`,
+      href: `${basePath}/pinned/${feed.id}`,
     }));
-  }, [basePath, expectsOwn, savedApiPosts]);
+  }, [basePath, expectsOwn, pinnedPosts]);
 
   const posts =
-    contentTab === 'saved' ? savedPosts : contentTab === 'tagged' ? taggedPosts : feedPosts;
+    contentTab === 'pinned' ? pinnedGrid : contentTab === 'tagged' ? taggedPosts : feedPosts;
   const gridReady =
-    contentTab === 'saved'
-      ? savedReady
+    contentTab === 'pinned'
+      ? pinnedReady
       : contentTab === 'tagged'
         ? taggedReady
         : !expectsOwn || feedsReady;
@@ -811,14 +829,14 @@ export default function MyUltaryClient({ nickname }: MyUltaryClientProps) {
             type="button"
             className={clsx(
               styles.sideTabBtn,
-              contentTab === 'saved' ? styles.sideTabActive : undefined,
+              contentTab === 'pinned' ? styles.sideTabActive : undefined,
             )}
-            onClick={() => setContentTab('saved')}
-            aria-label="저장"
-            aria-pressed={contentTab === 'saved'}
+            onClick={() => setContentTab('pinned')}
+            aria-label="고정"
+            aria-pressed={contentTab === 'pinned'}
           >
             <Image
-              src={contentTab === 'saved' ? SavedOnIcon : SavedOffIcon}
+              src={contentTab === 'pinned' ? SavedOnIcon : SavedOffIcon}
               alt=""
               width={20}
               height={20}

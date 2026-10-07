@@ -28,15 +28,12 @@
 }
 
 .btnPage {
-  padding: 5px 19px;
+  padding: 10px 19px;
   border-radius: 4px;
 
-  &:hover {
-    background: var(--brand-sky-100);
-  }
-
+  &:hover,
   &:active {
-    background: var(--brand-gray-100);
+    background: var(--brand-grass-100);
   }
 }
 

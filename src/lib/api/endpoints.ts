@@ -81,7 +81,9 @@ export const bffEndpoints = {
     feeds: '/api/my-ultary/feeds',
     /** GET MY 게시글 상세(피드형) */
     feedDetail: '/api/my-ultary/feeds/:feedId',
-    /** GET 저장한 게시글 */
+    /** GET 울타리에 고정한 게시글 */
+    pinnedFeeds: '/api/my-ultary/pinned-feeds',
+    /** GET 나만 보는 저장 게시글 */
     savedFeeds: '/api/my-ultary/saved-feeds',
     /** GET 태그된 게시글 */
     taggedFeeds: '/api/my-ultary/tagged-feeds',
@@ -122,8 +124,10 @@ export const bffEndpoints = {
     like: '/api/feeds/:feedId/like',
     /** GET 좋아요한 사람 목록 */
     likers: '/api/feeds/:feedId/likers',
-    /** POST 저장 / DELETE 저장 해제 */
-    store: '/api/feeds/:feedId/store',
+    /** POST 울타리 고정 / DELETE 고정 해제 */
+    pin: '/api/feeds/:feedId/pin',
+    /** POST 나만 보는 저장 / DELETE 저장 해제 */
+    save: '/api/feeds/:feedId/save',
     /** POST 공유 (DM 전송 등) */
     share: '/api/feeds/:feedId/share',
     /** GET 댓글 목록 / POST 댓글 작성 */
@@ -158,6 +162,10 @@ export const bffEndpoints = {
     pets: '/api/users/:userNo/pets',
     /** GET 그 유저의 게시글 그리드 */
     feeds: '/api/users/:userNo/feeds',
+    /** GET 그 유저가 울타리에 고정한 글 */
+    pinnedFeeds: '/api/users/:userNo/pinned-feeds',
+    /** GET 그 유저 펫이 태그된 글 */
+    taggedFeeds: '/api/users/:userNo/tagged-feeds',
     /** GET 주민/이웃 목록 ?type= */
     neighbors: '/api/users/:userNo/neighbors',
     /** POST 주민 요청 */
@@ -194,6 +202,10 @@ export const bffEndpoints = {
     room: '/api/dm/rooms/:roomId',
     /** POST 읽음 처리 */
     roomRead: '/api/dm/rooms/:roomId/read',
+    /** POST 이 방 화면을 보고 있음 */
+    roomViewing: '/api/dm/rooms/:roomId/viewing',
+    /** POST 입력 중 */
+    roomTyping: '/api/dm/rooms/:roomId/typing',
     /** GET 대화방 메시지 / POST 메시지 전송 */
     messages: '/api/dm/rooms/:roomId/messages',
   },
@@ -240,8 +252,10 @@ export const bffEndpoints = {
     nicknameCooldown: '/api/test/nickname-cooldown',
     /** POST 펫 멘션 ID 변경 쿨다운 초기화 */
     mentionIdCooldown: '/api/test/pets/:petId/mention-id-cooldown',
-    /** POST development — refreshToken 쿠키만 삭제. Spring 호출 없음 */
-    refreshTokenReset: '/api/dev/refresh-token/reset',
+    /** DELETE 내 리프레시 토큰 전부 폐기 */
+    tokens: '/api/test/tokens',
+    /** POST development — access 쿠키와 만료 표시만 삭제. Spring 호출 없음 */
+    accessTokenReset: '/api/dev/access-token/reset',
   },
 
   files: {
@@ -324,7 +338,9 @@ export const springEndpoints = {
     feeds: '/api/v1/my-ultary/feeds',
     /** GET */
     feedDetail: '/api/v1/my-ultary/feeds/:feedId',
-    /** GET */
+    /** GET 울타리 고정 */
+    pinnedFeeds: '/api/v1/my-ultary/pinned-feeds',
+    /** GET 나만 보는 저장 */
     savedFeeds: '/api/v1/my-ultary/saved-feeds',
     /** GET */
     taggedFeeds: '/api/v1/my-ultary/tagged-feeds',
@@ -365,8 +381,10 @@ export const springEndpoints = {
     like: '/api/v1/feeds/:feedId/like',
     /** GET */
     likers: '/api/v1/feeds/:feedId/likers',
-    /** POST / DELETE */
-    store: '/api/v1/feeds/:feedId/store',
+    /** POST / DELETE 울타리 고정 */
+    pin: '/api/v1/feeds/:feedId/pin',
+    /** POST / DELETE 나만 보는 저장 */
+    save: '/api/v1/feeds/:feedId/save',
     /** POST */
     share: '/api/v1/feeds/:feedId/share',
     /** GET / POST */
@@ -401,6 +419,10 @@ export const springEndpoints = {
     pets: '/api/v1/users/:userNo/pets',
     /** GET */
     feeds: '/api/v1/users/:userNo/feeds',
+    /** GET 그 유저가 고정한 글 */
+    pinnedFeeds: '/api/v1/users/:userNo/pinned-feeds',
+    /** GET 그 유저 펫이 태그된 글 */
+    taggedFeeds: '/api/v1/users/:userNo/tagged-feeds',
     /** GET */
     neighbors: '/api/v1/users/:userNo/neighbors',
     /** POST */
@@ -435,6 +457,10 @@ export const springEndpoints = {
     room: '/api/v1/dm/rooms/:roomId',
     /** POST */
     roomRead: '/api/v1/dm/rooms/:roomId/read',
+    /** POST { viewing } */
+    roomViewing: '/api/v1/dm/rooms/:roomId/viewing',
+    /** POST { typing } */
+    roomTyping: '/api/v1/dm/rooms/:roomId/typing',
     /** GET / POST */
     messages: '/api/v1/dm/rooms/:roomId/messages',
   },
@@ -481,6 +507,8 @@ export const springEndpoints = {
     nicknameCooldown: '/api/v1/test/nickname-cooldown',
     /** POST Bearer — mention_id_changed_at 을 올해 1월 1일로 */
     mentionIdCooldown: '/api/v1/test/pets/:petId/mention-id-cooldown',
+    /** DELETE Bearer — 내 ultary_token 리프레시 행 전부 폐기. local 프로필만 */
+    tokens: '/api/v1/test/tokens',
   },
 
   files: {

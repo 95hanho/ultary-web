@@ -110,6 +110,7 @@ export function ModalHost() {
                     close();
                   }}
                 >
+                  {item.icon ? <span className={styles.actionIcon}>{item.icon}</span> : null}
                   {item.label}
                 </button>
               </li>

@@ -1,5 +1,7 @@
--- schema_version: 18
+-- schema_version: 20
 -- Ultary MariaDB 10.1 초기 스키마
+-- v20: ultary_user.withdrawal_status 에 SUSPENDED, suspended_at. 관리자 회원 정지
+-- v19: ultary_feed_pin(울타리 고정), ultary_feed_save(나만 보는 저장). 구 ultary_feed_store·store_count
 -- v18: ultary_dm_room, ultary_dm_message. 1:1 메시지. 게시글(사진 슬롯)·스토리 공유
 -- v17: ultary_user_privacy. 공개 범위. 행이 없으면 비공개 계정 꺼짐, 게시글 전체, 스토리 이웃, 신청·댓글·멘션·태그 켜짐
 -- v16: ultary_notification_setting. 알림 종류별 켜기/끄기. 행이 없으면 전부 켜짐
@@ -61,6 +63,8 @@
 --   v16: 알림 설정 (ultary_notification_setting). 종류별 스위치, 기본 켜짐
 --   v17: 공개 범위 (ultary_user_privacy)
 --   v18: DM (ultary_dm_room, ultary_dm_message)
+--   v19: ultary_feed_pin, ultary_feed_save
+--   v20: 회원 정지 SUSPENDED, suspended_at
 
 SET NAMES utf8;
 SET FOREIGN_KEY_CHECKS = 0;
@@ -82,7 +86,8 @@ DROP TABLE IF EXISTS `ultary_user_search_history`;
 DROP TABLE IF EXISTS `ultary_tag_image`;
 DROP TABLE IF EXISTS `ultary_feed_tag`;
 DROP TABLE IF EXISTS `ultary_tag`;
-DROP TABLE IF EXISTS `ultary_feed_store`;
+DROP TABLE IF EXISTS `ultary_feed_save`;
+DROP TABLE IF EXISTS `ultary_feed_pin`;
 DROP TABLE IF EXISTS `ultary_feed_comment_mention`;
 DROP TABLE IF EXISTS `ultary_feed_reply_like`;
 DROP TABLE IF EXISTS `ultary_feed_comment_like`;
@@ -118,8 +123,9 @@ CREATE TABLE `ultary_user` (
   `region_sigungu` VARCHAR(30) NULL DEFAULT NULL COMMENT '동네 기반 기능용 시/군/구',
   `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  `withdrawal_status` ENUM('ACTIVE','REQUESTED','WITHDRAWN') NOT NULL DEFAULT 'ACTIVE' COMMENT '회원 상태',
+  `withdrawal_status` ENUM('ACTIVE','REQUESTED','WITHDRAWN','SUSPENDED') NOT NULL DEFAULT 'ACTIVE' COMMENT '회원 상태. SUSPENDED=관리자 정지',
   `withdrawal_completed_at` DATETIME NULL DEFAULT NULL,
+  `suspended_at` DATETIME NULL DEFAULT NULL COMMENT '회원 정지 시각. 해제하면 NULL',
   PRIMARY KEY (`user_no`) USING BTREE,
   UNIQUE KEY `UK_ultary_user_nickname` (`nickname`) USING BTREE,
   UNIQUE KEY `UK_ultary_user_email` (`email`) USING BTREE,
@@ -269,7 +275,7 @@ CREATE TABLE `ultary_feed` (
   `visibility` ENUM('PUBLIC','NEIGHBORS','PRIVATE') NOT NULL DEFAULT 'PUBLIC' COMMENT 'PUBLIC: 전체 공개, NEIGHBORS: 이웃 공개, PRIVATE: 나만 보기',
   `like_count` INT(11) NOT NULL DEFAULT 0,
   `comment_count` INT(11) NOT NULL DEFAULT 0,
-  `store_count` INT(11) NOT NULL DEFAULT 0,
+  `pin_count` INT(11) NOT NULL DEFAULT 0 COMMENT '울타리에 고정한 사람 수',
   `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   `is_deleted` TINYINT(1) NOT NULL DEFAULT 0,
@@ -410,17 +416,29 @@ CREATE TABLE `ultary_feed_comment_mention` (
   KEY `IDX_ultary_mention_pet_id` (`mentioned_pet_id`) USING BTREE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_general_ci COMMENT='댓글/답글 내 사용자 또는 반려동물 언급';
 
-CREATE TABLE `ultary_feed_store` (
-  `feed_store_id` INT(11) NOT NULL AUTO_INCREMENT,
+CREATE TABLE `ultary_feed_pin` (
+  `feed_pin_id` INT(11) NOT NULL AUTO_INCREMENT,
   `feed_id` INT(11) NOT NULL,
-  `user_no` INT(11) NOT NULL,
+  `user_no` INT(11) NOT NULL COMMENT '울타리에 이 글을 고정한 사용자',
   `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `is_deleted` TINYINT(1) NOT NULL DEFAULT 0,
   `deleted_at` DATETIME NULL DEFAULT NULL,
-  PRIMARY KEY (`feed_store_id`) USING BTREE,
-  UNIQUE KEY `UK_ultary_feed_store_feed_user` (`feed_id`, `user_no`) USING BTREE,
-  KEY `IDX_ultary_feed_store_user_no` (`user_no`) USING BTREE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_general_ci COMMENT='피드 저장';
+  PRIMARY KEY (`feed_pin_id`) USING BTREE,
+  UNIQUE KEY `UK_ultary_feed_pin_feed_user` (`feed_id`, `user_no`) USING BTREE,
+  KEY `IDX_ultary_feed_pin_user_no` (`user_no`) USING BTREE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_general_ci COMMENT='울타리에 보여주는 고정 게시글';
+
+CREATE TABLE `ultary_feed_save` (
+  `feed_save_id` INT(11) NOT NULL AUTO_INCREMENT,
+  `feed_id` INT(11) NOT NULL,
+  `user_no` INT(11) NOT NULL COMMENT '나만 보는 저장을 한 사용자',
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `is_deleted` TINYINT(1) NOT NULL DEFAULT 0,
+  `deleted_at` DATETIME NULL DEFAULT NULL,
+  PRIMARY KEY (`feed_save_id`) USING BTREE,
+  UNIQUE KEY `UK_ultary_feed_save_feed_user` (`feed_id`, `user_no`) USING BTREE,
+  KEY `IDX_ultary_feed_save_user_no` (`user_no`) USING BTREE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_general_ci COMMENT='나만 보는 저장 게시글';
 
 CREATE TABLE `ultary_tag` (
   `tag_id` INT(11) NOT NULL AUTO_INCREMENT,
@@ -771,9 +789,13 @@ ALTER TABLE `ultary_feed_comment_mention`
   ADD CONSTRAINT `FK_mention_user` FOREIGN KEY (`mentioned_user_no`) REFERENCES `ultary_user` (`user_no`) ON UPDATE CASCADE ON DELETE SET NULL,
   ADD CONSTRAINT `FK_mention_pet` FOREIGN KEY (`mentioned_pet_id`) REFERENCES `ultary_pet` (`pet_id`) ON UPDATE CASCADE ON DELETE SET NULL;
 
-ALTER TABLE `ultary_feed_store`
-  ADD CONSTRAINT `FK_feed_store_feed` FOREIGN KEY (`feed_id`) REFERENCES `ultary_feed` (`feed_id`) ON UPDATE CASCADE ON DELETE RESTRICT,
-  ADD CONSTRAINT `FK_feed_store_user` FOREIGN KEY (`user_no`) REFERENCES `ultary_user` (`user_no`) ON UPDATE CASCADE ON DELETE RESTRICT;
+ALTER TABLE `ultary_feed_pin`
+  ADD CONSTRAINT `FK_feed_pin_feed` FOREIGN KEY (`feed_id`) REFERENCES `ultary_feed` (`feed_id`) ON UPDATE CASCADE ON DELETE RESTRICT,
+  ADD CONSTRAINT `FK_feed_pin_user` FOREIGN KEY (`user_no`) REFERENCES `ultary_user` (`user_no`) ON UPDATE CASCADE ON DELETE RESTRICT;
+
+ALTER TABLE `ultary_feed_save`
+  ADD CONSTRAINT `FK_feed_save_feed` FOREIGN KEY (`feed_id`) REFERENCES `ultary_feed` (`feed_id`) ON UPDATE CASCADE ON DELETE RESTRICT,
+  ADD CONSTRAINT `FK_feed_save_user` FOREIGN KEY (`user_no`) REFERENCES `ultary_user` (`user_no`) ON UPDATE CASCADE ON DELETE RESTRICT;
 
 ALTER TABLE `ultary_tag`
   ADD CONSTRAINT `FK_tag_user` FOREIGN KEY (`created_by_user_no`) REFERENCES `ultary_user` (`user_no`) ON UPDATE CASCADE ON DELETE SET NULL;

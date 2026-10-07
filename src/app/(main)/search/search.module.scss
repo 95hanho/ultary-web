@@ -81,6 +81,36 @@
   }
 }
 
+.clearQueryBtn {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--brand-black-700);
+  cursor: pointer;
+}
+
+.searchSpinner {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(0, 0, 0, 0.15);
+  border-top-color: var(--brand-black-700);
+  border-radius: 50%;
+  animation: searchSpin 0.7s linear infinite;
+}
+
+@keyframes searchSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .cancelBtn {
   display: inline-flex;
   flex-shrink: 0;
@@ -207,4 +237,11 @@
 
 .hit {
   color: var(--brand-grass-600);
+}
+
+.searchStatus {
+  margin: 24px 16px;
+  color: var(--brand-black-700);
+  font-size: 14px;
+  text-align: center;
 }

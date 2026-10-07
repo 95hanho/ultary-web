@@ -7,6 +7,7 @@ import { bffEndpoints } from '@/lib/api/endpoints';
 import {
   Ban,
   Bell,
+  Bookmark,
   Eye,
   FileText,
   HelpCircle,
@@ -58,6 +59,7 @@ const MENU_GROUPS: MenuGroup[] = [
     title: '활동 · 관계',
     items: [
       { label: '내 활동', href: '/settings/activity', Icon: List },
+      { label: '저장한 게시글', href: '/settings/saved', Icon: Bookmark },
       { label: '차단한 사용자', href: '/settings/blocked', Icon: Ban },
     ],
   },

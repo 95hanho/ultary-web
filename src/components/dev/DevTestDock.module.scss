@@ -121,6 +121,18 @@
   margin-top: 6px;
 }
 
+.testLoginSelect {
+  width: 100%;
+  margin-top: 6px;
+  padding: 8px 8px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 8px;
+  background: rgba(20, 20, 20, 0.95);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+}
+
 .groupTitle {
   margin: 4px 0 0;
   font-size: 10px;
@@ -155,6 +167,17 @@
   &:disabled {
     cursor: not-allowed;
     opacity: 0.55;
+  }
+
+  &.testLoginCancel {
+    border-color: var(--brand-red-500);
+    background: var(--brand-red-500);
+    color: #fff;
+
+    &:hover:not(:disabled) {
+      background: var(--brand-red-500);
+      filter: brightness(0.92);
+    }
   }
 }
 

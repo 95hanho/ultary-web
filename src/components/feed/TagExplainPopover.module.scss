@@ -120,9 +120,33 @@
   word-break: break-word;
 }
 
-.link {
+.actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
   margin-top: auto;
-  align-self: flex-end;
+}
+
+.morePosts {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #222ced;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.35;
+  white-space: nowrap;
+  cursor: pointer;
+  text-align: left;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+.link {
+  margin-left: auto;
   color: #222ced;
   font-size: 14px;
   font-weight: 500;

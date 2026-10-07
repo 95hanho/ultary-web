@@ -7,6 +7,8 @@ export type ModalVariant = 'action' | 'alert' | 'confirm';
 /** 액션시트 메뉴 항목 */
 export type ModalActionItem = {
   label: string;
+  /** 라벨 왼쪽 아이콘. 없으면 글자만 */
+  icon?: ReactNode;
   onClick?: () => void;
 };
 

@@ -20,6 +20,19 @@
   position: relative;
 }
 
+.storyEmpty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 101px;
+  margin: 0;
+  color: var(--brand-black-700);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.2;
+  text-align: center;
+}
+
 .storySwiper {
   width: 100%;
   padding: 0 10px;

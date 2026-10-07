@@ -1,21 +1,17 @@
 'use client';
 
 import { FooterMenu } from '@/components/common/FooterMenu';
+import { PageHeader } from '@/components/common/PageHeader';
 import { FeedGrid, type FeedGridItem } from '@/components/feed/FeedGrid';
 import { HashtagResultList } from '@/components/search/HashtagResultList';
 import { bffDelete, bffGet, bffPostJson } from '@/lib/api/bffFetch';
 import { bffEndpoints } from '@/lib/api/endpoints';
+import { isRecord } from '@/lib/api/error';
 import { toFeedDataList } from '@/lib/feed/toFeedData';
-import { mapRecentAccounts, mapSearchUsers } from '@/lib/search/accounts';
-import { MOCK_RECOMMENDED_FEEDS } from '@/lib/mock/feeds';
+import { mapRecentAccounts, mapSearchTags, mapSearchUsers } from '@/lib/search/accounts';
 import type { BffEnvelope } from '@/types/api';
-import { OTHER_NICKNAME, myUltaryPath } from '@/lib/mock/ultary-accounts';
-import {
-  filterMockHashtags,
-  MOCK_SEARCH_ACCOUNTS,
-  type MockHashtag,
-  type SearchAccount,
-} from '@/lib/mock/search';
+import { myUltaryPath } from '@/lib/mock/ultary-accounts';
+import { type MockHashtag, type SearchAccount } from '@/lib/mock/search';
 import { highlightMatch, sortPetTagsByMatch } from '@/lib/search/highlight';
 import clsx from 'clsx';
 import { MediaImage } from '@/components/common/MediaImage';
@@ -33,13 +29,6 @@ const RECOMMENDED_PLACEHOLDERS: FeedGridItem[] = Array.from({ length: 9 }, (_, i
   id: `recommended-placeholder-${i}`,
 }));
 
-const HASHTAG_RESULT_POSTS = MOCK_RECOMMENDED_FEEDS.map((feed) => ({
-  id: `tag-${feed.id}`,
-  imageUrl: feed.images[0] ?? '/images/mock/post.jpg',
-  isMulti: true,
-  href: `${myUltaryPath(OTHER_NICKNAME)}/posts/${feed.id}`,
-}));
-
 type SearchPhase = 'idle' | 'active';
 
 function parseQuery(raw: string): {
@@ -52,18 +41,14 @@ function parseQuery(raw: string): {
   return { mode: 'plain', term: value };
 }
 
-function filterAccounts(mode: 'plain' | 'pet', term: string): SearchAccount[] {
-  const q = term.trim().toLowerCase();
-  if (!q) return [];
+const PREVIEW_LIMIT = 5;
+const COMMIT_LIMIT = 20;
+const PREVIEW_DELAY_MS = 400;
 
-  return MOCK_SEARCH_ACCOUNTS.filter((acc) => {
-    if (mode === 'pet') {
-      return acc.petTags.some((tag) => tag.toLowerCase().includes(`@${q}`) || tag.toLowerCase().includes(q));
-    }
-    const nickHit = acc.nickname.toLowerCase().includes(q);
-    const tagHit = acc.petTags.some((tag) => tag.toLowerCase().includes(q));
-    return nickHit || tagHit;
-  });
+function searchType(mode: 'plain' | 'pet' | 'hashtag'): 'USER' | 'MENTION' | 'TAG' {
+  if (mode === 'pet') return 'MENTION';
+  if (mode === 'hashtag') return 'TAG';
+  return 'USER';
 }
 
 function AccountRow({
@@ -126,10 +111,17 @@ export default function SearchClient() {
   const [selectedHashtag, setSelectedHashtag] = useState<string | null>(null);
   const [recentAccounts, setRecentAccounts] = useState<SearchAccount[]>([]);
   const [userResults, setUserResults] = useState<SearchAccount[]>([]);
-  const [userSearchState, setUserSearchState] = useState<'idle' | 'loading' | 'ready'>(
-    'idle',
-  );
+  const [tagResults, setTagResults] = useState<MockHashtag[]>([]);
+  const [resultState, setResultState] = useState<'idle' | 'pending' | 'ready'>('idle');
+  const [searching, setSearching] = useState(false);
+  /** 엔터로 확정하면 20건. 글자가 바뀌면 미리보기 5건으로 돌아간다 */
+  const [committed, setCommitted] = useState(false);
+  const [submitTick, setSubmitTick] = useState(0);
+  /** 같은 검색어로 태그 그리드에서 돌아오면 목록을 다시 받지 않는다 */
+  const loadedSearchKeyRef = useRef('');
 
+  const [hashtagPosts, setHashtagPosts] = useState<FeedGridItem[]>([]);
+  const [hashtagState, setHashtagState] = useState<'idle' | 'loading' | 'ready'>('idle');
   const [isInputFocused, setIsInputFocused] = useState(false);
   const [recommendedPosts, setRecommendedPosts] = useState<FeedGridItem[]>(
     RECOMMENDED_PLACEHOLDERS,
@@ -166,6 +158,59 @@ export default function SearchClient() {
   const parsed = useMemo(() => parseQuery(query), [query]);
 
   useEffect(() => {
+    const q = new URLSearchParams(window.location.search).get('q')?.trim() ?? '';
+    if (!q) return;
+    setQuery(q);
+    setPhase('active');
+    if (q.startsWith('#')) setSelectedHashtag(q);
+    else setCommitted(true);
+  }, []);
+
+  useEffect(() => {
+    if (!selectedHashtag) {
+      setHashtagPosts([]);
+      setHashtagState('idle');
+      return;
+    }
+    const term = selectedHashtag.replace(/^#/, '').trim();
+    if (!term) return;
+
+    let cancelled = false;
+    setHashtagState('loading');
+    bffGet<BffEnvelope<unknown>>(bffEndpoints.main.search, {
+      q: term,
+      type: 'FEED',
+      limit: 20,
+    })
+      .then((res) => {
+        if (cancelled) return;
+        const data = isRecord(res.data) ? res.data : {};
+        const feeds = Array.isArray(data.feeds) ? data.feeds : [];
+        setHashtagPosts(
+          toFeedDataList(feeds)
+            .filter((feed) => Boolean(feed.images[0]))
+            .map((feed) => ({
+              id: feed.id,
+              imageUrl: feed.images[0],
+              isMulti: feed.images.length > 1,
+              href: `/posts/${feed.id}`,
+            })),
+        );
+        setHashtagState('ready');
+      })
+      .catch((err) => {
+        console.error('[search] hashtag feeds failed', err);
+        if (cancelled) return;
+        setHashtagPosts([]);
+        setHashtagState('ready');
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedHashtag]);
+
+  useEffect(() => {
     if (phase === 'active') {
       inputRef.current?.focus();
     } else {
@@ -174,56 +219,61 @@ export default function SearchClient() {
   }, [phase]);
 
   useEffect(() => {
-    if (phase !== 'active' || selectedHashtag || parsed.mode !== 'plain') {
-      setUserResults([]);
-      setUserSearchState('idle');
+    if (phase !== 'active' || selectedHashtag) {
+      setSearching(false);
       return;
     }
     const term = parsed.term.trim();
     if (!term) {
+      loadedSearchKeyRef.current = '';
       setUserResults([]);
-      setUserSearchState('idle');
+      setTagResults([]);
+      setResultState('idle');
+      setSearching(false);
+      return;
+    }
+
+    const limit = committed ? COMMIT_LIMIT : PREVIEW_LIMIT;
+    const type = searchType(parsed.mode);
+    const requestKey = `${type}:${limit}:${term}:${submitTick}`;
+    if (loadedSearchKeyRef.current === requestKey) {
+      setSearching(false);
       return;
     }
 
     let cancelled = false;
-    setUserSearchState('loading');
+    setUserResults([]);
+    setTagResults([]);
+    setResultState('pending');
+    const delay = committed ? 0 : PREVIEW_DELAY_MS;
     const timer = window.setTimeout(() => {
-      bffGet<BffEnvelope<unknown>>(bffEndpoints.main.search, {
-        q: term,
-        type: 'USER',
-      })
+      setSearching(true);
+      bffGet<BffEnvelope<unknown>>(bffEndpoints.main.search, { q: term, type, limit })
         .then((res) => {
           if (cancelled) return;
-          setUserResults(mapSearchUsers(res.data ?? res));
-          setUserSearchState('ready');
+          const data = res.data ?? res;
+          if (type === 'TAG') setTagResults(mapSearchTags(data));
+          else setUserResults(mapSearchUsers(data));
+          loadedSearchKeyRef.current = requestKey;
+          setResultState('ready');
         })
         .catch((err) => {
-          console.error('[search] users failed', err);
+          console.error('[search] preview failed', err);
           if (cancelled) return;
           setUserResults([]);
-          setUserSearchState('ready');
+          setTagResults([]);
+          setResultState('ready');
+        })
+        .finally(() => {
+          if (!cancelled) setSearching(false);
         });
-    }, 250);
+    }, delay);
 
     return () => {
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [phase, selectedHashtag, parsed.mode, parsed.term]);
-
-  const accountResults = useMemo(() => {
-    if (phase !== 'active' || selectedHashtag) return [];
-    if (parsed.mode === 'hashtag' || !parsed.term.trim()) return [];
-    if (parsed.mode === 'pet') return filterAccounts('pet', parsed.term);
-    return userResults;
-  }, [phase, parsed, selectedHashtag, userResults]);
-
-  const hashtagResults: MockHashtag[] = useMemo(() => {
-    if (phase !== 'active' || selectedHashtag) return [];
-    if (parsed.mode !== 'hashtag') return [];
-    return filterMockHashtags(parsed.term);
-  }, [phase, parsed, selectedHashtag]);
+  }, [phase, selectedHashtag, parsed.mode, parsed.term, committed, submitTick]);
 
   const showRecent =
     phase === 'active' && !selectedHashtag && query.trim() === '';
@@ -276,6 +326,9 @@ export default function SearchClient() {
     setPhase('idle');
     setQuery('');
     setSelectedHashtag(null);
+    setCommitted(false);
+    setSearching(false);
+    setResultState('idle');
   };
 
   async function clearRecent() {
@@ -290,11 +343,32 @@ export default function SearchClient() {
   const onChangeQuery = (value: string) => {
     setQuery(value);
     setSelectedHashtag(null);
+    setCommitted(false);
+  };
+
+  const clearQuery = () => {
+    setQuery('');
+    setSelectedHashtag(null);
+    setCommitted(false);
+    setUserResults([]);
+    setTagResults([]);
+    setResultState('idle');
+    setSearching(false);
+    inputRef.current?.focus();
+  };
+
+  const submitSearch = () => {
+    if (!parsed.term.trim() || selectedHashtag) return;
+    setCommitted(true);
+    setSubmitTick((tick) => tick + 1);
   };
 
   const selectHashtag = (tag: string) => {
-    setSelectedHashtag(tag);
-    setQuery(tag.startsWith('#') ? tag : `#${tag}`);
+    setSelectedHashtag(tag.startsWith('#') ? tag : `#${tag}`);
+  };
+
+  const backFromTagGrid = () => {
+    setSelectedHashtag(null);
   };
 
   const nickHighlight = parsed.mode === 'plain' ? parsed.term : '';
@@ -307,6 +381,12 @@ export default function SearchClient() {
 
   return (
     <div className={styles.shell}>
+      {showHashtagGrid && selectedHashtag ? (
+        <PageHeader
+          title={selectedHashtag.startsWith('#') ? selectedHashtag : `#${selectedHashtag}`}
+          onBack={backFromTagGrid}
+        />
+      ) : (
       <header className={styles.header}>
         {phase === 'idle' ? (
           <button type="button" className={styles.searchBarIdle} onClick={openSearch}>
@@ -326,10 +406,37 @@ export default function SearchClient() {
                 placeholder="검색"
                 value={query}
                 onChange={(e) => onChangeQuery(e.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key !== 'Enter' || event.nativeEvent.isComposing) return;
+                  event.preventDefault();
+                  submitSearch();
+                }}
                 onFocus={() => setIsInputFocused(true)}
                 onBlur={() => setIsInputFocused(false)}
                 aria-label="검색"
               />
+              {(searching || (selectedHashtag != null && hashtagState === 'loading')) &&
+              query.length > 0 ? (
+                <span className={styles.searchSpinner} role="status" aria-label="검색 중" />
+              ) : query.length > 0 ? (
+                <button
+                  type="button"
+                  className={styles.clearQueryBtn}
+                  aria-label="검색어 지우기"
+                  onMouseDown={(event) => event.preventDefault()}
+                  onClick={clearQuery}
+                >
+                  <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
+                    <path
+                      d="M3 3l8 8M11 3L3 11"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.6"
+                      strokeLinecap="round"
+                    />
+                  </svg>
+                </button>
+              ) : null}
             </label>
             <button type="button" className={styles.cancelBtn} onClick={cancelSearch}>
               취소
@@ -337,6 +444,7 @@ export default function SearchClient() {
           </>
         )}
       </header>
+      )}
 
       <main className={styles.main}>
         {phase === 'idle' ? <FeedGrid posts={recommendedPosts} /> : null}
@@ -363,16 +471,16 @@ export default function SearchClient() {
           </div>
         ) : null}
 
-        {showAccountList ? (
+        {showAccountList && resultState === 'ready' ? (
           <div className={styles.searchPanel}>
-            {parsed.mode === 'plain' && userSearchState === 'loading' ? null : accountResults.length === 0 ? (
+            {userResults.length === 0 ? (
               <EmptyState
                 title="검색 결과가 없어요"
                 description="다른 닉네임이나 펫 태그로 다시 검색해 보세요."
               />
             ) : (
               <ul className={styles.accountList}>
-                {accountResults.map((account) => (
+                {userResults.map((account) => (
                   <AccountRow
                     key={account.id}
                     account={account}
@@ -386,16 +494,16 @@ export default function SearchClient() {
           </div>
         ) : null}
 
-        {showHashtagList ? (
+        {showHashtagList && resultState === 'ready' ? (
           <div className={styles.searchPanel}>
-            {hashtagResults.length === 0 ? (
+            {tagResults.length === 0 ? (
               <EmptyState
                 title="해시태그가 없어요"
                 description="다른 키워드로 검색해 보세요."
               />
             ) : (
               <HashtagResultList
-                items={hashtagResults}
+                items={tagResults}
                 onSelect={selectHashtag}
                 variant="page"
               />
@@ -404,11 +512,15 @@ export default function SearchClient() {
         ) : null}
 
         {showHashtagGrid ? (
-          <FeedGrid
-            posts={HASHTAG_RESULT_POSTS}
-            emptyTitle="게시물이 없어요"
-            emptyDescription="이 해시태그가 달린 게시물이 아직 없어요."
-          />
+          hashtagState === 'loading' ? (
+            <p className={styles.searchStatus}>불러오는 중…</p>
+          ) : (
+            <FeedGrid
+              posts={hashtagPosts}
+              emptyTitle="게시물이 없어요"
+              emptyDescription="이 해시태그가 달린 게시물이 아직 없어요."
+            />
+          )
         ) : null}
       </main>
 

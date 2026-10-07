@@ -109,13 +109,23 @@ export function clearDevAccessCookies(response: NextResponse) {
   }
 }
 
-/**
- * development 테스트.
- * refresh 쿠키와 a토큰 예상 만료 표시를 지운다.
- * access 쿠키는 다음 API가 재발급할 때까지 둔다.
- */
+/** development 테스트. refresh 쿠키만 지운다. access 와 만료 표시는 둔다 */
 export function clearRefreshTokenCookie(response: NextResponse) {
   response.cookies.set(REFRESH_TOKEN_COOKIE, '', {
+    ...baseCookieOptions,
+    maxAge: 0,
+  });
+}
+
+/** requireAccessToken 이 재발급으로 jar에 쓴 refresh 를 같은 요청에서 지운다 */
+export async function clearRefreshTokenCookieJar() {
+  const jar = await cookies();
+  jar.set(REFRESH_TOKEN_COOKIE, '', { ...baseCookieOptions, maxAge: 0 });
+}
+
+/** development 테스트. access 쿠키와 패널용 만료 표시를 지운다. refresh 는 둔다 */
+export function clearAccessTokenCookie(response: NextResponse) {
+  response.cookies.set(ACCESS_TOKEN_COOKIE, '', {
     ...baseCookieOptions,
     maxAge: 0,
   });

@@ -7,6 +7,98 @@ validation · database · docs 모두 **여기 한곳**에 적는다.
 
 ---
 
+## 2026-10-07 17:05
+
+### API · 검색 페이지
+- `GET /api/v1/main/search`
+- `type=USER` 닉네임 → `users[]`
+- `type=MENTION` 펫 멘션 → `users[]`. 유저당 한 줄, `petTags`
+- `type=TAG` 태그명 → `tags[]` (`tagId`, `hashtag`, `feedCount`). 입력 중과 엔터는 같은 응답. `limit=5` / `20`
+- 태그 클릭 `GET /api/v1/main/search/tags/{tagId}/feeds?limit=30`. 보이는 글만 그리드, 최신순. `feedCount`는 이 그리드와 같은 보이는 글 수
+- `type=PET`는 스토리 `@` 후보용. 검색 페이지에서 쓰지 않는다
+
+---
+
+## 2026-10-07 16:55
+
+### API · 검색 3종과 태그 게시글 그리드
+- `GET /api/v1/main/search`의 `type=USER`는 닉네임, `type=MENTION`은 펫 멘션. 둘 다 `users[]`이고 `petTags` 포함
+- `type=TAG`는 해시태그명과 조회자에게 보이는 게시글 수 `tags[].feedCount`. 입력 중과 엔터는 같은 응답, `limit`만 다름
+- 태그를 고르면 `GET /api/v1/main/search/tags/{tagId}/feeds`. 보이는 글만 그리드, 최신순
+
+---
+
+## 2026-10-07 16:25
+
+### API · 최근 검색의 펫 태그
+- `GET /api/v1/main/search/recent`, `recent/more`, 저장 응답 항목에 `petTags`
+- 그 울타리 주인 펫의 `mentionId` 문자열 배열. `@` 없음. `priority` 순. 없으면 `[]`
+- 화면에는 각 `mentionId` 앞에 `@`를 붙여 한 줄로 나열한다
+
+---
+
+## 2026-10-07 15:15
+
+### API · 태그 클릭 게시글 수
+- `GET /api/v1/tags/{tagId}`의 `data.feedCount`. 그 태그가 달린 게시글 수. 지금 보는 글 포함, 삭제된 글은 제외
+- 다른 게시글보기 버튼은 `feedCount > 1`일 때만. 숫자는 `feedCount - 1`
+- 이 버튼에 `useCount`를 쓰지 않는다
+
+## 2026-10-07 15:10
+
+### API · 태그 상세의 게시글 수
+- `GET /api/v1/tags/{tagId}`의 `data.feedCount`. 그 태그가 달린 삭제되지 않은 게시글 수. 지금 보는 글 포함
+
+---
+
+## 2026-10-07 13:50
+
+### DB v20 · API · 회원 정지
+- `withdrawal_status`에 `SUSPENDED`, 컬럼 `suspended_at`
+- `POST /api/v1/admin/users/{userNo}/suspend`, `POST /api/v1/admin/users/{userNo}/unsuspend`
+- 정지 계정 로그인·리프레시·이후 요청은 `403` `ACCOUNT_SUSPENDED`
+
+---
+
+## 2026-10-07 11:00
+
+### DB v19 · API · 고정 글과 나만 보는 저장
+- `ultary_feed_store` → `ultary_feed_pin`, `store_count` → `pin_count`. 기존 행은 고정 글
+- 새 `ultary_feed_save`. 목록은 본인 `GET /my-ultary/saved-feeds`만
+- 고정은 `POST/DELETE /feeds/{id}/pin`, 목록 `GET /my-ultary/pinned-feeds`, `GET /users/{userNo}/pinned-feeds`
+- 저장은 `POST/DELETE /feeds/{id}/save`. 게시글 단건은 `pinCount`, `pinnedByMe`, `savedByMe`
+- 기존 `/store`, `saved-feeds`를 다른 사람 울타리 저장으로 쓰던 경로는 없음
+
+---
+
+## 2026-10-07 10:55
+
+### API · 다른 울타리의 저장·태그 글
+- `GET /api/v1/users/{userNo}/saved-feeds`, `GET /api/v1/users/{userNo}/tagged-feeds`
+- 항목은 게시글 그리드와 같다. 다른 사람이 보면 그 글을 볼 수 있는 경우만
+- 나의 `userNo`면 기존 `GET /my-ultary/saved-feeds`, `GET /my-ultary/tagged-feeds`와 같다
+
+---
+
+## 2026-10-07 09:40
+
+### API · DM 읽음과 입력 중
+- 읽음이 올라가면 상대에게만 웹소켓 `DM_READ` (`dmRoomId`, `lastReadMessageId`)
+- 메시지 조회 `data.peerLastReadMessageId`. 없으면 null
+- `POST /api/v1/dm/rooms/{roomId}/viewing`. 둘 다 방을 보고 있으면 새 메시지는 바로 읽음
+- `POST /api/v1/dm/rooms/{roomId}/typing`. 상대에게 `DM_TYPING`
+
+---
+
+## 2026-10-07 09:00
+
+### API · 로컬 토큰 초기화
+- `DELETE /api/v1/test/tokens` (`local` 프로필만, Bearer). 로그인 유저의 리프레시 토큰을 모두 폐기
+- 액세스 토큰은 DB에 없다. 호출한 쪽이 쿠키를 지워야 로그아웃된다
+- prod에서는 컨트롤러가 없어 404
+
+---
+
 ## 2026-10-06 13:45
 
 ### API · 웹소켓

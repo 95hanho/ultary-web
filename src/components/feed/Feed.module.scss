@@ -244,6 +244,48 @@
   font-weight: 700;
 }
 
+.moreWrap {
+  position: relative;
+}
+
+.moreMenu {
+  position: fixed;
+  z-index: 50;
+  display: flex;
+  width: max-content;
+  max-width: calc(100vw - 16px);
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
+}
+
+.moreItem {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 16px 20px;
+  border: 0;
+  background: transparent;
+  color: #000;
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 1.35;
+  white-space: nowrap;
+  cursor: pointer;
+
+  & + & {
+    border-top: 1px dashed var(--brand-gray-100);
+  }
+
+  &:disabled {
+    cursor: not-allowed;
+    opacity: 0.55;
+  }
+}
+
 .captionWrap {
   position: relative;
   padding: 0 8px;

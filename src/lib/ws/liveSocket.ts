@@ -7,6 +7,7 @@ import {
   publishUnreadBadge,
   readUnreadCount,
 } from '@/lib/notification/unreadBadge';
+import { applyDmSocketRoom, fetchDmUnread } from '@/lib/dm/unreadBadge';
 import type { BffEnvelope } from '@/types/api';
 
 export type DmSocketEvent = {
@@ -15,7 +16,20 @@ export type DmSocketEvent = {
   message: unknown;
 };
 
+export type DmReadEvent = {
+  dmRoomId: string;
+  lastReadMessageId: string;
+};
+
+export type DmTypingEvent = {
+  dmRoomId: string;
+  userNo: string;
+  typing: boolean;
+};
+
 const dmListeners = new Set<(event: DmSocketEvent) => void>();
+const dmReadListeners = new Set<(event: DmReadEvent) => void>();
+const dmTypingListeners = new Set<(event: DmTypingEvent) => void>();
 
 let socket: WebSocket | null = null;
 let connecting = false;
@@ -38,6 +52,20 @@ export function subscribeDmMessage(listener: (event: DmSocketEvent) => void) {
   dmListeners.add(listener);
   return () => {
     dmListeners.delete(listener);
+  };
+}
+
+export function subscribeDmRead(listener: (event: DmReadEvent) => void) {
+  dmReadListeners.add(listener);
+  return () => {
+    dmReadListeners.delete(listener);
+  };
+}
+
+export function subscribeDmTyping(listener: (event: DmTypingEvent) => void) {
+  dmTypingListeners.add(listener);
+  return () => {
+    dmTypingListeners.delete(listener);
   };
 }
 
@@ -84,8 +112,25 @@ function handleFrame(data: unknown) {
   if (raw.type === 'DM_MESSAGE') {
     const dmRoomId = idString(raw.dmRoomId);
     if (!dmRoomId) return;
+    applyDmSocketRoom(dmRoomId, raw.room);
     const event = { dmRoomId, room: raw.room, message: raw.message };
     dmListeners.forEach((listener) => listener(event));
+    return;
+  }
+  if (raw.type === 'DM_READ') {
+    const dmRoomId = idString(raw.dmRoomId);
+    const lastReadMessageId = idString(raw.lastReadMessageId);
+    if (!dmRoomId || !lastReadMessageId) return;
+    const event = { dmRoomId, lastReadMessageId };
+    dmReadListeners.forEach((listener) => listener(event));
+    return;
+  }
+  if (raw.type === 'DM_TYPING') {
+    const dmRoomId = idString(raw.dmRoomId);
+    const userNo = idString(raw.userNo);
+    if (!dmRoomId || typeof raw.typing !== 'boolean') return;
+    const event = { dmRoomId, userNo, typing: raw.typing };
+    dmTypingListeners.forEach((listener) => listener(event));
   }
 }
 
@@ -123,6 +168,7 @@ async function connect() {
             if (!authed) publishUnreadBadge(count);
           })
           .catch(() => undefined);
+        void fetchDmUnread().catch(() => undefined);
       }
       scheduleRetry();
     };

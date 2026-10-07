@@ -10,7 +10,8 @@ import { isHttpError, isRecord } from '@/lib/api/error';
 import { resolveFileDisplayUrl } from '@/lib/api/fileUrl';
 import { myUltaryPath } from '@/lib/mock/ultary-accounts';
 import { NO_PROFILE_SRC } from '@/lib/profileImage';
-import { subscribeDmMessage } from '@/lib/ws/liveSocket';
+import { subscribeDmMessage, subscribeDmRead, subscribeDmTyping } from '@/lib/ws/liveSocket';
+import { clearDmRoomUnread } from '@/lib/dm/unreadBadge';
 import type { BffEnvelope, MeResponse } from '@/types/api';
 import type { FileSummary } from '@/types/file';
 import clsx from 'clsx';
@@ -57,6 +58,8 @@ type DmMessage = {
   senderUserNo: string | null;
   body: string;
   timeLabel: string;
+  /** 보낸 시각의 분. 같은 분이면 맨 아래 말풍선만 시각을 보여 준다 */
+  minuteKey: string;
   share: DmShareCard | null;
 };
 
@@ -116,23 +119,38 @@ function asFile(raw: unknown): Pick<FileSummary, 'fileId' | 'filePath'> | null {
   };
 }
 
+function minuteKeyOf(iso: string) {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return '';
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  const hh = String(date.getHours()).padStart(2, '0');
+  const mm = String(date.getMinutes()).padStart(2, '0');
+  return `${date.getFullYear()}-${month}-${day} ${hh}:${mm}`;
+}
+
 function formatDmTime(iso: string) {
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return '';
   const now = new Date();
   const diff = now.getTime() - date.getTime();
-  if (diff >= 0 && diff < 60_000) return '방금';
-  if (diff >= 0 && diff < 60 * 60_000) return `${Math.floor(diff / 60_000)}분`;
+  if (diff >= 0) {
+    const minutes = Math.floor(diff / 60_000);
+    if (minutes < 1) return '방금 전';
+    if (minutes <= 30) return `${minutes}분 전`;
+  }
   const startToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
   const startThat = new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
   const dayDiff = Math.round((startToday - startThat) / 86_400_000);
-  if (dayDiff === 0) {
-    const hh = String(date.getHours()).padStart(2, '0');
-    const mm = String(date.getMinutes()).padStart(2, '0');
-    return `${hh}:${mm}`;
-  }
+  const hh = String(date.getHours()).padStart(2, '0');
+  const mm = String(date.getMinutes()).padStart(2, '0');
+  if (dayDiff === 0) return `${hh}:${mm}`;
   if (dayDiff === 1) return '어제';
-  return `${date.getMonth() + 1}월 ${date.getDate()}일`;
+  if (dayDiff === 2) return '2일전';
+  if (dayDiff === 3) return '3일전';
+  const clock = `${date.getMonth() + 1}월 ${date.getDate()}일 ${hh}:${mm}`;
+  if (date.getFullYear() === now.getFullYear()) return clock;
+  return `${date.getFullYear()}년 ${clock}`;
 }
 
 function pickErrorMessage(err: unknown, fallback: string) {
@@ -185,6 +203,19 @@ function mapShare(raw: unknown, message: Record<string, unknown>): DmShareCard |
   };
 }
 
+function readPeerReadId(data: unknown) {
+  if (!isRecord(data)) return null;
+  return idString(data.peerLastReadMessageId);
+}
+
+function peerHasRead(readId: string | null, messageId: string) {
+  if (!readId) return false;
+  const read = Number(readId);
+  const message = Number(messageId);
+  if (!Number.isFinite(read) || !Number.isFinite(message)) return false;
+  return read >= message;
+}
+
 function readMediaIndex(value: unknown) {
   const index = typeof value === 'number' ? value : Number(value);
   if (!Number.isFinite(index) || index < 0) return null;
@@ -202,6 +233,7 @@ function mapMessage(raw: unknown): DmMessage | null {
     senderUserNo: idString(raw.senderUserNo),
     body: typeof raw.body === 'string' ? raw.body : '',
     timeLabel: when ? formatDmTime(when) : '',
+    minuteKey: when ? minuteKeyOf(when) : '',
     share: mapShare(raw.share, raw),
   };
 }
@@ -303,6 +335,8 @@ export default function DmClient({ roomId, feedId, feedMediaId, storyId }: DmCli
   const [rooms, setRooms] = useState<DmRoom[]>([]);
   const [status, setStatus] = useState('불러오는 중');
   const [messages, setMessages] = useState<DmMessage[]>([]);
+  const [peerReadMessageId, setPeerReadMessageId] = useState<string | null>(null);
+  const [peerTyping, setPeerTyping] = useState(false);
   const [olderCursor, setOlderCursor] = useState<string | null>(null);
   const [threadStatus, setThreadStatus] = useState('');
   const [draft, setDraft] = useState('');
@@ -370,7 +404,7 @@ export default function DmClient({ roomId, feedId, feedMediaId, storyId }: DmCli
   useEffect(() => {
     if (!active) return;
     threadEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [active, messages.length]);
+  }, [active, messages.length, peerTyping]);
 
   useEffect(() => {
     if (!picking) return;
@@ -413,7 +447,7 @@ export default function DmClient({ roomId, feedId, feedMediaId, storyId }: DmCli
       .map(mapMessage)
       .filter((item): item is DmMessage => item != null);
     const cursor = isRecord(res.data) ? idString(res.data.nextCursorMessageId) : null;
-    return { list, cursor };
+    return { list, cursor, peerRead: readPeerReadId(res.data) };
   }
 
   useEffect(() => {
@@ -421,12 +455,14 @@ export default function DmClient({ roomId, feedId, feedMediaId, storyId }: DmCli
     const req = ++threadReqRef.current;
     setThreadStatus('불러오는 중');
     setMessages([]);
+    setPeerReadMessageId(null);
     setOlderCursor(null);
     let cancelled = false;
     (async () => {
       try {
-        const { list, cursor } = await loadMessages(roomId);
+        const { list, cursor, peerRead } = await loadMessages(roomId);
         if (cancelled || threadReqRef.current !== req) return;
+        setPeerReadMessageId(peerRead);
         setMessages((prev) => {
           const ids = new Set(list.map((item) => item.id));
           const extra = prev.filter((item) => !ids.has(item.id));
@@ -437,6 +473,7 @@ export default function DmClient({ roomId, feedId, feedMediaId, storyId }: DmCli
         setRooms((prev) =>
           prev.map((item) => (item.id === roomId ? { ...item, unread: 0 } : item)),
         );
+        clearDmRoomUnread(roomId);
       } catch (err) {
         if (cancelled || threadReqRef.current !== req) return;
         setThreadStatus(pickErrorMessage(err, '대화를 불러오지 못했습니다.'));
@@ -456,12 +493,90 @@ export default function DmClient({ roomId, feedId, feedMediaId, storyId }: DmCli
       }
       if (!roomId || event.dmRoomId !== roomId) return;
       const message = mapMessage(event.message);
+      if (message && !message.fromMe) {
+        markOpenRoomRead(roomId);
+        setPeerTyping(false);
+      }
       if (!message) return;
       setMessages((prev) =>
         prev.some((item) => item.id === message.id) ? prev : [...prev, message],
       );
     });
   }, [roomId]);
+
+  useEffect(() => {
+    return subscribeDmRead((event) => {
+      if (!roomId || event.dmRoomId !== roomId) return;
+      setPeerReadMessageId(event.lastReadMessageId);
+    });
+  }, [roomId]);
+
+  useEffect(() => {
+    if (!roomId) return;
+    setPeerTyping(false);
+    let hideTimer: number | undefined;
+    const stopHide = () => {
+      if (hideTimer != null) window.clearTimeout(hideTimer);
+      hideTimer = undefined;
+    };
+    const unsubscribe = subscribeDmTyping((event) => {
+      if (event.dmRoomId !== roomId) return;
+      if (!event.typing) {
+        stopHide();
+        setPeerTyping(false);
+        return;
+      }
+      setPeerTyping(true);
+      stopHide();
+      hideTimer = window.setTimeout(() => setPeerTyping(false), 5000);
+    });
+    return () => {
+      stopHide();
+      unsubscribe();
+    };
+  }, [roomId]);
+
+  useEffect(() => {
+    if (!roomId) return;
+    let stopped = false;
+    const send = (viewing: boolean) => {
+      void bffPostJson(bffEndpoints.dm.roomViewing, { roomId, viewing }).catch(() => undefined);
+    };
+    send(true);
+    const timer = window.setInterval(() => {
+      if (!stopped) send(true);
+    }, 10_000);
+    return () => {
+      stopped = true;
+      window.clearInterval(timer);
+      send(false);
+    };
+  }, [roomId]);
+
+  const composing = draft.trim().length > 0;
+
+  useEffect(() => {
+    if (!roomId || !composing) return;
+    let stopped = false;
+    const send = (typing: boolean) => {
+      void bffPostJson(bffEndpoints.dm.roomTyping, { roomId, typing }).catch(() => undefined);
+    };
+    send(true);
+    const timer = window.setInterval(() => {
+      if (!stopped) send(true);
+    }, 2500);
+    return () => {
+      stopped = true;
+      window.clearInterval(timer);
+      send(false);
+    };
+  }, [roomId, composing]);
+
+  function markOpenRoomRead(id: string) {
+    clearDmRoomUnread(id);
+    setRooms((prev) => prev.map((item) => (item.id === id ? { ...item, unread: 0 } : item)));
+    void bffPostJson(bffEndpoints.dm.roomRead, { roomId: id }).catch(() => undefined);
+  }
 
   function openRoom(room: DmRoom) {
     router.push(`/dm/${room.id}${shareSearch(pendingShare)}`);
@@ -535,7 +650,7 @@ export default function DmClient({ roomId, feedId, feedMediaId, storyId }: DmCli
                   body ||
                   (pendingShare?.kind === 'story' ? '스토리를 공유했습니다' : '') ||
                   (pendingShare?.kind === 'feed' ? '게시글을 공유했습니다' : room.lastMessage),
-                timeLabel: '방금',
+                timeLabel: '방금 전',
               }
             : room,
         ),
@@ -575,35 +690,64 @@ export default function DmClient({ roomId, feedId, feedMediaId, storyId }: DmCli
               </button>
             ) : null}
             {threadStatus ? <p className={styles.status}>{threadStatus}</p> : null}
-            {messages.map((message) => (
-              <div
-                key={message.id}
-                className={clsx(styles.bubbleRow, message.fromMe && styles.bubbleRowMe)}
-              >
-                <div className={clsx(styles.bubble, message.fromMe && styles.bubbleMe)}>
-                  {message.share ? (
-                    <ShareCard
-                      share={message.share}
-                      storyUserNo={
-                        message.senderUserNo || (message.fromMe ? null : active.peerUserNo)
-                      }
-                      storyNickname={
-                        message.share.authorNickname || (message.fromMe ? '' : active.nickname)
-                      }
-                    />
-                  ) : null}
-                  {message.body ? <p className={styles.bubbleText}>{message.body}</p> : null}
-                  {message.share ? (
-                    <span className={styles.bubbleTime}>
-                      {message.share.type === 'STORY'
-                        ? '스토리를 공유했습니다'
-                        : '게시글을 공유했습니다'}
-                    </span>
-                  ) : null}
-                  <span className={styles.bubbleTime}>{message.timeLabel}</span>
+            {messages.map((message, index) => {
+              const showRead =
+                message.fromMe &&
+                index === messages.length - 1 &&
+                peerHasRead(peerReadMessageId, message.id);
+              const next = messages[index + 1];
+              const showTime =
+                Boolean(message.timeLabel) &&
+                (!message.minuteKey || !next || next.minuteKey !== message.minuteKey);
+              return (
+                <div
+                  key={message.id}
+                  className={clsx(styles.bubbleRow, message.fromMe && styles.bubbleRowMe)}
+                >
+                  <div className={styles.bubbleCol}>
+                    <div className={clsx(styles.bubble, message.fromMe && styles.bubbleMe)}>
+                      {message.share ? (
+                        <ShareCard
+                          share={message.share}
+                          storyUserNo={
+                            message.senderUserNo || (message.fromMe ? null : active.peerUserNo)
+                          }
+                          storyNickname={
+                            message.share.authorNickname || (message.fromMe ? '' : active.nickname)
+                          }
+                        />
+                      ) : null}
+                      {message.body ? <p className={styles.bubbleText}>{message.body}</p> : null}
+                      {message.share ? (
+                        <span className={styles.bubbleShare}>
+                          {message.share.type === 'STORY'
+                            ? '스토리를 공유했습니다'
+                            : '게시글을 공유했습니다'}
+                        </span>
+                      ) : null}
+                    </div>
+                    {showTime || showRead ? (
+                      <div className={styles.bubbleMeta}>
+                        {showRead ? <span className={styles.bubbleRead}>읽음</span> : null}
+                        {showTime ? (
+                          <span className={styles.bubbleTime}>{message.timeLabel}</span>
+                        ) : null}
+                      </div>
+                    ) : null}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
+            {peerTyping ? (
+              <p className={styles.typing}>
+                입력중
+                <span className={styles.typingDots} aria-hidden>
+                  <span className={styles.typingDot} />
+                  <span className={styles.typingDot} />
+                  <span className={styles.typingDot} />
+                </span>
+              </p>
+            ) : null}
             <div ref={threadEndRef} />
           </div>
           <form className={styles.composer} onSubmit={(event) => void sendMessage(event)}>

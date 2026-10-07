@@ -6,12 +6,13 @@ import { bffDelete, bffPostJson } from '@/lib/api/bffFetch';
 import { bffEndpoints } from '@/lib/api/endpoints';
 import { isRecord } from '@/lib/api/error';
 import { resolveFeedPetLabels, type FeedPetLabel } from '@/lib/feed/petLabels';
-import { getTagExplain, splitCaptionTags, type TagExplain } from '@/lib/mock/tags';
+import { splitCaptionTags, type TagExplain } from '@/lib/mock/tags';
+import { loadTagExplain } from '@/lib/tag/explain';
 import { myUltaryPath } from '@/lib/mock/ultary-accounts';
 import { NO_PROFILE_SRC } from '@/lib/profileImage';
 import { useModalStore } from '@/stores/modal.store';
 import clsx from 'clsx';
-import { User } from 'lucide-react';
+import { Bookmark, Ellipsis, User } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -33,12 +34,17 @@ const PinFillIcon = '/images/icon/Pin_fill.svg';
 const ArrowLeftIcon = '/images/icon/arrow_left.svg';
 const ArrowRightIcon = '/images/icon/arrow_right.svg';
 
-function readStoredFlag(raw: unknown): boolean | null {
+function readFlag(raw: unknown, key: 'pinnedByMe' | 'savedByMe'): boolean | null {
   const root = isRecord(raw) && isRecord(raw.data) ? raw.data : raw;
   if (!isRecord(root)) return null;
-  if (typeof root.storedByMe === 'boolean') return root.storedByMe;
-  if (typeof root.stored === 'boolean') return root.stored;
-  return null;
+  return typeof root[key] === 'boolean' ? root[key] : null;
+}
+
+function readLikeState(raw: unknown): { liked: boolean; count: number } | null {
+  const root = isRecord(raw) && isRecord(raw.data) ? raw.data : raw;
+  if (!isRecord(root)) return null;
+  if (typeof root.likedByMe !== 'boolean' || typeof root.likeCount !== 'number') return null;
+  return { liked: root.likedByMe, count: root.likeCount };
 }
 
 export type FeedData = {
@@ -54,12 +60,16 @@ export type FeedData = {
   /** images와 같은 순서. 사진 위 펫 태그 위치 (0~1) */
   photoTags?: FeedPhotoTag[][];
   caption: string;
+  /** 이 글에 연결된 태그. 캡션 해시태그 설명에서 같은 글을 우선한다 */
+  tagIds?: number[];
   /** 스토리 링 상태 */
   story?: StoryStatus;
   /** 좋아요 여부 */
   isFavorite?: boolean;
-  /** 저장 여부 */
-  isStored?: boolean;
+  /** 울타리 고정 여부 */
+  isPinned?: boolean;
+  /** 나만 보는 저장 여부 */
+  isSaved?: boolean;
   likeCount?: number;
   commentCount?: number;
 };
@@ -99,9 +109,11 @@ export function Feed({
   mediaIds,
   photoTags,
   caption,
+  tagIds = [],
   story = 'none',
   isFavorite = false,
-  isStored = false,
+  isPinned = false,
+  isSaved = false,
   likeCount = 0,
   commentCount = 0,
   showAuthor = true,
@@ -110,17 +122,21 @@ export function Feed({
   const router = useRouter();
   const openModal = useModalStore((s) => s.open);
   const slideCount = Math.max(images.length, 1);
-  const startIndex = Math.min(
-    Math.max(0, Math.floor(initialMediaIndex) || 0),
-    slideCount - 1,
-  );
+  const startIndex = Math.min(Math.max(0, Math.floor(initialMediaIndex) || 0), slideCount - 1);
   const [index, setIndex] = useState(startIndex);
   const [expanded, setExpanded] = useState(false);
   const [needsMore, setNeedsMore] = useState(false);
   const [liked, setLiked] = useState(isFavorite);
   const [likes, setLikes] = useState(likeCount);
-  const [stored, setStored] = useState(isStored);
-  const [storePending, setStorePending] = useState(false);
+  const [likePending, setLikePending] = useState(false);
+  const [pinned, setPinned] = useState(isPinned);
+  const [pinPending, setPinPending] = useState(false);
+  const [saved, setSaved] = useState(isSaved);
+  const [savePending, setSavePending] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
+  const [morePlace, setMorePlace] = useState<{ top: number; left: number } | null>(null);
+  const moreWrapRef = useRef<HTMLDivElement>(null);
+  const moreMenuRef = useRef<HTMLDivElement>(null);
   const swiperRef = useRef<SwiperType | null>(null);
   const photoFrameRef = useRef<HTMLDivElement | null>(null);
   const captionRef = useRef<HTMLParagraphElement>(null);
@@ -140,14 +156,24 @@ export function Feed({
   } | null>(null);
   const tagOpenRef = useRef(tagOpen);
   tagOpenRef.current = tagOpen;
+  const tagReqRef = useRef(0);
   const [commentsOpen, setCommentsOpen] = useState(false);
   const [tagsOpen, setTagsOpen] = useState(false);
   const [tagListOpen, setTagListOpen] = useState(false);
   const [petLabels, setPetLabels] = useState<Record<number, FeedPetLabel>>({});
 
   useEffect(() => {
-    setStored(isStored);
-  }, [id, isStored]);
+    setLiked(isFavorite);
+    setLikes(likeCount);
+  }, [id, isFavorite, likeCount]);
+
+  useEffect(() => {
+    setPinned(isPinned);
+  }, [id, isPinned]);
+
+  useEffect(() => {
+    setSaved(isSaved);
+  }, [id, isSaved]);
 
   useEffect(() => {
     try {
@@ -176,6 +202,103 @@ export function Feed({
     };
   }, [id, nickname, photoTags, userNo]);
 
+  useLayoutEffect(() => {
+    if (!moreOpen) return;
+    const anchor = moreWrapRef.current;
+    const menu = moreMenuRef.current;
+    if (!anchor || !menu) return;
+
+    const place = () => {
+      const buttonEl = anchor.querySelector('button');
+      const button = (buttonEl ?? anchor).getBoundingClientRect();
+      const box = menu.getBoundingClientRect();
+      const pad = 8;
+      const gap = 6;
+      const width = box.width;
+      const height = box.height;
+      const limitRight = window.innerWidth - pad;
+      const limitBottom = window.innerHeight - pad;
+      if (button.bottom < pad || button.top > limitBottom) {
+        setMoreOpen(false);
+        return;
+      }
+
+      const obstacles = [
+        document.querySelector('nav[aria-label="하단 메뉴"]'),
+        document.querySelector('[data-dev-test-dock]'),
+      ].flatMap((el) => {
+        if (!(el instanceof HTMLElement)) return [];
+        const rect = el.getBoundingClientRect();
+        if (rect.width < 1 || rect.height < 1) return [];
+        return [rect];
+      });
+
+      const blocked = (top: number, left: number) => {
+        const right = left + width;
+        const bottom = top + height;
+        if (left < pad || top < pad || right > limitRight || bottom > limitBottom) return true;
+        return obstacles.some(
+          (obstacle) =>
+            left < obstacle.right &&
+            right > obstacle.left &&
+            top < obstacle.bottom &&
+            bottom > obstacle.top,
+        );
+      };
+
+      const preferredLeft =
+        button.right + width <= limitRight ? button.right : Math.max(pad, button.right - width);
+      const below = button.bottom + gap;
+      const above = button.top - height - gap;
+      const candidates = [
+        { top: below, left: preferredLeft },
+        { top: above, left: preferredLeft },
+      ];
+      for (const obstacle of obstacles) {
+        const overTop = obstacle.top - height - gap;
+        if (overTop >= pad) candidates.push({ top: overTop, left: preferredLeft });
+        const shifted = obstacle.left - width - gap;
+        if (shifted >= pad) {
+          candidates.push({ top: below, left: shifted });
+          candidates.push({ top: above, left: shifted });
+        }
+      }
+
+      const chosen = candidates.find((spot) => !blocked(spot.top, spot.left)) ?? {
+        top: Math.max(pad, Math.min(above, limitBottom - height)),
+        left: preferredLeft,
+      };
+      setMorePlace(chosen);
+    };
+
+    place();
+    window.addEventListener('resize', place);
+    window.addEventListener('scroll', place, true);
+    return () => {
+      window.removeEventListener('resize', place);
+      window.removeEventListener('scroll', place, true);
+    };
+  }, [moreOpen]);
+
+  useEffect(() => {
+    if (!moreOpen) return;
+    const onPointerDown = (event: PointerEvent) => {
+      const wrap = moreWrapRef.current;
+      const target = event.target;
+      if (wrap && target instanceof Node && wrap.contains(target)) return;
+      setMoreOpen(false);
+    };
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setMoreOpen(false);
+    };
+    document.addEventListener('pointerdown', onPointerDown);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('pointerdown', onPointerDown);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [moreOpen]);
+
   useEffect(() => {
     if (!tagListOpen && !tagsOpen) return;
     const onPointerDown = (event: PointerEvent) => {
@@ -189,24 +312,67 @@ export function Feed({
     return () => document.removeEventListener('pointerdown', onPointerDown);
   }, [tagListOpen, tagsOpen]);
 
-  const toggleStore = useCallback(async () => {
-    if (storePending) return;
-    const next = !stored;
-    setStored(next);
-    setStorePending(true);
+  const toggleLike = useCallback(async () => {
+    if (likePending) return;
+    const next = !liked;
+    setLiked(next);
+    setLikes((count) => (next ? count + 1 : Math.max(0, count - 1)));
+    setLikePending(true);
     try {
       const res = next
-        ? await bffPostJson<unknown>(bffEndpoints.feeds.store, { feedId: id })
-        : await bffDelete<unknown>(bffEndpoints.feeds.store, { feedId: id });
-      const saved = readStoredFlag(res);
-      if (saved != null) setStored(saved);
+        ? await bffPostJson<unknown>(bffEndpoints.feeds.like, { feedId: id })
+        : await bffDelete<unknown>(bffEndpoints.feeds.like, { feedId: id });
+      const saved = readLikeState(res);
+      if (saved) {
+        setLiked(saved.liked);
+        setLikes(saved.count);
+      }
     } catch (err) {
-      console.error('[feed] store failed', err);
-      setStored(!next);
+      console.error('[feed] like failed', err);
+      setLiked(!next);
+      setLikes((count) => (next ? Math.max(0, count - 1) : count + 1));
     } finally {
-      setStorePending(false);
+      setLikePending(false);
     }
-  }, [id, storePending, stored]);
+  }, [id, likePending, liked]);
+
+  const togglePin = useCallback(async () => {
+    if (pinPending) return;
+    const next = !pinned;
+    setPinned(next);
+    setPinPending(true);
+    try {
+      const res = next
+        ? await bffPostJson<unknown>(bffEndpoints.feeds.pin, { feedId: id })
+        : await bffDelete<unknown>(bffEndpoints.feeds.pin, { feedId: id });
+      const flag = readFlag(res, 'pinnedByMe');
+      if (flag != null) setPinned(flag);
+    } catch (err) {
+      console.error('[feed] pin failed', err);
+      setPinned(!next);
+    } finally {
+      setPinPending(false);
+    }
+  }, [id, pinPending, pinned]);
+
+  const toggleSave = useCallback(async () => {
+    if (savePending) return;
+    const next = !saved;
+    setSaved(next);
+    setSavePending(true);
+    try {
+      const res = next
+        ? await bffPostJson<unknown>(bffEndpoints.feeds.save, { feedId: id })
+        : await bffDelete<unknown>(bffEndpoints.feeds.save, { feedId: id });
+      const flag = readFlag(res, 'savedByMe');
+      if (flag != null) setSaved(flag);
+    } catch (err) {
+      console.error('[feed] save failed', err);
+      setSaved(!next);
+    } finally {
+      setSavePending(false);
+    }
+  }, [id, savePending, saved]);
 
   useEffect(() => {
     const onPointerDown = (e: PointerEvent) => {
@@ -260,17 +426,42 @@ export function Feed({
     setTagOpen(null);
   }, []);
 
+  const requestTagExplain = (tagText: string, el: HTMLElement, mode: 'active' | 'preview') => {
+    const key = tagText.replace(/^#/, '').trim();
+    if (!key) return;
+    const rect = el.getBoundingClientRect();
+    const token = ++tagReqRef.current;
+    const placeholder: TagExplain = {
+      tag: key,
+      title: key,
+      description: '불러오는 중…',
+    };
+
+    if (mode === 'active') {
+      clearLeaveTimer();
+      clearHoverOpenTimer();
+      setTagOpen({ data: placeholder, rect, mode });
+    } else {
+      clearLeaveTimer();
+      setTagOpen((prev) => {
+        if (prev && !prev.closeRequested) return prev;
+        ignoreLeaveUntilRef.current = Date.now() + 320;
+        return { data: placeholder, rect, mode: 'preview' };
+      });
+    }
+
+    void loadTagExplain(key, tagIds).then((data) => {
+      if (tagReqRef.current !== token) return;
+      setTagOpen((prev) => {
+        if (!prev || prev.data.tag !== key) return prev;
+        return { ...prev, data };
+      });
+    });
+  };
+
   /** 클릭 등으로 모달 100% 오픈 */
   const openTagActive = (tagText: string, el: HTMLElement) => {
-    const data = getTagExplain(tagText);
-    if (!data) return;
-    clearLeaveTimer();
-    clearHoverOpenTimer();
-    setTagOpen({
-      data,
-      rect: el.getBoundingClientRect(),
-      mode: 'active',
-    });
+    requestTagExplain(tagText, el, 'active');
   };
 
   /**
@@ -278,18 +469,8 @@ export function Feed({
    * 이미 preview/active면 건드리지 않음 (active→흐림 금지).
    */
   const openTagPreviewIfClosed = (tagText: string, el: HTMLElement) => {
-    const data = getTagExplain(tagText);
-    if (!data) return;
-    clearLeaveTimer();
-    setTagOpen((prev) => {
-      if (prev && !prev.closeRequested) return prev;
-      ignoreLeaveUntilRef.current = Date.now() + 320;
-      return {
-        data,
-        rect: el.getBoundingClientRect(),
-        mode: 'preview',
-      };
-    });
+    if (tagOpenRef.current && !tagOpenRef.current.closeRequested) return;
+    requestTagExplain(tagText, el, 'preview');
   };
 
   /** PC: 태그 위에 0.5초 머무르면 흐릿한 프리뷰 */
@@ -512,11 +693,9 @@ export function Feed({
               className={styles.actionBtn}
               aria-label={`좋아요 ${likes}`}
               aria-pressed={liked}
+              disabled={likePending}
               onClick={() => {
-                setLiked((v) => {
-                  setLikes((c) => (v ? Math.max(0, c - 1) : c + 1));
-                  return !v;
-                });
+                void toggleLike();
               }}
             >
               <Image src={liked ? FavoriteFillIcon : FavoriteIcon} alt="" width={25} height={25} />
@@ -564,21 +743,62 @@ export function Feed({
                 });
               }}
             >
-              <Image src={ShareIcon} alt="" width={23} height={23} />
+              <Image src={ShareIcon} alt="" width={27} height={10} />
             </button>
           </div>
-          <button
-            type="button"
-            className={styles.actionBtn}
-            aria-label="저장"
-            aria-pressed={stored}
-            disabled={storePending}
-            onClick={() => {
-              void toggleStore();
-            }}
-          >
-            <Image src={stored ? PinFillIcon : PinIcon} alt="" width={25} height={25} />
-          </button>
+          <div className={styles.moreWrap} ref={moreWrapRef}>
+            <button
+              type="button"
+              className={styles.actionBtn}
+              aria-label="더보기"
+              aria-expanded={moreOpen}
+              onClick={() => {
+                setMorePlace(null);
+                setMoreOpen((open) => !open);
+              }}
+            >
+              <Ellipsis size={25} strokeWidth={2} />
+            </button>
+            {moreOpen ? (
+              <div
+                ref={moreMenuRef}
+                className={styles.moreMenu}
+                role="menu"
+                style={
+                  morePlace
+                    ? { top: morePlace.top, left: morePlace.left }
+                    : { visibility: 'hidden' }
+                }
+              >
+                <button
+                  type="button"
+                  className={styles.moreItem}
+                  role="menuitem"
+                  disabled={pinPending}
+                  onClick={() => {
+                    setMoreOpen(false);
+                    void togglePin();
+                  }}
+                >
+                  <Image src={pinned ? PinFillIcon : PinIcon} alt="" width={22} height={22} />
+                  울타리 고정
+                </button>
+                <button
+                  type="button"
+                  className={styles.moreItem}
+                  role="menuitem"
+                  disabled={savePending}
+                  onClick={() => {
+                    setMoreOpen(false);
+                    void toggleSave();
+                  }}
+                >
+                  <Bookmark size={22} strokeWidth={1.75} fill={saved ? 'currentColor' : 'none'} />
+                  게시글 저장
+                </button>
+              </div>
+            ) : null}
+          </div>
         </div>
 
         <div className={styles.captionWrap}>

@@ -242,8 +242,11 @@ GET {{baseUrl}}/api/my-ultary/feeds?cursor=&size=21
 ### MY 게시글 상세 조회
 GET {{baseUrl}}/api/my-ultary/feeds/{{feedId}}
 
-### 저장한 게시글 조회 (시드: 101이 feed 102 저장)
-GET {{baseUrl}}/api/my-ultary/saved-feeds?cursor=&size=21
+### 울타리에 고정한 게시글
+GET {{baseUrl}}/api/my-ultary/pinned-feeds?limit=21
+
+### 나만 보는 저장 게시글
+GET {{baseUrl}}/api/my-ultary/saved-feeds?limit=21
 
 ### 태그된 게시글 조회 (시드: feed 102에 pet 101)
 GET {{baseUrl}}/api/my-ultary/tagged-feeds?cursor=&size=21
@@ -356,11 +359,17 @@ DELETE {{baseUrl}}/api/feeds/{{feedId}}/like
 ### 게시글 좋아요한 사람 목록 (시드: 102가 101에 좋아요)
 GET {{baseUrl}}/api/feeds/{{feedId}}/likers?cursor=&size=20
 
-### 게시글 저장
-POST {{baseUrl}}/api/feeds/{{feedIdOther}}/store
+### 게시글 고정 (울타리에 표시)
+POST {{baseUrl}}/api/feeds/{{feedIdOther}}/pin
+
+### 게시글 고정 해제
+DELETE {{baseUrl}}/api/feeds/{{feedIdOther}}/pin
+
+### 게시글 저장 (나만 보기)
+POST {{baseUrl}}/api/feeds/{{feedIdOther}}/save
 
 ### 게시글 저장 해제
-DELETE {{baseUrl}}/api/feeds/{{feedIdOther}}/store
+DELETE {{baseUrl}}/api/feeds/{{feedIdOther}}/save
 
 ### 게시글 공유 (시드 수신자 102)
 POST {{baseUrl}}/api/feeds/{{feedId}}/share
