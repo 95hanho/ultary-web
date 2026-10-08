@@ -1,5 +1,6 @@
 import { resolveFileDisplayUrl } from '@/lib/api/fileUrl';
 import { isRecord } from '@/lib/api/error';
+import { readMyReport, type MyReport } from '@/lib/report/openReport';
 import type { FeedGridItem } from '@/components/feed/FeedGrid';
 
 export type MyUltaryProfile = {
@@ -12,6 +13,7 @@ export type MyUltaryProfile = {
   residentCount: number;
   neighborCount: number;
   feedCount: number;
+  myReport: MyReport | null;
 };
 
 export type StoryRingStatus = 'none' | 'unread' | 'read';
@@ -70,6 +72,7 @@ export function mapMyUltaryProfile(raw: unknown): MyUltaryProfile | null {
     residentCount: count(raw.residentCount),
     neighborCount: count(raw.neighborCount),
     feedCount: count(raw.feedCount),
+    myReport: readMyReport(raw),
   };
 }
 

@@ -1,5 +1,8 @@
--- schema_version: 20
+-- schema_version: 23
 -- Ultary MariaDB 10.1 초기 스키마
+-- v23: ultary_report.status 에 CONFIRMED(확인). 신고요청만 신고자가 취소
+-- v22: ultary_report.status 를 신고요청·삭제조치·거절·보류·정지로 나눈다
+-- v21: ultary_report.reason 을 신고 사유 ENUM 으로 바꾼다
 -- v20: ultary_user.withdrawal_status 에 SUSPENDED, suspended_at. 관리자 회원 정지
 -- v19: ultary_feed_pin(울타리 고정), ultary_feed_save(나만 보는 저장). 구 ultary_feed_store·store_count
 -- v18: ultary_dm_room, ultary_dm_message. 1:1 메시지. 게시글(사진 슬롯)·스토리 공유
@@ -612,8 +615,8 @@ CREATE TABLE `ultary_report` (
   `target_feed_id` INT(11) NULL DEFAULT NULL,
   `target_comment_id` INT(11) NULL DEFAULT NULL,
   `target_reply_id` INT(11) NULL DEFAULT NULL,
-  `reason` VARCHAR(500) NOT NULL,
-  `status` ENUM('PENDING','REVIEWING','RESOLVED','REJECTED') NOT NULL DEFAULT 'PENDING',
+  `reason` ENUM('SPAM','ABUSE','HARASSMENT','SEXUAL','VIOLENCE','HATE','IMPERSONATION','PRIVACY','OTHER') NOT NULL COMMENT 'SPAM 스팸·광고, ABUSE 욕설·비방, HARASSMENT 괴롭힘, SEXUAL 음란, VIOLENCE 폭력, HATE 혐오, IMPERSONATION 사칭, PRIVACY 개인정보, OTHER 기타',
+  `status` ENUM('REQUESTED','CONFIRMED','DELETED','REJECTED','ON_HOLD','SUSPENDED') NOT NULL DEFAULT 'REQUESTED' COMMENT 'REQUESTED 신고요청, CONFIRMED 확인, DELETED 삭제조치, REJECTED 거절, ON_HOLD 보류, SUSPENDED 정지',
   `admin_no` INT(11) NULL DEFAULT NULL,
   `processed_at` DATETIME NULL DEFAULT NULL,
   `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,

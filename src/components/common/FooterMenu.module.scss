@@ -14,6 +14,32 @@
   transform: translateX(-50%);
 }
 
+.noticeHost {
+  position: absolute;
+  right: 0;
+  bottom: 100%;
+  left: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.notice {
+  margin: 0;
+  padding: 14px 16px;
+  background: #fff;
+  color: var(--brand-grass-600);
+  font-size: 15px;
+  font-weight: 400;
+  line-height: 1.4;
+  text-align: center;
+  transform: translateY(100%);
+  transition: transform 280ms ease;
+}
+
+.noticeShown {
+  transform: translateY(0);
+}
+
 .item {
   display: inline-flex;
   align-items: center;

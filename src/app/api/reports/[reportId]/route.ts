@@ -5,21 +5,23 @@ import {
   handleBffError,
   isUnauthorized,
   ok,
-  readJsonBody,
   requireAccessToken,
 } from '@/lib/api/bffRoute';
-import { springPostJson } from '@/lib/api/springFetch';
+import { springDelete } from '@/lib/api/springFetch';
 
-/** BFF /api/reports — POST */
-export async function POST(request: NextRequest) {
-  console.log('[API] 신고');
+/** BFF /api/reports/[reportId] — DELETE 신고요청 취소 */
+export async function DELETE(
+  _request: NextRequest,
+  { params }: { params: Promise<{ reportId: string }> },
+) {
+  console.log('[API] 신고 취소');
   try {
     const accessToken = await requireAccessToken();
     if (isUnauthorized(accessToken)) return accessToken;
-    const body = await readJsonBody(request);
-    const data = await springPostJson(
-      springEndpoints.users.report,
-      body,
+    const { reportId } = await params;
+    const data = await springDelete(
+      springEndpoints.users.reportCancel,
+      { reportId },
       bearer(accessToken),
     );
     return ok(data);

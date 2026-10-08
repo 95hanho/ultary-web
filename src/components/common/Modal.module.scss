@@ -1,7 +1,7 @@
 .dim {
   position: fixed;
   inset: 0;
-  z-index: 100;
+  z-index: 200;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -98,8 +98,10 @@
 .actionList {
   display: flex;
   flex-direction: column;
+  max-height: calc(100vh - 80px);
   margin: 0;
   padding: 0;
+  overflow-y: auto;
   list-style: none;
 }
 

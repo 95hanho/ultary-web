@@ -3,6 +3,7 @@ import { resolveFileDisplayUrl } from '@/lib/api/fileUrl';
 import { NO_PROFILE_SRC } from '@/lib/profileImage';
 import type { FeedDetailResponse } from '@/types/feed';
 import { isRecord } from '@/lib/api/error';
+import { readMyReport } from '@/lib/report/openReport';
 
 const FALLBACK_POST = '/images/mock/post.jpg';
 
@@ -139,6 +140,7 @@ export function toFeedData(raw: unknown, fallbackId: string): FeedData {
     isFavorite: detail.likedByMe === true,
     isPinned: detail.pinnedByMe === true,
     isSaved: detail.savedByMe === true,
+    myReport: readMyReport(detail),
   };
 }
 

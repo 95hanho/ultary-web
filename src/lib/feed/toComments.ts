@@ -1,6 +1,7 @@
-import { bffGet } from '@/lib/api/bffFetch';
+import { bffDelete, bffGet, bffPatchJson, bffPostJson } from '@/lib/api/bffFetch';
 import { bffEndpoints } from '@/lib/api/endpoints';
 import { isRecord } from '@/lib/api/error';
+import { readMyReport } from '@/lib/report/openReport';
 import { resolveFileDisplayUrl } from '@/lib/api/fileUrl';
 import type { MockComment, MockCommentReply } from '@/lib/mock/comments';
 import { NO_PROFILE_SRC } from '@/lib/profileImage';
@@ -95,6 +96,8 @@ function mapReply(raw: unknown): MockCommentReply | null {
     timeLabel: formatCommentTime(raw.createdAt ?? raw.created_at),
     likeCount,
     isLiked: liked || undefined,
+    userNo: typeof raw.userNo === 'number' ? raw.userNo : undefined,
+    myReport: readMyReport(raw),
   };
 }
 
@@ -122,6 +125,8 @@ function mapComment(raw: unknown): { comment: MockComment; fetchReplies: boolean
       timeLabel: formatCommentTime(raw.createdAt ?? raw.created_at),
       likeCount,
       isLiked: liked || undefined,
+      userNo: typeof raw.userNo === 'number' ? raw.userNo : undefined,
+      myReport: readMyReport(raw),
       replies,
     },
   };
@@ -196,4 +201,64 @@ export async function loadFeedComments(feedId: string): Promise<MockComment[]> {
   );
 
   return mapped.map((row) => row.comment);
+}
+
+/** 댓글 작성. 저장된 댓글을 시트 항목으로 돌려준다 */
+export async function createFeedComment(
+  feedId: string,
+  content: string,
+): Promise<MockComment | null> {
+  const res = await bffPostJson<BffEnvelope<unknown>>(bffEndpoints.feeds.comments, {
+    feedId,
+    content,
+  });
+  return mapComment(res.data ?? res)?.comment ?? null;
+}
+
+export async function updateFeedComment(feedId: string, commentId: string, content: string) {
+  await bffPatchJson<BffEnvelope<unknown>>(bffEndpoints.feeds.comment, {
+    feedId,
+    commentId,
+    content,
+  });
+}
+
+export async function deleteFeedComment(feedId: string, commentId: string) {
+  await bffDelete<BffEnvelope<unknown>>(bffEndpoints.feeds.comment, { feedId, commentId });
+}
+
+/** 답글 작성 */
+export async function createFeedReply(
+  feedId: string,
+  commentId: string,
+  content: string,
+): Promise<MockCommentReply | null> {
+  const res = await bffPostJson<BffEnvelope<unknown>>(bffEndpoints.feeds.replies, {
+    feedId,
+    commentId,
+    content,
+  });
+  return mapReply(res.data ?? res);
+}
+
+export async function updateFeedReply(
+  feedId: string,
+  commentId: string,
+  replyId: string,
+  content: string,
+) {
+  await bffPatchJson<BffEnvelope<unknown>>(bffEndpoints.feeds.reply, {
+    feedId,
+    commentId,
+    replyId,
+    content,
+  });
+}
+
+export async function deleteFeedReply(feedId: string, commentId: string, replyId: string) {
+  await bffDelete<BffEnvelope<unknown>>(bffEndpoints.feeds.reply, {
+    feedId,
+    commentId,
+    replyId,
+  });
 }

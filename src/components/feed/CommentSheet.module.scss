@@ -236,6 +236,73 @@
   cursor: pointer;
 }
 
+.itemMoreBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--brand-gray-400);
+  cursor: pointer;
+}
+
+.menuBackdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 140;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  cursor: default;
+}
+
+.itemMenu {
+  position: fixed;
+  z-index: 141;
+  display: flex;
+  width: max-content;
+  max-width: calc(100vw - 16px);
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
+}
+
+.itemMenuBtn {
+  display: flex;
+  align-items: center;
+  padding: 16px 16px 16px 16px;
+  border: 0;
+  background: transparent;
+  color: #000;
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 1.35;
+  white-space: nowrap;
+  cursor: pointer;
+
+  & + & {
+    border-top: 1px dashed var(--brand-gray-100);
+  }
+}
+
+.itemMenuIcon {
+  display: flex;
+  flex: 0 0 22px;
+  align-items: center;
+  justify-content: flex-start;
+}
+
+.itemMenuLabel {
+  flex: 1 0 auto;
+  padding-inline: 8px;
+  text-align: center;
+}
+
 .likeBtn {
   display: inline-flex;
   flex-shrink: 0;

@@ -24,6 +24,13 @@ function pickUserNo(raw: Record<string, unknown>): number | null {
   return null;
 }
 
+function pickHistoryId(raw: Record<string, unknown>): number | undefined {
+  const value = raw.userSearchHistoryId;
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  if (typeof value === 'string' && /^\d+$/.test(value)) return Number(value);
+  return undefined;
+}
+
 function mentionLabel(value: string): string {
   const name = value.trim().replace(/^@+/, '');
   return name ? `@${name}` : '';
@@ -57,6 +64,7 @@ function toAccount(raw: unknown): SearchAccount | null {
   if (userNo == null || !nickname) return null;
   return {
     id: String(userNo),
+    historyId: pickHistoryId(raw),
     userNo,
     nickname,
     imageUrl: resolveFileDisplayUrl(asFile(raw.profileFile)) ?? NO_PROFILE_SRC,

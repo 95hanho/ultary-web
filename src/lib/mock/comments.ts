@@ -1,5 +1,7 @@
 /** 피드 댓글·답글 mock (스크롤 테스트용으로 넉넉히) */
 
+import type { MyReport } from '@/lib/report/openReport';
+
 export type MockCommentReply = {
   id: string;
   nickname: string;
@@ -8,6 +10,10 @@ export type MockCommentReply = {
   timeLabel: string;
   likeCount: number;
   isLiked?: boolean;
+  /** 작성자. 있으면 내 댓글/답글 메뉴를 가른다 */
+  userNo?: number;
+  /** 내가 이 댓글·답글을 신고한 상태 */
+  myReport?: MyReport | null;
 };
 
 export type MockComment = MockCommentReply & {

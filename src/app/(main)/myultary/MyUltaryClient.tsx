@@ -25,16 +25,18 @@ import {
   readUltaryGridScroll,
   saveUltaryGridScroll,
 } from '@/lib/myultary/gridScroll';
+import { cancelReport, canCancelReport, openReportModal, type MyReport } from '@/lib/report/openReport';
 import { useWriteDraftStore } from '@/stores/write-draft.store';
 import { useStoryDraftStore } from '@/stores/story-draft.store';
 import { useModalStore } from '@/stores/modal.store';
 import clsx from 'clsx';
-import { Check } from 'lucide-react';
+import { Check, Ellipsis, Flag } from 'lucide-react';
 import { MediaImage } from '@/components/common/MediaImage';
 import Image from 'next/image';
 import Link from 'next/link';
 import { notFound, useRouter } from 'next/navigation';
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ChangeEvent, type MouseEvent } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ChangeEvent, type MouseEvent } from 'react';
+import { createPortal } from 'react-dom';
 import type { Swiper as SwiperType } from 'swiper';
 import 'swiper/css';
 import 'swiper/css/free-mode';
@@ -181,6 +183,10 @@ export default function MyUltaryClient({ nickname }: MyUltaryClientProps) {
   const bioInputRef = useRef<HTMLInputElement>(null);
 
   const openModal = useModalStore((s) => s.open);
+  const [petMenu, setPetMenu] = useState<DOMRect | null>(null);
+  const [petMenuPlace, setPetMenuPlace] = useState<{ top: number; left: number } | null>(null);
+  const [accountReport, setAccountReport] = useState<MyReport | null>(null);
+  const petMenuRef = useRef<HTMLDivElement>(null);
   const setWriteItems = useWriteDraftStore((s) => s.setItems);
   const clearWriteDraft = useWriteDraftStore((s) => s.clear);
   const setStoryMedia = useStoryDraftStore((s) => s.setMedia);
@@ -518,6 +524,70 @@ export default function MyUltaryClient({ nickname }: MyUltaryClientProps) {
     };
   }, [gridReady, nickname, profileReady, posts.length]);
 
+  useEffect(() => {
+    if (isOwnAccount) setPetMenu(null);
+  }, [isOwnAccount]);
+
+  useEffect(() => {
+    setAccountReport(profile?.myReport ?? null);
+  }, [profile?.userNo, profile?.myReport]);
+
+  useLayoutEffect(() => {
+    if (!petMenu) return;
+    const el = petMenuRef.current;
+    if (!el) return;
+    const box = el.getBoundingClientRect();
+    const pad = 8;
+    const gap = 6;
+    let left = petMenu.right - box.width;
+    if (left < pad) left = pad;
+    if (left + box.width > window.innerWidth - pad) {
+      left = Math.max(pad, window.innerWidth - pad - box.width);
+    }
+    let top = petMenu.bottom + gap;
+    if (top + box.height > window.innerHeight - pad) {
+      top = petMenu.top - box.height - gap;
+    }
+    setPetMenuPlace({ top: Math.max(pad, top), left });
+  }, [petMenu]);
+
+  useEffect(() => {
+    if (!petMenu) return;
+    const close = () => setPetMenu(null);
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') close();
+    };
+    window.addEventListener('scroll', close, true);
+    window.addEventListener('resize', close);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      window.removeEventListener('scroll', close, true);
+      window.removeEventListener('resize', close);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [petMenu]);
+
+  const askReportAccount = useCallback(() => {
+    const userNo = profile?.userNo;
+    setPetMenu(null);
+    if (canCancelReport(accountReport)) {
+      void cancelReport(accountReport.reportId)
+        .then(() => setAccountReport(null))
+        .catch(() => undefined);
+      return;
+    }
+    if (userNo == null) {
+      openModal({
+        variant: 'alert',
+        title: '알림창',
+        content: '신고를 접수하지 못했습니다.',
+        showCloseButton: true,
+      });
+      return;
+    }
+    openReportModal({ targetType: 'USER', targetId: userNo }, setAccountReport);
+  }, [accountReport, openModal, profile?.userNo]);
+
   if (unknownAccount) notFound();
   if (!expectsOwn && !mockAccount) notFound();
 
@@ -585,7 +655,24 @@ export default function MyUltaryClient({ nickname }: MyUltaryClientProps) {
 
       <section className={styles.profileSection} aria-label="프로필">
         <div className={styles.profileMain}>
-          <h1 className={styles.nickname}>{displayNickname}</h1>
+          <div className={styles.nicknameRow}>
+            <h1 className={styles.nickname}>{displayNickname}</h1>
+            {!isOwnAccount ? (
+              <button
+                type="button"
+                className={styles.nickMoreBtn}
+                aria-label="더보기"
+                aria-expanded={petMenu != null}
+                onClick={(event) => {
+                  const rect = event.currentTarget.getBoundingClientRect();
+                  setPetMenuPlace(null);
+                  setPetMenu((open) => (open ? null : rect));
+                }}
+              >
+                <Ellipsis size={14} strokeWidth={2} />
+              </button>
+            ) : null}
+          </div>
 
           <ul className={styles.stats}>
             <li className={styles.statItem}>
@@ -903,6 +990,43 @@ export default function MyUltaryClient({ nickname }: MyUltaryClientProps) {
       />
 
       <FooterMenu />
+      {petMenu
+        ? createPortal(
+            <>
+              <button
+                type="button"
+                className={styles.petMenuBackdrop}
+                aria-label="메뉴 닫기"
+                onClick={() => setPetMenu(null)}
+              />
+              <div
+                ref={petMenuRef}
+                className={styles.petMenu}
+                role="menu"
+                style={
+                  petMenuPlace
+                    ? { top: petMenuPlace.top, left: petMenuPlace.left }
+                    : { visibility: 'hidden' }
+                }
+              >
+                <button
+                  type="button"
+                  className={styles.petMenuBtn}
+                  role="menuitem"
+                  onClick={askReportAccount}
+                >
+                  <span className={styles.petMenuIcon}>
+                    <Flag size={22} strokeWidth={1.75} />
+                  </span>
+                  <span className={styles.petMenuLabel}>
+                    {canCancelReport(accountReport) ? '신고취소' : '신고하기'}
+                  </span>
+                </button>
+              </div>
+            </>,
+            document.body,
+          )
+        : null}
     </div>
   );
 }

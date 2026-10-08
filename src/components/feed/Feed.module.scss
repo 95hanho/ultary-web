@@ -264,9 +264,7 @@
 .moreItem {
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 8px;
-  padding: 16px 20px;
+  padding: 16px 16px 16px 16px;
   border: 0;
   background: transparent;
   color: #000;
@@ -284,6 +282,19 @@
     cursor: not-allowed;
     opacity: 0.55;
   }
+}
+
+.moreIcon {
+  display: flex;
+  flex: 0 0 22px;
+  align-items: center;
+  justify-content: flex-start;
+}
+
+.moreLabel {
+  flex: 1 0 auto;
+  padding-inline: 8px;
+  text-align: center;
 }
 
 .captionWrap {

@@ -3,16 +3,19 @@
 import { MediaImage } from '@/components/common/MediaImage';
 import { Profile, type StoryStatus } from '@/components/my-ultary/Profile';
 import { bffDelete, bffPostJson } from '@/lib/api/bffFetch';
+import { loadMyUserNo } from '@/lib/auth/myUserNo';
 import { bffEndpoints } from '@/lib/api/endpoints';
 import { isRecord } from '@/lib/api/error';
 import { resolveFeedPetLabels, type FeedPetLabel } from '@/lib/feed/petLabels';
 import { splitCaptionTags, type TagExplain } from '@/lib/mock/tags';
 import { loadTagExplain } from '@/lib/tag/explain';
 import { myUltaryPath } from '@/lib/mock/ultary-accounts';
+import { showFooterNotice } from '@/lib/ui/footerNotice';
+import { openReportModal, cancelReport, canCancelReport, type MyReport } from '@/lib/report/openReport';
 import { NO_PROFILE_SRC } from '@/lib/profileImage';
 import { useModalStore } from '@/stores/modal.store';
 import clsx from 'clsx';
-import { Bookmark, Ellipsis, User } from 'lucide-react';
+import { Bookmark, Ellipsis, Flag, Trash2, User } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -72,6 +75,8 @@ export type FeedData = {
   isSaved?: boolean;
   likeCount?: number;
   commentCount?: number;
+  /** 내가 이 글을 신고한 상태. 없으면 null */
+  myReport?: MyReport | null;
 };
 
 export type FeedPhotoTag = {
@@ -116,6 +121,7 @@ export function Feed({
   isSaved = false,
   likeCount = 0,
   commentCount = 0,
+  myReport: myReportFromServer = null,
   showAuthor = true,
   initialMediaIndex = 0,
 }: FeedProps) {
@@ -128,11 +134,16 @@ export function Feed({
   const [needsMore, setNeedsMore] = useState(false);
   const [liked, setLiked] = useState(isFavorite);
   const [likes, setLikes] = useState(likeCount);
+  const [comments, setComments] = useState(commentCount);
   const [likePending, setLikePending] = useState(false);
   const [pinned, setPinned] = useState(isPinned);
   const [pinPending, setPinPending] = useState(false);
   const [saved, setSaved] = useState(isSaved);
   const [savePending, setSavePending] = useState(false);
+  const [deletePending, setDeletePending] = useState(false);
+  const [myReport, setMyReport] = useState<MyReport | null>(myReportFromServer);
+  const [removed, setRemoved] = useState(false);
+  const [myUserNo, setMyUserNo] = useState<number | null>(null);
   const [moreOpen, setMoreOpen] = useState(false);
   const [morePlace, setMorePlace] = useState<{ top: number; left: number } | null>(null);
   const moreWrapRef = useRef<HTMLDivElement>(null);
@@ -168,12 +179,33 @@ export function Feed({
   }, [id, isFavorite, likeCount]);
 
   useEffect(() => {
+    setComments(commentCount);
+  }, [id, commentCount]);
+
+  useEffect(() => {
     setPinned(isPinned);
   }, [id, isPinned]);
 
   useEffect(() => {
     setSaved(isSaved);
   }, [id, isSaved]);
+
+  useEffect(() => {
+    setMyReport(myReportFromServer);
+  }, [id, myReportFromServer]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void loadMyUserNo().then((userNo) => {
+      if (!cancelled) setMyUserNo(userNo);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const isMine = myUserNo != null && userNo === myUserNo;
+  const canReport = myUserNo != null && userNo != null && userNo !== myUserNo;
 
   useEffect(() => {
     try {
@@ -346,7 +378,11 @@ export function Feed({
         ? await bffPostJson<unknown>(bffEndpoints.feeds.pin, { feedId: id })
         : await bffDelete<unknown>(bffEndpoints.feeds.pin, { feedId: id });
       const flag = readFlag(res, 'pinnedByMe');
+      const applied = flag ?? next;
       if (flag != null) setPinned(flag);
+      showFooterNotice(
+        applied ? '울타리 고정이 완료되었습니다.' : '울타리 고정이 취소되었습니다.',
+      );
     } catch (err) {
       console.error('[feed] pin failed', err);
       setPinned(!next);
@@ -365,7 +401,11 @@ export function Feed({
         ? await bffPostJson<unknown>(bffEndpoints.feeds.save, { feedId: id })
         : await bffDelete<unknown>(bffEndpoints.feeds.save, { feedId: id });
       const flag = readFlag(res, 'savedByMe');
+      const applied = flag ?? next;
       if (flag != null) setSaved(flag);
+      showFooterNotice(
+        applied ? '게시글 저장이 완료되었습니다.' : '게시글 저장이 취소되었습니다.',
+      );
     } catch (err) {
       console.error('[feed] save failed', err);
       setSaved(!next);
@@ -373,6 +413,53 @@ export function Feed({
       setSavePending(false);
     }
   }, [id, savePending, saved]);
+
+  const askDelete = useCallback(() => {
+    if (deletePending) return;
+    setMoreOpen(false);
+    openModal({
+      variant: 'confirm',
+      title: '알림창',
+      content: '이 게시글을 삭제할까요?',
+      showCloseButton: true,
+      okButton: {
+        label: '삭제',
+        tone: 'danger',
+        onClick: () => {
+          void (async () => {
+            setDeletePending(true);
+            try {
+              await bffDelete<unknown>(bffEndpoints.feeds.detail, { feedId: id });
+              setRemoved(true);
+            } catch (err) {
+              console.error('[feed] delete failed', err);
+              openModal({
+                variant: 'alert',
+                title: '알림창',
+                content: '게시글을 삭제하지 못했습니다.',
+                showCloseButton: true,
+              });
+            } finally {
+              setDeletePending(false);
+            }
+          })();
+        },
+      },
+    });
+  }, [deletePending, id, openModal]);
+
+  const askReport = useCallback(() => {
+    const targetId = Number(id);
+    if (!Number.isFinite(targetId)) return;
+    setMoreOpen(false);
+    if (canCancelReport(myReport)) {
+      void cancelReport(myReport.reportId)
+        .then(() => setMyReport(null))
+        .catch(() => undefined);
+      return;
+    }
+    openReportModal({ targetType: 'FEED', targetId }, setMyReport);
+  }, [id, myReport]);
 
   useEffect(() => {
     const onPointerDown = (e: PointerEvent) => {
@@ -514,6 +601,8 @@ export function Feed({
     ro.observe(el);
     return () => ro.disconnect();
   }, [caption, nickname, expanded]);
+
+  if (removed) return null;
 
   return (
     <article id={`feed-${id}`} className={styles.feed}>
@@ -706,11 +795,11 @@ export function Feed({
             <button
               type="button"
               className={styles.actionBtn}
-              aria-label={`댓글 ${commentCount}`}
+              aria-label={`댓글 ${comments}`}
               onClick={() => setCommentsOpen(true)}
             >
               <Image src={CommentIcon} alt="" width={31} height={31} />
-              <span className={styles.actionCount}>{commentCount}</span>
+              <span className={styles.actionCount}>{comments}</span>
             </button>
             <button
               type="button"
@@ -724,7 +813,7 @@ export function Feed({
                     {
                       label: '링크 복사',
                       onClick: () => {
-                        const url = `${window.location.origin}/myultary/${nickname}/posts/${id}`;
+                        const url = `${window.location.origin}/posts/${id}`;
                         void navigator.clipboard?.writeText(url).catch(() => {
                           /* ignore */
                         });
@@ -780,8 +869,10 @@ export function Feed({
                     void togglePin();
                   }}
                 >
-                  <Image src={pinned ? PinFillIcon : PinIcon} alt="" width={22} height={22} />
-                  울타리 고정
+                  <span className={styles.moreIcon}>
+                    <Image src={pinned ? PinFillIcon : PinIcon} alt="" width={22} height={22} />
+                  </span>
+                  <span className={styles.moreLabel}>울타리 고정</span>
                 </button>
                 <button
                   type="button"
@@ -793,9 +884,40 @@ export function Feed({
                     void toggleSave();
                   }}
                 >
-                  <Bookmark size={22} strokeWidth={1.75} fill={saved ? 'currentColor' : 'none'} />
-                  게시글 저장
+                  <span className={styles.moreIcon}>
+                    <Bookmark size={22} strokeWidth={1.75} fill={saved ? 'currentColor' : 'none'} />
+                  </span>
+                  <span className={styles.moreLabel}>게시글 저장</span>
                 </button>
+                {isMine ? (
+                  <button
+                    type="button"
+                    className={styles.moreItem}
+                    role="menuitem"
+                    disabled={deletePending}
+                    onClick={askDelete}
+                  >
+                    <span className={styles.moreIcon}>
+                      <Trash2 size={22} strokeWidth={1.75} />
+                    </span>
+                    <span className={styles.moreLabel}>삭제</span>
+                  </button>
+                ) : null}
+                {canReport ? (
+                  <button
+                    type="button"
+                    className={styles.moreItem}
+                    role="menuitem"
+                    onClick={askReport}
+                  >
+                    <span className={styles.moreIcon}>
+                      <Flag size={22} strokeWidth={1.75} />
+                    </span>
+                    <span className={styles.moreLabel}>
+                      {canCancelReport(myReport) ? '신고취소' : '신고하기'}
+                    </span>
+                  </button>
+                ) : null}
               </div>
             ) : null}
           </div>
@@ -869,7 +991,13 @@ export function Feed({
         />
       ) : null}
 
-      <CommentSheet open={commentsOpen} onClose={() => setCommentsOpen(false)} feedId={id} />
+      <CommentSheet
+        open={commentsOpen}
+        onClose={() => setCommentsOpen(false)}
+        feedId={id}
+        onCommentCreated={() => setComments((count) => count + 1)}
+        onCommentDeleted={() => setComments((count) => Math.max(0, count - 1))}
+      />
     </article>
   );
 }

@@ -7,6 +7,47 @@ validation · database · docs 모두 **여기 한곳**에 적는다.
 
 ---
 
+## 2026-10-08 11:35
+
+### API · 신고 확인
+- `POST /api/v1/admin/reports/{reportId}/confirm`. 신고요청만 `CONFIRMED`. 이후 신고 취소 불가
+- 스키마 v23
+
+---
+
+## 2026-10-08 11:30
+
+### API · 내 신고 이력과 취소
+- 게시글·댓글·답글·울타리 조회에 `myReport` (`reportId`, `status`). 없으면 null
+- `status=REQUESTED`만 `DELETE /api/v1/reports/{reportId}`로 취소
+
+---
+
+## 2026-10-08 11:20
+
+### API · 신고 상태
+- `status`: `REQUESTED` 신고요청, `DELETED` 삭제조치, `REJECTED` 거절, `ON_HOLD` 보류, `SUSPENDED` 정지
+- 보류 `POST /api/v1/admin/reports/{reportId}/hold`. 신고요청·보류만 다시 조치
+- 스키마 v22
+
+---
+
+## 2026-10-08 11:10
+
+### API · 신고와 관리자 조치
+- `POST /api/v1/reports`. `targetType` USER|FEED|COMMENT|REPLY, `targetId`, `reason` ENUM(SPAM, ABUSE, HARASSMENT, SEXUAL, VIOLENCE, HATE, IMPERSONATION, PRIVACY, OTHER)
+- 관리자: `GET /api/v1/admin/reports`, `POST .../reports/{reportId}/delete-content`(게시글·댓글·답글 삭제), `POST .../suspend`(유저 정지), `POST .../reject`
+- 스키마 v21. `ultary_report.reason` VARCHAR → 사유 ENUM
+
+---
+
+## 2026-10-08 09:30
+
+### API · 최근 검색 한 건 삭제
+- `DELETE /api/v1/main/search/recent/{userSearchHistoryId}`. 목록 항목 id. 내 행만. 없으면 404
+
+---
+
 ## 2026-10-07 17:05
 
 ### API · 검색 페이지

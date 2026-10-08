@@ -5,21 +5,20 @@ import {
   handleBffError,
   isUnauthorized,
   ok,
-  readJsonBody,
+  queryParams,
   requireAccessToken,
 } from '@/lib/api/bffRoute';
-import { springPostJson } from '@/lib/api/springFetch';
+import { springGet } from '@/lib/api/springFetch';
 
-/** BFF /api/reports — POST */
-export async function POST(request: NextRequest) {
-  console.log('[API] 신고');
+/** BFF /api/admin/reports — GET */
+export async function GET(request: NextRequest) {
+  console.log('[API] 관리자 신고 목록');
   try {
     const accessToken = await requireAccessToken();
     if (isUnauthorized(accessToken)) return accessToken;
-    const body = await readJsonBody(request);
-    const data = await springPostJson(
-      springEndpoints.users.report,
-      body,
+    const data = await springGet(
+      springEndpoints.admin.reports,
+      queryParams(request),
       bearer(accessToken),
     );
     return ok(data);

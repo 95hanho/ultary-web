@@ -1,13 +1,24 @@
 'use client';
 
-import { loadFeedComments } from '@/lib/feed/toComments';
+import { loadMyUserNo } from '@/lib/auth/myUserNo';
+import {
+  createFeedComment,
+  createFeedReply,
+  deleteFeedComment,
+  deleteFeedReply,
+  loadFeedComments,
+  updateFeedComment,
+  updateFeedReply,
+} from '@/lib/feed/toComments';
 import {
   type MockComment,
   type MockCommentReply,
 } from '@/lib/mock/comments';
-import { MY_NICKNAME, myUltaryPath } from '@/lib/mock/ultary-accounts';
+import { myUltaryPath } from '@/lib/mock/ultary-accounts';
+import { openReportModal, cancelReport, canCancelReport, type MyReport } from '@/lib/report/openReport';
+import { useModalStore } from '@/stores/modal.store';
 import clsx from 'clsx';
-import { Heart, X } from 'lucide-react';
+import { Ellipsis, Flag, Heart, Pencil, Trash2, X } from 'lucide-react';
 import { MediaImage } from '@/components/common/MediaImage';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -69,7 +80,36 @@ type CommentSheetProps = {
   feedId: string;
   /** 넘기면 API 대신 이 목록을 쓴다 */
   comments?: MockComment[];
+  /** 댓글 저장에 성공하면 피드 카드 수를 올린다. 답글은 글의 commentCount에 포함되지 않는다 */
+  onCommentCreated?: () => void;
+  /** 댓글 삭제에 성공하면 피드 카드 수를 내린다 */
+  onCommentDeleted?: () => void;
 };
+
+type ThreadTarget = {
+  kind: 'comment' | 'reply';
+  id: string;
+  parentCommentId: string;
+};
+
+function patchThreadReport(
+  items: MockComment[],
+  target: ThreadTarget,
+  report: MyReport | null,
+) {
+  return items.map((comment) => {
+    if (target.kind === 'comment') {
+      return comment.id === target.id ? { ...comment, myReport: report } : comment;
+    }
+    if (comment.id !== target.parentCommentId) return comment;
+    return {
+      ...comment,
+      replies: comment.replies.map((reply) =>
+        reply.id === target.id ? { ...reply, myReport: report } : reply,
+      ),
+    };
+  });
+}
 
 function renderContent(content: string) {
   const parts = content.split(/(@[A-Za-z0-9_]+)/g);
@@ -96,12 +136,16 @@ function CommentBody({
   parentCommentId,
   onReply,
   focused,
+  menuOpen,
+  onToggleMenu,
 }: {
   item: MockCommentReply;
   compact?: boolean;
   parentCommentId: string;
   onReply: (nickname: string, parentCommentId: string) => void;
   focused?: boolean;
+  menuOpen?: boolean;
+  onToggleMenu: (anchor: HTMLButtonElement) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
   const [needsMore, setNeedsMore] = useState(false);
@@ -173,6 +217,15 @@ function CommentBody({
           >
             답글 달기
           </button>
+          <button
+            type="button"
+            className={styles.itemMoreBtn}
+            aria-label={compact ? '답글 더보기' : '댓글 더보기'}
+            aria-expanded={menuOpen}
+            onClick={(event) => onToggleMenu(event.currentTarget)}
+          >
+            <Ellipsis size={14} strokeWidth={2} aria-hidden />
+          </button>
         </div>
       </div>
 
@@ -205,6 +258,8 @@ export function CommentSheet({
   onClose,
   feedId,
   comments,
+  onCommentCreated,
+  onCommentDeleted,
 }: CommentSheetProps) {
   const [hydrated, setHydrated] = useState(false);
   /** 포털 유지 (닫힘 애니 끝날 때까지) */
@@ -234,6 +289,15 @@ export function CommentSheet({
     'idle',
   );
   const [draft, setDraft] = useState('');
+  const [sending, setSending] = useState(false);
+  const [myUserNo, setMyUserNo] = useState<number | null>(null);
+  const openModal = useModalStore((s) => s.open);
+  const [menu, setMenu] = useState<
+    (ThreadTarget & { mine: boolean; anchor: DOMRect }) | null
+  >(null);
+  const [menuPlace, setMenuPlace] = useState<{ top: number; left: number } | null>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const [editing, setEditing] = useState<ThreadTarget | null>(null);
   const [replyTo, setReplyTo] = useState<{
     parentCommentId: string;
     nickname: string;
@@ -247,6 +311,8 @@ export function CommentSheet({
     if (!open) return;
     setDraft('');
     setReplyTo(null);
+    setEditing(null);
+    setMenu(null);
     setFocusDomId(commentFocusDomId());
 
     if (comments) {
@@ -276,7 +342,19 @@ export function CommentSheet({
     };
   }, [open, comments, feedId]);
 
+  useEffect(() => {
+    let cancelled = false;
+    void loadMyUserNo().then((userNo) => {
+      if (!cancelled) setMyUserNo(userNo);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const startReply = useCallback((nickname: string, parentCommentId: string) => {
+    setEditing(null);
+    setMenu(null);
     setReplyTo({ parentCommentId, nickname });
     setDraft((prev) => {
       const mention = `@${nickname} `;
@@ -291,49 +369,227 @@ export function CommentSheet({
     setDraft('');
   }, []);
 
-  function submitComment(e?: FormEvent) {
+  const clearEdit = useCallback(() => {
+    setEditing(null);
+    setDraft('');
+  }, []);
+
+  async function submitComment(e?: FormEvent) {
     e?.preventDefault();
     const text = draft.trim();
-    if (!text) return;
+    if (!text || sending) return;
 
-    if (replyTo) {
-      const reply: MockCommentReply = {
-        id: `local-r-${Date.now()}`,
-        nickname: MY_NICKNAME,
-        profileUrl: MY_PROFILE,
-        content: text,
-        timeLabel: '방금',
-        likeCount: 0,
-      };
-      setItems((prev) =>
-        prev.map((c) =>
-          c.id === replyTo.parentCommentId
-            ? { ...c, replies: [...c.replies, reply] }
-            : c,
-        ),
-      );
-    } else {
-      const next: MockComment = {
-        id: `local-c-${Date.now()}`,
-        nickname: MY_NICKNAME,
-        profileUrl: MY_PROFILE,
-        content: text,
-        timeLabel: '방금',
-        likeCount: 0,
-        replies: [],
-      };
-      setItems((prev) => [...prev, next]);
-    }
-
-    setDraft('');
-    setReplyTo(null);
-    requestAnimationFrame(() => {
-      listRef.current?.scrollTo({
-        top: listRef.current.scrollHeight,
-        behavior: 'smooth',
+    const parentId = replyTo?.parentCommentId;
+    const editingTarget = editing;
+    setSending(true);
+    try {
+      if (editingTarget) {
+        if (editingTarget.kind === 'reply') {
+          await updateFeedReply(feedId, editingTarget.parentCommentId, editingTarget.id, text);
+          setItems((prev) =>
+            prev.map((item) =>
+              item.id === editingTarget.parentCommentId
+                ? {
+                    ...item,
+                    replies: item.replies.map((reply) =>
+                      reply.id === editingTarget.id ? { ...reply, content: text } : reply,
+                    ),
+                  }
+                : item,
+            ),
+          );
+        } else {
+          await updateFeedComment(feedId, editingTarget.id, text);
+          setItems((prev) =>
+            prev.map((item) => (item.id === editingTarget.id ? { ...item, content: text } : item)),
+          );
+        }
+        setDraft('');
+        setEditing(null);
+        return;
+      }
+      if (parentId) {
+        const reply = await createFeedReply(feedId, parentId, text);
+        if (!reply) throw new Error('empty reply');
+        setItems((prev) =>
+          prev.map((item) =>
+            item.id === parentId ? { ...item, replies: [...item.replies, reply] } : item,
+          ),
+        );
+      } else {
+        const comment = await createFeedComment(feedId, text);
+        if (!comment) throw new Error('empty comment');
+        setItems((prev) => [...prev, comment]);
+        onCommentCreated?.();
+      }
+      setDraft('');
+      setReplyTo(null);
+      requestAnimationFrame(() => {
+        listRef.current?.scrollTo({
+          top: listRef.current.scrollHeight,
+          behavior: 'smooth',
+        });
       });
-    });
+    } catch (err) {
+      console.error('[comments] save failed', err);
+    } finally {
+      setSending(false);
+    }
   }
+
+  const toggleItemMenu = useCallback(
+    (target: ThreadTarget, mine: boolean, anchor: HTMLButtonElement) => {
+      setMenu((prev) => {
+        if (prev && prev.kind === target.kind && prev.id === target.id) return null;
+        return { ...target, mine, anchor: anchor.getBoundingClientRect() };
+      });
+      setMenuPlace(null);
+    },
+    [],
+  );
+
+  const beginEdit = useCallback(
+    (target: ThreadTarget) => {
+      const source =
+        target.kind === 'reply'
+          ? items
+              .find((item) => item.id === target.parentCommentId)
+              ?.replies.find((reply) => reply.id === target.id)
+          : items.find((item) => item.id === target.id);
+      if (!source) return;
+      setMenu(null);
+      setReplyTo(null);
+      setEditing(target);
+      setDraft(source.content);
+      requestAnimationFrame(() => inputRef.current?.focus());
+    },
+    [items],
+  );
+
+  const removeTarget = useCallback(
+    (target: ThreadTarget) => {
+      setMenu(null);
+      const label = target.kind === 'reply' ? '답글' : '댓글';
+      openModal({
+        variant: 'confirm',
+        title: '알림창',
+        content: `이 ${label}을 삭제할까요?`,
+        showCloseButton: true,
+        okButton: {
+          label: '삭제',
+          tone: 'danger',
+          onClick: () => {
+            void (async () => {
+              try {
+                if (target.kind === 'reply') {
+                  await deleteFeedReply(feedId, target.parentCommentId, target.id);
+                  setItems((prev) =>
+                    prev.map((item) =>
+                      item.id === target.parentCommentId
+                        ? {
+                            ...item,
+                            replies: item.replies.filter((reply) => reply.id !== target.id),
+                          }
+                        : item,
+                    ),
+                  );
+                } else {
+                  await deleteFeedComment(feedId, target.id);
+                  setItems((prev) => prev.filter((item) => item.id !== target.id));
+                  onCommentDeleted?.();
+                }
+                if (
+                  editing &&
+                  editing.kind === target.kind &&
+                  editing.id === target.id
+                ) {
+                  setEditing(null);
+                  setDraft('');
+                }
+              } catch (err) {
+                console.error('[comments] delete failed', err);
+                openModal({
+                  variant: 'alert',
+                  title: '알림창',
+                  content: `${label}을 삭제하지 못했습니다.`,
+                  showCloseButton: true,
+                });
+              }
+            })();
+          },
+        },
+      });
+    },
+    [editing, feedId, onCommentDeleted, openModal],
+  );
+
+  const reportTarget = useCallback((target: ThreadTarget) => {
+    const targetId = Number(target.id);
+    if (!Number.isFinite(targetId)) return;
+    setMenu(null);
+    openReportModal(
+      {
+        targetType: target.kind === 'reply' ? 'REPLY' : 'COMMENT',
+        targetId,
+      },
+      (report) => {
+        setItems((prev) => patchThreadReport(prev, target, report));
+      },
+    );
+  }, []);
+
+  const cancelTarget = useCallback(
+    (target: ThreadTarget) => {
+      const source =
+        target.kind === 'reply'
+          ? items
+              .find((item) => item.id === target.parentCommentId)
+              ?.replies.find((reply) => reply.id === target.id)
+          : items.find((item) => item.id === target.id);
+      if (!canCancelReport(source?.myReport)) return;
+      const reportId = source.myReport.reportId;
+      setMenu(null);
+      void cancelReport(reportId)
+        .then(() => setItems((prev) => patchThreadReport(prev, target, null)))
+        .catch(() => undefined);
+    },
+    [items],
+  );
+
+  useLayoutEffect(() => {
+    if (!menu) return;
+    const el = menuRef.current;
+    if (!el) return;
+    const box = el.getBoundingClientRect();
+    const pad = 8;
+    const gap = 6;
+    let left = menu.anchor.right - box.width;
+    if (left < pad) left = pad;
+    if (left + box.width > window.innerWidth - pad) {
+      left = Math.max(pad, window.innerWidth - pad - box.width);
+    }
+    let top = menu.anchor.bottom + gap;
+    if (top + box.height > window.innerHeight - pad) {
+      top = menu.anchor.top - box.height - gap;
+    }
+    setMenuPlace({ top: Math.max(pad, top), left });
+  }, [menu]);
+
+  useEffect(() => {
+    if (!menu) return;
+    const close = () => setMenu(null);
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') close();
+    };
+    window.addEventListener('scroll', close, true);
+    window.addEventListener('resize', close);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      window.removeEventListener('scroll', close, true);
+      window.removeEventListener('resize', close);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [menu]);
 
   useLayoutEffect(() => {
     if (!open || listStatus !== 'ready' || !focusDomId) return;
@@ -487,7 +743,18 @@ export function CommentSheet({
       ? `${exitY}px`
       : '100%';
 
-  return createPortal(
+  const menuSource = !menu
+    ? null
+    : menu.kind === 'comment'
+      ? (items.find((item) => item.id === menu.id) ?? null)
+      : (items
+          .find((item) => item.id === menu.parentCommentId)
+          ?.replies.find((reply) => reply.id === menu.id) ?? null);
+  const reportCancel = canCancelReport(menuSource?.myReport);
+
+  return (
+    <>
+    {createPortal(
     <div className={styles.root} role="presentation">
       <button
         type="button"
@@ -535,6 +802,14 @@ export function CommentSheet({
                 parentCommentId={comment.id}
                 onReply={startReply}
                 focused={focusDomId === `comment-${comment.id}`}
+                menuOpen={menu?.kind === 'comment' && menu.id === comment.id}
+                onToggleMenu={(anchor) =>
+                  toggleItemMenu(
+                    { kind: 'comment', id: comment.id, parentCommentId: comment.id },
+                    myUserNo != null && comment.userNo === myUserNo,
+                    anchor,
+                  )
+                }
               />
               {comment.replies.length > 0 ? (
                 <div className={styles.replies}>
@@ -546,6 +821,14 @@ export function CommentSheet({
                       parentCommentId={comment.id}
                       onReply={startReply}
                       focused={focusDomId === `reply-${reply.id}`}
+                      menuOpen={menu?.kind === 'reply' && menu.id === reply.id}
+                      onToggleMenu={(anchor) =>
+                        toggleItemMenu(
+                          { kind: 'reply', id: reply.id, parentCommentId: comment.id },
+                          myUserNo != null && reply.userNo === myUserNo,
+                          anchor,
+                        )
+                      }
                     />
                   ))}
                 </div>
@@ -555,7 +838,22 @@ export function CommentSheet({
         </div>
 
         <form className={styles.composer} onSubmit={submitComment}>
-          {replyTo ? (
+          {editing ? (
+            <div className={styles.replyBar}>
+              <span className={styles.replyHint}>
+                {editing.kind === 'reply' ? '답글' : '댓글'} 수정 중
+              </span>
+              <button
+                type="button"
+                className={styles.replyCancel}
+                aria-label="수정 취소"
+                onClick={clearEdit}
+              >
+                <X size={16} strokeWidth={2} aria-hidden />
+              </button>
+            </div>
+          ) : null}
+          {replyTo && !editing ? (
             <div className={styles.replyBar}>
               <span className={styles.replyHint}>
                 <strong>@{replyTo.nickname}</strong>님에게 답글 남기는 중
@@ -586,16 +884,18 @@ export function CommentSheet({
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
               placeholder={
-                replyTo
-                  ? `@${replyTo.nickname}님에게 답글 남기기…`
-                  : '댓글을 입력하세요…'
+                editing
+                  ? '내용을 수정하세요…'
+                  : replyTo
+                    ? `@${replyTo.nickname}님에게 답글 남기기…`
+                    : '댓글을 입력하세요…'
               }
               aria-label={replyTo ? '답글 입력' : '댓글 입력'}
             />
             <button
               type="submit"
               className={styles.composerSend}
-              disabled={!draft.trim()}
+              disabled={!draft.trim() || sending}
               aria-label="전송"
             >
               <Image src={SendIcon} alt="" width={22} height={22} />
@@ -605,5 +905,71 @@ export function CommentSheet({
       </div>
     </div>,
     document.body,
+  )}
+    {menu
+      ? createPortal(
+          <>
+            <button
+              type="button"
+              className={styles.menuBackdrop}
+              aria-label="메뉴 닫기"
+              onClick={() => setMenu(null)}
+            />
+            <div
+              ref={menuRef}
+              className={styles.itemMenu}
+              role="menu"
+              style={
+                menuPlace
+                  ? { top: menuPlace.top, left: menuPlace.left }
+                  : { visibility: 'hidden' }
+              }
+            >
+              {menu.mine ? (
+                <>
+                  <button
+                    type="button"
+                    className={styles.itemMenuBtn}
+                    role="menuitem"
+                    onClick={() => beginEdit(menu)}
+                  >
+                    <span className={styles.itemMenuIcon}>
+                      <Pencil size={22} strokeWidth={1.75} />
+                    </span>
+                    <span className={styles.itemMenuLabel}>수정</span>
+                  </button>
+                  <button
+                    type="button"
+                    className={styles.itemMenuBtn}
+                    role="menuitem"
+                    onClick={() => removeTarget(menu)}
+                  >
+                    <span className={styles.itemMenuIcon}>
+                      <Trash2 size={22} strokeWidth={1.75} />
+                    </span>
+                    <span className={styles.itemMenuLabel}>삭제하기</span>
+                  </button>
+                </>
+              ) : (
+                <button
+                  type="button"
+                  className={styles.itemMenuBtn}
+                  role="menuitem"
+                  onClick={() => (reportCancel ? cancelTarget(menu) : reportTarget(menu))}
+                >
+                  <span className={styles.itemMenuIcon}>
+                    <Flag size={22} strokeWidth={1.75} />
+                  </span>
+                  <span className={styles.itemMenuLabel}>
+                    {reportCancel ? '신고취소' : '신고하기'}
+                  </span>
+                </button>
+              )}
+            </div>
+          </>,
+          document.body,
+        )
+      : null}
+    </>
   );
 }

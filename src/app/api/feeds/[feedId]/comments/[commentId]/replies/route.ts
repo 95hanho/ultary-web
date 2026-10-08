@@ -9,7 +9,7 @@ import {
   readJsonBody,
   requireAccessToken,
 } from '@/lib/api/bffRoute';
-import { springGet, springPostForm } from '@/lib/api/springFetch';
+import { springGet, springPostJson } from '@/lib/api/springFetch';
 
 type Ctx = { params: Promise<{ feedId: string; commentId: string }> };
 
@@ -39,7 +39,7 @@ export async function POST(request: NextRequest, { params }: Ctx) {
     if (isUnauthorized(accessToken)) return accessToken;
     const { feedId, commentId } = await params;
     const body = await readJsonBody(request);
-    const data = await springPostForm(
+    const data = await springPostJson(
       springEndpoints.feeds.replies,
       { feedId, commentId, ...body },
       bearer(accessToken),

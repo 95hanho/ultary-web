@@ -25,12 +25,33 @@
   padding-right: 44px;
 }
 
-.nickname {
+.nicknameRow {
+  display: flex;
+  align-items: center;
+  gap: 2px;
   margin: 0 0 8px;
+}
+
+.nickname {
+  margin: 0;
   color: var(--brand-black-700);
   font-size: 16px;
   font-weight: 700;
   line-height: 1.2;
+}
+
+.nickMoreBtn {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--brand-gray-400);
+  cursor: pointer;
 }
 
 .stats {
@@ -379,6 +400,56 @@
   font-size: 15px;
   font-weight: 700;
   line-height: 1.2;
+}
+
+.petMenuBackdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 140;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  cursor: default;
+}
+
+.petMenu {
+  position: fixed;
+  z-index: 141;
+  display: flex;
+  width: max-content;
+  max-width: calc(100vw - 16px);
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
+}
+
+.petMenuBtn {
+  display: flex;
+  align-items: center;
+  padding: 16px;
+  border: 0;
+  background: transparent;
+  color: #000;
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 1.35;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.petMenuIcon {
+  display: flex;
+  flex: 0 0 22px;
+  align-items: center;
+  justify-content: flex-start;
+}
+
+.petMenuLabel {
+  flex: 1 0 auto;
+  padding-inline: 8px;
+  text-align: center;
 }
 
 .petHandle {

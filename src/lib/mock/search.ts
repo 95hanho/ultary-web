@@ -6,6 +6,8 @@ export type SearchPetChoice = {
 
 export type SearchAccount = {
   id: string;
+  /** 최근 검색 한 건 삭제용 */
+  historyId?: number;
   /** 검색·최근 검색 API의 울타리 주인 */
   userNo?: number;
   nickname: string;

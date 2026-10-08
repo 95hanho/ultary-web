@@ -23,9 +23,72 @@ import clsx from 'clsx';
 import { MediaImage } from '@/components/common/MediaImage';
 import Image from 'next/image';
 import Link from 'next/link';
+import { subscribeFooterNotice } from '@/lib/ui/footerNotice';
 import { usePathname, useRouter } from 'next/navigation';
-import { useEffect, useState, type MouseEvent } from 'react';
+import { useEffect, useRef, useState, type MouseEvent } from 'react';
 import styles from './FooterMenu.module.scss';
+
+const NOTICE_ENTER_MS = 280;
+const NOTICE_HOLD_MS = 2000;
+const NOTICE_EXIT_MS = 280;
+
+function FooterNotice() {
+  const [message, setMessage] = useState<string | null>(null);
+  const [shown, setShown] = useState(false);
+  const tokenRef = useRef(0);
+  const timersRef = useRef<number[]>([]);
+  const framesRef = useRef<number[]>([]);
+
+  useEffect(() => {
+    const clearTimers = () => {
+      for (const id of timersRef.current) window.clearTimeout(id);
+      timersRef.current = [];
+      for (const id of framesRef.current) window.cancelAnimationFrame(id);
+      framesRef.current = [];
+    };
+    const later = (fn: () => void, ms: number) => {
+      const id = window.setTimeout(fn, ms);
+      timersRef.current.push(id);
+    };
+
+    const unsubscribe = subscribeFooterNotice((next) => {
+      const token = tokenRef.current + 1;
+      tokenRef.current = token;
+      clearTimers();
+      setMessage(next);
+      setShown(false);
+      const first = window.requestAnimationFrame(() => {
+        const second = window.requestAnimationFrame(() => {
+          if (tokenRef.current !== token) return;
+          setShown(true);
+          later(() => {
+            if (tokenRef.current !== token) return;
+            setShown(false);
+            later(() => {
+              if (tokenRef.current !== token) return;
+              setMessage(null);
+            }, NOTICE_EXIT_MS);
+          }, NOTICE_ENTER_MS + NOTICE_HOLD_MS);
+        });
+        framesRef.current.push(second);
+      });
+      framesRef.current.push(first);
+    });
+
+    return () => {
+      unsubscribe();
+      clearTimers();
+    };
+  }, []);
+
+  if (!message) return null;
+
+  return (
+    <div className={styles.noticeHost} aria-live="polite">
+      <p className={clsx(styles.notice, shown && styles.noticeShown)}>{message}</p>
+    </div>
+  );
+}
 
 const HomeIcon = '/images/icon/Home.svg';
 const HomeFillIcon = '/images/icon/Home_fill.svg';
@@ -119,6 +182,7 @@ export function FooterMenu() {
 
   return (
     <nav className={styles.footer} aria-label="하단 메뉴">
+      <FooterNotice />
       <Link
         href="/"
         className={styles.item}

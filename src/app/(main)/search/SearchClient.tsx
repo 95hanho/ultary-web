@@ -1,12 +1,10 @@
 'use client';
 
 import { FooterMenu } from '@/components/common/FooterMenu';
-import { PageHeader } from '@/components/common/PageHeader';
 import { FeedGrid, type FeedGridItem } from '@/components/feed/FeedGrid';
 import { HashtagResultList } from '@/components/search/HashtagResultList';
 import { bffDelete, bffGet, bffPostJson } from '@/lib/api/bffFetch';
 import { bffEndpoints } from '@/lib/api/endpoints';
-import { isRecord } from '@/lib/api/error';
 import { toFeedDataList } from '@/lib/feed/toFeedData';
 import { mapRecentAccounts, mapSearchTags, mapSearchUsers } from '@/lib/search/accounts';
 import type { BffEnvelope } from '@/types/api';
@@ -18,7 +16,7 @@ import { MediaImage } from '@/components/common/MediaImage';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type FocusEvent } from 'react';
 import { EmptyState } from '@/components/common/EmptyState';
 import styles from './search.module.scss';
 
@@ -45,6 +43,27 @@ const PREVIEW_LIMIT = 5;
 const COMMIT_LIMIT = 20;
 const PREVIEW_DELAY_MS = 400;
 
+/** 검색 목록 주소. 태그 그리드에서 뒤로가면 이 주소로 같은 검색을 다시 받는다 */
+function searchListPath(active: boolean, query: string, committed: boolean) {
+  const trimmed = query.trim();
+  if (!active || !trimmed) return '/search';
+  const params = new URLSearchParams();
+  params.set('q', trimmed);
+  if (committed) params.set('commit', '1');
+  return `/search?${params.toString()}`;
+}
+
+function replaceSearchUrl(next: string) {
+  if (window.location.pathname !== '/search') return;
+  const current = `${window.location.pathname}${window.location.search}`;
+  if (current === next) return;
+  const state =
+    window.history.state && typeof window.history.state === 'object'
+      ? window.history.state
+      : {};
+  window.history.replaceState(state, '', next);
+}
+
 function searchType(mode: 'plain' | 'pet' | 'hashtag'): 'USER' | 'MENTION' | 'TAG' {
   if (mode === 'pet') return 'MENTION';
   if (mode === 'hashtag') return 'TAG';
@@ -56,11 +75,13 @@ function AccountRow({
   highlightQuery,
   petQuery,
   onEnter,
+  onRemove,
 }: {
   account: SearchAccount;
   highlightQuery: string;
   petQuery: string;
   onEnter: (account: SearchAccount) => void;
+  onRemove?: (account: SearchAccount) => void;
 }) {
   const tags = sortPetTagsByMatch(account.petTags, petQuery || highlightQuery);
 
@@ -69,6 +90,7 @@ function AccountRow({
       <Link
         href={myUltaryPath(account.nickname)}
         className={styles.accountBtn}
+        onMouseDown={(event) => event.preventDefault()}
         onClick={(event) => {
           if (account.userNo == null) return;
           event.preventDefault();
@@ -98,6 +120,25 @@ function AccountRow({
           </span>
         </span>
       </Link>
+      {onRemove ? (
+        <button
+          type="button"
+          className={styles.removeRecentBtn}
+          aria-label={`${account.nickname} 최근 검색 삭제`}
+          onMouseDown={(event) => event.preventDefault()}
+          onClick={() => onRemove(account)}
+        >
+          <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
+            <path
+              d="M3 3l8 8M11 3L3 11"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.6"
+              strokeLinecap="round"
+            />
+          </svg>
+        </button>
+      ) : null}
     </li>
   );
 }
@@ -105,10 +146,10 @@ function AccountRow({
 /** 검색 페이지 */
 export default function SearchClient() {
   const router = useRouter();
+  const shellRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const [phase, setPhase] = useState<SearchPhase>('idle');
   const [query, setQuery] = useState('');
-  const [selectedHashtag, setSelectedHashtag] = useState<string | null>(null);
   const [recentAccounts, setRecentAccounts] = useState<SearchAccount[]>([]);
   const [userResults, setUserResults] = useState<SearchAccount[]>([]);
   const [tagResults, setTagResults] = useState<MockHashtag[]>([]);
@@ -117,11 +158,9 @@ export default function SearchClient() {
   /** 엔터로 확정하면 20건. 글자가 바뀌면 미리보기 5건으로 돌아간다 */
   const [committed, setCommitted] = useState(false);
   const [submitTick, setSubmitTick] = useState(0);
-  /** 같은 검색어로 태그 그리드에서 돌아오면 목록을 다시 받지 않는다 */
+  /** 같은 검색이면 목록을 다시 받지 않는다 */
   const loadedSearchKeyRef = useRef('');
 
-  const [hashtagPosts, setHashtagPosts] = useState<FeedGridItem[]>([]);
-  const [hashtagState, setHashtagState] = useState<'idle' | 'loading' | 'ready'>('idle');
   const [isInputFocused, setIsInputFocused] = useState(false);
   const [recommendedPosts, setRecommendedPosts] = useState<FeedGridItem[]>(
     RECOMMENDED_PLACEHOLDERS,
@@ -157,58 +196,18 @@ export default function SearchClient() {
 
   const parsed = useMemo(() => parseQuery(query), [query]);
 
-  useEffect(() => {
-    const q = new URLSearchParams(window.location.search).get('q')?.trim() ?? '';
+  useLayoutEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const q = params.get('q') ?? '';
     if (!q) return;
     setQuery(q);
     setPhase('active');
-    if (q.startsWith('#')) setSelectedHashtag(q);
-    else setCommitted(true);
+    setCommitted(params.get('commit') === '1');
   }, []);
 
   useEffect(() => {
-    if (!selectedHashtag) {
-      setHashtagPosts([]);
-      setHashtagState('idle');
-      return;
-    }
-    const term = selectedHashtag.replace(/^#/, '').trim();
-    if (!term) return;
-
-    let cancelled = false;
-    setHashtagState('loading');
-    bffGet<BffEnvelope<unknown>>(bffEndpoints.main.search, {
-      q: term,
-      type: 'FEED',
-      limit: 20,
-    })
-      .then((res) => {
-        if (cancelled) return;
-        const data = isRecord(res.data) ? res.data : {};
-        const feeds = Array.isArray(data.feeds) ? data.feeds : [];
-        setHashtagPosts(
-          toFeedDataList(feeds)
-            .filter((feed) => Boolean(feed.images[0]))
-            .map((feed) => ({
-              id: feed.id,
-              imageUrl: feed.images[0],
-              isMulti: feed.images.length > 1,
-              href: `/posts/${feed.id}`,
-            })),
-        );
-        setHashtagState('ready');
-      })
-      .catch((err) => {
-        console.error('[search] hashtag feeds failed', err);
-        if (cancelled) return;
-        setHashtagPosts([]);
-        setHashtagState('ready');
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [selectedHashtag]);
+    replaceSearchUrl(searchListPath(phase === 'active', query, committed));
+  }, [phase, query, committed]);
 
   useEffect(() => {
     if (phase === 'active') {
@@ -219,7 +218,7 @@ export default function SearchClient() {
   }, [phase]);
 
   useEffect(() => {
-    if (phase !== 'active' || selectedHashtag) {
+    if (phase !== 'active') {
       setSearching(false);
       return;
     }
@@ -273,24 +272,15 @@ export default function SearchClient() {
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [phase, selectedHashtag, parsed.mode, parsed.term, committed, submitTick]);
+  }, [phase, parsed.mode, parsed.term, committed, submitTick]);
 
-  const showRecent =
-    phase === 'active' && !selectedHashtag && query.trim() === '';
+  const showRecent = phase === 'active' && query.trim() === '';
 
   const showAccountList =
-    phase === 'active' &&
-    !selectedHashtag &&
-    parsed.mode !== 'hashtag' &&
-    parsed.term.trim().length > 0;
+    phase === 'active' && parsed.mode !== 'hashtag' && parsed.term.trim().length > 0;
 
   const showHashtagList =
-    phase === 'active' &&
-    !selectedHashtag &&
-    parsed.mode === 'hashtag' &&
-    parsed.term.trim().length > 0;
-
-  const showHashtagGrid = phase === 'active' && !!selectedHashtag;
+    phase === 'active' && parsed.mode === 'hashtag' && parsed.term.trim().length > 0;
 
   async function loadRecent() {
     try {
@@ -318,17 +308,32 @@ export default function SearchClient() {
 
   const openSearch = () => {
     setPhase('active');
-    setSelectedHashtag(null);
     void loadRecent();
   };
 
-  const cancelSearch = () => {
+  const restoreRecommended = () => {
+    loadedSearchKeyRef.current = '';
     setPhase('idle');
     setQuery('');
-    setSelectedHashtag(null);
     setCommitted(false);
     setSearching(false);
     setResultState('idle');
+    setIsInputFocused(false);
+  };
+
+  const cancelSearch = () => {
+    restoreRecommended();
+  };
+
+  const onInputBlur = (event: FocusEvent<HTMLInputElement>) => {
+    setIsInputFocused(false);
+    if (query.trim() !== '') return;
+    const next = event.relatedTarget;
+    if (next instanceof Node && shellRef.current?.contains(next)) return;
+    window.setTimeout(() => {
+      if (shellRef.current?.contains(document.activeElement)) return;
+      restoreRecommended();
+    }, 0);
   };
 
   async function clearRecent() {
@@ -340,15 +345,27 @@ export default function SearchClient() {
     }
   }
 
+  async function removeRecent(account: SearchAccount) {
+    if (account.historyId == null) return;
+    const historyId = account.historyId;
+    setRecentAccounts((list) => list.filter((item) => item.historyId !== historyId));
+    try {
+      await bffDelete(bffEndpoints.main.searchRecentItem, {
+        userSearchHistoryId: historyId,
+      });
+    } catch (err) {
+      console.error('[search] recent remove failed', err);
+      void loadRecent();
+    }
+  }
+
   const onChangeQuery = (value: string) => {
     setQuery(value);
-    setSelectedHashtag(null);
     setCommitted(false);
   };
 
   const clearQuery = () => {
     setQuery('');
-    setSelectedHashtag(null);
     setCommitted(false);
     setUserResults([]);
     setTagResults([]);
@@ -358,17 +375,16 @@ export default function SearchClient() {
   };
 
   const submitSearch = () => {
-    if (!parsed.term.trim() || selectedHashtag) return;
+    if (!parsed.term.trim()) return;
     setCommitted(true);
     setSubmitTick((tick) => tick + 1);
   };
 
-  const selectHashtag = (tag: string) => {
-    setSelectedHashtag(tag.startsWith('#') ? tag : `#${tag}`);
-  };
-
-  const backFromTagGrid = () => {
-    setSelectedHashtag(null);
+  const openHashtag = (tag: string) => {
+    const hit = tagResults.find((item) => item.tag === tag);
+    if (hit?.tagId == null) return;
+    replaceSearchUrl(searchListPath(true, query, committed));
+    router.push(`/search/tags/${hit.tagId}`);
   };
 
   const nickHighlight = parsed.mode === 'plain' ? parsed.term : '';
@@ -380,13 +396,7 @@ export default function SearchClient() {
         : '';
 
   return (
-    <div className={styles.shell}>
-      {showHashtagGrid && selectedHashtag ? (
-        <PageHeader
-          title={selectedHashtag.startsWith('#') ? selectedHashtag : `#${selectedHashtag}`}
-          onBack={backFromTagGrid}
-        />
-      ) : (
+    <div className={styles.shell} ref={shellRef}>
       <header className={styles.header}>
         {phase === 'idle' ? (
           <button type="button" className={styles.searchBarIdle} onClick={openSearch}>
@@ -412,11 +422,10 @@ export default function SearchClient() {
                   submitSearch();
                 }}
                 onFocus={() => setIsInputFocused(true)}
-                onBlur={() => setIsInputFocused(false)}
+                onBlur={onInputBlur}
                 aria-label="검색"
               />
-              {(searching || (selectedHashtag != null && hashtagState === 'loading')) &&
-              query.length > 0 ? (
+              {searching && query.length > 0 ? (
                 <span className={styles.searchSpinner} role="status" aria-label="검색 중" />
               ) : query.length > 0 ? (
                 <button
@@ -444,7 +453,6 @@ export default function SearchClient() {
           </>
         )}
       </header>
-      )}
 
       <main className={styles.main}>
         {phase === 'idle' ? <FeedGrid posts={recommendedPosts} /> : null}
@@ -453,18 +461,24 @@ export default function SearchClient() {
           <div className={styles.searchPanel}>
             <div className={styles.recentHeader}>
               <span className={styles.recentTitle}>최근 검색 항목</span>
-              <button type="button" className={styles.clearAllBtn} onClick={clearRecent}>
+              <button
+                type="button"
+                className={styles.clearAllBtn}
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={clearRecent}
+              >
                 모두 지우기
               </button>
             </div>
             <ul className={styles.accountList}>
               {recentAccounts.map((account, i) => (
                 <AccountRow
-                  key={`${account.id}-${i}`}
+                  key={`${account.historyId ?? account.id}-${i}`}
                   account={account}
                   highlightQuery=""
                   petQuery=""
                   onEnter={enterUltary}
+                  onRemove={account.historyId == null ? undefined : removeRecent}
                 />
               ))}
             </ul>
@@ -504,23 +518,12 @@ export default function SearchClient() {
             ) : (
               <HashtagResultList
                 items={tagResults}
-                onSelect={selectHashtag}
+                highlightQuery={query}
+                onSelect={openHashtag}
                 variant="page"
               />
             )}
           </div>
-        ) : null}
-
-        {showHashtagGrid ? (
-          hashtagState === 'loading' ? (
-            <p className={styles.searchStatus}>불러오는 중…</p>
-          ) : (
-            <FeedGrid
-              posts={hashtagPosts}
-              emptyTitle="게시물이 없어요"
-              emptyDescription="이 해시태그가 달린 게시물이 아직 없어요."
-            />
-          )
         ) : null}
       </main>
 

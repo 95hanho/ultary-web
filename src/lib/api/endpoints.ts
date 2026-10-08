@@ -68,8 +68,10 @@ export const bffEndpoints = {
     search: '/api/main/search',
     /** GET 검색 추천 게시글 ?limit= */
     searchRecommended: '/api/main/search/recommended',
-    /** GET 최근 검색 5건 / POST 울타리 진입 저장 */
+    /** GET 최근 검색 5건 / POST 울타리 진입 저장 / DELETE 모두 지우기 */
     searchRecent: '/api/main/search/recent',
+    /** DELETE 최근 검색 한 건 */
+    searchRecentItem: '/api/main/search/recent/:userSearchHistoryId',
     /** GET 최근 검색 더보기 ?cursorHistoryId= */
     searchRecentMore: '/api/main/search/recent/more',
   },
@@ -184,6 +186,8 @@ export const bffEndpoints = {
     blocks: '/api/users/blocks',
     /** POST 신고 */
     report: '/api/reports',
+    /** DELETE 신고요청 취소. status=REQUESTED 만 */
+    reportCancel: '/api/reports/:reportId',
   },
 
   write: {
@@ -242,6 +246,18 @@ export const bffEndpoints = {
     tagApprove: '/api/admin/tags/:tagId/approve',
     /** POST 태그 거절 */
     tagReject: '/api/admin/tags/:tagId/reject',
+    /** GET 신고 목록 */
+    reports: '/api/admin/reports',
+    /** POST 신고된 글·댓글·답글 삭제 */
+    reportDeleteContent: '/api/admin/reports/:reportId/delete-content',
+    /** POST 신고된 회원 정지 */
+    reportSuspend: '/api/admin/reports/:reportId/suspend',
+    /** POST 신고 확인 */
+    reportConfirm: '/api/admin/reports/:reportId/confirm',
+    /** POST 신고 거절 */
+    reportReject: '/api/admin/reports/:reportId/reject',
+    /** POST 신고 보류 */
+    reportHold: '/api/admin/reports/:reportId/hold',
   },
 
   /** development + Spring local 전용 */
@@ -325,8 +341,10 @@ export const springEndpoints = {
     search: '/api/v1/main/search',
     /** GET 검색 추천 게시글 ?limit= */
     searchRecommended: '/api/v1/main/search/recommended',
-    /** GET 최근 검색 5건 / POST { targetUserNo } */
+    /** GET 최근 검색 5건 / POST { targetUserNo } / DELETE 모두 지우기 */
     searchRecent: '/api/v1/main/search/recent',
+    /** DELETE 최근 검색 한 건 */
+    searchRecentItem: '/api/v1/main/search/recent/:userSearchHistoryId',
     /** GET 최근 검색 더보기 ?cursorHistoryId= */
     searchRecentMore: '/api/v1/main/search/recent/more',
   },
@@ -439,6 +457,8 @@ export const springEndpoints = {
     blocks: '/api/v1/users/blocks',
     /** POST */
     report: '/api/v1/reports',
+    /** DELETE 신고요청 취소 */
+    reportCancel: '/api/v1/reports/:reportId',
   },
 
   write: {
@@ -497,6 +517,18 @@ export const springEndpoints = {
     tagApprove: '/api/v1/admin/tags/:tagId/approve',
     /** POST */
     tagReject: '/api/v1/admin/tags/:tagId/reject',
+    /** GET ?status=&limit= */
+    reports: '/api/v1/admin/reports',
+    /** POST */
+    reportDeleteContent: '/api/v1/admin/reports/:reportId/delete-content',
+    /** POST */
+    reportSuspend: '/api/v1/admin/reports/:reportId/suspend',
+    /** POST */
+    reportConfirm: '/api/v1/admin/reports/:reportId/confirm',
+    /** POST */
+    reportReject: '/api/v1/admin/reports/:reportId/reject',
+    /** POST */
+    reportHold: '/api/v1/admin/reports/:reportId/hold',
   },
 
   /** Spring @Profile("local") only */

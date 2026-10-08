@@ -8,7 +8,7 @@ import {
   readJsonBody,
   requireAccessToken,
 } from '@/lib/api/bffRoute';
-import { springDelete, springPatchForm } from '@/lib/api/springFetch';
+import { springDelete, springPatchJson } from '@/lib/api/springFetch';
 
 type Ctx = { params: Promise<{ feedId: string; commentId: string }> };
 
@@ -20,7 +20,7 @@ export async function PATCH(request: NextRequest, { params }: Ctx) {
     if (isUnauthorized(accessToken)) return accessToken;
     const { feedId, commentId } = await params;
     const body = await readJsonBody(request);
-    const data = await springPatchForm(
+    const data = await springPatchJson(
       springEndpoints.feeds.comment,
       { feedId, commentId, ...body },
       bearer(accessToken),
