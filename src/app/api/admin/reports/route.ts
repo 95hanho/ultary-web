@@ -6,7 +6,7 @@ import {
   isUnauthorized,
   ok,
   queryParams,
-  requireAccessToken,
+  requireAdminAccessToken,
 } from '@/lib/api/bffRoute';
 import { springGet } from '@/lib/api/springFetch';
 
@@ -14,7 +14,7 @@ import { springGet } from '@/lib/api/springFetch';
 export async function GET(request: NextRequest) {
   console.log('[API] 관리자 신고 목록');
   try {
-    const accessToken = await requireAccessToken();
+    const accessToken = await requireAdminAccessToken();
     if (isUnauthorized(accessToken)) return accessToken;
     const data = await springGet(
       springEndpoints.admin.reports,

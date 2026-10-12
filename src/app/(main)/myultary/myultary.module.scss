@@ -74,6 +74,20 @@
   font-weight: 700;
 }
 
+.statLink {
+  color: inherit;
+  text-decoration: none;
+}
+
+.statBtn {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
 .bioRow {
   margin-bottom: 6px;
 }
@@ -129,7 +143,7 @@
 
 .sideTabs {
   position: absolute;
-  top: 37px;
+  bottom: 10px;
   right: 0;
   z-index: 2;
   display: flex;
@@ -169,7 +183,32 @@
 .petArea {
   display: flex;
   flex-direction: column;
-  margin-top: 4px;
+  margin-top: 10px;
+}
+
+.relationActions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.relationBtn {
+  flex: 1;
+  height: 34px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 8px;
+  background: #efefef;
+  color: var(--brand-black-700);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.relationBtn:disabled {
+  cursor: default;
+  opacity: 0.6;
 }
 
 .petEmpty {

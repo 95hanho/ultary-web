@@ -56,11 +56,11 @@ export const bffEndpoints = {
   },
 
   main: {
-    /** GET 주민 스토리 보유 목록 */
+    /** GET 팔로우 스토리 보유 목록 */
     storyOwners: '/api/main/stories/owners',
-    /** GET 주민 스토리 조회 ?userNo= */
+    /** GET 팔로우 스토리 조회 ?userNo= */
     stories: '/api/main/stories',
-    /** GET 주민 게시글 무한스크롤 */
+    /** GET 팔로우 게시글 무한스크롤 */
     feeds: '/api/main/feeds',
     /** GET 메인 추천 게시글 ?limit= */
     feedsRecommended: '/api/main/feeds/recommended',
@@ -168,15 +168,15 @@ export const bffEndpoints = {
     pinnedFeeds: '/api/users/:userNo/pinned-feeds',
     /** GET 그 유저 펫이 태그된 글 */
     taggedFeeds: '/api/users/:userNo/tagged-feeds',
-    /** GET 주민/이웃 목록 ?type= */
+    /** GET 팔로우/팔로워 목록 ?type= */
     neighbors: '/api/users/:userNo/neighbors',
-    /** POST 주민 요청 */
+    /** POST 팔로우 요청 */
     neighborRequest: '/api/users/:userNo/neighbors/request',
-    /** POST 주민 요청 수락 */
+    /** POST 팔로우 요청 수락 */
     neighborAccept: '/api/neighbors/:neighborId/accept',
-    /** POST 주민 요청 거절 */
+    /** POST 팔로우 요청 거절 */
     neighborReject: '/api/neighbors/:neighborId/reject',
-    /** DELETE 주민 요청 취소 / 이웃 해제 */
+    /** DELETE 팔로우 요청 취소 / 팔로우 해제 */
     neighborCancel: '/api/neighbors/:neighborId',
     /** POST 차단 */
     block: '/api/users/:userNo/block',
@@ -242,6 +242,12 @@ export const bffEndpoints = {
   },
 
   admin: {
+    /** POST 관리자 로그인 (loginId + password) */
+    login: '/api/admin/auth/login',
+    /** POST 관리자 토큰 재발급 */
+    refresh: '/api/admin/auth/refresh',
+    /** POST 관리자 로그아웃 */
+    logout: '/api/admin/auth/logout',
     /** POST 태그 승인 */
     tagApprove: '/api/admin/tags/:tagId/approve',
     /** POST 태그 거절 */
@@ -513,6 +519,12 @@ export const springEndpoints = {
   },
 
   admin: {
+    /** POST loginId + password */
+    login: '/api/v1/admin/auth/login',
+    /** POST refreshToken */
+    refresh: '/api/v1/admin/auth/refresh',
+    /** POST Bearer — 해당 관리자 리프레시 폐기 */
+    logout: '/api/v1/admin/auth/logout',
     /** POST */
     tagApprove: '/api/v1/admin/tags/:tagId/approve',
     /** POST */

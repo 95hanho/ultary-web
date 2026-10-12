@@ -30,7 +30,7 @@ type SettingItem = {
 
 /** 알림 페이지 유형 기준 */
 const SETTINGS: SettingItem[] = [
-  { key: 'neighbor', label: '이웃 신청' },
+  { key: 'neighbor', label: '팔로우 신청' },
   { key: 'likePost', label: '게시글 좋아요' },
   { key: 'likeComment', label: '댓글 좋아요' },
   { key: 'likeReply', label: '답글 좋아요' },

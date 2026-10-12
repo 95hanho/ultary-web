@@ -41,7 +41,7 @@ function pickNickname(raw: Record<string, unknown>): string {
     if (typeof value === 'string' && value.trim()) return value.trim();
   }
   if (typeof raw.userNo === 'number') return String(raw.userNo);
-  return '이웃';
+  return '사용자';
 }
 
 function pickProfile(raw: Record<string, unknown>): string {

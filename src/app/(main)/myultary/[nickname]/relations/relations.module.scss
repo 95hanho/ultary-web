@@ -1,0 +1,198 @@
+.shell {
+  position: relative;
+  z-index: 10;
+  display: flex;
+  width: 100%;
+  max-width: 430px;
+  height: 100dvh;
+  max-height: 100dvh;
+  margin: 0 auto;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.main {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+  overflow-y: auto;
+  padding-bottom: 72px;
+}
+
+.searchRow {
+  display: flex;
+  align-items: center;
+  height: 55px;
+  padding: 10px 15px;
+  box-sizing: border-box;
+}
+
+.searchBar {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  height: 100%;
+  padding: 0 14px;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  background: rgba(0, 0, 0, 0.1);
+  box-sizing: border-box;
+}
+
+.searchBarFocus {
+  background: #fff;
+  border-color: var(--brand-black-700);
+}
+
+.searchIcon {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+}
+
+.searchInput {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--brand-black-700);
+  font-size: 15px;
+  outline: none;
+
+  &::placeholder {
+    color: var(--brand-gray-500);
+  }
+
+  &::-webkit-search-cancel-button {
+    -webkit-appearance: none;
+  }
+}
+
+.clearQueryBtn {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--brand-black-700);
+  cursor: pointer;
+}
+
+.status {
+  margin: 16px;
+  color: var(--brand-gray-600);
+  font-size: 14px;
+  text-align: center;
+}
+
+.accountList {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0 5px;
+  list-style: none;
+}
+
+.accountItem {
+  display: flex;
+  align-items: center;
+  margin: 0;
+  padding: 0;
+}
+
+.accountBtn {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  align-items: center;
+  padding: 0;
+  color: inherit;
+  text-align: left;
+  text-decoration: none;
+}
+
+.accountImageWrap {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+}
+
+.accountImage {
+  display: block;
+  width: 47px;
+  height: 47px;
+  object-fit: cover;
+  border-radius: 5px;
+}
+
+.accountText {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  padding: 4px 5px;
+}
+
+.accountNick {
+  overflow: hidden;
+  color: var(--brand-black-700);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.accountTags {
+  overflow: hidden;
+  color: var(--brand-black-700);
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.actionBtn {
+  display: inline-flex;
+  flex-shrink: 0;
+  height: 29px;
+  align-items: center;
+  justify-content: center;
+  margin-right: 8px;
+  padding: 5px 8px;
+  border: 1px solid var(--brand-black-700);
+  border-radius: 7px;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+
+  &:disabled {
+    cursor: default;
+    opacity: 0.6;
+  }
+}
+
+.actionConnect {
+  background: var(--brand-blue-600);
+  color: #fff;
+}
+
+.actionDisconnect {
+  background: var(--brand-gray-100);
+  color: var(--brand-black-700);
+}

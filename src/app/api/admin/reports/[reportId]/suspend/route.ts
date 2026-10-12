@@ -4,7 +4,7 @@ import {
   handleBffError,
   isUnauthorized,
   ok,
-  requireAccessToken,
+  requireAdminAccessToken,
 } from '@/lib/api/bffRoute';
 import { springPostForm } from '@/lib/api/springFetch';
 
@@ -15,7 +15,7 @@ export async function POST(
 ) {
   console.log('[API] 관리자 신고 회원 정지');
   try {
-    const accessToken = await requireAccessToken();
+    const accessToken = await requireAdminAccessToken();
     if (isUnauthorized(accessToken)) return accessToken;
     const { reportId } = await params;
     const data = await springPostForm(

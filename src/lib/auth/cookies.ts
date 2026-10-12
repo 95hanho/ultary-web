@@ -6,6 +6,8 @@ import { isProd } from '@/lib/env.server';
 import {
   ACCESS_TOKEN_COOKIE,
   ACCESS_TOKEN_MAX_AGE,
+  ADMIN_ACCESS_TOKEN_COOKIE,
+  ADMIN_REFRESH_TOKEN_COOKIE,
   DEV_ACCESS_EXPIRES_AT_COOKIE,
   DEV_ACCESS_ISSUED_AT_COOKIE,
   DEV_ACCESS_VIA_REFRESH_COOKIE,
@@ -146,4 +148,61 @@ export function clearAuthCookies(response: NextResponse) {
 
 export function clearDevAccessCookieJar() {
   return clearDevAccessJar();
+}
+
+export async function getAdminAccessToken() {
+  const jar = await cookies();
+  return jar.get(ADMIN_ACCESS_TOKEN_COOKIE)?.value;
+}
+
+export async function getAdminRefreshToken() {
+  const jar = await cookies();
+  return jar.get(ADMIN_REFRESH_TOKEN_COOKIE)?.value;
+}
+
+export function setAdminAuthCookies(
+  response: NextResponse,
+  tokens: { accessToken: string; refreshToken: string; expiresIn?: number },
+) {
+  response.cookies.set(ADMIN_ACCESS_TOKEN_COOKIE, tokens.accessToken, {
+    ...baseCookieOptions,
+    maxAge: tokens.expiresIn ?? ACCESS_TOKEN_MAX_AGE,
+  });
+  response.cookies.set(ADMIN_REFRESH_TOKEN_COOKIE, tokens.refreshToken, {
+    ...baseCookieOptions,
+    maxAge: REFRESH_TOKEN_MAX_AGE,
+  });
+}
+
+export function clearAdminAuthCookies(response: NextResponse) {
+  response.cookies.set(ADMIN_ACCESS_TOKEN_COOKIE, '', {
+    ...baseCookieOptions,
+    maxAge: 0,
+  });
+  response.cookies.set(ADMIN_REFRESH_TOKEN_COOKIE, '', {
+    ...baseCookieOptions,
+    maxAge: 0,
+  });
+}
+
+export async function applyAdminTokensToCookieJar(tokens: {
+  accessToken: string;
+  refreshToken: string;
+  expiresIn?: number;
+}) {
+  const jar = await cookies();
+  jar.set(ADMIN_ACCESS_TOKEN_COOKIE, tokens.accessToken, {
+    ...baseCookieOptions,
+    maxAge: tokens.expiresIn ?? ACCESS_TOKEN_MAX_AGE,
+  });
+  jar.set(ADMIN_REFRESH_TOKEN_COOKIE, tokens.refreshToken, {
+    ...baseCookieOptions,
+    maxAge: REFRESH_TOKEN_MAX_AGE,
+  });
+}
+
+export async function clearAdminAuthCookieJar() {
+  const jar = await cookies();
+  jar.set(ADMIN_ACCESS_TOKEN_COOKIE, '', { ...baseCookieOptions, maxAge: 0 });
+  jar.set(ADMIN_REFRESH_TOKEN_COOKIE, '', { ...baseCookieOptions, maxAge: 0 });
 }

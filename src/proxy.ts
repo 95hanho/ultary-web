@@ -3,6 +3,7 @@ import {
   REFRESH_TOKEN_COOKIE,
 } from '@/lib/auth/cookie-names';
 import {
+  isAdminPath,
   isAuthPublicPath,
   loginRedirectUrl,
 } from '@/lib/auth/paths';
@@ -15,6 +16,13 @@ import { NextRequest, NextResponse } from 'next/server';
  */
 export function proxy(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
+
+  if (isAdminPath(pathname)) {
+    const response = NextResponse.next();
+    response.headers.set('Cache-Control', 'private, no-store');
+    return response;
+  }
+
   const access = request.cookies.get(ACCESS_TOKEN_COOKIE)?.value?.trim();
   const refresh = request.cookies.get(REFRESH_TOKEN_COOKIE)?.value?.trim();
   const loggedIn = Boolean(access || refresh);

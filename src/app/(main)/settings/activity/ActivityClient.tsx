@@ -291,7 +291,7 @@ function ActivityMessage({ item }: { item: ActivityItem }) {
       );
       break;
     case 'neighbor':
-      action = <>{nick}님에게 이웃을 신청했습니다.</>;
+      action = <>{nick}님에게 팔로우를 신청했습니다.</>;
       break;
     case 'post':
       action = (
@@ -362,7 +362,7 @@ export default function ActivityClient() {
         return next;
       });
     } catch (err) {
-      setStatus(pickErrorMessage(err, '이웃 신청을 취소하지 못했습니다.'));
+      setStatus(pickErrorMessage(err, '팔로우 신청을 취소하지 못했습니다.'));
     } finally {
       setCancelingId(null);
     }

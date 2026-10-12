@@ -15,7 +15,7 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ userNo: string }> },
 ) {
-  console.log('[API] 주민·이웃 목록');
+  console.log('[API] 팔로우·팔로워 목록');
   try {
     const accessToken = await requireAccessToken();
     if (isUnauthorized(accessToken)) return accessToken;

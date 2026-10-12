@@ -5,7 +5,8 @@ import { LogoHeader } from '@/components/common/LogoHeader';
 import { FeedGrid, type FeedGridItem } from '@/components/feed/FeedGrid';
 import { Profile } from '@/components/my-ultary/Profile';
 import { bffEndpoints } from '@/lib/api/endpoints';
-import { bffGet, bffPatchJson } from '@/lib/api/bffFetch';
+import { bffDelete, bffGet, bffPatchJson, bffPostJson } from '@/lib/api/bffFetch';
+import { isHttpError, isRecord } from '@/lib/api/error';
 import type { BffEnvelope } from '@/types/api';
 import { MOCK_MY_FEEDS, MOCK_SAVED_FEEDS } from '@/lib/mock/feeds';
 import { getUltaryAccount, MY_NICKNAME, myUltaryPath } from '@/lib/mock/ultary-accounts';
@@ -19,6 +20,7 @@ import {
 } from '@/lib/myultary/fromApi';
 import { mapSearchUsers } from '@/lib/search/accounts';
 import { NO_PROFILE_SRC } from '@/lib/profileImage';
+import { showFooterNotice } from '@/lib/ui/footerNotice';
 import { readFileAsDataUrl, setPendingPetPhoto } from '@/lib/pending-pet-photo';
 import {
   clearUltaryGridScroll,
@@ -186,6 +188,7 @@ export default function MyUltaryClient({ nickname }: MyUltaryClientProps) {
   const [petMenu, setPetMenu] = useState<DOMRect | null>(null);
   const [petMenuPlace, setPetMenuPlace] = useState<{ top: number; left: number } | null>(null);
   const [accountReport, setAccountReport] = useState<MyReport | null>(null);
+  const [relationBusy, setRelationBusy] = useState(false);
   const petMenuRef = useRef<HTMLDivElement>(null);
   const setWriteItems = useWriteDraftStore((s) => s.setItems);
   const clearWriteDraft = useWriteDraftStore((s) => s.clear);
@@ -208,12 +211,12 @@ export default function MyUltaryClient({ nickname }: MyUltaryClientProps) {
     ? (profile?.nickname ?? nickname)
     : (mockAccount?.nickname ?? nickname);
   const postCount = expectsOwn ? (profile?.feedCount ?? 0) : (mockAccount?.postCount ?? 0);
-  const residentCount = expectsOwn
-    ? (profile?.residentCount ?? 0)
-    : (mockAccount?.residentCount ?? 0);
-  const neighborCount = expectsOwn
-    ? (profile?.neighborCount ?? 0)
-    : (mockAccount?.neighborCount ?? 0);
+  const followCount = expectsOwn
+    ? (profile?.followCount ?? 0)
+    : (mockAccount?.followCount ?? 0);
+  const followerCount = expectsOwn
+    ? (profile?.followerCount ?? 0)
+    : (mockAccount?.followerCount ?? 0);
 
   useEffect(() => {
     if (!editingBio) return;
@@ -473,6 +476,76 @@ export default function MyUltaryClient({ nickname }: MyUltaryClientProps) {
     setContentTab(saved.tab);
   }, [nickname]);
 
+  const showRelationActions = profileReady && !isOwnAccount && profile?.userNo != null;
+
+  const toggleFollow = async () => {
+    if (!profile?.userNo || relationBusy || isOwnAccount) return;
+    setRelationBusy(true);
+    try {
+      if (profile.following) {
+        if (profile.neighborId == null) throw new Error('neighbor missing');
+        await bffDelete(bffEndpoints.users.neighborCancel, { neighborId: profile.neighborId });
+        setProfile((prev) =>
+          prev
+            ? {
+                ...prev,
+                following: false,
+                neighborId: null,
+                followerCount: Math.max(0, prev.followerCount - 1),
+              }
+            : prev,
+        );
+        return;
+      }
+      const res = await bffPostJson<BffEnvelope<unknown>>(bffEndpoints.users.neighborRequest, {
+        userNo: profile.userNo,
+      });
+      const created = readFollowResult(res.data);
+      if (!created.accepted) {
+        showFooterNotice('팔로우 요청을 보냈습니다.');
+        setProfile((prev) =>
+          prev ? { ...prev, neighborId: created.neighborId ?? prev.neighborId } : prev,
+        );
+        return;
+      }
+      setProfile((prev) =>
+        prev
+          ? {
+              ...prev,
+              following: true,
+              neighborId: created.neighborId ?? prev.neighborId,
+              followerCount: prev.followerCount + 1,
+            }
+          : prev,
+      );
+    } catch (err) {
+      console.error('[myultary] follow toggle failed', err);
+      showFooterNotice(relationErrorMessage(err, profile.following));
+    } finally {
+      setRelationBusy(false);
+    }
+  };
+
+  const openMessage = async () => {
+    if (!profile?.userNo || relationBusy || isOwnAccount) return;
+    setRelationBusy(true);
+    try {
+      const res = await bffPostJson<BffEnvelope<unknown>>(bffEndpoints.dm.rooms, {
+        targetUserNo: profile.userNo,
+      });
+      const raw = isRecord(res.data) ? res.data : null;
+      const roomValue = raw?.dmRoomId ?? raw?.roomId;
+      const roomId = typeof roomValue === 'number' ? String(roomValue) : roomValue;
+      if (typeof roomId !== 'string' || !roomId.trim()) throw new Error('room missing');
+      router.push(`/dm/${roomId}`);
+    } catch (err) {
+      console.error('[myultary] message failed', err);
+      showFooterNotice(relationErrorMessage(err, false, '대화를 시작하지 못했습니다.'));
+    } finally {
+      setRelationBusy(false);
+    }
+  };
+
   const rememberGridScroll = (event: MouseEvent<HTMLElement>) => {
     const link = (event.target as HTMLElement).closest('a');
     if (!link) return;
@@ -508,6 +581,8 @@ export default function MyUltaryClient({ nickname }: MyUltaryClientProps) {
         ? taggedReady
         : !expectsOwn || feedsReady;
   const showEmptyGrid = gridReady && posts.length === 0;
+  const postsLocked =
+    !viewingOwn && profile?.privateAccount === true && profile.following !== true;
 
   useEffect(() => {
     const y = pendingGridScrollY.current;
@@ -676,16 +751,42 @@ export default function MyUltaryClient({ nickname }: MyUltaryClientProps) {
 
           <ul className={styles.stats}>
             <li className={styles.statItem}>
-              <strong>게시물</strong>
-              {postCount}
+              <button type="button" className={styles.statBtn} onClick={() => setContentTab('feed')}>
+                <strong>게시물</strong>
+                {postCount}
+              </button>
             </li>
             <li className={styles.statItem}>
-              <strong>주민</strong>
-              {residentCount}
+              {profile?.userNo != null && !postsLocked ? (
+                <Link
+                  href={`${myUltaryPath(profile.nickname)}/residents?userNo=${profile.userNo}`}
+                  className={styles.statLink}
+                >
+                  <strong>팔로우</strong>
+                  {followCount}
+                </Link>
+              ) : (
+                <>
+                  <strong>팔로우</strong>
+                  {followCount}
+                </>
+              )}
             </li>
             <li className={styles.statItem}>
-              <strong>이웃</strong>
-              {neighborCount}
+              {profile?.userNo != null && !postsLocked ? (
+                <Link
+                  href={`${myUltaryPath(profile.nickname)}/neighbors?userNo=${profile.userNo}`}
+                  className={styles.statLink}
+                >
+                  <strong>팔로워</strong>
+                  {followerCount}
+                </Link>
+              ) : (
+                <>
+                  <strong>팔로워</strong>
+                  {followerCount}
+                </>
+              )}
             </li>
           </ul>
 
@@ -869,11 +970,32 @@ export default function MyUltaryClient({ nickname }: MyUltaryClientProps) {
             ) : null}
             </>
             )}
+            {showRelationActions ? (
+              <div className={styles.relationActions}>
+                <button
+                  type="button"
+                  className={styles.relationBtn}
+                  disabled={relationBusy}
+                  onClick={() => void toggleFollow()}
+                >
+                  {profile?.following ? '팔로우 취소' : '팔로우'}
+                </button>
+                <button
+                  type="button"
+                  className={styles.relationBtn}
+                  disabled={relationBusy}
+                  onClick={() => void openMessage()}
+                >
+                  메시지 보내기
+                </button>
+              </div>
+            ) : null}
           </div>
         </div>
 
+        {postsLocked ? null : (
         <nav className={styles.sideTabs} aria-label="콘텐츠 메뉴">
-          {profile?.userNo != null ? (
+          {profile?.userNo != null && storyStatus !== 'none' ? (
             <Link
               href={`/stories?${new URLSearchParams({
                 userNo: String(profile.userNo),
@@ -948,6 +1070,7 @@ export default function MyUltaryClient({ nickname }: MyUltaryClientProps) {
             />
           </button>
         </nav>
+        )}
       </section>
 
       <section
@@ -955,7 +1078,11 @@ export default function MyUltaryClient({ nickname }: MyUltaryClientProps) {
         aria-label="게시물 그리드"
         onClick={rememberGridScroll}
       >
-        {showEmptyGrid ? (
+        {postsLocked ? (
+          <p className={styles.feedEmpty} role="status">
+            비공개 계정입니다
+          </p>
+        ) : showEmptyGrid ? (
           <p className={styles.feedEmpty} role="status">
             게시글이 없습니다
           </p>
@@ -1029,4 +1156,26 @@ export default function MyUltaryClient({ nickname }: MyUltaryClientProps) {
         : null}
     </div>
   );
+}
+
+function readFollowResult(raw: unknown) {
+  if (!isRecord(raw)) return { neighborId: null as number | null, accepted: false };
+  return {
+    neighborId: typeof raw.neighborId === 'number' ? raw.neighborId : null,
+    accepted: raw.status === 'ACCEPTED' || raw.followedBack === true,
+  };
+}
+
+function relationErrorMessage(err: unknown, following: boolean, fallback?: string) {
+  const code = isHttpError(err) && isRecord(err.data) && typeof err.data.code === 'string' ? err.data.code : '';
+  if (code === 'NEIGHBOR_ALREADY_EXISTS' || code === 'NEIGHBOR_ALREADY_REQUESTED') {
+    return '이미 연결된 사이입니다.';
+  }
+  if (code === 'NEIGHBOR_PENDING_RECEIVED') return '상대의 요청을 먼저 수락해 주세요.';
+  if (code === 'NEIGHBOR_REQUEST_CLOSED') return '팔로우 신청을 받지 않는 계정입니다.';
+  if (isHttpError(err) && isRecord(err.data) && typeof err.data.message === 'string' && err.data.message.trim()) {
+    return err.data.message;
+  }
+  if (fallback) return fallback;
+  return following ? '팔로우를 끊지 못했습니다.' : '팔로우 요청을 보내지 못했습니다.';
 }

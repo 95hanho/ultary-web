@@ -116,6 +116,13 @@
   font-weight: 700;
 }
 
+.option:disabled {
+  border-color: var(--brand-gray-200);
+  background: var(--brand-gray-100);
+  color: var(--brand-gray-500);
+  cursor: default;
+}
+
 .switch {
   position: relative;
   display: inline-flex;

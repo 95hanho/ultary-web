@@ -5,8 +5,8 @@ export type UltaryStoryStatus = 'none' | 'read' | 'unread';
 export type UltaryAccount = {
   nickname: string;
   postCount: number;
-  residentCount: number;
-  neighborCount: number;
+  followCount: number;
+  followerCount: number;
   bio: string;
   storyStatus: UltaryStoryStatus;
   /** 로그인한 내 계정인지 (mock) */
@@ -23,8 +23,8 @@ const ACCOUNTS: Record<string, UltaryAccount> = {
   [MY_NICKNAME]: {
     nickname: MY_NICKNAME,
     postCount: 4,
-    residentCount: 125,
-    neighborCount: 128,
+    followCount: 125,
+    followerCount: 128,
     bio: '오늘 공유한 나의 울타리 동물',
     storyStatus: 'unread',
     isOwnAccount: true,
@@ -32,8 +32,8 @@ const ACCOUNTS: Record<string, UltaryAccount> = {
   [OTHER_NICKNAME]: {
     nickname: OTHER_NICKNAME,
     postCount: 12,
-    residentCount: 48,
-    neighborCount: 210,
+    followCount: 48,
+    followerCount: 210,
     bio: '이웃들과 함께하는 반려일상',
     storyStatus: 'read',
     isOwnAccount: false,

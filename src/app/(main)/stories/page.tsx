@@ -4,7 +4,7 @@ type PageProps = {
   searchParams?: Promise<{
     userNo?: string;
     nickname?: string;
-    /** unviewed(기본) | last — 이웃 체인에서 이전 이웃으로 올 때 last */
+    /** unviewed(기본) | last — 팔로우 체인에서 이전 팔로우로 올 때 last */
     start?: string;
     /** unread: 클릭한 유저 이후의 안 읽은 유저만 이어서 재생 */
     chain?: string;

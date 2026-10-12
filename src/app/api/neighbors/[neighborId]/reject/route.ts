@@ -13,7 +13,7 @@ export async function POST(
   _request: Request,
   { params }: { params: Promise<{ neighborId: string }> },
 ) {
-  console.log('[API] 주민 요청 거절');
+  console.log('[API] 팔로우 요청 거절');
   try {
     const accessToken = await requireAccessToken();
     if (isUnauthorized(accessToken)) return accessToken;

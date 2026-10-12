@@ -215,7 +215,7 @@ function NotificationMessage({ item }: { item: NotificationItem }) {
   let action: ReactNode;
   switch (item.kind) {
     case 'neighbor':
-      action = <>{nickOnly}님이 나와의 이웃을 신청했습니다.</>;
+      action = <>{nickOnly}님이 팔로우를 신청했습니다.</>;
       break;
     case 'likePost':
       action = (
@@ -384,7 +384,7 @@ function mapApiNotification(raw: unknown): NotificationItem | null {
     '';
   const actorNickname =
     (typeof raw.actorNickname === 'string' && raw.actorNickname.trim()) ||
-    (typeof raw.actorUserNo === 'number' ? `USER_${raw.actorUserNo}` : '이웃');
+    (typeof raw.actorUserNo === 'number' ? `USER_${raw.actorUserNo}` : '사용자');
   const neighborStatus = typeof raw.neighborStatus === 'string' ? raw.neighborStatus : '';
   return {
     id: idString(raw.notificationId) ?? `${raw.type}-${when}`,
@@ -472,7 +472,7 @@ export default function NotificationsClient() {
         if (item.id !== id || item.kind !== 'neighbor') return item;
         const next: NeighborAction =
           item.neighborAction === 'accept' ? 'cancel' : 'accept';
-        console.log('[notifications] 이웃신청', { id, action: next });
+        console.log('[notifications] 팔로우 신청', { id, action: next });
         return { ...item, neighborAction: next };
       }),
     );

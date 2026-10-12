@@ -13,7 +13,7 @@ export async function DELETE(
   _request: Request,
   { params }: { params: Promise<{ neighborId: string }> },
 ) {
-  console.log('[API] 주민 요청 취소 / 이웃 해제');
+  console.log('[API] 팔로우 요청 취소 / 팔로우 해제');
   try {
     const accessToken = await requireAccessToken();
     if (isUnauthorized(accessToken)) return accessToken;

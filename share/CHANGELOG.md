@@ -7,6 +7,55 @@ validation · database · docs 모두 **여기 한곳**에 적는다.
 
 ---
 
+## 2026-10-12 17:10
+
+### API · DM 팔로우 방향
+- 대화방과 `DM_MESSAGE.room`, 메시지 조회에 `following`, `followedBy`. 둘 다 false면 팔로우 관계가 아님
+
+---
+
+## 2026-10-12 16:10
+
+### API · 비공개 계정
+- `GET /users/{userNo}/ultary`에 `privateAccount`. 비공개는 조회자가 그 계정을 팔로우할 때만 글·스토리. 그리드 세 개는 빈 배열. `feedCount`는 유지
+
+---
+
+## 2026-10-12 14:55
+
+### API · 팔로우·팔로워
+- 주민은 `FOLLOW`(팔로우), 이웃은 `FOLLOWER`(팔로워). 울타리 숫자는 `followCount`, `followerCount`. 스키마 v25는 설명만
+
+---
+
+## 2026-10-12 13:55
+
+### API · 관리자 인증
+- `POST /api/v1/admin/auth/login|refresh|logout`. 회원 토큰과 비밀키·쿠키를 분리. `/admin`은 관리자 액세스 토큰만
+
+---
+
+## 2026-10-12 13:20
+
+### API · 주민·이웃 목록
+- 목록 항목에 `petTags`, `following`. 상대만 나를 팔로우한 상태에서 이웃 요청은 맞팔로 바로 연결. 스키마 v24
+
+---
+
+## 2026-10-12 11:15
+
+### API · 토큰 만료 여유
+- 액세스·리프레시 JWT와 리프레시 DB 만료는 쿠키·`expiresIn`보다 30초 길다. `expiresIn`은 30분 유지
+
+---
+
+## 2026-10-12 09:55
+
+### API · 메인 스토리 링
+- `GET /api/v1/main/stories/owners` 맨 앞에 내 활성 스토리. 없으면 주민만. 나머지는 미열람 먼저
+
+---
+
 ## 2026-10-08 11:35
 
 ### API · 신고 확인

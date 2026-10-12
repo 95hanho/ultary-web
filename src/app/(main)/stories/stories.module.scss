@@ -210,6 +210,37 @@
   padding: 8px 14px calc(16px + env(safe-area-inset-bottom));
 }
 
+.sentNotice {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 8px);
+  z-index: 7;
+  margin: 0;
+  padding: 10px 18px;
+  border-radius: 7px;
+  background: rgba(0, 0, 0, 0.3);
+  color: #fff;
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 1.25;
+  letter-spacing: -0.02em;
+  white-space: pre;
+  pointer-events: none;
+  opacity: 1;
+  transform: translate(-50%, 16px);
+  transition: transform 280ms ease;
+}
+
+.sentNoticeIn {
+  transform: translate(-50%, 0);
+}
+
+.sentNoticeOut {
+  opacity: 0;
+  transform: translate(-50%, 0);
+  transition: opacity 400ms ease;
+}
+
 .replyRow {
   display: flex;
   align-items: center;

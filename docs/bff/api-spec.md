@@ -172,7 +172,7 @@ share `API_CONTRACT` / `api-memo` 참고. 피드·스토리 상세·프로필·�
 
 ---
 
-## 8. 다른 유저 · 이웃 · 신고
+## 8. 다른 유저 · 팔로우 · 신고
 
 | Method | BFF | Spring | Auth | 상태 |
 |--------|-----|--------|------|------|
@@ -190,7 +190,7 @@ share `API_CONTRACT` / `api-memo` 참고. 피드·스토리 상세·프로필·�
 | DELETE | `/api/users/:userNo/block` | `/api/v1/users/:userNo/block` | ✅ | 🚧 |
 | POST | `/api/reports` | `/api/v1/reports` | ✅ | 🚧 |
 
-> 팔로우 = **주민**, 팔로워 = **이웃**
+> `type=FOLLOW` 팔로우, `type=FOLLOWER` 팔로워. 응답 `listType`도 같다. 울타리 숫자는 `followCount`, `followerCount`. 공개 범위 값 `NEIGHBORS`는 그대로다.
 
 ---
 
@@ -225,7 +225,7 @@ share `API_CONTRACT` / `api-memo` 참고. 피드·스토리 상세·프로필·�
 | PATCH | `/api/notifications/:notificationId/read` | `/api/v1/notifications/:notificationId/read` | ✅ | 🚧 |
 | POST | `/api/notifications/read-all` | `/api/v1/notifications/read-all` | ✅ | 🚧 |
 
-알림 **타입**(좋아요, 태그, 주민요청 등)은 API가 아니라 `notification.type` 값이다.
+알림 **타입**(좋아요, 태그, 팔로우 신청 등)은 API가 아니라 `notification.type` 값이다.
 
 ---
 
@@ -242,6 +242,9 @@ share `API_CONTRACT` / `api-memo` 참고. 피드·스토리 상세·프로필·�
 
 | Method | BFF | Spring | Auth | 상태 |
 |--------|-----|--------|------|------|
+| POST | `/api/admin/auth/login` | `/api/v1/admin/auth/login` | 공개 | ✅ |
+| POST | `/api/admin/auth/refresh` | `/api/v1/admin/auth/refresh` | 관리자 refresh 쿠키 | ✅ |
+| POST | `/api/admin/auth/logout` | `/api/v1/admin/auth/logout` | ✅ (admin) | ✅ |
 | POST | `/api/admin/tags/:tagId/approve` | `/api/v1/admin/tags/:tagId/approve` | ✅ (admin) | 🚧 |
 | POST | `/api/admin/tags/:tagId/reject` | `/api/v1/admin/tags/:tagId/reject` | ✅ (admin) | 🚧 |
 

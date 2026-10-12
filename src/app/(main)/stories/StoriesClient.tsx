@@ -163,6 +163,7 @@ export default function StoriesClient({
   const [reply, setReply] = useState('');
   const [replyError, setReplyError] = useState('');
   const [sendingReply, setSendingReply] = useState(false);
+  const [sentNotice, setSentNotice] = useState(0);
   const videoRef = useRef<HTMLVideoElement>(null);
   const rafRef = useRef<number | null>(null);
   const startRef = useRef(0);
@@ -357,7 +358,7 @@ export default function StoriesClient({
       return;
     }
 
-    // 현재 이웃 마지막 → 다음 이웃 또는 나가기
+    // 현재 팔로우 마지막 → 다음 팔로우 또는 나가기
     const list = ownersRef.current;
     if (chainFrom) {
       const queue = unreadChainQueue(list, chainFrom, userNo);
@@ -398,7 +399,7 @@ export default function StoriesClient({
       return;
     }
 
-    // 현재 이웃 첫 장 → 이전 이웃(마지막 장부터) 또는 나가기
+    // 현재 팔로우 첫 장 → 이전 팔로우(마지막 장부터) 또는 나가기
     const list = ownersRef.current;
     if (chainFrom) {
       const queue = unreadChainQueue(list, chainFrom, userNo);
@@ -577,6 +578,7 @@ export default function StoriesClient({
         storyId,
       });
       setReply('');
+      setSentNotice((n) => n + 1);
     } catch (err) {
       console.error('[stories] dm send failed', err);
       setReplyError('답장을 보내지 못했습니다');
@@ -784,6 +786,7 @@ export default function StoriesClient({
 
         {meUserNo == null || current.userNo !== meUserNo ? (
           <form className={styles.replyBar} onSubmit={sendReply}>
+            {sentNotice > 0 ? <ReplySentNotice key={sentNotice} /> : null}
             <div className={styles.replyRow}>
               <input
                 className={styles.replyField}
@@ -834,6 +837,46 @@ export default function StoriesClient({
 
       <StoryDevTools onStoryViewsCleared={onStoryViewsCleared} />
     </div>
+  );
+}
+
+const SENT_ENTER_MS = 280;
+const SENT_HOLD_MS = 2000;
+
+function ReplySentNotice() {
+  const [phase, setPhase] = useState<'idle' | 'in' | 'out'>('idle');
+
+  useEffect(() => {
+    let cancelled = false;
+    const timers: number[] = [];
+    const frames: number[] = [];
+    const first = window.requestAnimationFrame(() => {
+      const second = window.requestAnimationFrame(() => {
+        if (cancelled) return;
+        setPhase('in');
+        timers.push(
+          window.setTimeout(() => {
+            if (!cancelled) setPhase('out');
+          }, SENT_ENTER_MS + SENT_HOLD_MS),
+        );
+      });
+      frames.push(second);
+    });
+    frames.push(first);
+    return () => {
+      cancelled = true;
+      for (const id of frames) window.cancelAnimationFrame(id);
+      for (const id of timers) window.clearTimeout(id);
+    };
+  }, []);
+
+  const phaseClass =
+    phase === 'in' ? styles.sentNoticeIn : phase === 'out' ? styles.sentNoticeOut : '';
+
+  return (
+    <p className={phaseClass ? `${styles.sentNotice} ${phaseClass}` : styles.sentNotice} role="status">
+      메시지를 보냈습니다.
+    </p>
   );
 }
 

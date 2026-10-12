@@ -2,6 +2,10 @@
 export const ACCESS_TOKEN_COOKIE = 'accessToken';
 export const REFRESH_TOKEN_COOKIE = 'refreshToken';
 
+/** 관리자 세션. 회원 access/refresh 와 이름·판정이 분리된다 */
+export const ADMIN_ACCESS_TOKEN_COOKIE = 'adminAccessToken';
+export const ADMIN_REFRESH_TOKEN_COOKIE = 'adminRefreshToken';
+
 /**
  * development 전용. 액세스 토큰 값 없이 예상 만료 시각만 담는다.
  * httpOnly가 아니라 개발 패널이 읽는다.

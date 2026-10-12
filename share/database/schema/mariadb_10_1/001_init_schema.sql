@@ -1,15 +1,17 @@
--- schema_version: 23
+-- schema_version: 25
 -- Ultary MariaDB 10.1 초기 스키마
+-- v25: 주민·이웃 용어를 팔로우·팔로워로. 목록 type=FOLLOW|FOLLOWER, 카운트 followCount·followerCount. 테이블 구조는 그대로
+-- v24: ultary_neighbor.followed_back. 상대만 나를 팔로우한 상태에서 맞팔
 -- v23: ultary_report.status 에 CONFIRMED(확인). 신고요청만 신고자가 취소
 -- v22: ultary_report.status 를 신고요청·삭제조치·거절·보류·정지로 나눈다
 -- v21: ultary_report.reason 을 신고 사유 ENUM 으로 바꾼다
 -- v20: ultary_user.withdrawal_status 에 SUSPENDED, suspended_at. 관리자 회원 정지
 -- v19: ultary_feed_pin(울타리 고정), ultary_feed_save(나만 보는 저장). 구 ultary_feed_store·store_count
 -- v18: ultary_dm_room, ultary_dm_message. 1:1 메시지. 게시글(사진 슬롯)·스토리 공유
--- v17: ultary_user_privacy. 공개 범위. 행이 없으면 비공개 계정 꺼짐, 게시글 전체, 스토리 이웃, 신청·댓글·멘션·태그 켜짐
+-- v17: ultary_user_privacy. 공개 범위. 행이 없으면 비공개 계정 꺼짐, 게시글 전체, 스토리 팔로우 관계, 신청·댓글·멘션·태그 켜짐
 -- v16: ultary_notification_setting. 알림 종류별 켜기/끄기. 행이 없으면 전부 켜짐
 -- v15: ultary_user.withdrawal_requested_at 제거. 탈퇴는 WITHDRAWN 과 withdrawal_completed_at 만 사용
--- v14: 알림 집계(이웃신청·좋아요·댓글답글·언급·태그·스토리 공감)와 ultary_story_like
+-- v14: 알림 집계(팔로우 신청·좋아요·댓글답글·언급·태그·스토리 공감)와 ultary_story_like
 -- v13: 사진·스토리 @ 최근 펫 태그 (ultary_user_pet_tag_history). 검색 최근 울타리와 별도
 -- v12: 스토리 위 글자(ultary_story_text)와 펫 멘션(ultary_story_mention)
 -- v11: 유저 프로필 사진 컬럼 제거. 표시 사진은 프로필 있는 펫 중 priority가 가장 높은 것
@@ -241,10 +243,12 @@ CREATE TABLE `ultary_pet` (
 
 CREATE TABLE `ultary_neighbor` (
   `neighbor_id` INT(11) NOT NULL AUTO_INCREMENT,
-  `requester_user_no` INT(11) NOT NULL COMMENT '이웃 요청을 보낸 사용자',
-  `receiver_user_no` INT(11) NOT NULL COMMENT '이웃 요청을 받은 사용자',
+  `requester_user_no` INT(11) NOT NULL COMMENT '팔로우 요청을 보낸 사용자',
+  `receiver_user_no` INT(11) NOT NULL COMMENT '팔로우 요청을 받은 사용자',
   `pair_key` VARCHAR(50) NOT NULL COMMENT '역방향 중복 방지용 키. 작은 user_no:큰 user_no 형식',
   `status` ENUM('PENDING','ACCEPTED','REJECTED','BLOCKED') NOT NULL DEFAULT 'PENDING',
+  `followed_back` TINYINT(1) NOT NULL DEFAULT 0 COMMENT '1이면 수신자도 요청자를 팔로우. 요청자→수신자는 status=ACCEPTED',
+  `followed_back_at` DATETIME NULL DEFAULT NULL COMMENT '맞팔한 시각',
   `requested_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `accepted_at` DATETIME NULL DEFAULT NULL,
   `rejected_at` DATETIME NULL DEFAULT NULL,
@@ -256,7 +260,7 @@ CREATE TABLE `ultary_neighbor` (
   UNIQUE KEY `UK_ultary_neighbor_req_recv` (`requester_user_no`, `receiver_user_no`) USING BTREE,
   KEY `IDX_ultary_neighbor_receiver_status` (`receiver_user_no`, `status`) USING BTREE,
   KEY `IDX_ultary_neighbor_status` (`status`) USING BTREE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_general_ci COMMENT='사용자 간 이웃 관계. 피드 공개 범위 NEIGHBORS의 기준';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_general_ci COMMENT='팔로우 관계. 요청자가 수신자를 팔로우. followed_back이면 맞팔';
 
 CREATE TABLE `ultary_user_block` (
   `user_block_id` INT(11) NOT NULL AUTO_INCREMENT,
@@ -275,7 +279,7 @@ CREATE TABLE `ultary_feed` (
   `feed_id` INT(11) NOT NULL AUTO_INCREMENT,
   `user_no` INT(11) NOT NULL COMMENT '피드 작성자',
   `content` VARCHAR(1000) NULL DEFAULT NULL,
-  `visibility` ENUM('PUBLIC','NEIGHBORS','PRIVATE') NOT NULL DEFAULT 'PUBLIC' COMMENT 'PUBLIC: 전체 공개, NEIGHBORS: 이웃 공개, PRIVATE: 나만 보기',
+  `visibility` ENUM('PUBLIC','NEIGHBORS','PRIVATE') NOT NULL DEFAULT 'PUBLIC' COMMENT 'PUBLIC: 전체 공개, NEIGHBORS: 팔로우 관계 공개, PRIVATE: 나만 보기',
   `like_count` INT(11) NOT NULL DEFAULT 0,
   `comment_count` INT(11) NOT NULL DEFAULT 0,
   `pin_count` INT(11) NOT NULL DEFAULT 0 COMMENT '울타리에 고정한 사람 수',
@@ -541,11 +545,11 @@ CREATE TABLE `ultary_notification` (
   KEY `IDX_ultary_notification_reply_id` (`feed_reply_id`) USING BTREE,
   KEY `IDX_ultary_notification_story_id` (`story_id`) USING BTREE,
   KEY `IDX_ultary_notification_neighbor_id` (`neighbor_id`) USING BTREE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_general_ci COMMENT='이웃 신청, 좋아요, 댓글·답글, 언급, 태그, 스토리 공감. 같은 대상은 1행으로 집계';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_general_ci COMMENT='팔로우 신청, 좋아요, 댓글·답글, 언급, 태그, 스토리 공감. 같은 대상은 1행으로 집계';
 
 CREATE TABLE `ultary_notification_setting` (
   `user_no` INT(11) NOT NULL COMMENT '설정 주인. 행이 없으면 알림 전부 켜짐',
-  `neighbor` TINYINT(1) NOT NULL DEFAULT 1 COMMENT '이웃 신청',
+  `neighbor` TINYINT(1) NOT NULL DEFAULT 1 COMMENT '팔로우 신청',
   `like_post` TINYINT(1) NOT NULL DEFAULT 1 COMMENT '게시글 좋아요',
   `like_comment` TINYINT(1) NOT NULL DEFAULT 1 COMMENT '댓글 좋아요',
   `like_reply` TINYINT(1) NOT NULL DEFAULT 1 COMMENT '답글 좋아요',
@@ -561,10 +565,10 @@ CREATE TABLE `ultary_notification_setting` (
 
 CREATE TABLE `ultary_user_privacy` (
   `user_no` INT(11) NOT NULL COMMENT '설정 주인. 행이 없으면 아래 기본값',
-  `private_account` TINYINT(1) NOT NULL DEFAULT 0 COMMENT '1이면 전체 공개 게시글·스토리도 이웃만',
+  `private_account` TINYINT(1) NOT NULL DEFAULT 0 COMMENT '1이면 전체 공개 게시글·스토리는 조회자가 그 계정을 팔로우할 때만',
   `feed_visibility` ENUM('PUBLIC','NEIGHBORS','PRIVATE') NOT NULL DEFAULT 'PUBLIC' COMMENT '새 게시글 기본 공개 범위',
   `story_visibility` ENUM('PUBLIC','NEIGHBORS','PRIVATE') NOT NULL DEFAULT 'NEIGHBORS' COMMENT '스토리 공개 범위',
-  `neighbor_request` TINYINT(1) NOT NULL DEFAULT 1 COMMENT '이웃 신청 받기',
+  `neighbor_request` TINYINT(1) NOT NULL DEFAULT 1 COMMENT '팔로우 신청 받기',
   `allow_comment` TINYINT(1) NOT NULL DEFAULT 1 COMMENT '게시글 댓글·답글 허용',
   `allow_mention` TINYINT(1) NOT NULL DEFAULT 1 COMMENT '댓글·답글 멘션 허용',
   `allow_tag` TINYINT(1) NOT NULL DEFAULT 1 COMMENT '게시글·스토리 태그 허용',

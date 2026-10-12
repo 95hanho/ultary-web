@@ -25,6 +25,8 @@
 
 그 외 → `refresh` 또는 `access` 쿠키 없으면 `/login?returnUrl=...`
 
+`/admin` 이하는 회원 가드 밖이다. 회원 `access`/`refresh`로 통과시키지 않고, 회원 `/login`으로 보내지도 않는다. 관리자 쿠키 `adminAccessToken` 또는 `adminRefreshToken`이 있으면 페이지를 보여주고, 없으면 같은 URL에 로그인 폼을 그린다. 로그인·재발급·로그아웃은 BFF `/api/admin/auth/*`가 Spring `/api/v1/admin/auth/*`를 호출하고 관리자 쿠키만 다룬다. 로그아웃하면 같은 `/admin`이 로그인 폼으로 돌아온다. 응답은 `Cache-Control: private, no-store`.
+
 ---
 
 ## 3. 공유 게시글 예외

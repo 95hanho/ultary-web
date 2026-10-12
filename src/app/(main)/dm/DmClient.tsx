@@ -26,6 +26,11 @@ const SendIcon = '/images/icon/Send.svg';
 type PendingShare =
   { kind: 'feed'; feedId: string; feedMediaId?: string } | { kind: 'story'; storyId: string };
 
+type FollowLink = {
+  following: boolean;
+  followedBy: boolean;
+};
+
 type DmRoom = {
   id: string;
   peerUserNo: string;
@@ -34,6 +39,7 @@ type DmRoom = {
   lastMessage: string;
   timeLabel: string;
   unread: number;
+  link: FollowLink | null;
 };
 
 type DmShareCard = {
@@ -69,7 +75,7 @@ type Peer = {
   profileUrl: string;
 };
 
-type PeerTab = 'RESIDENTS' | 'NEIGHBORS';
+type PeerTab = 'FOLLOW' | 'FOLLOWER';
 
 type DmClientProps = {
   roomId?: string;
@@ -164,12 +170,23 @@ function pickErrorMessage(err: unknown, fallback: string) {
   return fallback;
 }
 
+function readLink(raw: unknown): FollowLink | null {
+  if (!isRecord(raw) || typeof raw.following !== 'boolean' || typeof raw.followedBy !== 'boolean') {
+    return null;
+  }
+  return { following: raw.following, followedBy: raw.followedBy };
+}
+
+function unlinked(link: FollowLink | null | undefined) {
+  return link != null && !link.following && !link.followedBy;
+}
+
 function mapRoom(raw: unknown): DmRoom | null {
   if (!isRecord(raw)) return null;
   const id = idString(raw.dmRoomId) ?? idString(raw.roomId);
   const peerUserNo = idString(raw.peerUserNo);
   if (!id || !peerUserNo) return null;
-  const nickname = (typeof raw.peerNickname === 'string' && raw.peerNickname.trim()) || '이웃';
+  const nickname = (typeof raw.peerNickname === 'string' && raw.peerNickname.trim()) || '사용자';
   const lastMessage = typeof raw.lastMessage === 'string' ? raw.lastMessage : '';
   const when = typeof raw.lastMessageAt === 'string' ? raw.lastMessageAt : '';
   const unread = typeof raw.unreadCount === 'number' ? raw.unreadCount : 0;
@@ -181,6 +198,7 @@ function mapRoom(raw: unknown): DmRoom | null {
     lastMessage,
     timeLabel: when ? formatDmTime(when) : '',
     unread: unread > 0 ? Math.floor(unread) : 0,
+    link: readLink(raw),
   };
 }
 
@@ -196,8 +214,7 @@ function mapShare(raw: unknown, message: Record<string, unknown>): DmShareCard |
     content: available && typeof raw.content === 'string' ? raw.content.trim() : '',
     feedId: idString(raw.feedId) ?? idString(message.feedId),
     storyId: idString(raw.storyId) ?? idString(message.storyId),
-    ownerUserNo:
-      idString(raw.userNo) ?? idString(raw.authorUserNo) ?? idString(message.senderUserNo),
+    ownerUserNo: idString(raw.userNo) ?? idString(raw.authorUserNo),
     mediaIndex: readMediaIndex(raw.mediaIndex) ?? readMediaIndex(message.mediaIndex),
     feedMediaId: idString(raw.feedMediaId) ?? idString(message.feedMediaId),
   };
@@ -242,7 +259,7 @@ function mapPeer(raw: unknown): Peer | null {
   if (!isRecord(raw)) return null;
   const userNo = idString(raw.userNo);
   if (!userNo) return null;
-  const nickname = (typeof raw.nickname === 'string' && raw.nickname.trim()) || '이웃';
+  const nickname = (typeof raw.nickname === 'string' && raw.nickname.trim()) || '사용자';
   return {
     userNo,
     nickname,
@@ -342,12 +359,13 @@ export default function DmClient({ roomId, feedId, feedMediaId, storyId }: DmCli
   const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);
   const [picking, setPicking] = useState(false);
-  const [peerTab, setPeerTab] = useState<PeerTab>('RESIDENTS');
+  const [peerTab, setPeerTab] = useState<PeerTab>('FOLLOW');
   const [peers, setPeers] = useState<Peer[]>([]);
   const [peerStatus, setPeerStatus] = useState('');
   const [pendingShare, setPendingShare] = useState<PendingShare | null>(() =>
     initialShare({ feedId, feedMediaId, storyId }),
   );
+  const [threadLink, setThreadLink] = useState<FollowLink | null>(null);
   const threadEndRef = useRef<HTMLDivElement>(null);
   const meUserNoRef = useRef<string | null>(null);
   const threadReqRef = useRef(0);
@@ -362,6 +380,7 @@ export default function DmClient({ roomId, feedId, feedMediaId, storyId }: DmCli
         lastMessage: '',
         timeLabel: '',
         unread: 0,
+        link: null,
       })
     : null;
 
@@ -447,7 +466,7 @@ export default function DmClient({ roomId, feedId, feedMediaId, storyId }: DmCli
       .map(mapMessage)
       .filter((item): item is DmMessage => item != null);
     const cursor = isRecord(res.data) ? idString(res.data.nextCursorMessageId) : null;
-    return { list, cursor, peerRead: readPeerReadId(res.data) };
+    return { list, cursor, peerRead: readPeerReadId(res.data), link: readLink(res.data) };
   }
 
   useEffect(() => {
@@ -457,12 +476,17 @@ export default function DmClient({ roomId, feedId, feedMediaId, storyId }: DmCli
     setMessages([]);
     setPeerReadMessageId(null);
     setOlderCursor(null);
+    setThreadLink(null);
     let cancelled = false;
     (async () => {
       try {
-        const { list, cursor, peerRead } = await loadMessages(roomId);
+        const { list, cursor, peerRead, link } = await loadMessages(roomId);
         if (cancelled || threadReqRef.current !== req) return;
         setPeerReadMessageId(peerRead);
+        setThreadLink(link);
+        if (link) {
+          setRooms((prev) => prev.map((item) => (item.id === roomId ? { ...item, link } : item)));
+        }
         setMessages((prev) => {
           const ids = new Set(list.map((item) => item.id));
           const extra = prev.filter((item) => !ids.has(item.id));
@@ -609,6 +633,7 @@ export default function DmClient({ roomId, feedId, feedMediaId, storyId }: DmCli
         lastMessage: '',
         timeLabel: '',
         unread: 0,
+        link: readLink(res.data),
       };
       if (!room.id) throw new Error('대화방을 만들지 못했습니다.');
       setPicking(false);
@@ -682,6 +707,9 @@ export default function DmClient({ roomId, feedId, feedMediaId, storyId }: DmCli
             ) : null
           }
         />
+        {unlinked(threadLink ?? active.link) ? (
+          <p className={styles.relationBanner}>* 팔로우 관계가 아닙니다.</p>
+        ) : null}
         <div className={styles.thread}>
           <div className={styles.messages}>
             {olderCursor ? (
@@ -709,11 +737,10 @@ export default function DmClient({ roomId, feedId, feedMediaId, storyId }: DmCli
                       {message.share ? (
                         <ShareCard
                           share={message.share}
-                          storyUserNo={
-                            message.senderUserNo || (message.fromMe ? null : active.peerUserNo)
-                          }
+                          storyUserNo={message.fromMe ? active.peerUserNo : null}
                           storyNickname={
-                            message.share.authorNickname || (message.fromMe ? '' : active.nickname)
+                            message.share.authorNickname ||
+                            (message.fromMe ? active.nickname : '')
                           }
                         />
                       ) : null}
@@ -786,27 +813,27 @@ export default function DmClient({ roomId, feedId, feedMediaId, storyId }: DmCli
             <button
               type="button"
               role="tab"
-              aria-selected={peerTab === 'RESIDENTS'}
-              className={clsx(styles.tab, peerTab === 'RESIDENTS' && styles.tabOn)}
-              onClick={() => setPeerTab('RESIDENTS')}
+              aria-selected={peerTab === 'FOLLOW'}
+              className={clsx(styles.tab, peerTab === 'FOLLOW' && styles.tabOn)}
+              onClick={() => setPeerTab('FOLLOW')}
             >
-              주민
+              팔로우
             </button>
             <button
               type="button"
               role="tab"
-              aria-selected={peerTab === 'NEIGHBORS'}
-              className={clsx(styles.tab, peerTab === 'NEIGHBORS' && styles.tabOn)}
-              onClick={() => setPeerTab('NEIGHBORS')}
+              aria-selected={peerTab === 'FOLLOWER'}
+              className={clsx(styles.tab, peerTab === 'FOLLOWER' && styles.tabOn)}
+              onClick={() => setPeerTab('FOLLOWER')}
             >
-              이웃
+              팔로워
             </button>
           </div>
           {peerStatus ? <p className={styles.status}>{peerStatus}</p> : null}
           {peers.length === 0 && !peerStatus ? (
             <EmptyState
               title="목록이 비어 있어요"
-              description="주민이나 이웃이 있으면 여기서 고를 수 있어요."
+              description="팔로우나 팔로워가 있으면 여기서 고를 수 있어요."
             />
           ) : (
             <ul className={styles.roomList}>
@@ -860,12 +887,12 @@ export default function DmClient({ roomId, feedId, feedMediaId, storyId }: DmCli
         {!status && rooms.length === 0 ? (
           <EmptyState
             title="아직 메시지가 없어요"
-            description="주민이나 이웃을 골라 대화를 시작할 수 있어요."
+            description="팔로우나 팔로워를 골라 대화를 시작할 수 있어요."
           />
         ) : (
           <ul className={styles.roomList}>
             {rooms.map((room) => (
-              <li key={room.id}>
+              <li key={room.id} className={styles.roomBlock}>
                 <button
                   type="button"
                   className={styles.roomItem}
@@ -891,6 +918,9 @@ export default function DmClient({ roomId, feedId, feedMediaId, storyId }: DmCli
                     </span>
                   </span>
                 </button>
+                {unlinked(room.link) ? (
+                  <p className={styles.relationNote}>* 팔로우 관계가 아닙니다.</p>
+                ) : null}
               </li>
             ))}
           </ul>

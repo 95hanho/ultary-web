@@ -57,6 +57,12 @@ export function isApiProblemDetail(value: unknown): value is ApiProblemDetail {
 
 export type SocialProvider = 'GOOGLE' | 'KAKAO';
 
+/** POST /api/v1/admin/auth/login */
+export type AdminLoginRequest = {
+  loginId: string;
+  password: string;
+};
+
 /** POST /api/v1/auth/login — email 또는 phone + password */
 export type LoginRequest = {
   email?: string;

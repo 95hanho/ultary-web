@@ -18,12 +18,12 @@ import clsx from 'clsx';
 import { Bookmark, Ellipsis, Flag, Trash2, User } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { Swiper as SwiperType } from 'swiper';
 import 'swiper/css';
 import { Swiper, SwiperSlide } from 'swiper/react';
 import { CommentSheet } from './CommentSheet';
+import { ShareMessageSheet } from './ShareMessageSheet';
 import styles from './Feed.module.scss';
 import { TagExplainPopover, type TagExplainMode } from './TagExplainPopover';
 
@@ -125,7 +125,6 @@ export function Feed({
   showAuthor = true,
   initialMediaIndex = 0,
 }: FeedProps) {
-  const router = useRouter();
   const openModal = useModalStore((s) => s.open);
   const slideCount = Math.max(images.length, 1);
   const startIndex = Math.min(Math.max(0, Math.floor(initialMediaIndex) || 0), slideCount - 1);
@@ -169,6 +168,8 @@ export function Feed({
   tagOpenRef.current = tagOpen;
   const tagReqRef = useRef(0);
   const [commentsOpen, setCommentsOpen] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
+  const [shareMediaId, setShareMediaId] = useState<number | null>(null);
   const [tagsOpen, setTagsOpen] = useState(false);
   const [tagListOpen, setTagListOpen] = useState(false);
   const [petLabels, setPetLabels] = useState<Record<number, FeedPetLabel>>({});
@@ -822,10 +823,9 @@ export function Feed({
                     {
                       label: '메시지로 보내기',
                       onClick: () => {
-                        const params = new URLSearchParams({ feedId: id });
                         const mediaId = mediaIds?.[index];
-                        if (mediaId != null) params.set('feedMediaId', String(mediaId));
-                        router.push(`/dm?${params.toString()}`);
+                        setShareMediaId(mediaId != null ? mediaId : null);
+                        setShareOpen(true);
                       },
                     },
                   ],
@@ -997,6 +997,12 @@ export function Feed({
         feedId={id}
         onCommentCreated={() => setComments((count) => count + 1)}
         onCommentDeleted={() => setComments((count) => Math.max(0, count - 1))}
+      />
+      <ShareMessageSheet
+        open={shareOpen}
+        onClose={() => setShareOpen(false)}
+        feedId={id}
+        feedMediaId={shareMediaId}
       />
     </article>
   );

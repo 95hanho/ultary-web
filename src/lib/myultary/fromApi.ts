@@ -10,9 +10,14 @@ export type MyUltaryProfile = {
   hasStory: boolean;
   /** null이면 Spring이 아직 필드를 안 준 것. 스토리가 있으면 안읽음으로 둔다 */
   hasUnviewed: boolean | null;
-  residentCount: number;
-  neighborCount: number;
+  followCount: number;
+  followerCount: number;
   feedCount: number;
+  /** 그 계정의 비공개 설정. 응답에 없으면 false */
+  privateAccount: boolean;
+  /** 로그인한 내가 그 계정을 팔로우 중인지. 본인 프로필에는 없다 */
+  following: boolean;
+  neighborId: number | null;
   myReport: MyReport | null;
 };
 
@@ -69,9 +74,12 @@ export function mapMyUltaryProfile(raw: unknown): MyUltaryProfile | null {
     bio: typeof raw.bio === 'string' ? raw.bio : '',
     hasStory: raw.hasStory === true,
     hasUnviewed: typeof raw.hasUnviewed === 'boolean' ? raw.hasUnviewed : null,
-    residentCount: count(raw.residentCount),
-    neighborCount: count(raw.neighborCount),
+    followCount: count(raw.followCount ?? raw.residentCount),
+    followerCount: count(raw.followerCount ?? raw.neighborCount),
     feedCount: count(raw.feedCount),
+    privateAccount: raw.privateAccount === true,
+    following: raw.following === true,
+    neighborId: typeof raw.neighborId === 'number' ? raw.neighborId : null,
     myReport: readMyReport(raw),
   };
 }

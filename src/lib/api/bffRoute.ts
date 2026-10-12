@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { toErrorResponse } from '@/lib/api/error';
 import type { Params, RequestHeaders } from '@/lib/api/http';
+import { requireAdminSession } from '@/lib/auth/admin-session';
 import {
   applyTokensToCookieJar,
   clearAuthCookieJar,
@@ -73,6 +74,19 @@ export function isUnauthorized(
   value: string | NextResponse,
 ): value is NextResponse {
   return typeof value !== 'string';
+}
+
+/** 관리자 access 쿠키. 없으면 관리자 refresh 로 재발급. 회원 쿠키는 보지 않는다. */
+export async function requireAdminAccessToken(): Promise<string | NextResponse> {
+  const session = await requireAdminSession();
+  if (!session.ok) {
+    return unauthorized(
+      session.message === 'REFRESH_UNAUTHORIZED'
+        ? '세션이 만료되었습니다. 다시 로그인해 주세요.'
+        : undefined,
+    );
+  }
+  return session.accessToken;
 }
 
 /** Request URL query → plain object */

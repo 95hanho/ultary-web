@@ -23,6 +23,11 @@ export function isSharedFeedPath(pathname: string): boolean {
   return SHARED_FEED_PATH.test(pathname);
 }
 
+/** 관리자 화면. 회원 세션 가드 밖에 두고 관리자 쿠키만 본다 */
+export function isAdminPath(pathname: string): boolean {
+  return pathname === '/admin' || pathname.startsWith('/admin/');
+}
+
 export function loginRedirectUrl(requestUrl: string, pathname: string, search: string): string {
   const url = new URL('/login', requestUrl);
   const returnUrl = `${pathname}${search}`;
