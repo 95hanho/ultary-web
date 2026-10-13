@@ -119,11 +119,22 @@ export default function RelationListClient({
       const res = await bffPostJson<BffEnvelope<unknown>>(bffEndpoints.users.neighborRequest, {
         userNo: row.userNo,
       });
-      const createdId = readNeighborId(res.data);
+      const created = readFollowResult(res.data);
+      if (!created.accepted) {
+        showFooterNotice('팔로우 요청을 보냈습니다.');
+        setRows((prev) =>
+          prev.map((item) =>
+            item.userNo === row.userNo
+              ? { ...item, neighborId: created.neighborId ?? item.neighborId }
+              : item,
+          ),
+        );
+        return;
+      }
       setRows((prev) =>
         prev.map((item) =>
           item.userNo === row.userNo
-            ? { ...item, following: true, neighborId: createdId ?? item.neighborId }
+            ? { ...item, following: true, neighborId: created.neighborId ?? item.neighborId }
             : item,
         ),
       );
@@ -266,9 +277,12 @@ function readPetTags(raw: unknown) {
   });
 }
 
-function readNeighborId(raw: unknown) {
-  if (!isRecord(raw) || typeof raw.neighborId !== 'number') return null;
-  return raw.neighborId;
+function readFollowResult(raw: unknown) {
+  if (!isRecord(raw)) return { neighborId: null as number | null, accepted: false };
+  return {
+    neighborId: typeof raw.neighborId === 'number' ? raw.neighborId : null,
+    accepted: raw.status === 'ACCEPTED',
+  };
 }
 
 function asFile(raw: unknown) {

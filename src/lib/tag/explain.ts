@@ -53,12 +53,16 @@ function parseTag(raw: unknown): TagHit | null {
   };
 }
 
+function missingDescription(hashtag: string) {
+  return `#${hashtag} 태그에 대한 설명이 아직 없습니다.`;
+}
+
 function toExplain(tag: TagHit): TagExplain {
   return {
     tag: tag.hashtag,
     title: tag.title ?? tag.hashtag,
     imageUrl: tag.imageUrl || undefined,
-    description: tag.content ?? `#${tag.hashtag} 태그에 대한 설명이 아직 없습니다.`,
+    description: tag.content ?? missingDescription(tag.hashtag),
     linkUrl: tag.link ?? undefined,
     linkLabel: tag.link ? '관련 링크' : undefined,
     postCount: tag.useCount,
@@ -69,9 +73,17 @@ function emptyExplain(hashtag: string): TagExplain {
   return {
     tag: hashtag,
     title: hashtag,
-    description: `#${hashtag} 태그에 대한 설명이 아직 없습니다.`,
+    description: missingDescription(hashtag),
     postCount: 0,
   };
+}
+
+/** 대표 사진과 설명이 둘 다 있을 때만 피드 팝업을 연다 */
+export function tagHasExplainPopup(data: TagExplain) {
+  const hashtag = data.tag.replace(/^#/, '').trim();
+  const description = data.description.trim();
+  const hasDescription = description.length > 0 && description !== missingDescription(hashtag);
+  return Boolean(data.imageUrl) && hasDescription;
 }
 
 function fetchDetail(tagId: number) {

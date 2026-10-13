@@ -2,13 +2,14 @@
 
 import { FooterMenu } from '@/components/common/FooterMenu';
 import { PageHeader } from '@/components/common/PageHeader';
-import { bffGet, bffPatchJson } from '@/lib/api/bffFetch';
+import { bffDelete, bffGet, bffPatchJson, bffPostJson } from '@/lib/api/bffFetch';
 import { bffEndpoints } from '@/lib/api/endpoints';
 import { resolveFileDisplayUrl } from '@/lib/api/fileUrl';
-import { isRecord } from '@/lib/api/error';
+import { isHttpError, isRecord } from '@/lib/api/error';
 import { myUltaryPath } from '@/lib/mock/ultary-accounts';
 import { openFeedComment, postPagePath } from '@/lib/notification/openTarget';
-import { fetchUnreadCount, publishUnreadBadge } from '@/lib/notification/unreadBadge';
+import { fetchUnreadCount, publishUnreadBadge, subscribeUnreadBadge } from '@/lib/notification/unreadBadge';
+import { showFooterNotice } from '@/lib/ui/footerNotice';
 import { NO_PROFILE_SRC } from '@/lib/profileImage';
 import type { BffEnvelope } from '@/types/api';
 import type { FileSummary } from '@/types/file';
@@ -18,8 +19,6 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState, type ReactNode } from 'react';
 import styles from './notifications.module.scss';
-
-type NeighborAction = 'accept' | 'cancel';
 
 type NotificationKind =
   | 'neighbor'
@@ -54,7 +53,10 @@ type NotificationItem = {
   storyId?: string;
   /** 스토리를 올린 사람. 태그 알림은 행위자, 공감 알림은 나 */
   actorUserNo?: string;
-  neighborAction?: NeighborAction;
+  neighborId?: number;
+  neighborStatus?: string;
+  /** 알림을 받은 내가 행위자를 팔로우 중 */
+  following?: boolean;
 };
 
 /** 줄바꿈 제거 후 최대 length자 + … (앞쪽 @멘션은 길이에 미포함) */
@@ -215,7 +217,12 @@ function NotificationMessage({ item }: { item: NotificationItem }) {
   let action: ReactNode;
   switch (item.kind) {
     case 'neighbor':
-      action = <>{nickOnly}님이 팔로우를 신청했습니다.</>;
+      action =
+        item.neighborStatus === 'ACCEPTED' ? (
+          <>{nickOnly}님이 팔로우했습니다.</>
+        ) : (
+          <>{nickOnly}님이 팔로우를 요청했습니다.</>
+        );
       break;
     case 'likePost':
       action = (
@@ -386,6 +393,12 @@ function mapApiNotification(raw: unknown): NotificationItem | null {
     (typeof raw.actorNickname === 'string' && raw.actorNickname.trim()) ||
     (typeof raw.actorUserNo === 'number' ? `USER_${raw.actorUserNo}` : '사용자');
   const neighborStatus = typeof raw.neighborStatus === 'string' ? raw.neighborStatus : '';
+  const neighborId =
+    typeof raw.neighborId === 'number'
+      ? raw.neighborId
+      : typeof raw.neighborId === 'string' && /^\d+$/.test(raw.neighborId)
+        ? Number(raw.neighborId)
+        : undefined;
   return {
     id: idString(raw.notificationId) ?? `${raw.type}-${when}`,
     kind,
@@ -400,11 +413,34 @@ function mapApiNotification(raw: unknown): NotificationItem | null {
     replyId,
     storyId: idString(raw.storyId),
     actorUserNo: idString(raw.actorUserNo),
-    neighborAction:
-      kind === 'neighbor' && (neighborStatus === '' || neighborStatus === 'PENDING')
-        ? 'accept'
-        : undefined,
+    neighborId,
+    neighborStatus: neighborStatus || undefined,
+    following: raw.following === true,
   };
+}
+
+function neighborControl(item: NotificationItem): 'follow' | 'cancel' | null {
+  if (item.kind !== 'neighbor' || item.neighborId == null) return null;
+  if (item.neighborStatus === 'REJECTED') return null;
+  if (item.following) return 'cancel';
+  if (item.neighborStatus === 'PENDING' || item.neighborStatus === 'ACCEPTED') return 'follow';
+  return null;
+}
+
+function readNeighborId(raw: unknown) {
+  if (!isRecord(raw) || typeof raw.neighborId !== 'number') return null;
+  return raw.neighborId;
+}
+
+function pickErrorMessage(err: unknown, fallback: string) {
+  if (isHttpError(err) && isRecord(err.data)) {
+    const detail = err.data.detail;
+    const message = err.data.message;
+    if (typeof detail === 'string' && detail.trim()) return detail;
+    if (typeof message === 'string' && message.trim()) return message;
+  }
+  if (err instanceof Error && err.message) return err.message;
+  return fallback;
 }
 
 function unwrapNotificationList(data: unknown): unknown[] {
@@ -425,10 +461,16 @@ function isUnread(raw: unknown): boolean {
 export default function NotificationsClient() {
   const [items, setItems] = useState<NotificationItem[]>([]);
   const [status, setStatus] = useState<string | null>(null);
+  const [actingId, setActingId] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
-    (async () => {
+    let generation = 0;
+    let seen = false;
+    let baseline = 0;
+
+    async function load() {
+      const gen = ++generation;
       try {
         const res = await bffGet<BffEnvelope<unknown>>(bffEndpoints.notifications.root, {
           limit: 30,
@@ -437,45 +479,115 @@ export default function NotificationsClient() {
         const mapped = list
           .map(mapApiNotification)
           .filter((v): v is NotificationItem => v != null);
-        if (cancelled) return;
-        void fetchUnreadCount()
-          .then((count) => {
-            if (!cancelled) publishUnreadBadge(count);
-          })
-          .catch((err) => console.warn('[notifications] unread count', err));
+        if (cancelled || gen !== generation) return;
+        seen = true;
         setItems(mapped);
         setStatus(null);
-        for (const n of list) {
-          if (!isUnread(n) || !isRecord(n)) continue;
-          const notificationId = idString(n.notificationId);
-          if (!notificationId) continue;
-          bffPatchJson(bffEndpoints.notifications.read, { notificationId }).catch((err) =>
-            console.warn('[notifications] read', err),
-          );
-        }
+        await Promise.all(
+          list.map(async (n) => {
+            if (!isUnread(n) || !isRecord(n)) return;
+            const notificationId = idString(n.notificationId);
+            if (!notificationId) return;
+            await bffPatchJson(bffEndpoints.notifications.read, { notificationId }).catch((err) =>
+              console.warn('[notifications] read', err),
+            );
+          }),
+        );
+        if (cancelled || gen !== generation) return;
+        const count = await fetchUnreadCount().catch((err) => {
+          console.warn('[notifications] unread count', err);
+          return null;
+        });
+        if (cancelled || gen !== generation || count == null) return;
+        baseline = count;
+        publishUnreadBadge(count);
       } catch (err) {
         console.warn('[notifications] BFF load failed', err);
-        if (!cancelled) {
+        if (!cancelled && gen === generation && !seen) {
           setItems([]);
           setStatus('알림을 불러오지 못했습니다.');
         }
       }
-    })();
+    }
+
+    void load();
+    const unsubscribe = subscribeUnreadBadge((count) => {
+      if (count > baseline) {
+        baseline = count;
+        void load();
+        return;
+      }
+      baseline = count;
+    });
     return () => {
       cancelled = true;
+      unsubscribe();
     };
   }, []);
 
-  function toggleNeighbor(id: string) {
-    setItems((prev) =>
-      prev.map((item) => {
-        if (item.id !== id || item.kind !== 'neighbor') return item;
-        const next: NeighborAction =
-          item.neighborAction === 'accept' ? 'cancel' : 'accept';
-        console.log('[notifications] 팔로우 신청', { id, action: next });
-        return { ...item, neighborAction: next };
-      }),
-    );
+  async function followNeighbor(item: NotificationItem) {
+    if (item.neighborId == null || actingId) return;
+    setActingId(item.id);
+    try {
+      if (item.neighborStatus === 'PENDING') {
+        await bffPostJson<BffEnvelope<unknown>>(bffEndpoints.users.neighborAccept, {
+          neighborId: item.neighborId,
+        });
+        setItems((prev) =>
+          prev.map((row) =>
+            row.id === item.id
+              ? { ...row, following: true, neighborStatus: 'ACCEPTED' }
+              : row,
+          ),
+        );
+      } else if (item.neighborStatus === 'ACCEPTED') {
+        const userNo = Number(item.actorUserNo);
+        if (!Number.isFinite(userNo)) throw new Error('user missing');
+        const res = await bffPostJson<BffEnvelope<unknown>>(bffEndpoints.users.neighborRequest, {
+          userNo,
+        });
+        const neighborId = readNeighborId(res.data) ?? item.neighborId;
+        const accepted = isRecord(res.data) && res.data.status === 'ACCEPTED';
+        setItems((prev) =>
+          prev.map((row) =>
+            row.id === item.id
+              ? { ...row, neighborId, following: accepted ? true : row.following }
+              : row,
+          ),
+        );
+        if (!accepted) {
+          showFooterNotice('팔로우 요청을 보냈습니다.');
+          return;
+        }
+      } else {
+        return;
+      }
+      showFooterNotice('팔로우했습니다.');
+    } catch (err) {
+      console.warn('[notifications] follow', err);
+      showFooterNotice(pickErrorMessage(err, '팔로우하지 못했습니다.'));
+    } finally {
+      setActingId(null);
+    }
+  }
+
+  async function cancelNeighbor(item: NotificationItem) {
+    if (item.neighborId == null || actingId) return;
+    setActingId(item.id);
+    try {
+      await bffDelete<BffEnvelope<unknown>>(bffEndpoints.users.neighborCancel, {
+        neighborId: item.neighborId,
+      });
+      setItems((prev) =>
+        prev.map((row) => (row.id === item.id ? { ...row, following: false } : row)),
+      );
+      showFooterNotice('팔로우를 취소했습니다.');
+    } catch (err) {
+      console.warn('[notifications] cancel', err);
+      showFooterNotice(pickErrorMessage(err, '팔로우를 취소하지 못했습니다.'));
+    } finally {
+      setActingId(null);
+    }
   }
 
   return (
@@ -487,8 +599,7 @@ export default function NotificationsClient() {
         <ul className={styles.list}>
           {items.map((item) => {
             const ultaryHref = myUltaryPath(item.actorNickname);
-            const isNeighbor = item.kind === 'neighbor';
-            const neighborAccept = item.neighborAction === 'accept';
+            const neighborAction = neighborControl(item);
 
             return (
               <li key={item.id} className={styles.item}>
@@ -509,17 +620,22 @@ export default function NotificationsClient() {
                   <div className={styles.info}>
                     <NotificationMessage item={item} />
                   </div>
-                  {isNeighbor ? (
+                  {neighborAction ? (
                     <div className={styles.actionWrap}>
                       <button
                         type="button"
                         className={clsx(
                           styles.actionBtn,
-                          neighborAccept ? styles.actionAccept : styles.actionCancel,
+                          neighborAction === 'follow' ? styles.actionAccept : styles.actionCancel,
                         )}
-                        onClick={() => toggleNeighbor(item.id)}
+                        disabled={actingId === item.id}
+                        onClick={() =>
+                          void (neighborAction === 'follow'
+                            ? followNeighbor(item)
+                            : cancelNeighbor(item))
+                        }
                       >
-                        {neighborAccept ? '수락' : '취소'}
+                        {neighborAction === 'follow' ? '팔로우' : '취소'}
                       </button>
                     </div>
                   ) : null}

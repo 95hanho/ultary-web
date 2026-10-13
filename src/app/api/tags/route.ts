@@ -8,7 +8,7 @@ import {
   readJsonBody,
   requireAccessToken,
 } from '@/lib/api/bffRoute';
-import { springPostForm } from '@/lib/api/springFetch';
+import { springPostJson } from '@/lib/api/springFetch';
 
 /** BFF /api/tags — POST */
 export async function POST(request: NextRequest) {
@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
     const accessToken = await requireAccessToken();
     if (isUnauthorized(accessToken)) return accessToken;
     const body = await readJsonBody(request);
-    const data = await springPostForm(
+    const data = await springPostJson(
       springEndpoints.tags.root,
       body,
       bearer(accessToken),

@@ -8,7 +8,7 @@ import { bffEndpoints } from '@/lib/api/endpoints';
 import { isRecord } from '@/lib/api/error';
 import { resolveFeedPetLabels, type FeedPetLabel } from '@/lib/feed/petLabels';
 import { splitCaptionTags, type TagExplain } from '@/lib/mock/tags';
-import { loadTagExplain } from '@/lib/tag/explain';
+import { loadTagExplain, tagHasExplainPopup } from '@/lib/tag/explain';
 import { myUltaryPath } from '@/lib/mock/ultary-accounts';
 import { showFooterNotice } from '@/lib/ui/footerNotice';
 import { openReportModal, cancelReport, canCancelReport, type MyReport } from '@/lib/report/openReport';
@@ -167,6 +167,7 @@ export function Feed({
   const tagOpenRef = useRef(tagOpen);
   tagOpenRef.current = tagOpen;
   const tagReqRef = useRef(0);
+  const hoverTagRef = useRef<string | null>(null);
   const [commentsOpen, setCommentsOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   const [shareMediaId, setShareMediaId] = useState<number | null>(null);
@@ -519,30 +520,24 @@ export function Feed({
     if (!key) return;
     const rect = el.getBoundingClientRect();
     const token = ++tagReqRef.current;
-    const placeholder: TagExplain = {
-      tag: key,
-      title: key,
-      description: '불러오는 중…',
-    };
 
-    if (mode === 'active') {
-      clearLeaveTimer();
-      clearHoverOpenTimer();
-      setTagOpen({ data: placeholder, rect, mode });
-    } else {
+    void loadTagExplain(key, tagIds).then((data) => {
+      if (tagReqRef.current !== token) return;
+      if (!tagHasExplainPopup(data)) return;
+      if (mode === 'preview' && hoverTagRef.current !== key) return;
+
+      if (mode === 'active') {
+        clearLeaveTimer();
+        clearHoverOpenTimer();
+        setTagOpen({ data, rect, mode });
+        return;
+      }
+
       clearLeaveTimer();
       setTagOpen((prev) => {
         if (prev && !prev.closeRequested) return prev;
         ignoreLeaveUntilRef.current = Date.now() + 320;
-        return { data: placeholder, rect, mode: 'preview' };
-      });
-    }
-
-    void loadTagExplain(key, tagIds).then((data) => {
-      if (tagReqRef.current !== token) return;
-      setTagOpen((prev) => {
-        if (!prev || prev.data.tag !== key) return prev;
-        return { ...prev, data };
+        return { data, rect, mode: 'preview' };
       });
     });
   };
@@ -949,10 +944,12 @@ export function Feed({
                   onMouseEnter={(e) => {
                     // 터치 기기의 sticky hover / 합성 mouseenter 무시
                     if (lastPointerTypeRef.current !== 'mouse') return;
+                    hoverTagRef.current = part.value.replace(/^#/, '').trim();
                     scheduleHoverPreview(part.value, e.currentTarget);
                   }}
                   onMouseLeave={() => {
                     if (lastPointerTypeRef.current !== 'mouse') return;
+                    hoverTagRef.current = null;
                     clearHoverOpenTimer();
                     scheduleCloseIfPreview();
                   }}

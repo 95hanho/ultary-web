@@ -480,21 +480,27 @@ export default function MyUltaryClient({ nickname }: MyUltaryClientProps) {
 
   const toggleFollow = async () => {
     if (!profile?.userNo || relationBusy || isOwnAccount) return;
+    const label = followButtonLabel(profile);
     setRelationBusy(true);
     try {
-      if (profile.following) {
+      if (label === '팔로우 끊기' || label === '팔로우 요청취소') {
         if (profile.neighborId == null) throw new Error('neighbor missing');
         await bffDelete(bffEndpoints.users.neighborCancel, { neighborId: profile.neighborId });
-        setProfile((prev) =>
-          prev
-            ? {
-                ...prev,
-                following: false,
-                neighborId: null,
-                followerCount: Math.max(0, prev.followerCount - 1),
-              }
-            : prev,
-        );
+        setProfile((prev) => {
+          if (!prev) return prev;
+          if (label === '팔로우 요청취소') {
+            return { ...prev, following: false, relationStatus: 'NONE', neighborId: null };
+          }
+          const stillFollowed = prev.followedBy;
+          return {
+            ...prev,
+            following: false,
+            relationStatus: stillFollowed ? 'ACCEPTED' : 'NONE',
+            neighborId: stillFollowed ? prev.neighborId : null,
+            followerCount: Math.max(0, prev.followerCount - 1),
+          };
+        });
+        if (label === '팔로우 요청취소') showFooterNotice('팔로우 요청을 취소했습니다.');
         return;
       }
       const res = await bffPostJson<BffEnvelope<unknown>>(bffEndpoints.users.neighborRequest, {
@@ -504,7 +510,14 @@ export default function MyUltaryClient({ nickname }: MyUltaryClientProps) {
       if (!created.accepted) {
         showFooterNotice('팔로우 요청을 보냈습니다.');
         setProfile((prev) =>
-          prev ? { ...prev, neighborId: created.neighborId ?? prev.neighborId } : prev,
+          prev
+            ? {
+                ...prev,
+                following: false,
+                relationStatus: 'PENDING_SENT',
+                neighborId: created.neighborId ?? prev.neighborId,
+              }
+            : prev,
         );
         return;
       }
@@ -513,6 +526,7 @@ export default function MyUltaryClient({ nickname }: MyUltaryClientProps) {
           ? {
               ...prev,
               following: true,
+              relationStatus: 'ACCEPTED',
               neighborId: created.neighborId ?? prev.neighborId,
               followerCount: prev.followerCount + 1,
             }
@@ -520,7 +534,7 @@ export default function MyUltaryClient({ nickname }: MyUltaryClientProps) {
       );
     } catch (err) {
       console.error('[myultary] follow toggle failed', err);
-      showFooterNotice(relationErrorMessage(err, profile.following));
+      showFooterNotice(relationErrorMessage(err, profile.following, followErrorFallback(label)));
     } finally {
       setRelationBusy(false);
     }
@@ -978,7 +992,7 @@ export default function MyUltaryClient({ nickname }: MyUltaryClientProps) {
                   disabled={relationBusy}
                   onClick={() => void toggleFollow()}
                 >
-                  {profile?.following ? '팔로우 취소' : '팔로우'}
+                  {profile ? followButtonLabel(profile) : '팔로우'}
                 </button>
                 <button
                   type="button"
@@ -1158,11 +1172,26 @@ export default function MyUltaryClient({ nickname }: MyUltaryClientProps) {
   );
 }
 
+function followButtonLabel(profile: MyUltaryProfile) {
+  if (profile.following) return '팔로우 끊기';
+  if (profile.relationStatus === 'PENDING_SENT') return '팔로우 요청취소';
+  if (profile.privateAccount && !profile.followedBy && profile.relationStatus !== 'PENDING_RECEIVED') {
+    return '팔로우 요청';
+  }
+  return '팔로우';
+}
+
+function followErrorFallback(label: string) {
+  if (label === '팔로우 끊기') return '팔로우를 끊지 못했습니다.';
+  if (label === '팔로우 요청취소') return '팔로우 요청을 취소하지 못했습니다.';
+  return '팔로우 요청을 보내지 못했습니다.';
+}
+
 function readFollowResult(raw: unknown) {
   if (!isRecord(raw)) return { neighborId: null as number | null, accepted: false };
   return {
     neighborId: typeof raw.neighborId === 'number' ? raw.neighborId : null,
-    accepted: raw.status === 'ACCEPTED' || raw.followedBack === true,
+    accepted: raw.status === 'ACCEPTED',
   };
 }
 

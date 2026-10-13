@@ -5,7 +5,6 @@ import { bffGet, bffPostJson } from '@/lib/api/bffFetch';
 import { bffEndpoints } from '@/lib/api/endpoints';
 import { isRecord } from '@/lib/api/error';
 import { resolveFileDisplayUrl } from '@/lib/api/fileUrl';
-import { loadMyUserNo } from '@/lib/auth/myUserNo';
 import { NO_PROFILE_SRC } from '@/lib/profileImage';
 import { showFooterNotice } from '@/lib/ui/footerNotice';
 import type { BffEnvelope } from '@/types/api';
@@ -19,11 +18,15 @@ const SendIcon = '/images/icon/Send.svg';
 const MY_PROFILE = '/images/mock/post2.jpg';
 const CLOSE_DRAG_PX = 90;
 
-type FollowerRow = {
+type ShareTarget = {
   userNo: number;
   nickname: string;
   imageUrl: string;
-  petTags: string[];
+  dmRoomId: number | null;
+  following: boolean;
+  followedBy: boolean;
+  group: number;
+  activeAt: string;
 };
 
 type ShareMessageSheetProps = {
@@ -33,7 +36,7 @@ type ShareMessageSheetProps = {
   feedMediaId: number | null;
 };
 
-/** 게시글 공유 — 팔로워를 골라 메시지로 보낸다 */
+/** 게시글 공유 — 공유 대상을 골라 메시지로 보낸다 */
 export function ShareMessageSheet({ open, onClose, feedId, feedMediaId }: ShareMessageSheetProps) {
   const [hydrated, setHydrated] = useState(false);
   const [present, setPresent] = useState(false);
@@ -49,7 +52,7 @@ export function ShareMessageSheet({ open, onClose, feedId, feedMediaId }: ShareM
   const openRef = useRef(open);
   openRef.current = open;
 
-  const [rows, setRows] = useState<FollowerRow[]>([]);
+  const [rows, setRows] = useState<ShareTarget[]>([]);
   const [listStatus, setListStatus] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle');
   const [selectedUserNo, setSelectedUserNo] = useState<number | null>(null);
   const [draft, setDraft] = useState('');
@@ -68,18 +71,14 @@ export function ShareMessageSheet({ open, onClose, feedId, feedMediaId }: ShareM
     let cancelled = false;
     (async () => {
       try {
-        const me = await loadMyUserNo();
-        if (me == null) throw new Error('me missing');
-        const res = await bffGet<BffEnvelope<unknown>>(bffEndpoints.users.neighbors, {
-          userNo: me,
-          type: 'FOLLOWER',
+        const res = await bffGet<BffEnvelope<unknown>>(bffEndpoints.dm.shareTargets, {
           limit: 50,
         });
         if (cancelled) return;
-        setRows(readFollowers(res.data).filter((row) => row.userNo !== me));
+        setRows(readShareTargets(res.data));
         setListStatus('ready');
       } catch (err) {
-        console.error('[share-message] followers failed', err);
+        console.error('[share-message] targets failed', err);
         if (!cancelled) {
           setRows([]);
           setListStatus('error');
@@ -177,14 +176,18 @@ export function ShareMessageSheet({ open, onClose, feedId, feedMediaId }: ShareM
 
   async function submitMessage(event?: FormEvent) {
     event?.preventDefault();
-    if (selectedUserNo == null || sending) return;
+    const target = rows.find((row) => row.userNo === selectedUserNo);
+    if (!target || !canMessage(target) || sending) return;
     const body = draft.trim();
     setSending(true);
     try {
-      const roomRes = await bffPostJson<BffEnvelope<unknown>>(bffEndpoints.dm.rooms, {
-        targetUserNo: selectedUserNo,
-      });
-      const roomId = readRoomId(roomRes.data);
+      let roomId = target.dmRoomId != null ? String(target.dmRoomId) : '';
+      if (!roomId) {
+        const roomRes = await bffPostJson<BffEnvelope<unknown>>(bffEndpoints.dm.rooms, {
+          targetUserNo: target.userNo,
+        });
+        roomId = readRoomId(roomRes.data);
+      }
       if (!roomId) throw new Error('room missing');
       const payload: Record<string, string | number> = {
         roomId,
@@ -244,33 +247,35 @@ export function ShareMessageSheet({ open, onClose, feedId, feedMediaId }: ShareM
           {listStatus === 'ready' && rows.length === 0 ? (
             <p className={styles.status}>목록이 비어 있어요</p>
           ) : null}
-          {rows.map((row) => (
-            <label key={row.userNo} className={styles.row}>
-              <span className={styles.avatar}>
-                <MediaImage
-                  src={row.imageUrl}
-                  alt=""
-                  width={47}
-                  height={47}
-                  className={styles.avatarImg}
+          {rows.map((row) => {
+            const enabled = canMessage(row);
+            return (
+              <label key={row.userNo} className={clsx(styles.row, !enabled && styles.rowDisabled)}>
+                <span className={styles.avatar}>
+                  <MediaImage
+                    src={row.imageUrl}
+                    alt=""
+                    width={47}
+                    height={47}
+                    className={styles.avatarImg}
+                  />
+                </span>
+                <span className={styles.text}>
+                  <span className={styles.nick}>{row.nickname}</span>
+                  {!enabled ? <span className={styles.note}>* 팔로우 관계가 아닙니다.</span> : null}
+                </span>
+                <input
+                  type="radio"
+                  className={styles.radio}
+                  name={`share-message-${feedId}`}
+                  checked={selectedUserNo === row.userNo}
+                  disabled={!enabled}
+                  onChange={() => setSelectedUserNo(row.userNo)}
+                  aria-label={`${row.nickname}에게 보내기`}
                 />
-              </span>
-              <span className={styles.text}>
-                <span className={styles.nick}>{row.nickname}</span>
-                {row.petTags.length > 0 ? (
-                  <span className={styles.tags}>{row.petTags.join(' ')}</span>
-                ) : null}
-              </span>
-              <input
-                type="radio"
-                className={styles.radio}
-                name={`share-message-${feedId}`}
-                checked={selectedUserNo === row.userNo}
-                onChange={() => setSelectedUserNo(row.userNo)}
-                aria-label={`${row.nickname}에게 보내기`}
-              />
-            </label>
-          ))}
+              </label>
+            );
+          })}
         </div>
 
         <form className={styles.composer} onSubmit={(event) => void submitMessage(event)}>
@@ -302,9 +307,13 @@ export function ShareMessageSheet({ open, onClose, feedId, feedMediaId }: ShareM
   );
 }
 
-function readFollowers(raw: unknown): FollowerRow[] {
+function canMessage(row: ShareTarget) {
+  return row.dmRoomId != null || row.following || row.followedBy;
+}
+
+function readShareTargets(raw: unknown): ShareTarget[] {
   const list = Array.isArray(raw) ? raw : isRecord(raw) && Array.isArray(raw.items) ? raw.items : [];
-  return list.flatMap((item) => {
+  const rows = list.flatMap((item) => {
     if (!isRecord(item) || typeof item.userNo !== 'number') return [];
     const nickname = typeof item.nickname === 'string' ? item.nickname.trim() : '';
     if (!nickname) return [];
@@ -313,19 +322,30 @@ function readFollowers(raw: unknown): FollowerRow[] {
         userNo: item.userNo,
         nickname,
         imageUrl: resolveFileDisplayUrl(asFile(item.profileFile)) ?? NO_PROFILE_SRC,
-        petTags: readPetTags(item.petTags),
+        dmRoomId: readRoomNumber(item.dmRoomId),
+        following: item.following === true,
+        followedBy: item.followedBy === true,
+        group: typeof item.group === 'number' ? item.group : 4,
+        activeAt: typeof item.activeAt === 'string' ? item.activeAt : '',
       },
     ];
   });
+  rows.sort((a, b) => {
+    if (a.group !== b.group) return a.group - b.group;
+    return b.activeAt.localeCompare(a.activeAt);
+  });
+  const seen = new Set<number>();
+  return rows.filter((row) => {
+    if (seen.has(row.userNo)) return false;
+    seen.add(row.userNo);
+    return true;
+  });
 }
 
-function readPetTags(raw: unknown) {
-  if (!Array.isArray(raw)) return [];
-  return raw.flatMap((tag) => {
-    if (typeof tag !== 'string') return [];
-    const name = tag.trim().replace(/^@+/, '');
-    return name ? [`@${name}`] : [];
-  });
+function readRoomNumber(raw: unknown) {
+  if (typeof raw === 'number' && Number.isFinite(raw)) return raw;
+  if (typeof raw === 'string' && raw.trim() && Number.isFinite(Number(raw))) return Number(raw);
+  return null;
 }
 
 function asFile(raw: unknown) {

@@ -169,6 +169,8 @@ share `API_CONTRACT` / `api-memo` 참고. 피드·스토리 상세·프로필·�
 | GET | `/api/tags/:tagId` | `/api/v1/tags/:tagId` | ✅ | 🚧 |
 | GET | `/api/tags/search?q=` | `/api/v1/tags/search` | ✅ | 🚧 |
 | GET | `/api/tags/recommend?q=` | `/api/v1/tags/recommend` | ✅ | 🚧 |
+| GET | `/api/tags/profile-requests` | `/api/v1/tags/profile-requests` | ✅ | ✅ |
+| POST | `/api/tags/:tagId/profile-requests` | `/api/v1/tags/:tagId/profile-requests` | ✅ | ✅ |
 
 ---
 
@@ -208,6 +210,7 @@ share `API_CONTRACT` / `api-memo` 참고. 피드·스토리 상세·프로필·�
 
 | Method | BFF | Spring | Auth | 상태 |
 |--------|-----|--------|------|------|
+| GET | `/api/dm/share-targets` | `/api/v1/dm/share-targets` | ✅ | ✅ |
 | GET | `/api/dm/rooms` | `/api/v1/dm/rooms` | ✅ | 🚧 |
 | POST | `/api/dm/rooms` | `/api/v1/dm/rooms` | ✅ | 🚧 |
 | DELETE | `/api/dm/rooms/:roomId` | `/api/v1/dm/rooms/:roomId` | ✅ | 🚧 |

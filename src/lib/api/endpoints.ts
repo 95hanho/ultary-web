@@ -155,6 +155,10 @@ export const bffEndpoints = {
     recommend: '/api/tags/recommend',
     /** POST 태그 등록 */
     root: '/api/tags',
+    /** GET 내가 넣은 상업 태그 설명 요청 */
+    profileRequests: '/api/tags/profile-requests',
+    /** POST 상업 태그 설명 요청 */
+    profileRequest: '/api/tags/:tagId/profile-requests',
   },
 
   users: {
@@ -200,6 +204,8 @@ export const bffEndpoints = {
   },
 
   dm: {
+    /** GET 피드 공유 «메시지로 보내기» 대상 */
+    shareTargets: '/api/dm/share-targets',
     /** GET 메시지(방) 리스트 / POST 대화방 생성 */
     rooms: '/api/dm/rooms',
     /** DELETE 대화방 나가기 */
@@ -434,6 +440,10 @@ export const springEndpoints = {
     recommend: '/api/v1/tags/recommend',
     /** POST */
     root: '/api/v1/tags',
+    /** GET 내가 넣은 상업 태그 설명 요청 */
+    profileRequests: '/api/v1/tags/profile-requests',
+    /** POST 상업 태그 설명 요청 */
+    profileRequest: '/api/v1/tags/:tagId/profile-requests',
   },
 
   users: {
@@ -477,6 +487,8 @@ export const springEndpoints = {
   },
 
   dm: {
+    /** GET 피드 공유 대상 */
+    shareTargets: '/api/v1/dm/share-targets',
     /** GET / POST */
     rooms: '/api/v1/dm/rooms',
     /** DELETE */

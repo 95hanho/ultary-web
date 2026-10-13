@@ -178,7 +178,7 @@ function readLink(raw: unknown): FollowLink | null {
 }
 
 function unlinked(link: FollowLink | null | undefined) {
-  return link != null && !link.following && !link.followedBy;
+  return link != null && !link.following;
 }
 
 function mapRoom(raw: unknown): DmRoom | null {

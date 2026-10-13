@@ -17,6 +17,10 @@ export type MyUltaryProfile = {
   privateAccount: boolean;
   /** 로그인한 내가 그 계정을 팔로우 중인지. 본인 프로필에는 없다 */
   following: boolean;
+  /** 그 계정이 나를 팔로우 중인지 */
+  followedBy: boolean;
+  /** NONE | PENDING_SENT | PENDING_RECEIVED | ACCEPTED | REJECTED | BLOCKED */
+  relationStatus: string;
   neighborId: number | null;
   myReport: MyReport | null;
 };
@@ -79,6 +83,8 @@ export function mapMyUltaryProfile(raw: unknown): MyUltaryProfile | null {
     feedCount: count(raw.feedCount),
     privateAccount: raw.privateAccount === true,
     following: raw.following === true,
+    followedBy: raw.followedBy === true,
+    relationStatus: typeof raw.relationStatus === 'string' ? raw.relationStatus : '',
     neighborId: typeof raw.neighborId === 'number' ? raw.neighborId : null,
     myReport: readMyReport(raw),
   };

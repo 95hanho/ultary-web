@@ -1,5 +1,7 @@
--- schema_version: 25
+-- schema_version: 27
 -- Ultary MariaDB 10.1 초기 스키마
+-- v27: ultary_tag_profile_request.reject_message. 관리자 거절 멘트
+-- v26: ultary_tag.purpose(USER|COMMERCIAL), profile_status. 상업 설명은 승인 요청이 APPROVED일 때만 공개
 -- v25: 주민·이웃 용어를 팔로우·팔로워로. 목록 type=FOLLOW|FOLLOWER, 카운트 followCount·followerCount. 테이블 구조는 그대로
 -- v24: ultary_neighbor.followed_back. 상대만 나를 팔로우한 상태에서 맞팔
 -- v23: ultary_report.status 에 CONFIRMED(확인). 신고요청만 신고자가 취소
@@ -32,6 +34,8 @@
 --       · 이미지 위치 멘션 = ultary_feed_media_mention (승인 없음, 자유)
 --       · 공동작성 = ultary_feed_pet.role=COLLABORATOR (멘션된 피드 목록 / 삭제 권한)
 --   - # : 태그 hashtag (본문 태그, 상품·소개 태그). hashtag는 중복 가능·생성 후 불변, handle로 좁힘
+--       · purpose=USER 는 설명 없는 일반 태그. purpose=COMMERCIAL 은 제목·소개·링크·이미지
+--       · 상업 설명은 ultary_tag_profile_request 가 APPROVED 된 뒤에만 태그 조회에 보인다
 --   - 닉네임 허용: 영문·숫자·한글. 한글만 2~5자, 영문·숫자만 4~10자. 혼합 시 한글1자=2, 영문·숫자1자=1, 가중치 합 4~10 (한글 최대 5자)
 --   - mention_id / tag.handle 허용: 영문·숫자·언더바 (^[A-Za-z0-9_]{1,30}$), UNIQUE, utf8_general_ci라 대소문자 동일 취급
 --   - 최근 검색: 검색어가 아니라 들어간 유저 울타리. ultary_user_search_history (user_no, target_user_no) 1행
@@ -88,6 +92,8 @@ DROP TABLE IF EXISTS `ultary_story_view`;
 DROP TABLE IF EXISTS `ultary_story`;
 DROP TABLE IF EXISTS `ultary_user_pet_tag_history`;
 DROP TABLE IF EXISTS `ultary_user_search_history`;
+DROP TABLE IF EXISTS `ultary_tag_profile_request_image`;
+DROP TABLE IF EXISTS `ultary_tag_profile_request`;
 DROP TABLE IF EXISTS `ultary_tag_image`;
 DROP TABLE IF EXISTS `ultary_feed_tag`;
 DROP TABLE IF EXISTS `ultary_tag`;
@@ -450,7 +456,9 @@ CREATE TABLE `ultary_feed_save` (
 CREATE TABLE `ultary_tag` (
   `tag_id` INT(11) NOT NULL AUTO_INCREMENT,
   `hashtag` VARCHAR(30) NOT NULL COMMENT '# 뒤에 쓰는 키. 중복 허용 (검색 후 선택). 생성 후 변경 불가',
-  `title` VARCHAR(100) NULL DEFAULT NULL COMMENT '상품명/소개 제목 (길 수 있음). 단순 해시태그는 NULL',
+  `purpose` ENUM('USER','COMMERCIAL') NOT NULL DEFAULT 'USER' COMMENT 'USER=일반 해시태그, COMMERCIAL=상업 태그. 제목·소개·링크가 있으면 상업',
+  `profile_status` ENUM('NONE','PENDING','APPROVED','REJECTED') NOT NULL DEFAULT 'NONE' COMMENT '상업 설명 공개 상태. APPROVED일 때만 제목·소개·링크·이미지가 보인다',
+  `title` VARCHAR(100) NULL DEFAULT NULL COMMENT '상품명/소개 제목 (길 수 있음). 단순 해시태그는 NULL. 승인 후에만 조회',
   `handle` VARCHAR(30) NULL DEFAULT NULL COMMENT '선택 고유 코드. hashtag 중복 시 구분. 영문·숫자·_ , UNIQUE',
   `handle_changed_at` DATETIME NULL DEFAULT NULL COMMENT 'handle 최초 설정/마지막 변경 시각. NULL=handle 미설정(최초 설정 자유). 설정·변경 후 30일간 재변경 불가. 생성 시 handle을 넣으면 생성 시각으로 설정',
   `content` VARCHAR(500) NULL DEFAULT NULL COMMENT '태그 소개글',
@@ -490,7 +498,35 @@ CREATE TABLE `ultary_tag_image` (
   PRIMARY KEY (`tag_image_id`) USING BTREE,
   UNIQUE KEY `UK_ultary_tag_image_sort` (`tag_id`, `sort_order`) USING BTREE,
   KEY `IDX_ultary_tag_image_file_id` (`file_id`) USING BTREE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_general_ci COMMENT='태그 소개 이미지';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_general_ci COMMENT='태그 소개 이미지. 상업 태그는 승인된 설명만';
+
+CREATE TABLE `ultary_tag_profile_request` (
+  `tag_profile_request_id` INT(11) NOT NULL AUTO_INCREMENT,
+  `tag_id` INT(11) NOT NULL,
+  `requester_user_no` INT(11) NOT NULL COMMENT '태그에 넣을 설명을 요청한 사용자',
+  `title` VARCHAR(100) NULL DEFAULT NULL,
+  `content` VARCHAR(500) NULL DEFAULT NULL,
+  `link` VARCHAR(200) NULL DEFAULT NULL,
+  `status` ENUM('PENDING','APPROVED','REJECTED') NOT NULL DEFAULT 'PENDING',
+  `reject_message` VARCHAR(500) NULL DEFAULT NULL COMMENT '관리자가 거절할 때 남기는 멘트. 승인이면 NULL',
+  `reviewed_by_admin_id` INT(11) NULL DEFAULT NULL,
+  `reviewed_at` DATETIME NULL DEFAULT NULL,
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`tag_profile_request_id`) USING BTREE,
+  KEY `IDX_ultary_tag_profile_request_tag_status` (`tag_id`, `status`) USING BTREE,
+  KEY `IDX_ultary_tag_profile_request_requester` (`requester_user_no`, `status`) USING BTREE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_general_ci COMMENT='상업 태그 설명 승인 요청. 승인 전에는 태그 조회에 설명이 안 나온다';
+
+CREATE TABLE `ultary_tag_profile_request_image` (
+  `tag_profile_request_image_id` INT(11) NOT NULL AUTO_INCREMENT,
+  `tag_profile_request_id` INT(11) NOT NULL,
+  `file_id` INT(11) NOT NULL,
+  `sort_order` INT(11) NOT NULL DEFAULT 0,
+  PRIMARY KEY (`tag_profile_request_image_id`) USING BTREE,
+  UNIQUE KEY `UK_ultary_tag_profile_request_image_sort` (`tag_profile_request_id`, `sort_order`) USING BTREE,
+  KEY `IDX_ultary_tag_profile_request_image_file` (`file_id`) USING BTREE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_general_ci COMMENT='상업 태그 설명 요청에 첨부한 이미지';
 
 CREATE TABLE `ultary_user_search_history` (
   `user_search_history_id` INT(11) NOT NULL AUTO_INCREMENT,
@@ -549,7 +585,7 @@ CREATE TABLE `ultary_notification` (
 
 CREATE TABLE `ultary_notification_setting` (
   `user_no` INT(11) NOT NULL COMMENT '설정 주인. 행이 없으면 알림 전부 켜짐',
-  `neighbor` TINYINT(1) NOT NULL DEFAULT 1 COMMENT '팔로우 신청',
+  `neighbor` TINYINT(1) NOT NULL DEFAULT 1 COMMENT '팔로우·팔로우 요청',
   `like_post` TINYINT(1) NOT NULL DEFAULT 1 COMMENT '게시글 좋아요',
   `like_comment` TINYINT(1) NOT NULL DEFAULT 1 COMMENT '댓글 좋아요',
   `like_reply` TINYINT(1) NOT NULL DEFAULT 1 COMMENT '답글 좋아요',
@@ -814,6 +850,15 @@ ALTER TABLE `ultary_feed_tag`
 ALTER TABLE `ultary_tag_image`
   ADD CONSTRAINT `FK_tag_image_tag` FOREIGN KEY (`tag_id`) REFERENCES `ultary_tag` (`tag_id`) ON UPDATE CASCADE ON DELETE RESTRICT,
   ADD CONSTRAINT `FK_tag_image_file` FOREIGN KEY (`file_id`) REFERENCES `ultary_file` (`file_id`) ON UPDATE CASCADE ON DELETE RESTRICT;
+
+ALTER TABLE `ultary_tag_profile_request`
+  ADD CONSTRAINT `FK_tag_profile_request_tag` FOREIGN KEY (`tag_id`) REFERENCES `ultary_tag` (`tag_id`) ON UPDATE CASCADE ON DELETE RESTRICT,
+  ADD CONSTRAINT `FK_tag_profile_request_user` FOREIGN KEY (`requester_user_no`) REFERENCES `ultary_user` (`user_no`) ON UPDATE CASCADE ON DELETE RESTRICT,
+  ADD CONSTRAINT `FK_tag_profile_request_admin` FOREIGN KEY (`reviewed_by_admin_id`) REFERENCES `ultary_admin` (`admin_no`) ON UPDATE CASCADE ON DELETE SET NULL;
+
+ALTER TABLE `ultary_tag_profile_request_image`
+  ADD CONSTRAINT `FK_tag_profile_request_image_request` FOREIGN KEY (`tag_profile_request_id`) REFERENCES `ultary_tag_profile_request` (`tag_profile_request_id`) ON UPDATE CASCADE ON DELETE CASCADE,
+  ADD CONSTRAINT `FK_tag_profile_request_image_file` FOREIGN KEY (`file_id`) REFERENCES `ultary_file` (`file_id`) ON UPDATE CASCADE ON DELETE RESTRICT;
 
 ALTER TABLE `ultary_user_search_history`
   ADD CONSTRAINT `FK_user_search_user` FOREIGN KEY (`user_no`) REFERENCES `ultary_user` (`user_no`) ON UPDATE CASCADE ON DELETE CASCADE,

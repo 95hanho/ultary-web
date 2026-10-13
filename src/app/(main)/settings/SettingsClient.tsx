@@ -10,6 +10,7 @@ import {
   Bookmark,
   Eye,
   FileText,
+  Hash,
   HelpCircle,
   Info,
   List,
@@ -59,6 +60,7 @@ const MENU_GROUPS: MenuGroup[] = [
     title: '활동 · 관계',
     items: [
       { label: '내 활동', href: '/settings/activity', Icon: List },
+      { label: '해시태그 요청', href: '/settings/hashtags', Icon: Hash },
       { label: '저장한 게시글', href: '/settings/saved', Icon: Bookmark },
       { label: '차단한 사용자', href: '/settings/blocked', Icon: Ban },
     ],

@@ -77,11 +77,17 @@
 | `GET /notifications/unread-count` | `unreadCount` | 하단 배지. 읽음 처리 없음. `/auth/me`에 없음. 소켓이 같은 숫자를 `NOTIFICATION_UNREAD`로 밀어 줌 |
 | `POST /ws/ticket` | `ticket`, `expiresIn` | 웹소켓 입장 토큰. 30초, 한 번. Bearer. 소켓은 `ws://{Spring}/api/v1/ws` 로 브라우저가 직접 연결 |
 | 웹소켓 `/api/v1/ws` | 텍스트 JSON | 첫 메시지 `{type:AUTH,ticket}`. 성공 `AUTH_OK` 후 `NOTIFICATION_UNREAD`. 새 DM은 `DM_MESSAGE`(받는 사람 기준 `fromMe`). 읽음은 상대에게 `DM_READ`. 입력 중은 상대에게 `DM_TYPING`. 25초마다 `PING` |
-| `GET /notifications` | `unreadCount`, `items` | 알림 페이지. 목록을 준 뒤 그때까지 안 읽은 알림을 읽음 처리. `message`는 서버 문장. `snippet`은 텍스트 일부. 이동은 `feedId`·`feedCommentId`·`feedReplyId`·`storyId`·`neighborId`. 수락 버튼은 `neighborStatus=PENDING` |
-| `GET /settings/activities` | `items` | 내 활동. 내가 한 좋아요·댓글·답글·팔로우 신청·게시글·스토리. `type`, `occurredAt`, `targetNickname`, `profileFile`, `snippet`. 취소 버튼은 내가 보낸 신청이 `neighborStatus=PENDING`일 때 |
+| `GET /notifications` | `unreadCount`, `items` | 알림 페이지. 목록을 준 뒤 그때까지 안 읽은 알림을 읽음 처리. `message`는 서버 문장. 팔로우는 «팔로우를 요청했습니다» 또는 «팔로우했습니다». `following`이 false면 팔로우, true면 취소. `PENDING` 팔로우는 `POST /neighbors/{neighborId}/accept`, 이미 팔로우된 맞팔은 `POST /users/{actorUserNo}/neighbors/request`, 취소는 `DELETE /neighbors/{neighborId}` |
+| `GET /settings/activities` | `items` | 내 활동. 내가 한 좋아요·댓글·답글·팔로우·게시글·스토리. `neighborStatus`가 `PENDING` 또는 `ACCEPTED`면 취소 `DELETE /neighbors/{neighborId}` |
 | `GET /settings/notifications` · `PATCH` | 스위치 10개 | 알림 종류별 켜기. 없으면 전부 켜짐. PATCH는 넣은 필드만. 끈 종류는 알림 목록에서 빠짐 |
 | `GET /settings/privacy` · `PATCH` | 공개 범위 7개 | 비공개 계정, 게시글·스토리 범위, 팔로우 신청·댓글·멘션·태그. 행이 없으면 기본값. PATCH는 넣은 필드만 |
 | `GET /users/{userNo}/neighbors?type=` | 배열 | 팔로우·팔로워 목록. `FOLLOW` 팔로우(기본), `FOLLOWER` 팔로워. 응답 `listType`도 같다. 카운트는 `followCount`, `followerCount`. 채팅 상대도 이 목록 |
+| `GET /dm/share-targets` | `items` | 피드 공유 대상. `group` 1 한 달 DM, 2 한 달 내 팔로우, 3 한 달 팔로워, 4 나머지 최신순. `userNo`, `nickname`, `profileFile`, `dmRoomId`, `following`, `followedBy`, `activeAt` |
+| `GET /tags/{tagId}` | 태그 | `purpose`는 `USER` 또는 `COMMERCIAL`. `title`·`content`·`link`·`images`는 `profileStatus=APPROVED`일 때만. 요청자만 `profileRequest` |
+| `POST /tags/{tagId}/profile-requests` | 요청 1개 | 상업 태그에 넣을 설명. 관리자 승인 후에만 태그 조회에 나온다 |
+| `GET /tags/profile-requests` | 배열 | 내가 넣은 태그 설명 요청. `status`를 비우면 전부 |
+| `GET /admin/tags/profile-requests` | 배열 | 상업 태그 설명 요청. 기본 `PENDING` |
+| `POST /admin/tags/{tagId}/approve` · `reject` | 요청 1개 | 대기 요청을 승인하거나 거절. 승인하면 그 설명이 태그에 공개된다. 거절 Body `rejectMessage`는 신청자 목록의 `rejectMessage`로 남는다 |
 | `GET /dm/rooms` | `items` | 내 대화방. `peerUserNo`, `peerNickname`, `profileFile`, `lastMessage`, `lastMessageAt`, `unreadCount`, `following`, `followedBy` |
 | `POST /dm/rooms` | 방 1개 | `{ targetUserNo }`. 팔로우 또는 팔로워만. 있으면 그 방을 다시 연다. 응답에 `following`, `followedBy` |
 | `GET /dm/rooms/{roomId}/messages` | `items`, `nextCursorMessageId`, `peerLastReadMessageId`, `following`, `followedBy` | 오래된 순. 조회하면 읽음. `following`·`followedBy`는 그 방 상대와 나. 둘 다 false면 팔로우 관계가 아님 |

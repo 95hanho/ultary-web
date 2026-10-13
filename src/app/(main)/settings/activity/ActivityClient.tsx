@@ -40,8 +40,7 @@ type ActivityItem = {
   replyId?: string;
   storyId?: string;
   neighborId?: string;
-  /** PENDING일 때만 취소 버튼 */
-  neighborPending?: boolean;
+  neighborStatus?: string;
   monthKey: string;
   monthLabel: string;
 };
@@ -150,7 +149,7 @@ function mapActivity(raw: unknown, index: number): ActivityItem | null {
     replyId,
     storyId,
     neighborId,
-    neighborPending: kind === 'neighbor' && raw.neighborStatus === 'PENDING' && Boolean(neighborId),
+    neighborStatus: typeof raw.neighborStatus === 'string' ? raw.neighborStatus : undefined,
     monthKey: month.key,
     monthLabel: month.label,
   };
@@ -291,7 +290,12 @@ function ActivityMessage({ item }: { item: ActivityItem }) {
       );
       break;
     case 'neighbor':
-      action = <>{nick}님에게 팔로우를 신청했습니다.</>;
+      action =
+        item.neighborStatus === 'ACCEPTED' ? (
+          <>{nick}님을 팔로우했습니다.</>
+        ) : (
+          <>{nick}님에게 팔로우를 요청했습니다.</>
+        );
       break;
     case 'post':
       action = (
@@ -362,7 +366,7 @@ export default function ActivityClient() {
         return next;
       });
     } catch (err) {
-      setStatus(pickErrorMessage(err, '팔로우 신청을 취소하지 못했습니다.'));
+      setStatus(pickErrorMessage(err, '팔로우를 취소하지 못했습니다.'));
     } finally {
       setCancelingId(null);
     }
@@ -382,7 +386,10 @@ export default function ActivityClient() {
             <ul className={styles.list}>
               {group.items.map((item) => {
                 const ultaryHref = item.targetNickname ? myUltaryPath(item.targetNickname) : '';
-                const showCancel = item.neighborPending;
+                const showCancel =
+                  item.kind === 'neighbor' &&
+                  Boolean(item.neighborId) &&
+                  (item.neighborStatus === 'PENDING' || item.neighborStatus === 'ACCEPTED');
 
                 return (
                   <li key={item.id} className={styles.item}>

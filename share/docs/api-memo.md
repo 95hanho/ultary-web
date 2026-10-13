@@ -214,12 +214,18 @@ BFF: `/api/...` · Spring: `/api/v1/...`
 | handle 변경/최초 설정 (설정·변경 후 30일 쿨다운) | PATCH | `/api/tags/:tagId/handle` |
 | 태그 검색 | GET | `/api/tags/search` |
 | 내용 입력 시 태그 추천 | GET | `/api/tags/recommend` |
+| 상업 태그 설명 요청 | POST | `/api/tags/:tagId/profile-requests` |
+| 내 태그 설명 요청 | GET | `/api/tags/profile-requests` |
 
 > `hashtag`는 생성 후 불변. `handle`은 선택·UNIQUE. handle 미설정(`handle_changed_at` NULL)이면 최초 설정은 언제든 가능. 생성 시 handle을 넣으면 그 시점부터 30일 쿨다운.
 
-> 태그 클릭 `GET /api/v1/tags/{tagId}`의 `data.feedCount`는 그 태그가 달린 게시글 수다. 지금 보고 있는 글은 포함하고, 삭제된 글은 뺀다. 다른 게시글보기 버튼은 `feedCount > 1`일 때만 보이고, 숫자는 `feedCount - 1`이다. `useCount`는 쓰지 않는다.
+> `purpose`는 `USER`(설명 없는 일반 해시태그) 또는 `COMMERCIAL`(상업 태그). 제목·소개·링크·이미지가 있으면 상업이다. `profileStatus`는 `NONE` | `PENDING` | `APPROVED` | `REJECTED`. 태그 조회·검색·추천의 `title`, `content`, `link`, `images`는 `profileStatus=APPROVED`일 때만 채워진다. 그 전에는 null과 빈 배열이다.
 
-> 해시태그 / 반려동물 태그명 / 관리자 검수 대상 태그는 구현 시 구분한다.
+> 상업 설명을 태그에 넣으려면 `POST /tags/{tagId}/profile-requests`. Body `title`, `content`, `link`, `imageFileIds`. 넷 중 하나는 있어야 한다. 같은 태그에 대기 요청이 있으면, 요청한 본인은 그 요청을 고치고 다른 사람은 `409` `TAG_PROFILE_REQUEST_OPEN`. 빈 요청은 `400` `TAG_PROFILE_REQUEST_EMPTY`. 대기 요청이 없는데 승인·거절하면 `404` `TAG_PROFILE_REQUEST_NOT_FOUND`. 태그를 만들 때 설명을 넣어도 바로 공개되지 않고 같은 요청이 생긴다. 작성자 `PATCH /tags/{tagId}`에 `title`·`content`·`link`를 넣어도 공개 컬럼을 바꾸지 않고 요청이 된다. `clearTitle`·`clearContent`·`clearLink`만 보내면 이미 공개된 설명을 바로 지운다.
+
+> 요청한 사람만 태그 응답의 `profileRequest`에서 대기·결과 내용을 본다. 목록은 `GET /tags/profile-requests?status=&limit=`. `status`를 비우면 내 요청 전부. 항목은 `requestId`, `tagId`, `hashtag`, `requesterUserNo`, `title`, `content`, `link`, `imageFileIds`, `images`, `status`, `rejectMessage`, `createdAt`, `reviewedAt`. `rejectMessage`는 거절일 때만 있고, 없으면 null이다.
+
+> 태그 클릭 `GET /api/v1/tags/{tagId}`의 `data.feedCount`는 그 태그가 달린 게시글 수다. 지금 보고 있는 글은 포함하고, 삭제된 글은 뺀다. 다른 게시글보기 버튼은 `feedCount > 1`일 때만 보이고, 숫자는 `feedCount - 1`이다. `useCount`는 쓰지 않는다.
 
 ---
 
@@ -245,7 +251,7 @@ BFF: `/api/...` · Spring: `/api/v1/...`
 > `type=FOLLOW`(팔로우, 기본) · `type=FOLLOWER`(팔로워). 예전 `RESIDENTS`·`NEIGHBORS`도 같은 목록으로 받는다. 응답 `listType`은 `FOLLOW` 또는 `FOLLOWER`.  
 > `pair_key` = `minUserNo:maxUserNo` (한 쌍에 관계 행 1개).  
 > 목록 항목에 `petTags`(펫 `mentionId`, `@` 없음, `priority` 순, 없으면 `[]`)와 `following`(로그인한 내가 그 유저를 팔로우 중이면 true). 버튼은 `neighborId` 유무가 아니라 `following`으로 나눈다. `false`면 팔로우, `true`면 팔로우 끊기.  
-> 상대만 나를 팔로우한 상태(`following=false`, `followedBy=true`)에서 `POST /users/{userNo}/neighbors/request`는 새 행을 만들지 않고 그 행을 맞팔(`followed_back=1`)로 바로 연결한다. 응답 `status`는 `ACCEPTED`, `followedBack=true`. 이미 내가 팔로우 중이면 `409` `NEIGHBOR_ALREADY_EXISTS`. 상대가 신청을 꺼 두면 `403` `NEIGHBOR_REQUEST_CLOSED`. 맞팔에서 `DELETE /neighbors/{neighborId}`는 호출한 사람의 팔로우만 끊고, 상대 팔로우는 남긴다. 한 방향뿐이면 행을 지운다.  
+> 상대가 공개 계정이면 `POST /users/{userNo}/neighbors/request`는 바로 `ACCEPTED`다. 신청한 사람만 팔로우하고 `followedBack=false`. 비공개 계정이면 `PENDING`이고, 상대가 수락하면 `ACCEPTED`이면서 `followedBack=true`(수락한 사람도 신청한 사람을 팔로우). 둘 다 상대에게 알림이 간다. 맞팔 전용 상태값은 없다. `followed_back=1`이 서로 팔로우다. 상대만 나를 팔로우한 상태(`following=false`, `followedBy=true`)에서 다시 신청하면 새 행 없이 맞팔로 바로 연결한다. 이미 내가 팔로우 중이면 `409` `NEIGHBOR_ALREADY_EXISTS`. 상대가 신청을 꺼 두면 `403` `NEIGHBOR_REQUEST_CLOSED`. 맞팔에서 `DELETE /neighbors/{neighborId}`는 호출한 사람의 팔로우만 끊고, 상대 팔로우는 남긴다. 한 방향뿐이면 행을 지운다.  
 > 울타리 `relationStatus`는 한 방향이라도 연결되면 `ACCEPTED`. 방향은 `following`, `followedBy`. `privateAccount`는 비공개 계정. 본인이 아니고 `privateAccount=true`이며 `following=false`이면 게시글·고정·태그 그리드는 빈 배열이고, `hasStory`도 false다. `feedCount`는 그대로다. 맞팔은 `following=true`다. 상대만 나를 팔로우한 ACCEPTED는 글을 열지 않는다.  
 > `relationStatus`: `NONE` \| `PENDING_SENT` \| `PENDING_RECEIVED` \| `ACCEPTED` \| `REJECTED` \| `BLOCKED`.  
 > **스토리 버튼**: 응답에 `hasStory`, `hasUnviewed`. 그 사람의 활성 스토리를 **내가** 안 읽은 게 있으면 `hasUnviewed=true`. 없으면 다 읽음, 스토리 자체가 없으면 `hasStory=false`. 내 울타리와 같은 규칙.  
@@ -285,9 +291,16 @@ BFF: `/api/...` · Spring: `/api/v1/...`
 | 입력 중 | POST | `/api/dm/rooms/:roomId/typing` | `/api/v1/dm/rooms/{roomId}/typing` | 구현 |
 | 대화방 메시지 조회 | GET | `/api/dm/rooms/:roomId/messages` | `/api/v1/dm/rooms/{roomId}/messages` | 구현 |
 | 메시지 전송 | POST | `/api/dm/rooms/:roomId/messages` | `/api/v1/dm/rooms/{roomId}/messages` | 구현 |
+| 공유 대상 | GET | `/api/dm/share-targets` | `/api/v1/dm/share-targets` | 구현 |
 
 > 1:1. 같은 두 사람은 방 1개(`pair_key`). 팔로우 또는 팔로워(`ACCEPTED`)만 만들고 보낼 수 있다. 차단이면 `USER_BLOCKED`.
 > **대화 상대 고르기**는 울타리 목록과 같다. `GET /users/{내 userNo}/neighbors?type=FOLLOW`(팔로우), `type=FOLLOWER`(팔로워). 항목의 `userNo`로 `POST /dm/rooms` `{ targetUserNo }`.
+> **피드 공유 «메시지로 보내기»**는 `GET /dm/share-targets`. 한 사람은 한 번만. 기본 30, 최대 50, 쿼리 `limit`. 탈퇴·차단은 빠진다. 한 달은 지금으로부터 1개월. `group` 1→2→3→4 순이고, 그룹 안은 `activeAt` 최신순.
+> 1. 한 달 안에 메시지를 주고받은 사람. `activeAt`은 그 방의 마지막 메시지.
+> 2. 한 달 안에 내가 팔로우한 사람. 1에 있으면 여기 없음.
+> 3. 한 달 안에 나를 팔로우한 사람. 1·2에 있으면 여기 없음.
+> 4. 나머지. DM이 있거나, 내가 팔로우했거나, 나를 팔로우한 사람을 합쳐 그 시각 중 가장 최근.
+> 항목: `userNo`, `nickname`, `profileFile`(대표 펫 사진, 없으면 null), `dmRoomId`(없으면 null), `following`, `followedBy`, `group`, `activeAt`. 보내기는 기존 `POST /dm/rooms`와 메시지 전송. 팔로우 또는 팔로워가 아니면 방은 만들 수 없다.
 > 목록 `items`(기본 30, 최대 50). 최신 메시지 순. `peerUserNo`, `peerNickname`, `profileFile`(대표 펫 사진, 없으면 null), `lastMessage`, `lastMessageAt`, `unreadCount`, `following`, `followedBy`. `following`은 내가 상대를 팔로우 중, `followedBy`는 상대가 나를 팔로우 중. `ACCEPTED`만 true. 신청 중·없으면 false. 둘 다 false면 팔로우 관계가 아니다. 방이 남아 있어도 관계가 끊기면 둘 다 false. 글이 있으면 그 글, 공유만 있으면 «게시글을 공유했습니다» / «스토리를 공유했습니다». 나간 방, 탈퇴·차단 상대는 빠진다.
 > 메시지 `items`는 오래된 순. `beforeMessageId`로 더 이전. `nextCursorMessageId`가 있으면 그 값으로 이어서 조회. `peerLastReadMessageId`는 상대가 읽은 마지막 메시지 번호이고, 아직 없으면 null. 응답 최상위에 그 방 상대 기준 `following`, `followedBy`. 조회하면 그 방의 최신 메시지까지 읽음. `fromMe`, `body`(없으면 null), `createdAt`. 화면의 «방금/어제»는 `createdAt`으로 그린다. 헤더 «울타리»는 `peerUserNo`. `following`과 `followedBy`가 둘 다 false면 «* 팔로우 관계가 아닙니다.»
 > **보는 중** `{ viewing: true }` 를 방에 들어온 뒤 약 10초마다 보낸다. 20초 동안 없으면 나간 것으로 본다. `{ viewing: false }` 는 방을 나갈 때. 둘 다 이 방을 보고 있으면, 한쪽이 보낸 메시지는 그 자리에서 상대가 읽은 것으로 기록된다.
@@ -320,13 +333,24 @@ BFF: `/api/...` · Spring: `/api/v1/...`
 | 스토리 공감 | POST | `/api/stories/:storyId/like` | `/api/v1/stories/{storyId}/like` | 구현 |
 | 스토리 공감 취소 | DELETE | `/api/stories/:storyId/like` | `/api/v1/stories/{storyId}/like` | 구현 |
 
-목록 `data`: `unreadCount`, `items`(기본 30, 최대 50, 쿼리 `limit`). 정렬은 마지막 행위 시각 내림차순. 항목: `type`, `message`, `actorUserNo`, `actorNickname`, `actorProfileFile`(대표 펫 사진, 없으면 null), `actorCount`, `snippet`(텍스트 일부, 최대 40자, 없으면 null), 이동용 `feedId` / `feedCommentId` / `feedReplyId` / `storyId` / `neighborId`, `neighborStatus`, `read`, `updatedAt`. `hasComment`·`hasReply`는 댓글·답글 통합 행만 의미 있다.
+목록 `data`: `unreadCount`, `items`(기본 30, 최대 50, 쿼리 `limit`). 정렬은 마지막 행위 시각 내림차순. 항목: `type`, `message`, `actorUserNo`, `actorNickname`, `actorProfileFile`(대표 펫 사진, 없으면 null), `actorCount`, `snippet`(텍스트 일부, 최대 40자, 없으면 null), 이동용 `feedId` / `feedCommentId` / `feedReplyId` / `storyId` / `neighborId`, `neighborStatus`, `following`, `read`, `updatedAt`. `hasComment`·`hasReply`는 댓글·답글 통합 행만 의미 있다. `following`은 팔로우 알림에서, 받은 내가 행위자를 팔로우 중이면 true.
 
-같은 대상은 알림 1행이다. `actorCount`가 2 이상이면 `message`는 «닉네임님 외 N명». 새 행위가 있으면 안 읽음으로 되돌리고 목록 맨 위로 올린다. 본인 행위, 탈퇴한 행위자, 서로 차단, 삭제된 게시글·스토리는 빠진다. 알림 설정에서 끈 종류도 목록과 `unreadCount`에서 빠지고, 그 사이 생긴 알림은 저장하지 않는다. 팔로우 신청의 수락 버튼은 `neighborStatus=PENDING`일 때만. 수락 API는 기존 `POST /neighbors/{neighborId}/accept`.
+같은 대상은 알림 1행이다. `actorCount`가 2 이상이면 `message`는 «닉네임님 외 N명». 새 행위가 있으면 안 읽음으로 되돌리고 목록 맨 위로 올린다. 본인 행위, 탈퇴한 행위자, 서로 차단, 삭제된 게시글·스토리는 빠진다. 알림 설정에서 끈 종류도 목록과 `unreadCount`에서 빠지고, 그 사이 생긴 알림은 저장하지 않는다. 팔로우는 공개·비공개 모두 알림을 남긴다. 관계가 있는 동안 그 알림은 지우지 않는다. 보류는 버튼을 누르지 않는 것이다.
+
+팔로우 알림 항목에 `following`이 있다. 알림을 받은 내가 그 사람을 팔로우 중이면 true. `message`는 서버 문장이다. 상대가 나를 팔로우 중이면 «닉네임님이 팔로우했습니다.» 요청만 있으면 «닉네임님이 팔로우를 요청했습니다.»
+
+| `following` | `neighborStatus` | 버튼 | 호출 |
+|-------------| ------------------|------|------|
+| false | `PENDING` | 팔로우 | `POST /neighbors/{neighborId}/accept`. 수락하면 서로 팔로우 |
+| false | `ACCEPTED` | 팔로우 | `POST /users/{actorUserNo}/neighbors/request`. 맞팔 |
+| true | `ACCEPTED` | 취소 | `DELETE /neighbors/{neighborId}`. 내 팔로우만 해제 |
+| false | `REJECTED` 또는 없음 | 없음 |  |
+
+맞팔로 이어지면 상대에게도 «팔로우했습니다.»가 간다. 그때 원래 알림의 `following`은 true가 되어 버튼이 취소로 바뀐다.
 
 | type | 생기는 때 | 모이는 단위 | 이동 |
 |------|-----------|-------------|------|
-| `NEIGHBOR_REQUEST` | 다른 유저가 나에게 팔로우 신청 | 요청 1건 | `neighborId` |
+| `NEIGHBOR_REQUEST` | 다른 유저가 나를 팔로우했거나 팔로우를 요청 | 그 관계 | `neighborId`. `message`·`following`으로 팔로우/취소 |
 | `FEED_LIKE` | 내 게시글 좋아요 | 그 게시글의 좋아요 | `feedId`. `snippet`은 본문 |
 | `COMMENT_LIKE` | 내 댓글 좋아요 | 그 댓글의 좋아요 | `feedId`, `feedCommentId`. `snippet`은 댓글 |
 | `REPLY_LIKE` | 내 답글 좋아요 | 그 답글의 좋아요 | `feedId`, `feedCommentId`, `feedReplyId`. `snippet`은 답글 |
@@ -367,7 +391,7 @@ BFF: `/api/...` · Spring: `/api/v1/...`
 | `REPLY_LIKE` | OO님의 답글에 좋아요 | 답글 작성자 | 답글 | `feedId`, `feedCommentId`, `feedReplyId` |
 | `FEED_COMMENT` | OO님의 게시글에 댓글 | 게시글 작성자 | 내가 쓴 댓글 | `feedId`, `feedCommentId` |
 | `FEED_REPLY` | OO님의 댓글에 답글 | 댓글 작성자 | 내가 쓴 답글 | `feedId`, `feedCommentId`, `feedReplyId` |
-| `NEIGHBOR_REQUEST` | OO님에게 팔로우를 신청 | 받은 사람 | 없음 | `neighborId`. `PENDING`이면 취소 `DELETE /neighbors/{neighborId}`. `ACCEPTED`·`REJECTED`는 버튼 없음 |
+| `NEIGHBOR_REQUEST` | 요청이면 OO님에게 팔로우를 요청, 팔로우면 OO님을 팔로우 | 받은 사람 | 없음 | `neighborId`. `PENDING`·`ACCEPTED`면 취소 `DELETE /neighbors/{neighborId}`. `REJECTED`는 버튼 없음 |
 | `FEED` | 게시글을 올렸습니다 | 나 | 본문 | `feedId` |
 | `STORY` | 스토리를 올렸습니다 | 나 | 캡션 | `storyId` |
 
@@ -375,7 +399,7 @@ BFF: `/api/...` · Spring: `/api/v1/...`
 
 | 필드 | 화면 | 알림 type |
 |------|------|-----------|
-| `neighbor` | 팔로우 신청 | `NEIGHBOR_REQUEST` |
+| `neighbor` | 팔로우·팔로우 요청 | `NEIGHBOR_REQUEST` |
 | `likePost` | 게시글 좋아요 | `FEED_LIKE` |
 | `likeComment` | 댓글 좋아요 | `COMMENT_LIKE` |
 | `likeReply` | 답글 좋아요 | `REPLY_LIKE` |
@@ -407,8 +431,9 @@ BFF: `/api/...` · Spring: `/api/v1/...`
 | 관리자 로그인 | POST | `/api/admin/auth/login` | `/api/v1/admin/auth/login` |
 | 관리자 토큰 재발급 | POST | `/api/admin/auth/refresh` | `/api/v1/admin/auth/refresh` |
 | 관리자 로그아웃 | POST | `/api/admin/auth/logout` | `/api/v1/admin/auth/logout` |
-| 태그 승인 | POST | `/api/admin/tags/:tagId/approve` | `/api/v1/admin/tags/:tagId/approve` |
-| 태그 거절 | POST | `/api/admin/tags/:tagId/reject` | `/api/v1/admin/tags/:tagId/reject` |
+| 상업 태그 설명 요청 목록 | GET | `/api/admin/tags/profile-requests?status=&limit=` | `/api/v1/admin/tags/profile-requests` |
+| 상업 태그 설명 승인 | POST | `/api/admin/tags/:tagId/approve` | `/api/v1/admin/tags/:tagId/approve` |
+| 상업 태그 설명 거절 | POST | `/api/admin/tags/:tagId/reject` | `/api/v1/admin/tags/:tagId/reject` |
 | 회원 정지 | POST | `/api/admin/users/:userNo/suspend` | `/api/v1/admin/users/:userNo/suspend` |
 | 회원 정지 해제 | POST | `/api/admin/users/:userNo/unsuspend` | `/api/v1/admin/users/:userNo/unsuspend` |
 | 신고 목록 | GET | `/api/admin/reports?status=&limit=` | `/api/v1/admin/reports` |
@@ -425,6 +450,8 @@ BFF: `/api/...` · Spring: `/api/v1/...`
 재발급 `POST /api/v1/admin/auth/refresh`. Body `refreshToken`. 회원 리프레시 토큰은 `401` `INVALID_TOKEN`. 로그아웃 `POST /api/v1/admin/auth/logout`는 관리자 액세스 토큰이 필요하고, 그 관리자의 리프레시만 폐기한다.
 
 `/api/v1/admin` 아래 나머지 API는 관리자 액세스 토큰만 받는다. 회원 Bearer는 `401`이다.
+
+상업 태그 설명 요청 목록 기본 `status=PENDING`, `limit` 기본 30 최대 50. 항목은 사용자 요청과 같다. `POST /admin/tags/{tagId}/approve`는 그 태그의 대기 요청을 승인하고, 제목·소개·링크·이미지로 공개 설명을 바꾼다. 이후 태그 조회에 설명이 나온다. `reject`는 대기 요청만 거절한다. Body `rejectMessage`는 500자 이하이고, 비우거나 본문을 빼면 null로 저장한다. 신청자는 내 요청 목록과 태그 조회의 `profileRequest.rejectMessage`에서 본다. 이미 공개된 설명은 그대로 두고, 한 번도 승인되지 않았으면 `profileStatus=REJECTED`라 설명이 안 나온다. 응답은 그 요청이다.
 
 회원 정지는 `withdrawal_status=SUSPENDED`, `suspended_at=지금`. 리프레시 토큰은 폐기한다. 응답 `data`는 `userNo`, `withdrawalStatus`, `suspendedAt`. 없는 회원 `404` `USER_NOT_FOUND`. 이미 정지면 `409` `ACCOUNT_ALREADY_SUSPENDED`. 탈퇴 계정이면 `409` `CANNOT_SUSPEND_WITHDRAWN`. 해제는 `ACTIVE`로 되돌리고 `suspended_at`을 비운다. 정지가 아니면 `409` `ACCOUNT_NOT_SUSPENDED`.
 
@@ -454,7 +481,7 @@ HTTP: `requests/test.http`
 - 코드 상수: `src/lib/api/endpoints.ts` (`bffEndpoints` / `springEndpoints`)
 - BFF 스켈레톤: `src/app/api/**/route.ts`
 - REST Client 틀: `http/bff.http` (프론트) · Spring: `requests/*.http`
-- DB 스키마: `share/database/schema/mariadb_10_1/001_init_schema.sql` (**schema_version 25**)
+- DB 스키마: `share/database/schema/mariadb_10_1/001_init_schema.sql` (**schema_version 27**)
   - 기존 DB v7→v8: `002_file_source_attribution.sql`
   - 기존 DB v8→v9: `003_comment_reply_like.sql`
   - 기존 DB v9→v10: `004_search_history_user_only.sql` (최근 검색 = 들어간 유저 울타리만)
@@ -471,6 +498,8 @@ HTTP: `requests/test.http`
   - 기존 DB v20→v21: `015_report_reason.sql` (`ultary_report.reason` 신고 사유 ENUM)
   - 기존 DB v21→v22: `016_report_status.sql` (`ultary_report.status` 신고요청·삭제조치·거절·보류·정지)
   - 기존 DB v22→v23: `017_report_confirmed.sql` (`ultary_report.status`에 `CONFIRMED` 확인)
+  - 기존 DB v26→v27: `021_tag_profile_reject_message.sql` (상업 태그 거절 멘트)
+  - 기존 DB v25→v26: `020_tag_purpose.sql` (태그 `purpose`·`profile_status`, 상업 설명 승인 요청)
   - 기존 DB v24→v25: `019_follow_wording.sql` (팔로우·팔로워 설명. 컬럼 값 변경 없음)
   - 기존 DB v23→v24: `018_neighbor_follow_back.sql` (`ultary_neighbor.followed_back` 맞팔)
   - `ultary_file` 출처: `source_type`(OWNED|UNSPLASH|AI|ETC), `author_name`, `source_url`, `license_url`, `copyright_notice`
