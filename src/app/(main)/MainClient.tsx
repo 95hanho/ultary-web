@@ -164,7 +164,7 @@ export default function MainClient() {
 
   return (
     <div className={styles.shell}>
-      <LogoHeader />
+      <LogoHeader hideOnDesktop />
 
       <main className={styles.main}>
         <section className={styles.stories} aria-label="스토리">

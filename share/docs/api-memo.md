@@ -29,7 +29,7 @@ BFF: `/api/...` · Spring: `/api/v1/...`
 | 닉네임 변경 가능 여부 | GET | `/api/auth/me/nickname/change-availability` | `/api/v1/auth/me/nickname/change-availability` |
 | 닉네임 변경 (생성·변경 후 7일 쿨다운) | PATCH | `/api/auth/me/nickname` | `/api/v1/auth/me/nickname` |
 | 회원탈퇴 | DELETE | `/api/auth/me` | `/api/v1/auth/me` |
-| 회원가입 | POST | `/api/auth/signup` | `/api/v1/auth/signup` |
+| 회원가입 | POST | `/api/auth/signup` | `/api/v1/auth/signup` | `phoneAuthCompleteToken`, `password`, `nickname`, `name`, `email`, `regionSido`, `regionSigungu`. 지역은 비워도 된다 |
 | 휴대폰 인증 | POST | `/api/auth/phone` | `/api/v1/auth/phone` | 발송 전에 번호 중복. `purpose` 생략·`SIGNUP`은 가입된 번호 거절. `PROFILE`은 Bearer 필수, 내 번호만 허용. `PASSWORD`는 재설정이라 가입된 번호로 발송 |
 | 휴대폰 인증 확인 | POST | `/api/auth/phone/verify` | `/api/v1/auth/phone/verify` |
 | 비밀번호 변경 토큰 생성 | POST | `/api/auth/password/token` | `/api/v1/auth/password/token` |
@@ -223,7 +223,7 @@ BFF: `/api/...` · Spring: `/api/v1/...`
 
 > 상업 설명을 태그에 넣으려면 `POST /tags/{tagId}/profile-requests`. Body `title`, `content`, `link`, `imageFileIds`. 넷 중 하나는 있어야 한다. 같은 태그에 대기 요청이 있으면, 요청한 본인은 그 요청을 고치고 다른 사람은 `409` `TAG_PROFILE_REQUEST_OPEN`. 빈 요청은 `400` `TAG_PROFILE_REQUEST_EMPTY`. 대기 요청이 없는데 승인·거절하면 `404` `TAG_PROFILE_REQUEST_NOT_FOUND`. 태그를 만들 때 설명을 넣어도 바로 공개되지 않고 같은 요청이 생긴다. 작성자 `PATCH /tags/{tagId}`에 `title`·`content`·`link`를 넣어도 공개 컬럼을 바꾸지 않고 요청이 된다. `clearTitle`·`clearContent`·`clearLink`만 보내면 이미 공개된 설명을 바로 지운다.
 
-> 요청한 사람만 태그 응답의 `profileRequest`에서 대기·결과 내용을 본다. 목록은 `GET /tags/profile-requests?status=&limit=`. `status`를 비우면 내 요청 전부. 항목은 `requestId`, `tagId`, `hashtag`, `requesterUserNo`, `title`, `content`, `link`, `imageFileIds`, `images`, `status`, `rejectMessage`, `createdAt`, `reviewedAt`. `rejectMessage`는 거절일 때만 있고, 없으면 null이다.
+> 요청한 사람만 태그 응답의 `profileRequest`에서 대기·결과 내용을 본다. 목록은 `GET /tags/profile-requests?status=&limit=`. `status`를 비우면 내 요청 전부. 항목은 `requestId`, `tagId`, `hashtag`, `requesterUserNo`, `requesterNickname`, `title`, `content`, `link`, `imageFileIds`, `images`, `status`, `rejectMessage`, `createdAt`, `reviewedAt`. `rejectMessage`는 거절일 때만 있고, 없으면 null이다.
 
 > 태그 클릭 `GET /api/v1/tags/{tagId}`의 `data.feedCount`는 그 태그가 달린 게시글 수다. 지금 보고 있는 글은 포함하고, 삭제된 글은 뺀다. 다른 게시글보기 버튼은 `feedCount > 1`일 때만 보이고, 숫자는 `feedCount - 1`이다. `useCount`는 쓰지 않는다.
 
@@ -451,11 +451,11 @@ BFF: `/api/...` · Spring: `/api/v1/...`
 
 `/api/v1/admin` 아래 나머지 API는 관리자 액세스 토큰만 받는다. 회원 Bearer는 `401`이다.
 
-상업 태그 설명 요청 목록 기본 `status=PENDING`, `limit` 기본 30 최대 50. 항목은 사용자 요청과 같다. `POST /admin/tags/{tagId}/approve`는 그 태그의 대기 요청을 승인하고, 제목·소개·링크·이미지로 공개 설명을 바꾼다. 이후 태그 조회에 설명이 나온다. `reject`는 대기 요청만 거절한다. Body `rejectMessage`는 500자 이하이고, 비우거나 본문을 빼면 null로 저장한다. 신청자는 내 요청 목록과 태그 조회의 `profileRequest.rejectMessage`에서 본다. 이미 공개된 설명은 그대로 두고, 한 번도 승인되지 않았으면 `profileStatus=REJECTED`라 설명이 안 나온다. 응답은 그 요청이다.
+상업 태그 설명 요청 목록은 `status`를 비우면 `PENDING`·`APPROVED`·`REJECTED` 전부, 최신 `createdAt` 순이다. 넣으면 그 상태만. `limit` 기본 30 최대 50. 응답은 `items`, `nextCursorRequestId`. 다음 페이지는 `cursorRequestId`에 직전 `nextCursorRequestId`를 넣는다. 없으면 끝이고 `nextCursorRequestId`는 null이다. 항목은 사용자 요청과 같고, 요청한 회원 닉네임 `requesterNickname`이 있다. `POST /admin/tags/{tagId}/approve`는 그 태그의 대기 요청을 승인하고, 제목·소개·링크·이미지로 공개 설명을 바꾼다. 이후 태그 조회에 설명이 나온다. `reject`는 대기 요청만 거절한다. Body `rejectMessage`는 500자 이하이고, 비우거나 본문을 빼면 null로 저장한다. 신청자는 내 요청 목록과 태그 조회의 `profileRequest.rejectMessage`에서 본다. 이미 공개된 설명은 그대로 두고, 한 번도 승인되지 않았으면 `profileStatus=REJECTED`라 설명이 안 나온다. 응답은 그 요청이다.
 
 회원 정지는 `withdrawal_status=SUSPENDED`, `suspended_at=지금`. 리프레시 토큰은 폐기한다. 응답 `data`는 `userNo`, `withdrawalStatus`, `suspendedAt`. 없는 회원 `404` `USER_NOT_FOUND`. 이미 정지면 `409` `ACCOUNT_ALREADY_SUSPENDED`. 탈퇴 계정이면 `409` `CANNOT_SUSPEND_WITHDRAWN`. 해제는 `ACTIVE`로 되돌리고 `suspended_at`을 비운다. 정지가 아니면 `409` `ACCOUNT_NOT_SUSPENDED`.
 
-신고 목록 기본 `status=REQUESTED`, `limit` 기본 30 최대 50. 항목은 `reportId`, `reporterUserNo`, `targetType`, `targetUserNo`, `targetFeedId`, `targetCommentId`, `targetReplyId`, `reason`, `status`, `createdAt`, `processedAt`. `status`는 `REQUESTED` 신고요청, `CONFIRMED` 확인, `DELETED` 삭제조치, `REJECTED` 거절, `ON_HOLD` 보류, `SUSPENDED` 정지. 신고요청·확인·보류만 다시 조치할 수 있다. `confirm`은 신고요청만 `CONFIRMED`로 바꾼다. 확인 뒤에는 신고자가 취소할 수 없다. `delete-content`는 `FEED`·`COMMENT`·`REPLY`만. 대상을 소프트 삭제하고 상태를 `DELETED`로 둔다. 이미 삭제된 대상이면 상태만 바꾼다. `suspend`는 `USER` 신고만. 그 회원을 정지하고 상태를 `SUSPENDED`로 둔다. 이미 정지면 상태만 바꾼다. 대상 종류가 다르면 `400` `REPORT_ACTION_MISMATCH`. `reject`는 `REJECTED`, `hold`는 `ON_HOLD`. 없거나 이미 삭제조치·거절·정지인 신고는 `404` `REPORT_NOT_FOUND`, `409` `REPORT_ALREADY_CLOSED`.
+신고 목록은 `status`를 비우면 `REQUESTED`·`CONFIRMED`·`DELETED`·`REJECTED`·`ON_HOLD`·`SUSPENDED` 전부, 최신 `createdAt` 순이다. 넣으면 그 상태만. `limit` 기본 30 최대 50. 응답은 `items`, `nextCursorReportId`. 다음 페이지는 `cursorReportId`에 직전 `nextCursorReportId`를 넣는다. 없으면 끝이고 `nextCursorReportId`는 null이다. 항목은 `reportId`, `reporterUserNo`, `targetType`, `targetUserNo`, `targetFeedId`, `targetCommentId`, `targetReplyId`, `reason`, `targetNickname`, `targetContent`, `status`, `createdAt`, `processedAt`. `targetNickname`은 회원 신고의 대상 닉네임이다. `targetContent`는 게시글·댓글·답글 본문이다. 10자까지 주고, 더 길면 10자 뒤에 `...`을 붙인다. 해당 없는 종류는 null이다. `status`는 `REQUESTED` 신고요청, `CONFIRMED` 확인, `DELETED` 삭제조치, `REJECTED` 거절, `ON_HOLD` 보류, `SUSPENDED` 정지. 신고요청·확인·보류만 다시 조치할 수 있다. `confirm`은 신고요청만 `CONFIRMED`로 바꾼다. 확인 뒤에는 신고자가 취소할 수 없다. `delete-content`는 `FEED`·`COMMENT`·`REPLY`만. 대상을 소프트 삭제하고 상태를 `DELETED`로 둔다. 이미 삭제된 대상이면 상태만 바꾼다. `suspend`는 `USER` 신고만. 그 회원을 정지하고 상태를 `SUSPENDED`로 둔다. 이미 정지면 상태만 바꾼다. 대상 종류가 다르면 `400` `REPORT_ACTION_MISMATCH`. `reject`는 `REJECTED`, `hold`는 `ON_HOLD`. 없거나 이미 삭제조치·거절·정지인 신고는 `404` `REPORT_NOT_FOUND`, `409` `REPORT_ALREADY_CLOSED`.
 
 ---
 

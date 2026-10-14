@@ -7,6 +7,27 @@ validation · database · docs 모두 **여기 한곳**에 적는다.
 
 ---
 
+## 2026-10-14 16:45
+
+### API · 관리자 목록 표시
+- 태그 설명 요청 목록에 `requesterNickname`. 신고 목록은 회원 닉네임 `targetNickname`, 글은 `targetContent` 10자
+
+---
+
+## 2026-10-14 15:20
+
+### API · 관리자 목록
+- 태그 설명 요청·신고 목록은 `status`를 비우면 전체 최신순. `nextCursorRequestId`·`nextCursorReportId`로 다음 페이지
+
+---
+
+## 2026-10-14 15:25
+
+### API · 회원가입 지역
+- `POST /api/v1/auth/signup`에 `regionSido`, `regionSigungu`. 비우면 저장하지 않는다
+
+---
+
 ## 2026-10-13 16:35
 
 ### API · 상업 태그 거절 멘트

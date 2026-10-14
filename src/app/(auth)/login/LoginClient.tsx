@@ -11,10 +11,18 @@ import { useRouter } from 'next/navigation';
 import { useState, useTransition, type FormEvent } from 'react';
 import styles from './login.module.scss';
 
+const ACCOUNT_WITHDRAWN_MESSAGE = '탈퇴된 계정입니다. 고객센터에 문의해주세요.';
+const ACCOUNT_SUSPENDED_MESSAGE = '정지된 계정입니다. 고객센터에 문의해주세요.';
+
+function accountStatusMessage(code: unknown) {
+  if (code === 'ACCOUNT_WITHDRAWN') return ACCOUNT_WITHDRAWN_MESSAGE;
+  if (code === 'ACCOUNT_SUSPENDED') return ACCOUNT_SUSPENDED_MESSAGE;
+  return null;
+}
+
 function socialErrorMessage(code?: string) {
   if (!code) return null;
-  if (code === 'ACCOUNT_WITHDRAWN') return '탈퇴된 계정입니다.';
-  return '소셜 로그인에 실패했습니다. 다시 시도해 주세요.';
+  return accountStatusMessage(code) ?? '소셜 로그인에 실패했습니다. 다시 시도해 주세요.';
 }
 
 const LOGO_SRC = '/images/img/ultary_logo_login.png';
@@ -29,10 +37,10 @@ type Props = {
 function pickLoginError(err: unknown): string {
   if (isHttpError(err) && err.data && typeof err.data === 'object') {
     const data = err.data as Record<string, unknown>;
+    const statusMessage = accountStatusMessage(data.code) ?? accountStatusMessage(data.message);
+    if (statusMessage) return statusMessage;
     if (typeof data.detail === 'string' && data.detail.trim()) return data.detail;
-    if (data.code === 'ACCOUNT_WITHDRAWN') return '탈퇴된 계정입니다.';
     const code = typeof data.message === 'string' ? data.message : '';
-    if (code === 'ACCOUNT_WITHDRAWN') return '탈퇴된 계정입니다.';
     if (code === 'LOGIN_FAILED') return '아이디 또는 비밀번호가 올바르지 않습니다.';
     if (code === 'USER_INACTIVE') return '비활성 계정입니다. 고객센터에 문의해 주세요.';
     if (code === 'INVALID_INPUT' && typeof data.detail === 'string') return data.detail;
@@ -119,6 +127,10 @@ export default function LoginClient({ initialError, returnUrl = '' }: Props) {
             <button type="submit" className={styles.loginButton} disabled={pending}>
               {pending ? '로그인 중…' : '로그인'}
             </button>
+
+            <Link href="/login/password" className={styles.findPasswordButton}>
+              비밀번호 찾기
+            </Link>
 
             <Link href="/signup" className={styles.signupLink}>
               계정이 없으신가요?

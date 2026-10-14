@@ -11,6 +11,7 @@ export const API_ERROR_CODES = [
   'DB_CONNECTION_FAILED',
   'LOGIN_FAILED',
   'ACCOUNT_WITHDRAWN',
+  'ACCOUNT_SUSPENDED',
   'USER_INACTIVE',
   'TOKEN_EXPIRED',
   'INVALID_TOKEN',
@@ -77,6 +78,8 @@ export type SignupRequest = {
   nickname: string;
   name?: string | null;
   email?: string | null;
+  regionSido?: string | null;
+  regionSigungu?: string | null;
 };
 
 /** POST /api/v1/auth/phone */
@@ -136,6 +139,22 @@ export type UpdateMeRequest = {
   regionSigungu?: string | null;
   phone?: string;
   phoneAuthCompleteToken?: string;
+};
+
+/** POST /api/v1/auth/password/token */
+export type PasswordTokenRequest = {
+  phone: string;
+  phoneAuthCompleteToken: string;
+};
+
+export type PasswordTokenResponse = {
+  passwordChangeToken: string;
+};
+
+/** PUT /api/v1/auth/password */
+export type ResetPasswordRequest = {
+  passwordChangeToken: string;
+  newPassword: string;
 };
 
 /** PUT /api/v1/auth/password/me — 로그인 중 변경. 비밀번호가 없으면 currentPassword 생략 */

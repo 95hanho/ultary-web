@@ -18,6 +18,10 @@
 
 .stories {
   position: relative;
+
+  @media (min-width: 768px) {
+    padding-top: 15px;
+  }
 }
 
 .storyEmpty {

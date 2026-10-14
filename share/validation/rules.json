@@ -50,6 +50,8 @@
     "password": { "required": true, "rule": "password" },
     "nickname": { "required": true, "rule": "nickname" },
     "name": { "required": false, "maxLength": 20 },
-    "email": { "required": false, "maxLength": 50 }
+    "email": { "required": false, "maxLength": 50 },
+    "regionSido": { "required": false, "maxLength": 30 },
+    "regionSigungu": { "required": false, "maxLength": 30 }
   }
 }

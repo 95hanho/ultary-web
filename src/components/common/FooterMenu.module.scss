@@ -84,3 +84,260 @@
 .myUltaryAvatarActive {
   border-color: var(--brand-black-700);
 }
+
+.brand,
+.plus,
+.moreBtn,
+.label {
+  display: none;
+}
+
+.group {
+  display: contents;
+}
+
+.fileInput {
+  display: none;
+}
+
+.moreDim,
+.moreMenu {
+  display: none;
+}
+
+@media (min-width: 768px) {
+  .footer {
+    top: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 60;
+    width: 72px;
+    max-width: none;
+    height: 100dvh;
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: flex-start;
+    gap: 4px;
+    padding: 8px 12px 12px;
+    border-top: 0;
+    border-right: 1px solid var(--brand-gray-100);
+    overflow: hidden;
+    transform: none;
+    transition: width 200ms ease;
+  }
+
+  .footer:hover {
+    width: 244px;
+  }
+
+  .footerHold,
+  .footerHold:hover {
+    width: 244px;
+  }
+
+  .footerStill,
+  .footerStill:hover {
+    width: 72px;
+  }
+
+  .footerStill .label,
+  .footerStill:hover .label {
+    max-width: 0;
+    opacity: 0;
+  }
+
+  .noticeHost {
+    position: fixed;
+    right: auto;
+    bottom: 24px;
+    left: 50%;
+    width: min(430px, calc(100vw - 280px));
+    overflow: hidden;
+    border-radius: 12px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+    transform: translateX(-50%);
+  }
+
+  .group {
+    display: flex;
+    min-height: 0;
+    flex: 1;
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: center;
+    gap: 4px;
+  }
+
+  .brand,
+  .plus,
+  .moreBtn,
+  .item {
+    display: inline-flex;
+    width: auto;
+    height: 48px;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 16px;
+    padding: 0 10px;
+    border: 0;
+    border-radius: 12px;
+    background: transparent;
+    color: var(--brand-black-700);
+    font-size: 16px;
+    line-height: 1;
+    text-decoration: none;
+    white-space: nowrap;
+    cursor: pointer;
+  }
+
+  .brand,
+  .moreBtn {
+    flex-shrink: 0;
+  }
+
+  .footer:not(:hover):not(.footerHold) .brand,
+  .footer:not(:hover):not(.footerHold) .plus,
+  .footer:not(:hover):not(.footerHold) .moreBtn,
+  .footer:not(:hover):not(.footerHold) .item,
+  .footerStill .brand,
+  .footerStill .plus,
+  .footerStill .moreBtn,
+  .footerStill .item {
+    justify-content: center;
+    gap: 0;
+    padding-right: 0;
+    padding-left: 0;
+  }
+
+  .brandIcon,
+  .moreIcon {
+    flex-shrink: 0;
+  }
+
+  .brandLogo {
+    display: none;
+    width: 150px;
+    height: auto;
+  }
+
+  .footer:hover .brandIcon,
+  .footerHold .brandIcon {
+    display: none;
+  }
+
+  .footer:hover .brandLogo,
+  .footerHold .brandLogo {
+    display: block;
+  }
+
+  .footer:hover:not(.footerStill) .brand,
+  .footerHold .brand {
+    justify-content: center;
+    width: 100%;
+    padding-left: 0;
+    padding-top: 22px;
+    padding-right: 0;
+  }
+
+  .footerStill:hover .brandIcon {
+    display: block;
+  }
+
+  .footerStill:hover .brandLogo {
+    display: none;
+  }
+
+  .label {
+    display: inline-block;
+    max-width: 0;
+    overflow: hidden;
+    opacity: 0;
+  }
+
+  .footer:hover .label,
+  .footerHold .label {
+    max-width: 8em;
+    opacity: 1;
+  }
+
+  .item:hover,
+  .plus:hover,
+  .moreBtn:hover,
+  .moreItem:hover {
+    background: var(--brand-grass-100);
+  }
+
+  .brand:hover {
+    background: transparent;
+  }
+
+  .itemCurrent .label {
+    font-weight: 700;
+  }
+
+  .iconWrap,
+  .item img,
+  .plus img,
+  .myUltaryAvatar {
+    flex-shrink: 0;
+  }
+
+  /* 접힌 메뉴의 홈 아이콘만. 펼친(hover) 크기는 FooterMenu.tsx Image width/height를 쓴다. */
+  .footer:not(:hover):not(.footerHold) .homeIcon,
+  .footerStill .homeIcon {
+    width: 30px;
+    height: 30px;
+    max-width: none;
+  }
+
+  .myUltaryAvatar {
+    width: 28px;
+    height: 28px;
+  }
+
+  .moreDim {
+    position: fixed;
+    inset: 0;
+    z-index: 65;
+    display: block;
+    border: 0;
+    padding: 0;
+    background: transparent;
+    cursor: default;
+  }
+
+  .moreMenu {
+    position: fixed;
+    z-index: 70;
+    display: flex;
+    width: 220px;
+    flex-direction: column;
+    gap: 2px;
+    padding: 8px;
+    border-radius: 16px;
+    background: #fff;
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.16);
+  }
+
+  .moreItem {
+    display: flex;
+    height: 44px;
+    align-items: center;
+    gap: 12px;
+    padding: 0 12px;
+    border: 0;
+    border-radius: 10px;
+    background: transparent;
+    color: var(--brand-black-700);
+    font-size: 15px;
+    text-align: left;
+    text-decoration: none;
+    cursor: pointer;
+  }
+
+  .moreLogout {
+    margin-top: 4px;
+    border-top: 1px solid var(--brand-gray-100);
+    border-radius: 0 0 10px 10px;
+  }
+}

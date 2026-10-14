@@ -723,6 +723,7 @@ export default function MyUltaryClient({ nickname }: MyUltaryClientProps) {
   return (
     <div className={styles.shell}>
       <LogoHeader
+        hideOnDesktop
         actions={
           isOwnAccount ? (
             <>

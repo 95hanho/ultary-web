@@ -266,6 +266,9 @@ export default function SignupClient() {
       nickname,
       name: name.trim() || undefined,
       email: email.trim() || undefined,
+      regionSido: regionSido === REGION_NONE ? undefined : regionSido,
+      regionSigungu:
+        sigunguDisabled || regionSigungu === REGION_NONE ? undefined : regionSigungu,
     };
 
     startTransition(async () => {
@@ -484,10 +487,6 @@ export default function SignupClient() {
             </div>
           </label>
         </div>
-
-        <p className={styles.hint}>
-          지역은 UI만 반영되어 있으며, 회원가입 API에는 아직 포함하지 않습니다.
-        </p>
       </div>
     </div>
   );

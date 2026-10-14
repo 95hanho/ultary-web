@@ -112,7 +112,9 @@ Content-Type: {{contentType}}
   "password": "Test1234!",
   "nickname": "신규유저테스트",
   "name": "홍길동",
-  "email": "new.user@example.com"
+  "email": "new.user@example.com",
+  "regionSido": "서울특별시",
+  "regionSigungu": "마포구"
 }
 
 ### 휴대폰 인증 (시드에 없는 번호)

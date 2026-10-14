@@ -14,8 +14,8 @@ export default function SupportClient() {
           <p className={styles.desc}>
             서비스 이용 중 불편한 점이나 제안이 있으시면 아래로 문의해 주세요.
           </p>
-          <a className={styles.mail} href="mailto:support@ultary.app">
-            support@ultary.app
+          <a className={styles.mail} href="mailto:ehfqntuqntu@naver.com">
+            ehfqntuqntu@naver.com
           </a>
         </section>
         <ul className={styles.faq}>

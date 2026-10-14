@@ -112,6 +112,29 @@
   }
 }
 
+.findPasswordButton {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: center;
+  margin-top: 8px;
+  padding: 13px 21px;
+  border: 1px solid var(--brand-gray-200);
+  border-radius: 15px;
+  background: #fff;
+  color: var(--brand-gray-500);
+  font-size: 17px;
+  font-weight: 700;
+  line-height: 1.2;
+  text-decoration: none;
+  cursor: pointer;
+
+  &:hover {
+    background: #f3f3f3;
+    color: var(--brand-black-700);
+  }
+}
+
 .signupLink {
   display: flex;
   width: 100%;
@@ -149,7 +172,7 @@
   align-items: center;
   justify-content: center;
   padding: 10px 18px 10px 23px;
-  border: 1px solid var(--brand-black-700);
+  border: 1px solid var(--brand-gray-200);
   border-radius: 10px;
   background: #fff;
   color: var(--brand-black-700);
@@ -178,7 +201,7 @@
   box-sizing: border-box;
   width: 100%;
   overflow: hidden;
-  border: 1px solid var(--brand-black-700);
+  border: 1px solid var(--brand-gray-200);
   border-radius: 10px;
   line-height: 0;
   text-decoration: none;

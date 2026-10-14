@@ -44,6 +44,8 @@ export async function POST(request: NextRequest) {
       nickname,
       name: body.name?.trim() || undefined,
       email: body.email?.trim() || undefined,
+      regionSido: body.regionSido?.trim() || undefined,
+      regionSigungu: body.regionSigungu?.trim() || undefined,
     };
 
     const tokens = await springPostJson<TokenResponse, SignupRequest>(

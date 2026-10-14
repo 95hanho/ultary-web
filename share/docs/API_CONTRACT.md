@@ -86,7 +86,8 @@
 | `GET /tags/{tagId}` | 태그 | `purpose`는 `USER` 또는 `COMMERCIAL`. `title`·`content`·`link`·`images`는 `profileStatus=APPROVED`일 때만. 요청자만 `profileRequest` |
 | `POST /tags/{tagId}/profile-requests` | 요청 1개 | 상업 태그에 넣을 설명. 관리자 승인 후에만 태그 조회에 나온다 |
 | `GET /tags/profile-requests` | 배열 | 내가 넣은 태그 설명 요청. `status`를 비우면 전부 |
-| `GET /admin/tags/profile-requests` | 배열 | 상업 태그 설명 요청. 기본 `PENDING` |
+| `GET /admin/tags/profile-requests` | `items`, `nextCursorRequestId` | 상업 태그 설명 요청. `status`를 비우면 전부, 최신순. 항목에 `requesterNickname`. 다음은 `cursorRequestId` |
+| `GET /admin/reports` | `items`, `nextCursorReportId` | 신고 목록. `status`를 비우면 전부, 최신순. 회원 신고는 `targetNickname`, 글·댓글·답글은 `targetContent`(10자, 넘으면 `...`). 다음은 `cursorReportId` |
 | `POST /admin/tags/{tagId}/approve` · `reject` | 요청 1개 | 대기 요청을 승인하거나 거절. 승인하면 그 설명이 태그에 공개된다. 거절 Body `rejectMessage`는 신청자 목록의 `rejectMessage`로 남는다 |
 | `GET /dm/rooms` | `items` | 내 대화방. `peerUserNo`, `peerNickname`, `profileFile`, `lastMessage`, `lastMessageAt`, `unreadCount`, `following`, `followedBy` |
 | `POST /dm/rooms` | 방 1개 | `{ targetUserNo }`. 팔로우 또는 팔로워만. 있으면 그 방을 다시 연다. 응답에 `following`, `followedBy` |

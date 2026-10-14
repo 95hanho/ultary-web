@@ -254,6 +254,8 @@ export const bffEndpoints = {
     refresh: '/api/admin/auth/refresh',
     /** POST 관리자 로그아웃 */
     logout: '/api/admin/auth/logout',
+    /** GET 상업 태그 설명 요청 목록. status 기본 PENDING */
+    tagProfileRequests: '/api/admin/tags/profile-requests',
     /** POST 태그 승인 */
     tagApprove: '/api/admin/tags/:tagId/approve',
     /** POST 태그 거절 */
@@ -537,6 +539,8 @@ export const springEndpoints = {
     refresh: '/api/v1/admin/auth/refresh',
     /** POST Bearer — 해당 관리자 리프레시 폐기 */
     logout: '/api/v1/admin/auth/logout',
+    /** GET ?status=&limit= 상업 태그 설명 요청 */
+    tagProfileRequests: '/api/v1/admin/tags/profile-requests',
     /** POST */
     tagApprove: '/api/v1/admin/tags/:tagId/approve',
     /** POST */

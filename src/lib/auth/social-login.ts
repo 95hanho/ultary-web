@@ -31,8 +31,9 @@ export async function loginWithSpringSocial(input: {
 
 /** 소셜 콜백 실패를 로그인 페이지 error 쿼리로 바꾼다. */
 export function loginFailureRedirectCode(err: unknown, fallback: string) {
-  if (isHttpError(err) && isRecord(err.data) && err.data.code === 'ACCOUNT_WITHDRAWN') {
-    return 'ACCOUNT_WITHDRAWN';
+  if (isHttpError(err) && isRecord(err.data)) {
+    if (err.data.code === 'ACCOUNT_WITHDRAWN') return 'ACCOUNT_WITHDRAWN';
+    if (err.data.code === 'ACCOUNT_SUSPENDED') return 'ACCOUNT_SUSPENDED';
   }
   return fallback;
 }
