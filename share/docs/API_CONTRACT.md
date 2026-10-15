@@ -86,9 +86,11 @@
 | `GET /tags/{tagId}` | 태그 | `purpose`는 `USER` 또는 `COMMERCIAL`. `title`·`content`·`link`·`images`는 `profileStatus=APPROVED`일 때만. 요청자만 `profileRequest` |
 | `POST /tags/{tagId}/profile-requests` | 요청 1개 | 상업 태그에 넣을 설명. 관리자 승인 후에만 태그 조회에 나온다 |
 | `GET /tags/profile-requests` | 배열 | 내가 넣은 태그 설명 요청. `status`를 비우면 전부 |
-| `GET /admin/tags/profile-requests` | `items`, `nextCursorRequestId` | 상업 태그 설명 요청. `status`를 비우면 전부, 최신순. 항목에 `requesterNickname`. 다음은 `cursorRequestId` |
-| `GET /admin/reports` | `items`, `nextCursorReportId` | 신고 목록. `status`를 비우면 전부, 최신순. 회원 신고는 `targetNickname`, 글·댓글·답글은 `targetContent`(10자, 넘으면 `...`). 다음은 `cursorReportId` |
-| `POST /admin/tags/{tagId}/approve` · `reject` | 요청 1개 | 대기 요청을 승인하거나 거절. 승인하면 그 설명이 태그에 공개된다. 거절 Body `rejectMessage`는 신청자 목록의 `rejectMessage`로 남는다 |
+| `GET /admin/menu-counts` | `pendingTagRequestCount`, `requestedReportCount` | 메뉴 뱃지. 태그 설명 요청 `PENDING` 건수와 신고 `REQUESTED` 건수. 정지 회원의 태그 요청은 세지 않는다. 목록은 없다. 없으면 0 |
+| `GET /admin/tags/profile-requests` | `items`, `nextCursorRequestId`, `totalCount` | 상업 태그 설명 요청. `status`를 비우면 전부, 최신순. `totalCount`는 그 `status`의 전체 건수. 커서와 `limit`는 세지 않는다. 정지 회원의 요청은 목록과 건수에서 뺀다. 다음은 `cursorRequestId` |
+| `GET /admin/reports` | `items`, `nextCursorReportId`, `totalCount` | 신고 목록. `status`를 비우면 전부, 최신순. `totalCount`는 그 `status`의 전체 건수. 커서와 `limit`는 세지 않는다. 회원 신고는 `targetNickname`, 글·댓글·답글은 `targetContent`(10자, 넘으면 `...`). `targetSuspended`는 대상 회원 또는 글·댓글·답글 작성자가 정지인지. 다음은 `cursorReportId` |
+| `GET /admin/reports/{reportId}` | 신고 1개 | 목록 항목과 같다. `targetSuspended` 포함. 없으면 404 |
+| `POST /admin/tags/{tagId}/approve` · `reject` · `pending` | 요청 1개 | 최신 요청을 승인·거절·대기로 바꾼다. 승인·거절된 요청도 다시 바꿀 수 있다. 승인하면 그 설명이 태그에 공개된다. 거절 Body `rejectMessage`는 신청자 목록의 `rejectMessage`로 남는다. `pending`은 본문 없음 |
 | `GET /dm/rooms` | `items` | 내 대화방. `peerUserNo`, `peerNickname`, `profileFile`, `lastMessage`, `lastMessageAt`, `unreadCount`, `following`, `followedBy` |
 | `POST /dm/rooms` | 방 1개 | `{ targetUserNo }`. 팔로우 또는 팔로워만. 있으면 그 방을 다시 연다. 응답에 `following`, `followedBy` |
 | `GET /dm/rooms/{roomId}/messages` | `items`, `nextCursorMessageId`, `peerLastReadMessageId`, `following`, `followedBy` | 오래된 순. 조회하면 읽음. `following`·`followedBy`는 그 방 상대와 나. 둘 다 false면 팔로우 관계가 아님 |

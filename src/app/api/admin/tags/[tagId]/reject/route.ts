@@ -1,16 +1,18 @@
+import { NextRequest } from 'next/server';
 import { springEndpoints } from '@/lib/api/endpoints';
 import {
   bearer,
   handleBffError,
   isUnauthorized,
   ok,
+  readJsonBody,
   requireAdminAccessToken,
 } from '@/lib/api/bffRoute';
-import { springPostForm } from '@/lib/api/springFetch';
+import { springPostJson } from '@/lib/api/springFetch';
 
 /** BFF /api/admin/tags/[tagId]/reject — POST */
 export async function POST(
-  _request: Request,
+  request: NextRequest,
   { params }: { params: Promise<{ tagId: string }> },
 ) {
   console.log('[API] 관리자 태그 거절');
@@ -18,9 +20,14 @@ export async function POST(
     const accessToken = await requireAdminAccessToken();
     if (isUnauthorized(accessToken)) return accessToken;
     const { tagId } = await params;
-    const data = await springPostForm(
+    const body = await readJsonBody(request);
+    const rejectMessage = typeof body.rejectMessage === 'string' ? body.rejectMessage.trim() : '';
+    const data = await springPostJson(
       springEndpoints.admin.tagReject,
-      { tagId },
+      {
+        tagId: Number(tagId),
+        ...(rejectMessage ? { rejectMessage } : {}),
+      },
       bearer(accessToken),
     );
     return ok(data);

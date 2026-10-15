@@ -1,6 +1,7 @@
 'use client';
 
 import { EmptyState } from '@/components/common/EmptyState';
+import { RevealTime } from '@/components/common/RevealTime';
 import { FooterMenu } from '@/components/common/FooterMenu';
 import { MediaImage } from '@/components/common/MediaImage';
 import { PageHeader } from '@/components/common/PageHeader';
@@ -38,6 +39,7 @@ type DmRoom = {
   profileUrl: string;
   lastMessage: string;
   timeLabel: string;
+  absoluteLabel: string;
   unread: number;
   link: FollowLink | null;
 };
@@ -64,6 +66,7 @@ type DmMessage = {
   senderUserNo: string | null;
   body: string;
   timeLabel: string;
+  absoluteLabel: string;
   /** 보낸 시각의 분. 같은 분이면 맨 아래 말풍선만 시각을 보여 준다 */
   minuteKey: string;
   share: DmShareCard | null;
@@ -159,6 +162,16 @@ function formatDmTime(iso: string) {
   return `${date.getFullYear()}년 ${clock}`;
 }
 
+function formatDmAbsolute(iso: string) {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return '';
+  const hh = String(date.getHours()).padStart(2, '0');
+  const mm = String(date.getMinutes()).padStart(2, '0');
+  const clock = `${date.getMonth() + 1}월 ${date.getDate()}일 ${hh}:${mm}`;
+  if (date.getFullYear() === new Date().getFullYear()) return clock;
+  return `${date.getFullYear()}년 ${clock}`;
+}
+
 function pickErrorMessage(err: unknown, fallback: string) {
   if (isHttpError(err) && isRecord(err.data)) {
     const detail = err.data.detail;
@@ -197,6 +210,7 @@ function mapRoom(raw: unknown): DmRoom | null {
     profileUrl: resolveFileDisplayUrl(asFile(raw.profileFile)) ?? NO_PROFILE_SRC,
     lastMessage,
     timeLabel: when ? formatDmTime(when) : '',
+    absoluteLabel: when ? formatDmAbsolute(when) : '',
     unread: unread > 0 ? Math.floor(unread) : 0,
     link: readLink(raw),
   };
@@ -250,6 +264,7 @@ function mapMessage(raw: unknown): DmMessage | null {
     senderUserNo: idString(raw.senderUserNo),
     body: typeof raw.body === 'string' ? raw.body : '',
     timeLabel: when ? formatDmTime(when) : '',
+    absoluteLabel: when ? formatDmAbsolute(when) : '',
     minuteKey: when ? minuteKeyOf(when) : '',
     share: mapShare(raw.share, raw),
   };
@@ -379,6 +394,7 @@ export default function DmClient({ roomId, feedId, feedMediaId, storyId }: DmCli
         profileUrl: NO_PROFILE_SRC,
         lastMessage: '',
         timeLabel: '',
+        absoluteLabel: '',
         unread: 0,
         link: null,
       })
@@ -632,6 +648,7 @@ export default function DmClient({ roomId, feedId, feedMediaId, storyId }: DmCli
         profileUrl: peer.profileUrl,
         lastMessage: '',
         timeLabel: '',
+        absoluteLabel: '',
         unread: 0,
         link: readLink(res.data),
       };
@@ -675,7 +692,8 @@ export default function DmClient({ roomId, feedId, feedMediaId, storyId }: DmCli
                   body ||
                   (pendingShare?.kind === 'story' ? '스토리를 공유했습니다' : '') ||
                   (pendingShare?.kind === 'feed' ? '게시글을 공유했습니다' : room.lastMessage),
-                timeLabel: '방금 전',
+                timeLabel: created?.timeLabel || '방금 전',
+                absoluteLabel: created?.absoluteLabel || formatDmAbsolute(new Date().toISOString()),
               }
             : room,
         ),
@@ -757,7 +775,11 @@ export default function DmClient({ roomId, feedId, feedMediaId, storyId }: DmCli
                       <div className={styles.bubbleMeta}>
                         {showRead ? <span className={styles.bubbleRead}>읽음</span> : null}
                         {showTime ? (
-                          <span className={styles.bubbleTime}>{message.timeLabel}</span>
+                          <RevealTime
+                            label={message.timeLabel}
+                            absolute={message.absoluteLabel}
+                            className={styles.bubbleTime}
+                          />
                         ) : null}
                       </div>
                     ) : null}
@@ -910,7 +932,11 @@ export default function DmClient({ roomId, feedId, feedMediaId, storyId }: DmCli
                   <span className={styles.roomBody}>
                     <span className={styles.roomTop}>
                       <strong className={styles.roomNick}>{room.nickname}</strong>
-                      <span className={styles.roomTime}>{room.timeLabel}</span>
+                      <RevealTime
+                        label={room.timeLabel}
+                        absolute={room.absoluteLabel}
+                        className={styles.roomTime}
+                      />
                     </span>
                     <span className={styles.roomBottom}>
                       <span className={styles.roomPreview}>{room.lastMessage}</span>

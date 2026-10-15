@@ -48,7 +48,7 @@ export type NotificationType =
   | 'SYSTEM';
 
 /** ultary_report.target_type */
-export type ReportTargetType = 'USER' | 'PET' | 'FEED' | 'COMMENT' | 'REPLY';
+export type ReportTargetType = 'USER' | 'FEED' | 'COMMENT' | 'REPLY';
 
 /** ultary_report.status */
 export type ReportStatus = 'PENDING' | 'REVIEWING' | 'RESOLVED' | 'REJECTED';

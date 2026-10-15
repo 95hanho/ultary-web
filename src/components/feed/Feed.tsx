@@ -1,5 +1,7 @@
 'use client';
 
+import { formatFeedTime } from '@/lib/feed/formatFeedTime';
+import { RevealTime } from '@/components/common/RevealTime';
 import { MediaImage } from '@/components/common/MediaImage';
 import { Profile, type StoryStatus } from '@/components/my-ultary/Profile';
 import { bffDelete, bffPostJson } from '@/lib/api/bffFetch';
@@ -63,6 +65,8 @@ export type FeedData = {
   /** images와 같은 순서. 사진 위 펫 태그 위치 (0~1) */
   photoTags?: FeedPhotoTag[][];
   caption: string;
+  /** 작성 시각. 없으면 날짜를 그리지 않는다 */
+  createdAt?: string;
   /** 이 글에 연결된 태그. 캡션 해시태그 설명에서 같은 글을 우선한다 */
   tagIds?: number[];
   /** 스토리 링 상태 */
@@ -114,6 +118,7 @@ export function Feed({
   mediaIds,
   photoTags,
   caption,
+  createdAt,
   tagIds = [],
   story = 'none',
   isFavorite = false,
@@ -967,6 +972,12 @@ export function Feed({
             </span>
           ) : null}
         </div>
+        {createdAt ? (
+          <RevealTime
+            {...formatFeedTime(createdAt)}
+            className={styles.postedAt}
+          />
+        ) : null}
       </div>
 
       {tagOpen ? (

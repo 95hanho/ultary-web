@@ -10,13 +10,17 @@ import { bffEndpoints } from '@/lib/api/endpoints';
 import { toFeedDataList } from '@/lib/feed/toFeedData';
 import { resolveFileDisplayUrl } from '@/lib/api/fileUrl';
 import { NO_PROFILE_SRC } from '@/lib/profileImage';
+import { readFileAsDataUrl } from '@/lib/pending-pet-photo';
 import { myUltaryPath } from '@/lib/mock/ultary-accounts';
-import type { BffEnvelope } from '@/types/api';
+import { useStoryDraftStore } from '@/stores/story-draft.store';
+import type { BffEnvelope, MeResponse } from '@/types/api';
 import type { StoryOwner } from '@/types/story';
 import clsx from 'clsx';
+import { Plus } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { useEffect, useRef, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { useEffect, useRef, useState, type ChangeEvent } from 'react';
 import type { Swiper as SwiperType } from 'swiper';
 import 'swiper/css';
 import 'swiper/css/free-mode';
@@ -33,6 +37,8 @@ type StoryRing = {
   nickname: string;
   imageUrl: string;
   story: StoryStatus;
+  /** 내 활성 스토리가 없을 때 맨 앞 추가 칸 */
+  mineAdd?: boolean;
 };
 
 function syncStoryNav(
@@ -74,6 +80,22 @@ function ownersToRings(owners: StoryOwner[]): StoryRing[] {
   }));
 }
 
+function withMyStoryAdd(owners: StoryOwner[], me: MeResponse | null): StoryRing[] {
+  const rings = ownersToRings(owners);
+  if (!me) return rings;
+  if (rings.some((ring) => ring.userNo === me.userNo)) return rings;
+  return [
+    {
+      userNo: me.userNo,
+      nickname: me.nickname,
+      imageUrl: resolveFileDisplayUrl(me.profileFile) ?? FALLBACK_PROFILE,
+      story: 'none',
+      mineAdd: true,
+    },
+    ...rings,
+  ];
+}
+
 /** 피드 프로필: 안 읽은 스토리만 unread, 없거나 다 읽었으면 none */
 function applyOwnerStory(feeds: FeedData[], owners: StoryOwner[]): FeedData[] {
   const byUser = new Map(owners.map((o) => [o.userNo, o]));
@@ -101,33 +123,43 @@ function unwrapOwners(raw: unknown): StoryOwner[] {
 }
 
 export default function MainClient() {
+  const router = useRouter();
   const storySwiperRef = useRef<SwiperType | null>(null);
+  const storyFileInputRef = useRef<HTMLInputElement>(null);
+  const clearStoryDraft = useStoryDraftStore((s) => s.clear);
+  const setStoryMedia = useStoryDraftStore((s) => s.setMedia);
   const [canStoryPrev, setCanStoryPrev] = useState(false);
   const [canStoryNext, setCanStoryNext] = useState(false);
   const [feeds, setFeeds] = useState<FeedData[]>([]);
   const [recommended, setRecommended] = useState<FeedData[]>([]);
-  const [showRecommended, setShowRecommended] = useState(false);
-  const [recommendLoading, setRecommendLoading] = useState(false);
   const [storyUsers, setStoryUsers] = useState<StoryRing[]>([]);
   const [storiesReady, setStoriesReady] = useState(false);
-  const ownersRef = useRef<StoryOwner[]>([]);
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
-        const [feedsRes, ownersRes] = await Promise.all([
+        const [feedsRes, ownersRes, meRes, recommendedRes] = await Promise.all([
           bffGet<BffEnvelope<unknown>>(bffEndpoints.main.feeds, { size: 20 }),
           bffGet<BffEnvelope<StoryOwner[]>>(bffEndpoints.main.storyOwners),
+          bffGet<BffEnvelope<MeResponse>>(bffEndpoints.auth.me).catch(() => null),
+          bffGet<BffEnvelope<unknown>>(bffEndpoints.main.feedsRecommended, { limit: 10 }).catch(
+            () => null,
+          ),
         ]);
         if (cancelled) return;
 
         const owners = unwrapOwners(ownersRes.data ?? ownersRes);
-        ownersRef.current = owners;
         const mapped = toFeedDataList(feedsRes.data ?? feedsRes);
         setFeeds(applyOwnerStory(mapped, owners));
+        if (recommendedRes) {
+          setRecommended(
+            applyOwnerStory(toFeedDataList(recommendedRes.data ?? recommendedRes), owners),
+          );
+        }
 
-        setStoryUsers(owners.length > 0 ? ownersToRings(owners) : []);
+        const me = meRes?.data ?? null;
+        setStoryUsers(withMyStoryAdd(owners, me));
       } catch (err) {
         console.error('[main] BFF load failed', err);
         if (!cancelled) setFeeds([]);
@@ -140,27 +172,24 @@ export default function MainClient() {
     };
   }, []);
 
-  async function openRecommended() {
-    if (recommendLoading || showRecommended) return;
-    setRecommendLoading(true);
+  const handleStoryFileChange = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
     try {
-      const res = await bffGet<BffEnvelope<unknown>>(
-        bffEndpoints.main.feedsRecommended,
-        { limit: 10 },
-      );
-      const list = applyOwnerStory(
-        toFeedDataList(res.data ?? res),
-        ownersRef.current,
-      );
-      if (list.length === 0) return;
-      setRecommended(list);
-      setShowRecommended(true);
+      clearStoryDraft();
+      const isVideo = file.type.startsWith('video/');
+      const sourceUrl = isVideo ? URL.createObjectURL(file) : await readFileAsDataUrl(file);
+      setStoryMedia({
+        sourceUrl,
+        kind: isVideo ? 'video' : 'image',
+        fileName: file.name,
+      });
+      router.push('/stories/up/crop');
     } catch (err) {
-      console.error('[main] recommended failed', err);
-    } finally {
-      setRecommendLoading(false);
+      console.error('[main] story file', err);
     }
-  }
+  };
 
   return (
     <div className={styles.shell}>
@@ -198,17 +227,35 @@ export default function MainClient() {
               >
                 {storyUsers.map((user) => (
                   <SwiperSlide
-                    key={user.userNo}
+                    key={user.mineAdd ? 'mine-add' : user.userNo}
                     className={styles.storySlide}
                   >
                     <div className={styles.storyItem}>
-                      <Link href={storyHref(user)} aria-label={`${user.nickname} 스토리`}>
-                        <Profile
-                          imageUrl={user.imageUrl}
-                          size={80}
-                          story={user.story}
-                        />
-                      </Link>
+                      {user.mineAdd ? (
+                        <button
+                          type="button"
+                          className={styles.storyMineBtn}
+                          aria-label="스토리 업"
+                          onClick={() => storyFileInputRef.current?.click()}
+                        >
+                          <Profile
+                            imageUrl={user.imageUrl}
+                            size={80}
+                            story="none"
+                          />
+                          <span className={styles.storyPlus} aria-hidden>
+                            <Plus size={14} strokeWidth={2.75} />
+                          </span>
+                        </button>
+                      ) : (
+                        <Link href={storyHref(user)} aria-label={`${user.nickname} 스토리`}>
+                          <Profile
+                            imageUrl={user.imageUrl}
+                            size={80}
+                            story={user.story}
+                          />
+                        </Link>
+                      )}
                       <Link href={myUltaryPath(user.nickname)} className={styles.storyNickname}>
                         {user.nickname}
                       </Link>
@@ -249,31 +296,23 @@ export default function MainClient() {
           ) : null}
         </section>
 
+        <input
+          ref={storyFileInputRef}
+          type="file"
+          accept="image/*,video/*"
+          className={styles.storyFileInput}
+          onChange={(event) => void handleStoryFileChange(event)}
+        />
+
         <FeedList feeds={feeds} />
 
-        {feeds.length > 0 ? (
-          <div className={styles.feedEnd}>
-            <p className={styles.feedEndMessage}>
-              {showRecommended
-                ? '여기부터 추천게시글입니다'
-                : '마지막 게시글입니다.'}
-            </p>
-            {showRecommended ? null : (
-              <button
-                type="button"
-                className={styles.recommendBtn}
-                disabled={recommendLoading}
-                onClick={() => {
-                  void openRecommended();
-                }}
-              >
-                추천게시글 보기
-              </button>
-            )}
-          </div>
-        ) : null}
-        {showRecommended ? (
-          <FeedList feeds={recommended} label="추천 게시글" />
+        {recommended.length > 0 ? (
+          <>
+            <div className={styles.feedEnd}>
+              <p className={styles.recommendBtn}>여기부터 추천게시글입니다</p>
+            </div>
+            <FeedList feeds={recommended} label="추천 게시글" />
+          </>
         ) : null}
       </main>
 

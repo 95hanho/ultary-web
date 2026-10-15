@@ -254,12 +254,16 @@ export const bffEndpoints = {
     refresh: '/api/admin/auth/refresh',
     /** POST 관리자 로그아웃 */
     logout: '/api/admin/auth/logout',
+    /** GET 메뉴 뱃지. 태그 대기 건수, 신고 요청 건수 */
+    menuCounts: '/api/admin/menu-counts',
     /** GET 상업 태그 설명 요청 목록. status 기본 PENDING */
     tagProfileRequests: '/api/admin/tags/profile-requests',
     /** POST 태그 승인 */
     tagApprove: '/api/admin/tags/:tagId/approve',
     /** POST 태그 거절 */
     tagReject: '/api/admin/tags/:tagId/reject',
+    /** POST 태그 설명 요청을 대기로 */
+    tagPending: '/api/admin/tags/:tagId/pending',
     /** GET 신고 목록 */
     reports: '/api/admin/reports',
     /** POST 신고된 글·댓글·답글 삭제 */
@@ -539,12 +543,16 @@ export const springEndpoints = {
     refresh: '/api/v1/admin/auth/refresh',
     /** POST Bearer — 해당 관리자 리프레시 폐기 */
     logout: '/api/v1/admin/auth/logout',
+    /** GET 메뉴 뱃지. pendingTagRequestCount, requestedReportCount */
+    menuCounts: '/api/v1/admin/menu-counts',
     /** GET ?status=&limit= 상업 태그 설명 요청 */
     tagProfileRequests: '/api/v1/admin/tags/profile-requests',
     /** POST */
     tagApprove: '/api/v1/admin/tags/:tagId/approve',
     /** POST */
     tagReject: '/api/v1/admin/tags/:tagId/reject',
+    /** POST 본문 없음. 최신 요청을 대기로 */
+    tagPending: '/api/v1/admin/tags/:tagId/pending',
     /** GET ?status=&limit= */
     reports: '/api/v1/admin/reports',
     /** POST */

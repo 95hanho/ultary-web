@@ -372,3 +372,12 @@
   white-space: nowrap;
   cursor: pointer;
 }
+
+.postedAt {
+  align-self: flex-start;
+  padding: 0 8px;
+  color: var(--brand-gray-400);
+  font-size: 12px;
+  line-height: 1.2;
+  white-space: nowrap;
+}

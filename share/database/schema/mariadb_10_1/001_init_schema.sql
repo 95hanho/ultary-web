@@ -1,5 +1,6 @@
--- schema_version: 27
+-- schema_version: 28
 -- Ultary MariaDB 10.1 초기 스키마
+-- v28: ultary_report 에서 PET 대상과 target_pet_id 제거. 신고는 USER|FEED|COMMENT|REPLY
 -- v27: ultary_tag_profile_request.reject_message. 관리자 거절 멘트
 -- v26: ultary_tag.purpose(USER|COMMERCIAL), profile_status. 상업 설명은 승인 요청이 APPROVED일 때만 공개
 -- v25: 주민·이웃 용어를 팔로우·팔로워로. 목록 type=FOLLOW|FOLLOWER, 카운트 followCount·followerCount. 테이블 구조는 그대로
@@ -649,9 +650,8 @@ CREATE TABLE `ultary_dm_message` (
 CREATE TABLE `ultary_report` (
   `report_id` INT(11) NOT NULL AUTO_INCREMENT,
   `reporter_user_no` INT(11) NOT NULL,
-  `target_type` ENUM('USER','PET','FEED','COMMENT','REPLY') NOT NULL,
+  `target_type` ENUM('USER','FEED','COMMENT','REPLY') NOT NULL,
   `target_user_no` INT(11) NULL DEFAULT NULL,
-  `target_pet_id` INT(11) NULL DEFAULT NULL,
   `target_feed_id` INT(11) NULL DEFAULT NULL,
   `target_comment_id` INT(11) NULL DEFAULT NULL,
   `target_reply_id` INT(11) NULL DEFAULT NULL,
@@ -664,7 +664,6 @@ CREATE TABLE `ultary_report` (
   PRIMARY KEY (`report_id`) USING BTREE,
   KEY `IDX_ultary_report_reporter_user_no` (`reporter_user_no`) USING BTREE,
   KEY `IDX_ultary_report_target_user_no` (`target_user_no`) USING BTREE,
-  KEY `IDX_ultary_report_target_pet_id` (`target_pet_id`) USING BTREE,
   KEY `IDX_ultary_report_target_feed_id` (`target_feed_id`) USING BTREE,
   KEY `IDX_ultary_report_target_comment_id` (`target_comment_id`) USING BTREE,
   KEY `IDX_ultary_report_target_reply_id` (`target_reply_id`) USING BTREE,
@@ -902,7 +901,6 @@ ALTER TABLE `ultary_story_like`
 ALTER TABLE `ultary_report`
   ADD CONSTRAINT `FK_report_reporter` FOREIGN KEY (`reporter_user_no`) REFERENCES `ultary_user` (`user_no`) ON UPDATE CASCADE ON DELETE RESTRICT,
   ADD CONSTRAINT `FK_report_target_user` FOREIGN KEY (`target_user_no`) REFERENCES `ultary_user` (`user_no`) ON UPDATE CASCADE ON DELETE SET NULL,
-  ADD CONSTRAINT `FK_report_target_pet` FOREIGN KEY (`target_pet_id`) REFERENCES `ultary_pet` (`pet_id`) ON UPDATE CASCADE ON DELETE SET NULL,
   ADD CONSTRAINT `FK_report_target_feed` FOREIGN KEY (`target_feed_id`) REFERENCES `ultary_feed` (`feed_id`) ON UPDATE CASCADE ON DELETE SET NULL,
   ADD CONSTRAINT `FK_report_target_comment` FOREIGN KEY (`target_comment_id`) REFERENCES `ultary_feed_comment` (`feed_comment_id`) ON UPDATE CASCADE ON DELETE SET NULL,
   ADD CONSTRAINT `FK_report_target_reply` FOREIGN KEY (`target_reply_id`) REFERENCES `ultary_feed_reply` (`feed_reply_id`) ON UPDATE CASCADE ON DELETE SET NULL,

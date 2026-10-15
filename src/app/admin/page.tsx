@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import AdminMainClient from './AdminMainClient';
+import AdminMenuClient from './AdminMenuClient';
 
 export const metadata: Metadata = {
   title: '울타리 관리',
@@ -7,5 +7,5 @@ export const metadata: Metadata = {
 };
 
 export default function AdminPage() {
-  return <AdminMainClient />;
+  return <AdminMenuClient />;
 }

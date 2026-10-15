@@ -134,6 +134,10 @@ export function toFeedData(raw: unknown, fallbackId: string): FeedData {
     mediaIds,
     photoTags,
     caption: detail.content?.trim() || '',
+    createdAt:
+      typeof detail.createdAt === 'string' && detail.createdAt.trim()
+        ? detail.createdAt
+        : undefined,
     tagIds: readTagIds(detail.tagIds),
     likeCount: detail.likeCount ?? 0,
     commentCount: detail.commentCount ?? 0,

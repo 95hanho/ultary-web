@@ -81,14 +81,13 @@ INSERT INTO `ultary_notification_setting` (
 
 INSERT INTO `ultary_report` (
   `report_id`, `reporter_user_no`, `target_type`,
-  `target_user_no`, `target_pet_id`, `target_feed_id`, `target_comment_id`, `target_reply_id`,
+  `target_user_no`, `target_feed_id`, `target_comment_id`, `target_reply_id`,
   `reason`, `status`, `admin_no`, `processed_at`, `created_at`
 ) VALUES
-(101, 101, 'USER', 201, NULL, NULL, NULL, NULL, 'SPAM', 'REQUESTED', NULL, NULL, DATE_SUB(NOW(), INTERVAL 2 HOUR)),
-(102, 102, 'PET', NULL, 104, NULL, NULL, NULL, 'IMPERSONATION', 'ON_HOLD', 1, NULL, DATE_SUB(NOW(), INTERVAL 5 HOUR)),
-(103, 103, 'FEED', NULL, NULL, 102, NULL, NULL, 'SPAM', 'DELETED', 1, DATE_SUB(NOW(), INTERVAL 1 HOUR), DATE_SUB(NOW(), INTERVAL 1 DAY)),
-(104, 104, 'COMMENT', NULL, NULL, NULL, 201, NULL, 'ABUSE', 'REJECTED', 2, DATE_SUB(NOW(), INTERVAL 3 HOUR), DATE_SUB(NOW(), INTERVAL 2 DAY)),
-(105, 105, 'REPLY', NULL, NULL, NULL, NULL, 201, 'ABUSE', 'REQUESTED', NULL, NULL, DATE_SUB(NOW(), INTERVAL 30 MINUTE));
+(101, 101, 'USER', 201, NULL, NULL, NULL, 'SPAM', 'REQUESTED', NULL, NULL, DATE_SUB(NOW(), INTERVAL 2 HOUR)),
+(103, 103, 'FEED', NULL, 102, NULL, NULL, 'SPAM', 'DELETED', 1, DATE_SUB(NOW(), INTERVAL 1 HOUR), DATE_SUB(NOW(), INTERVAL 1 DAY)),
+(104, 104, 'COMMENT', NULL, NULL, 201, NULL, 'ABUSE', 'REJECTED', 2, DATE_SUB(NOW(), INTERVAL 3 HOUR), DATE_SUB(NOW(), INTERVAL 2 DAY)),
+(105, 105, 'REPLY', NULL, NULL, NULL, 201, 'ABUSE', 'REQUESTED', NULL, NULL, DATE_SUB(NOW(), INTERVAL 30 MINUTE));
 
 INSERT INTO `ultary_ai_request_log` (
   `ai_request_id`, `user_no`, `feature_type`, `target_feed_id`, `target_pet_id`,

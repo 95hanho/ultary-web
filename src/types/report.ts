@@ -7,7 +7,6 @@ export type Report = {
   reporterUserNo: number;
   targetType: ReportTargetType;
   targetUserNo: number | null;
-  targetPetId: number | null;
   targetFeedId: number | null;
   targetCommentId: number | null;
   targetReplyId: number | null;
