@@ -63,33 +63,49 @@ export default function ReportListClient() {
       {state === 'ready' && reports.length === 0 ? <p className={styles.empty}>신고가 없습니다.</p> : null}
       <div ref={listRef} className={styles.listWrap}>
         <ul className={styles.list}>
-          {reports.map((item) => (
-            <li key={item.reportId}>
-              <Link
-                href={`/admin/reports/${item.reportId}`}
-                className={item.status !== 'REQUESTED' ? `${styles.row} ${styles.settled}` : styles.row}
-              >
-                <span className={styles.rowMain}>
-                  <span className={styles.rowLead}>
-                    <span className={styles.rowId}>{item.reportId}</span>
-                    <span className={styles.rowBody}>
-                      <span className={styles.rowMeta}>{item.headline}</span>
-                      {item.detail ? <span className={styles.rowName}>{item.detail}</span> : null}
-                      {item.targetSuspended ? (
-                        <span className={styles.rowSuspended}>* 정지된 회원입니다</span>
-                      ) : null}
-                    </span>
-                  </span>
-                  <span className={styles.rowSide}>
-                    <span className={`${badgeClass(item.status)} ${styles.badgeReport}`}>
-                      {REPORT_STATUS[item.status] ?? item.status}
-                    </span>
-                    {item.createdAt ? <span className={styles.rowWhen}>{formatWhen(item.createdAt)}</span> : null}
+          {reports.map((item) => {
+            const blocked = item.targetSuspended && item.targetType !== 'USER';
+            const rowClass = [
+              styles.row,
+              blocked || (item.status !== 'REQUESTED' && item.status !== 'CONFIRMED') ? styles.settled : '',
+              blocked ? styles.rowBlocked : '',
+            ]
+              .filter(Boolean)
+              .join(' ');
+            const body = (
+              <span className={styles.rowMain}>
+                <span className={styles.rowLead}>
+                  <span className={styles.rowId}>{item.reportId}</span>
+                  <span className={styles.rowBody}>
+                    <span className={styles.rowMeta}>{item.headline}</span>
+                    {item.detail ? <span className={styles.rowName}>{item.detail}</span> : null}
+                    {item.targetSuspended ? (
+                      <span className={styles.rowSuspended}>* 정지된 회원입니다</span>
+                    ) : null}
                   </span>
                 </span>
-              </Link>
-            </li>
-          ))}
+                <span className={styles.rowSide}>
+                  <span className={`${badgeClass(blocked ? 'SUSPENDED' : item.status)} ${styles.badgeReport}`}>
+                    {blocked ? '정지된 회원' : (REPORT_STATUS[item.status] ?? item.status)}
+                  </span>
+                  {item.createdAt ? <span className={styles.rowWhen}>{formatWhen(item.createdAt)}</span> : null}
+                </span>
+              </span>
+            );
+            return (
+              <li key={item.reportId}>
+                {blocked ? (
+                  <div className={rowClass} aria-disabled="true">
+                    {body}
+                  </div>
+                ) : (
+                  <Link href={`/admin/reports/${item.reportId}`} className={rowClass}>
+                    {body}
+                  </Link>
+                )}
+              </li>
+            );
+          })}
         </ul>
       </div>
       <Pager

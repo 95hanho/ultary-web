@@ -8,6 +8,7 @@ import { isHttpError } from '@/lib/api/error';
 import {
   filterCode,
   filterEmail,
+  filterName,
   filterPhone,
   MSG,
   validateEmail,
@@ -30,6 +31,7 @@ import styles from '../mypage.module.scss';
 type ApiEnvelope<T> = BffEnvelope<T>;
 
 type FieldErrors = {
+  name?: string;
   nickname?: string;
   email?: string;
   phone?: string;
@@ -38,6 +40,7 @@ type FieldErrors = {
 };
 
 const FIELD_ORDER: (keyof FieldErrors)[] = [
+  'name',
   'nickname',
   'email',
   'phone',
@@ -65,6 +68,7 @@ function FieldNote({ children }: { children: string }) {
 }
 
 type ProfileSnapshot = {
+  name: string;
   nickname: string;
   email: string;
   phone: string;
@@ -73,6 +77,7 @@ type ProfileSnapshot = {
 };
 
 const INITIAL_PROFILE: ProfileSnapshot = {
+  name: '',
   nickname: '',
   email: '',
   phone: '',
@@ -92,6 +97,7 @@ function isSameProfile(current: ProfileSnapshot, initial: ProfileSnapshot) {
   const currentRegion = regionPayload(current.regionSido, current.regionSigungu);
   const initialRegion = regionPayload(initial.regionSido, initial.regionSigungu);
   return (
+    current.name.trim() === initial.name.trim() &&
     current.nickname.trim() === initial.nickname.trim() &&
     current.email.trim() === initial.email.trim() &&
     current.phone === initial.phone &&
@@ -106,6 +112,8 @@ export default function MyPageEditClient() {
   const [pending, startTransition] = useTransition();
   const [loaded, setLoaded] = useState(false);
 
+  const [name, setName] = useState('');
+  const [nameEditable, setNameEditable] = useState(false);
   const [nickname, setNickname] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
@@ -122,6 +130,7 @@ export default function MyPageEditClient() {
   const [formError, setFormError] = useState<string | null>(null);
   const [infoMessage, setInfoMessage] = useState<string | null>(null);
 
+  const nameRef = useRef<HTMLInputElement>(null);
   const nicknameRef = useRef<HTMLInputElement>(null);
   const emailRef = useRef<HTMLInputElement>(null);
   const phoneRef = useRef<HTMLInputElement>(null);
@@ -139,13 +148,17 @@ export default function MyPageEditClient() {
         const me = res.data;
         if (!me || cancelled) return;
         const phoneDigits = me.phone?.replace(/\D/g, '') ?? '';
+        const meName = me.name?.trim() ?? '';
         const nextProfile: ProfileSnapshot = {
+          name: meName,
           nickname: me.nickname,
           email: me.email ?? '',
           phone: phoneDigits,
           regionSido: me.regionSido?.trim() || REGION_NONE,
           regionSigungu: me.regionSigungu?.trim() || REGION_NONE,
         };
+        setName(meName);
+        setNameEditable(!meName);
         setNickname(nextProfile.nickname);
         setEmail(nextProfile.email);
         setPhone(nextProfile.phone);
@@ -248,6 +261,7 @@ export default function MyPageEditClient() {
     setInfoMessage(null);
 
     const current: ProfileSnapshot = {
+      name,
       nickname,
       email,
       phone,
@@ -260,6 +274,11 @@ export default function MyPageEditClient() {
     }
 
     const next: FieldErrors = {};
+    const trimmedName = name.trim();
+    if (nameEditable && trimmedName) {
+      if (trimmedName.length > 20) next.name = '이름은 20자까지 입력할 수 있습니다.';
+    }
+
     const trimmedNickname = nickname.trim();
     if (!trimmedNickname) next.nickname = MSG.nicknameRequired;
     else {
@@ -284,6 +303,7 @@ export default function MyPageEditClient() {
       const first = FIELD_ORDER.find((key) => next[key]);
       const el = first
         ? {
+            name: nameRef,
             nickname: nicknameRef,
             email: emailRef,
             phone: phoneRef,
@@ -296,6 +316,7 @@ export default function MyPageEditClient() {
       return;
     }
 
+    const nameChanged = nameEditable && trimmedName !== initialProfile.name.trim();
     const nicknameChanged = trimmedNickname !== initialProfile.nickname.trim();
     const emailChanged = email.trim() !== initialProfile.email.trim();
     const nextRegion = regionPayload(regionSido, regionSigungu);
@@ -309,6 +330,7 @@ export default function MyPageEditClient() {
 
     const phoneChanged = phone !== initialProfile.phone;
     const profileBody: UpdateMeRequest = {};
+    if (nameChanged && trimmedName) profileBody.name = trimmedName;
     if (emailChanged) profileBody.email = email.trim();
     if (regionChanged) {
       profileBody.regionSido = nextRegion.regionSido;
@@ -327,13 +349,26 @@ export default function MyPageEditClient() {
             nickname: trimmedNickname,
           });
         }
-        if (emailChanged || regionChanged || phoneChanged) {
+        if (nameChanged || emailChanged || regionChanged || phoneChanged) {
           await bffPatchJson(bffEndpoints.auth.updateMe, profileBody);
         }
         router.push('/settings/mypage');
         router.refresh();
       } catch (err) {
         console.error('[mypage-edit] submit', err);
+        if (
+          isHttpError(err) &&
+          err.data &&
+          typeof err.data === 'object' &&
+          (err.data as { code?: string }).code === 'NAME_ALREADY_SET'
+        ) {
+          setErrors((prev) => ({
+            ...prev,
+            name: '이름은 한 번 정하면 바꿀 수 없습니다.',
+          }));
+          setNameEditable(false);
+          return;
+        }
         setFormError(pickErrorMessage(err, '회원정보 저장에 실패했습니다.'));
       }
     });
@@ -355,6 +390,27 @@ export default function MyPageEditClient() {
           <p className={styles.fieldNote}>불러오는 중…</p>
         ) : (
           <>
+        {nameEditable ? (
+          <label className={styles.field}>
+            <span className={styles.label}>이름</span>
+            <div className={styles.inputWrap}>
+              <input
+                ref={nameRef}
+                type="text"
+                value={name}
+                onChange={(e) => {
+                  setName(filterName(e.target.value));
+                  clearError('name');
+                }}
+                placeholder="이름을 입력해주세요."
+                className={styles.input}
+              />
+              <FieldNote>이름은 한 번 정하면 바꿀 수 없습니다.</FieldNote>
+              <FieldHint message={errors.name} />
+            </div>
+          </label>
+        ) : null}
+
         <label className={styles.field}>
           <span className={styles.label}>닉네임</span>
           <div className={styles.inputWrap}>

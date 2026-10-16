@@ -48,19 +48,95 @@
   word-break: break-all;
 }
 
-.passwordChangeBtn {
+.passwordChangeBtn,
+.passwordSetBtn {
   flex-shrink: 0;
   padding: 7px 12px;
   border: 0;
   border-radius: 10px;
-  background: var(--brand-gray-150, #cecece);
-  color: var(--brand-black-700);
   font-size: 18px;
   font-weight: 400;
   letter-spacing: 0.36px;
   line-height: 1.2;
   cursor: pointer;
   text-decoration: none;
+}
+
+.passwordChangeBtn {
+  background: var(--brand-gray-150, #cecece);
+  color: var(--brand-black-700);
+}
+
+.passwordSetBtn {
+  background: var(--brand-sky-600);
+  color: #fff;
+}
+
+.snsBtns {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 10px;
+}
+
+.snsBtn {
+  display: inline-flex;
+  width: 80px;
+  height: 80px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--brand-gray-200);
+  border-radius: 16px;
+  overflow: hidden;
+  text-decoration: none;
+  color: inherit;
+}
+
+a.snsBtn {
+  cursor: pointer;
+}
+
+.snsBtnOn {
+  background: #fff;
+}
+
+.snsBtnKakao.snsBtnOn {
+  background: #fee500;
+  border-color: #fee500;
+  color: #3c1e1e;
+}
+
+.snsBtnOff {
+  background: var(--brand-gray-100, #ececec);
+  border-color: var(--brand-gray-150, #cecece);
+  color: var(--brand-gray-400, #9a9a9a);
+
+  .snsIcon:not(.snsIconKakao) {
+    filter: grayscale(1) brightness(1.05);
+    opacity: 0.55;
+  }
+}
+
+.snsIcon {
+  display: block;
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  object-fit: contain;
+}
+
+.snsIconKakao {
+  color: inherit;
+}
+
+.snsErrorNote {
+  margin: -8px 0 0;
+  padding: 0 5px;
+  color: var(--brand-red-500);
+  font-size: 13px;
+  line-height: 1.4;
+  text-align: left;
+  word-break: keep-all;
 }
 
 .primaryBtn {

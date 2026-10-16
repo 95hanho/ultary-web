@@ -15,6 +15,12 @@ export const API_ERROR_CODES = [
   'USER_INACTIVE',
   'TOKEN_EXPIRED',
   'INVALID_TOKEN',
+  'SOCIAL_ALREADY_LINKED',
+  'SOCIAL_ACCOUNT_IN_USE',
+  'SOCIAL_NOT_LINKED',
+  'CANNOT_UNLINK_LAST_LOGIN',
+  'INVALID_SOCIAL_PROVIDER',
+  'NAME_ALREADY_SET',
 ] as const;
 
 export type ApiErrorCode = (typeof API_ERROR_CODES)[number];
@@ -175,6 +181,10 @@ export type MeResponse = {
   nickname: string;
   defaultNickname: boolean;
   hasPassword: boolean;
+  /** 구글 소셜 연동 여부 */
+  googleLinked: boolean;
+  /** 카카오 소셜 연동 여부 */
+  kakaoLinked: boolean;
   email: string | null;
   phone: string | null;
   /** 대표 펫 사진. 유저 컬럼이 아니며, 없으면 null */

@@ -1,5 +1,6 @@
--- schema_version: 28
+-- schema_version: 29
 -- Ultary MariaDB 10.1 초기 스키마
+-- v29: ultary_report.status 에서 ON_HOLD(보류) 제거
 -- v28: ultary_report 에서 PET 대상과 target_pet_id 제거. 신고는 USER|FEED|COMMENT|REPLY
 -- v27: ultary_tag_profile_request.reject_message. 관리자 거절 멘트
 -- v26: ultary_tag.purpose(USER|COMMERCIAL), profile_status. 상업 설명은 승인 요청이 APPROVED일 때만 공개
@@ -656,7 +657,7 @@ CREATE TABLE `ultary_report` (
   `target_comment_id` INT(11) NULL DEFAULT NULL,
   `target_reply_id` INT(11) NULL DEFAULT NULL,
   `reason` ENUM('SPAM','ABUSE','HARASSMENT','SEXUAL','VIOLENCE','HATE','IMPERSONATION','PRIVACY','OTHER') NOT NULL COMMENT 'SPAM 스팸·광고, ABUSE 욕설·비방, HARASSMENT 괴롭힘, SEXUAL 음란, VIOLENCE 폭력, HATE 혐오, IMPERSONATION 사칭, PRIVACY 개인정보, OTHER 기타',
-  `status` ENUM('REQUESTED','CONFIRMED','DELETED','REJECTED','ON_HOLD','SUSPENDED') NOT NULL DEFAULT 'REQUESTED' COMMENT 'REQUESTED 신고요청, CONFIRMED 확인, DELETED 삭제조치, REJECTED 거절, ON_HOLD 보류, SUSPENDED 정지',
+  `status` ENUM('REQUESTED','CONFIRMED','DELETED','REJECTED','SUSPENDED') NOT NULL DEFAULT 'REQUESTED' COMMENT 'REQUESTED 신고요청, CONFIRMED 확인, DELETED 삭제조치, REJECTED 거절, SUSPENDED 정지',
   `admin_no` INT(11) NULL DEFAULT NULL,
   `processed_at` DATETIME NULL DEFAULT NULL,
   `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,

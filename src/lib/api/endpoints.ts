@@ -274,8 +274,6 @@ export const bffEndpoints = {
     reportConfirm: '/api/admin/reports/:reportId/confirm',
     /** POST 신고 거절 */
     reportReject: '/api/admin/reports/:reportId/reject',
-    /** POST 신고 보류 */
-    reportHold: '/api/admin/reports/:reportId/hold',
   },
 
   /** development + Spring local 전용 */
@@ -563,8 +561,6 @@ export const springEndpoints = {
     reportConfirm: '/api/v1/admin/reports/:reportId/confirm',
     /** POST */
     reportReject: '/api/v1/admin/reports/:reportId/reject',
-    /** POST */
-    reportHold: '/api/v1/admin/reports/:reportId/hold',
   },
 
   /** Spring @Profile("local") only */

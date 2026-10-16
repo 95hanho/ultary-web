@@ -8,7 +8,11 @@ import { sanitizeReturnUrl } from '@/lib/auth/return-url';
 
 const OAUTH_STATE_COOKIE = 'oauth_state';
 const OAUTH_RETURN_COOKIE = 'oauth_return';
+const OAUTH_INTENT_COOKIE = 'oauth_intent';
 const OAUTH_STATE_MAX_AGE = 60 * 10;
+
+/** login: 소셜 로그인·가입. link: 로그인된 계정에 SNS 연동 */
+export type OAuthIntent = 'login' | 'link';
 
 export type OAuthStatePayload = {
   provider: SocialProvider;
@@ -50,6 +54,17 @@ export function setOAuthReturnCookie(
   response.cookies.set(OAUTH_RETURN_COOKIE, safe, cookieBase);
 }
 
+export function setOAuthIntentCookie(
+  response: NextResponse,
+  intent: OAuthIntent,
+) {
+  response.cookies.set(OAUTH_INTENT_COOKIE, intent, cookieBase);
+}
+
+export function parseOAuthIntent(raw: string | null | undefined): OAuthIntent {
+  return raw === 'link' ? 'link' : 'login';
+}
+
 export async function getOAuthStateCookie() {
   const jar = await cookies();
   return jar.get(OAUTH_STATE_COOKIE)?.value;
@@ -60,7 +75,13 @@ export async function getOAuthReturnCookie() {
   return sanitizeReturnUrl(jar.get(OAUTH_RETURN_COOKIE)?.value);
 }
 
+export async function getOAuthIntentCookie(): Promise<OAuthIntent> {
+  const jar = await cookies();
+  return parseOAuthIntent(jar.get(OAUTH_INTENT_COOKIE)?.value);
+}
+
 export function clearOAuthStateCookie(response: NextResponse) {
   response.cookies.set(OAUTH_STATE_COOKIE, '', { ...cookieBase, maxAge: 0 });
   response.cookies.set(OAUTH_RETURN_COOKIE, '', { ...cookieBase, maxAge: 0 });
+  response.cookies.set(OAUTH_INTENT_COOKIE, '', { ...cookieBase, maxAge: 0 });
 }

@@ -39,7 +39,7 @@ export const TAG_STATUS: Record<string, string> = {
 };
 
 export const REPORT_STATUS: Record<string, string> = {
-  REQUESTED: '신고요청',
+  REQUESTED: '요청',
   CONFIRMED: '확인',
   DELETED: '삭제조치',
   REJECTED: '거절',

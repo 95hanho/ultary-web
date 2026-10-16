@@ -35,12 +35,37 @@ BFF: `/api/...` · Spring: `/api/v1/...`
 | 비밀번호 변경 토큰 생성 | POST | `/api/auth/password/token` | `/api/v1/auth/password/token` |
 | 비밀번호 변경 | PUT | `/api/auth/password` | `/api/v1/auth/password` |
 | 로그인 중 비밀번호 변경 | PUT | `/api/auth/password/me` | `/api/v1/auth/password/me` |
-| 구글 소셜 로그인 시작 (BFF OAuth) | GET | `/api/auth/social/google` | — |
-| 구글 소셜 콜백 (BFF→Spring) | GET | `/api/auth/social/google/callback` | `POST /api/v1/auth/social/login` |
-| 카카오 소셜 로그인 시작 (BFF OAuth) | GET | `/api/auth/social/kakao` | — |
-| 카카오 소셜 콜백 (BFF→Spring) | GET | `/api/auth/social/kakao/callback` | `POST /api/v1/auth/social/login` |
+| 구글 소셜 시작 (BFF OAuth) | GET | `/api/auth/social/google` | — |
+| 구글 소셜 콜백 (BFF) | GET | `/api/auth/social/google/callback` | login → `POST /api/v1/auth/social/login` · link → `POST /api/v1/auth/social/link` |
+| 카카오 소셜 시작 (BFF OAuth) | GET | `/api/auth/social/kakao` | — |
+| 카카오 소셜 콜백 (BFF) | GET | `/api/auth/social/kakao/callback` | login → `POST /api/v1/auth/social/login` · link → `POST /api/v1/auth/social/link` |
 | 소셜 계정 연동 | POST | `/api/auth/social/link` | `/api/v1/auth/social/link` |
 | 소셜 계정 연동 해제 | DELETE | `/api/auth/social/unlink` | `/api/v1/auth/social/unlink` |
+
+`GET /auth/me`·`PATCH /auth/me`·닉네임 변경·`POST /auth/social/link`·`DELETE /auth/social/unlink` 응답에 `googleLinked`, `kakaoLinked`가 있다. 연동돼 있으면 true다.
+
+#### 마이페이지 SNS 연동 (로그인 유지)
+
+FE는 OAuth code를 Spring에 보내지 않는다. BFF가 code를 교환해 `providerUserId`를 만들고, 로그인 쿠키 Bearer로 Spring `POST /auth/social/link`를 호출한다.
+
+1. 미연동 버튼 → `GET /api/auth/social/google?intent=link&returnUrl=/settings/mypage` (카카오는 `/kakao`). 액세스 쿠키가 없으면 `/login?error=UNAUTHORIZED&returnUrl=…`로 보낸다.
+2. 구글·카카오 동의 후 같은 콜백 URL. BFF가 `intent=link`이면 `POST /api/v1/auth/social/link` (Bearer). 세션 쿠키는 그대로 둔다.
+3. 성공 → `/settings/mypage?linked=GOOGLE` (또는 `KAKAO`). FE는 `GET /auth/me`로 `googleLinked`/`kakaoLinked`를 다시 본다.
+4. 실패 → `/settings/mypage?error=<code>`. code는 `SOCIAL_ALREADY_LINKED`, `SOCIAL_ACCOUNT_IN_USE`, `UNAUTHORIZED`, `google_link_failed` / `kakao_link_failed`, OAuth `error` 등.
+
+`intent`를 빼거나 `login`이면 기존 소셜 로그인·가입이다. 콜백 Redirect URI는 로그인·연동 공통이다.
+
+#### Spring 연동·해제
+
+- `POST /api/v1/auth/social/link` Body는 소셜 로그인과 같다. Bearer 필수. 응답 `data`는 `MeResponse`(`googleLinked`·`kakaoLinked` 포함).
+- `409` `SOCIAL_ALREADY_LINKED` — 이미 내 계정에 그 provider가 연동됨.
+- `409` `SOCIAL_ACCOUNT_IN_USE` — «다른 계정에 이미 연동된 소셜 계정입니다. SNS계정을 회원탈퇴 후 진행해주세요.»
+- `400` `INVALID_SOCIAL_PROVIDER` — `GOOGLE`|`KAKAO`가 아님.
+- `DELETE /api/v1/auth/social/unlink?provider=GOOGLE|KAKAO` Bearer 필수. 응답도 `MeResponse`.
+- `404` `SOCIAL_NOT_LINKED` — 그 provider가 연동돼 있지 않음.
+- `400` `CANNOT_UNLINK_LAST_LOGIN` — 비밀번호가 없고 소셜이 하나뿐일 때 마지막 로그인 수단 해제 불가.
+
+`PATCH /auth/me`의 `name`은 **이름이 비어 있을 때만** 최초 등록한다(최대 20자). 카카오 등 OAuth에 이름이 없어 `GET /auth/me`의 `name`이 null인 경우, 회원정보 수정에서 보낸다. 이미 이름이 있으면 바꾸거나 비울 수 없고 `400` `NAME_ALREADY_SET`이다. 요청에서 `name`을 빼면 그대로 둔다.
 
 연락처를 바꿀 때만 `PATCH /auth/me`에 `phone`(숫자만)과 `phoneAuthCompleteToken`(인증 확인 응답)을 보낸다. 토큰에 들어 있는 번호와 같을 때만 저장한다. 인증번호 발송(`purpose=PROFILE`)에서 이미 다른 사람 번호면 `PHONE_ALREADY_USED`.
 
@@ -66,7 +91,7 @@ BFF: `/api/...` · Spring: `/api/v1/...`
 
 입력 검사 공통 스펙: `share/validation/rules.json` (닉네임·비번·폰·handle·hashtag). Bean Validation 실패 시 `ApiResponse` `success:false` + `message` + `data`(필드 맵).
 
-### Redirect URI (로컬)
+### Redirect URI (로컬 · 로그인·연동 공통)
 
 - `http://localhost:3000/api/auth/social/google/callback`
 - `http://localhost:3000/api/auth/social/kakao/callback`
@@ -141,7 +166,7 @@ BFF: `/api/...` · Spring: `/api/v1/...`
 > tagged-feeds: 다른 사람이 내 펫을 `COLLABORATOR`로 넣거나 사진에 `@` 멘션한 글. 내가 쓴 글은 제외.  
 > **프로필 사진**: `profileFile`은 유저 컬럼이 아니다. 활성 펫 중 사진이 있는 것 가운데 `priority`가 가장 높은 펫. `PATCH /my-ultary/profile-image`는 제거. 사진은 `PATCH /pets/{petId}`의 `profileFileId`, 순서는 `priority`.  
 > `GET /my-ultary/feeds`는 **로그인한 나의** 그리드다. 다른 사람 게시글 그리드는 `GET /users/{userNo}/feeds`. 고정·태그 탭도 같다. 다른 사람 것은 `GET /users/{userNo}/pinned-feeds`, `GET /users/{userNo}/tagged-feeds`. `GET /my-ultary/saved-feeds`는 나만 보는 저장이라 다른 사람 울타리에 없다.  
-> HTTP: `requests/my-ultary.http` (시드 user 101 / `google-myultary-test-001`)
+> HTTP: `requests/my-ultary.http` (시드 user 101 / phone `01011112222` / `Test1234!`)
 
 ---
 
@@ -199,7 +224,7 @@ BFF: `/api/...` · Spring: `/api/v1/...`
 | 답글 좋아요 취소 | DELETE | `/api/feeds/:feedId/comments/:commentId/replies/:replyId/like` |
 
 > 댓글·답글 응답: `likeCount`, `likedByMe`, `authorProfileFile` (`FileSummary | null`, 작성자 프로필. 미등록이면 null), `myReport`. 목록에 답글이 포함되면 답글에도 동일. 좋아요 토글·작성·수정도 해당 댓글/답글 응답을 다시 반환. 테이블은 `ultary_feed_comment_like` / `ultary_feed_reply_like` (피드 좋아요와 분리).  
-> **내 신고** `myReport`: 게시글 상세·댓글·답글·울타리(`GET /users/{userNo}/ultary`)에 있다. 없으면 `null`. 있으면 `reportId`, `status`. `status=REQUESTED`일 때 `DELETE /reports/{reportId}`로 취소한다. 관리자가 `CONFIRMED`(확인)로 바꾼 뒤, 보류·삭제조치·거절·정지는 취소하지 않는다.
+> **내 신고** `myReport`: 게시글 상세·댓글·답글·울타리(`GET /users/{userNo}/ultary`)에 있다. 없으면 `null`. 있으면 `reportId`, `status`. `status=REQUESTED`일 때 `DELETE /reports/{reportId}`로 취소한다. 관리자가 `CONFIRMED`(확인)로 바꾼 뒤, 삭제조치·거절·정지는 취소하지 않는다.
 
 ---
 
@@ -444,7 +469,6 @@ BFF: `/api/...` · Spring: `/api/v1/...`
 | 신고 회원 정지 | POST | `/api/admin/reports/:reportId/suspend` | `/api/v1/admin/reports/:reportId/suspend` |
 | 신고 확인 | POST | `/api/admin/reports/:reportId/confirm` | `/api/v1/admin/reports/:reportId/confirm` |
 | 신고 거절 | POST | `/api/admin/reports/:reportId/reject` | `/api/v1/admin/reports/:reportId/reject` |
-| 신고 보류 | POST | `/api/admin/reports/:reportId/hold` | `/api/v1/admin/reports/:reportId/hold` |
 
 관리자 계정은 가입 API가 없다. `ultary_admin`에 직접 넣는다. `password`는 `POST /api/v1/test/password/encode`(local)의 `encodedPassword`(`{bcrypt}$2a$10$...`)다.
 
@@ -454,13 +478,13 @@ BFF: `/api/...` · Spring: `/api/v1/...`
 
 `/api/v1/admin` 아래 나머지 API는 관리자 액세스 토큰만 받는다. 회원 Bearer는 `401`이다.
 
-메뉴 뱃지 `GET /api/v1/admin/menu-counts`. 쿼리는 없다. `cursor`, `limit`, `status`도 없다. 목록은 주지 않는다. `pendingTagRequestCount`는 상업 태그 설명 요청 중 `PENDING` 건수다. 정지 회원의 요청은 세지 않는다. `requestedReportCount`는 신고 중 `REQUESTED` 건수다. 둘 다 0 이상 정수이고, 해당 건이 없으면 0이다.
+메뉴 뱃지 `GET /api/v1/admin/menu-counts`. 쿼리는 없다. `cursor`, `limit`, `status`도 없다. 목록은 주지 않는다. `pendingTagRequestCount`는 상업 태그 설명 요청 중 `PENDING` 건수다. 정지 회원의 요청은 세지 않는다. `requestedReportCount`는 신고 중 `REQUESTED`·`CONFIRMED` 합이다. 둘 다 0 이상 정수이고, 해당 건이 없으면 0이다.
 
 상업 태그 설명 요청 목록은 `status`를 비우면 `PENDING`·`APPROVED`·`REJECTED` 전부, 최신 `createdAt` 순이다. 넣으면 그 상태만. `limit` 기본 30 최대 50. 응답은 `items`, `nextCursorRequestId`, `totalCount`. 다음 페이지는 `cursorRequestId`에 직전 `nextCursorRequestId`를 넣는다. 없으면 끝이고 `nextCursorRequestId`는 null이다. 페이지 번호는 응답에 없다. 한 페이지 건수는 화면 높이에 따라 바뀌고 최대 50이다. `totalCount`는 그 요청의 `status`와 같은 조건의 전체 건수다. `cursorRequestId`와 `limit`는 이 수에 영향을 주지 않는다. `status`를 비우면 `PENDING`·`APPROVED`·`REJECTED` 전체 건수다. 태그 화면은 대기 요청을 먼저 보여 준 뒤 나머지를 이어서 보여 준다. 분모로 쓰는 값은 `status`를 비운 전체 `totalCount`다. `status=PENDING` 응답의 `totalCount`는 대기 건수다. 항목은 사용자 요청과 같고, 요청한 회원 닉네임 `requesterNickname`이 있다. 요청한 회원이 정지면 관리자 목록과 `totalCount`, 메뉴 뱃지 `pendingTagRequestCount`에서 뺀다. 그 회원의 내 요청 목록은 그대로다. `POST /admin/tags/{tagId}/approve`, `reject`, `pending`은 그 태그의 최신 설명 요청 상태를 바꾼다. 대기뿐 아니라 승인·거절된 요청도 다시 승인·거절·대기로 바꿀 수 있다. 요청이 없으면 `404` `TAG_PROFILE_REQUEST_NOT_FOUND`. `approve`는 제목·소개·링크·이미지로 공개 설명을 바꾸고 `rejectMessage`는 null이다. 이후 태그 조회에 설명이 나온다. `reject`의 Body `rejectMessage`는 500자 이하이고, 비우거나 본문을 빼면 null로 저장한다. 신청자는 내 요청 목록과 태그 조회의 `profileRequest.rejectMessage`에서 본다. 이미 공개된 설명은 그대로 두고, 한 번도 승인되지 않았으면 `profileStatus=REJECTED`라 설명이 안 나온다. `pending`은 본문이 없다. 요청을 `PENDING`으로 두고 `rejectMessage`와 `reviewedAt`은 null이다. 지금 공개 중이면 `profileStatus=PENDING`으로 바꿔 설명을 숨긴다. 거절된 요청을 대기로 돌릴 때, 이전에 공개된 설명이 남아 있으면 그 설명은 그대로 둔다. 응답은 그 요청이다.
 
-회원 정지는 `withdrawal_status=SUSPENDED`, `suspended_at=지금`. 리프레시 토큰은 폐기한다. 응답 `data`는 `userNo`, `withdrawalStatus`, `suspendedAt`. 없는 회원 `404` `USER_NOT_FOUND`. 이미 정지면 `409` `ACCOUNT_ALREADY_SUSPENDED`. 탈퇴 계정이면 `409` `CANNOT_SUSPEND_WITHDRAWN`. 해제는 `ACTIVE`로 되돌리고 `suspended_at`을 비운다. 정지가 아니면 `409` `ACCOUNT_NOT_SUSPENDED`. 신고 상태를 확인·거절·보류로 바꿔도 회원 정지나 글 삭제는 풀리지 않는다. 정지는 `POST /admin/users/{userNo}/unsuspend`로만 해제한다. 삭제한 글·댓글·답글은 신고 상태를 바꿔도 돌아오지 않는다. 정지·삭제조치·거절된 신고는 다시 조치할 수 없다.
+회원 정지는 `withdrawal_status=SUSPENDED`, `suspended_at=지금`. 리프레시 토큰은 폐기한다. 응답 `data`는 `userNo`, `withdrawalStatus`, `suspendedAt`. 없는 회원 `404` `USER_NOT_FOUND`. 이미 정지면 `409` `ACCOUNT_ALREADY_SUSPENDED`. 탈퇴 계정이면 `409` `CANNOT_SUSPEND_WITHDRAWN`. 해제는 `ACTIVE`로 되돌리고 `suspended_at`을 비운다. 정지가 아니면 `409` `ACCOUNT_NOT_SUSPENDED`. 신고 조치로 정지를 걸었다가 그 신고를 다른 상태로 바꾸면, 같은 회원에 정지 상태인 다른 신고가 없을 때 정지를 푼다. 직접 건 정지는 `POST /admin/users/{userNo}/unsuspend`로도 푼다.
 
-신고 목록은 `status`를 비우면 `REQUESTED`·`CONFIRMED`·`DELETED`·`REJECTED`·`ON_HOLD`·`SUSPENDED` 전부, 최신 `createdAt` 순이다. 넣으면 그 상태만. `limit` 기본 30 최대 50. 응답은 `items`, `nextCursorReportId`, `totalCount`. 다음 페이지는 `cursorReportId`에 직전 `nextCursorReportId`를 넣는다. 없으면 끝이고 `nextCursorReportId`는 null이다. 페이지 번호는 응답에 없다. 한 페이지 건수는 화면 높이에 따라 바뀌고 최대 50이다. `totalCount`는 그 요청의 `status`와 같은 조건의 전체 건수다. `cursorReportId`와 `limit`는 이 수에 영향을 주지 않는다. `status`를 비우면 여섯 상태 전체 건수다. 항목은 `reportId`, `reporterUserNo`, `targetType`, `targetUserNo`, `targetFeedId`, `targetCommentId`, `targetReplyId`, `reason`, `targetNickname`, `targetContent`, `targetSuspended`, `status`, `createdAt`, `processedAt`. `targetSuspended`는 대상 회원이 정지인지다. 회원 신고는 그 회원, 글·댓글·답글 신고는 작성자다. `withdrawal_status=SUSPENDED`일 때만 true다. 상세 `GET /admin/reports/{reportId}`도 목록과 같은 항목이다. 없으면 `404` `REPORT_NOT_FOUND`. `targetNickname`은 회원 신고의 대상 닉네임이다. `targetContent`는 게시글·댓글·답글 본문이다. 10자까지 주고, 더 길면 10자 뒤에 `...`을 붙인다. 해당 없는 종류는 null이다. `status`는 `REQUESTED` 신고요청, `CONFIRMED` 확인, `DELETED` 삭제조치, `REJECTED` 거절, `ON_HOLD` 보류, `SUSPENDED` 정지. 신고요청·확인·보류만 다시 조치할 수 있다. `confirm`은 신고요청만 `CONFIRMED`로 바꾼다. 확인 뒤에는 신고자가 취소할 수 없다. `delete-content`는 `FEED`·`COMMENT`·`REPLY`만. 대상을 소프트 삭제하고 상태를 `DELETED`로 둔다. 이미 삭제된 대상이면 상태만 바꾼다. `suspend`는 `USER` 신고만. 그 회원을 정지하고 상태를 `SUSPENDED`로 둔다. 이미 정지면 상태만 바꾼다. 대상 종류가 다르면 `400` `REPORT_ACTION_MISMATCH`. `reject`는 `REJECTED`, `hold`는 `ON_HOLD`. 없거나 이미 삭제조치·거절·정지인 신고는 `404` `REPORT_NOT_FOUND`, `409` `REPORT_ALREADY_CLOSED`.
+신고 목록은 `status`를 비우면 `REQUESTED`·`CONFIRMED`·`DELETED`·`REJECTED`·`SUSPENDED` 전부다. 신고요청·확인이 먼저 나오고, 그다음 삭제조치·거절·정지다. 다만 신고 대상 회원이 정지면(`targetSuspended=true`) 요청·확인이어도 앞쪽 묶음에 넣지 않는다. 같은 묶음 안에서는 최신 `createdAt` 순이다. 넣으면 그 상태만, 최신순이다. `limit` 기본 30 최대 50. 응답은 `items`, `nextCursorReportId`, `totalCount`. 다음 페이지는 `cursorReportId`에 직전 `nextCursorReportId`를 넣는다. 없으면 끝이고 `nextCursorReportId`는 null이다. 페이지 번호는 응답에 없다. 한 페이지 건수는 화면 높이에 따라 바뀌고 최대 50이다. `totalCount`는 그 요청의 `status`와 같은 조건의 전체 건수다. `cursorReportId`와 `limit`는 이 수에 영향을 주지 않는다. `status`를 비우면 다섯 상태 전체 건수다. 항목은 `reportId`, `reporterUserNo`, `targetType`, `targetUserNo`, `targetFeedId`, `targetCommentId`, `targetReplyId`, `reason`, `targetNickname`, `targetContent`, `targetSuspended`, `status`, `createdAt`, `processedAt`. `targetUserNo`·`targetNickname`은 대상 회원이다. 회원 신고는 그 회원, 글·댓글·답글 신고는 작성자다. `targetSuspended`는 그 회원이 정지인지다. `withdrawal_status=SUSPENDED`일 때만 true다. 상세 `GET /admin/reports/{reportId}`도 목록과 같은 항목이다. 없으면 `404` `REPORT_NOT_FOUND`. `targetContent`는 게시글·댓글·답글 본문이다. 10자까지 주고, 더 길면 10자 뒤에 `...`을 붙인다. 해당 없는 종류는 null이다. `status`는 `REQUESTED` 신고요청, `CONFIRMED` 확인, `DELETED` 삭제조치, `REJECTED` 거절, `SUSPENDED` 정지. 어떤 상태에서든 다시 조치할 수 있다. `confirm`은 `CONFIRMED`로 바꾼다. `CONFIRMED`가 되면 신고자는 취소할 수 없다. `delete-content`는 `FEED`·`COMMENT`·`REPLY`만. 대상을 소프트 삭제하고 상태를 `DELETED`로 둔다. 이미 삭제된 대상이면 상태만 바꾼다. 삭제조치에서 다른 상태로 바꾸면, 같은 대상에 삭제조치인 다른 신고가 없을 때 글·댓글·답글을 복구한다. `suspend`는 `USER` 신고만. 그 회원을 정지하고 상태를 `SUSPENDED`로 둔다. 이미 정지면 상태만 바꾼다. 정지에서 다른 상태로 바꾸면, 같은 회원에 정지인 다른 신고가 없을 때 정지를 푼다. 대상 종류가 다르면 `400` `REPORT_ACTION_MISMATCH`. `reject`는 `REJECTED`. 없으면 `404` `REPORT_NOT_FOUND`.
 
 ---
 
@@ -504,6 +528,7 @@ HTTP: `requests/test.http`
   - 기존 DB v21→v22: `016_report_status.sql` (`ultary_report.status` 신고요청·삭제조치·거절·보류·정지)
   - 기존 DB v22→v23: `017_report_confirmed.sql` (`ultary_report.status`에 `CONFIRMED` 확인)
   - 기존 DB v27→v28: `022_drop_report_pet.sql` (신고 대상에서 `PET`과 `target_pet_id` 제거)
+  - 기존 DB v28→v29: `023_drop_report_on_hold.sql` (신고 `ON_HOLD` 보류 제거. 기존 보류는 `CONFIRMED`)
   - 기존 DB v26→v27: `021_tag_profile_reject_message.sql` (상업 태그 거절 멘트)
   - 기존 DB v25→v26: `020_tag_purpose.sql` (태그 `purpose`·`profile_status`, 상업 설명 승인 요청)
   - 기존 DB v24→v25: `019_follow_wording.sql` (팔로우·팔로워 설명. 컬럼 값 변경 없음)
@@ -513,7 +538,7 @@ HTTP: `requests/test.http`
   - 스키마 직후 실행. **재실행 가능**(CLEANUP 후 INSERT). 운영/최종 배포에서는 실행하지 않음.  
   - CDN 시드: `file_path` = `https://ehfqntuqntu.cdn1.cafe24.com/ultary/{filename}` (profile/post/story/goods). file_id **110~141**.  
   - 일반 업로드 파일은 `images/…`, `videos/…` (UPLOAD_DIR 상대경로).  
-  - 시드 user **101~105** (펫 유저당 1~2). HTTP: `my-ultary` / `story` / `neighbor` → 101 (`google-myultary-test-001`)
+  - 시드 user **101~105** (펫 유저당 1~2). HTTP: `my-ultary` / `story` / `neighbor` → 101 (`01011112222` / `Test1234!`). SNS 연동 시드 없음
 - 입력 검사 공통 스펙: `share/validation/` (`rules.json`)
 
 ### 응답 임베드: FileSummary

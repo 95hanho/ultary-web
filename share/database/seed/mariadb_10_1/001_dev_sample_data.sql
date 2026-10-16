@@ -21,7 +21,8 @@
 --       최근 검색: 101이 102~105 울타리에 각 1번 들어감
 --       DM: 101↔102(안 읽음 3, 게시글·스토리 공유, 스토리+메시지), 101↔103, 101↔105
 --       펫 priority: 같은 유저 안에서는 pet_id 순 (1이 가장 높음). 유저 표시 사진은 그중 사진 있는 첫 펫
--- HTTP: user 101 (google-myultary-test-001) / phone 01011112222
+-- HTTP: user 101 / phone 01011112222 / password Test1234!
+-- SNS(ultary_user_social) 시드 없음. 실제 OAuth 연동만 DB에 둔다.
 -- ============================================================
 
 SET NAMES utf8mb4;
@@ -169,22 +170,10 @@ WHERE `user_no` IN (1, 2, 101, 102, 103, 104, 105, 106, 107, 108)
    OR `target_user_no` IN (1, 2, 101, 102, 103, 104, 105, 106, 107, 108)
    OR `target_user_no` BETWEEN 201 AND 220;
 
+-- 시드용 가짜 SNS 연동만 지운다. 실제 OAuth provider_user_id(숫자 등)는 남긴다.
 DELETE FROM `ultary_user_social`
-WHERE `user_no` IN (1, 2, 101, 102, 103, 104, 105, 106, 107, 108)
-   OR `user_no` BETWEEN 201 AND 220
-   OR `provider_user_id` IN (
-     'google-seed-user-001',
-     'kakao-seed-user-002',
-     'google-myultary-test-001',
-     'kakao-seed-neighbor-102',
-     'google-seed-user-103',
-     'google-seed-user-104',
-     'kakao-seed-user-105',
-     'google-seed-ad-106',
-     'google-seed-ad-107',
-     'google-seed-ad-108'
-   )
-   OR `provider_user_id` LIKE 'google-seed-viewer-%';
+WHERE `provider_user_id` LIKE 'google-%'
+   OR `provider_user_id` LIKE 'kakao-%';
 
 DELETE FROM `ultary_file`
 WHERE `file_id` BETWEEN 100 AND 299
@@ -244,15 +233,6 @@ INSERT INTO `ultary_user` (
 (104, '{noop}Test1234!', '지우', '대기중', NOW(), 0, 'seed.u104@example.com', '01077778888', '요청 대기 중', '서울특별시', '강남구', 'ACTIVE'),
 (105, '{noop}Test1234!', '서연', '팔로워', NOW(), 0, 'seed.u105@example.com', '01099990000', '101의 이웃', '부산광역시', '해운대구', 'ACTIVE');
 
-INSERT INTO `ultary_user_social` (
-  `user_no`, `provider`, `provider_user_id`, `provider_email`
-) VALUES
-(101, 'GOOGLE', 'google-myultary-test-001', 'myultary.test@example.com'),
-(102, 'KAKAO', 'kakao-seed-neighbor-102', 'seed.neighbor@example.com'),
-(103, 'GOOGLE', 'google-seed-user-103', 'seed.u103@example.com'),
-(104, 'GOOGLE', 'google-seed-user-104', 'seed.u104@example.com'),
-(105, 'KAKAO', 'kakao-seed-user-105', 'seed.u105@example.com');
-
 -- ---------- 구경 계정 20명 (피드·펫 없음, 비밀번호: {noop}Test1234!) ----------
 INSERT INTO `ultary_user` (
   `user_no`, `password`, `name`, `nickname`, `nickname_changed_at`,
@@ -280,30 +260,6 @@ INSERT INTO `ultary_user` (
 (219, '{noop}Test1234!', '구경십구', '아침이슬', NOW(), 0, 'viewer219@example.com', '01020100219', '피드 없이 구경만', '강원특별자치도', '춘천시', 'ACTIVE'),
 (220, '{noop}Test1234!', '구경이십', '저녁노을', NOW(), 0, 'viewer220@example.com', '01020100220', '피드 없이 구경만', '경상남도', '창원시', 'ACTIVE');
 
-INSERT INTO `ultary_user_social` (
-  `user_no`, `provider`, `provider_user_id`, `provider_email`
-) VALUES
-(201, 'GOOGLE', 'google-seed-viewer-201', 'viewer201@example.com'),
-(202, 'GOOGLE', 'google-seed-viewer-202', 'viewer202@example.com'),
-(203, 'GOOGLE', 'google-seed-viewer-203', 'viewer203@example.com'),
-(204, 'GOOGLE', 'google-seed-viewer-204', 'viewer204@example.com'),
-(205, 'GOOGLE', 'google-seed-viewer-205', 'viewer205@example.com'),
-(206, 'GOOGLE', 'google-seed-viewer-206', 'viewer206@example.com'),
-(207, 'GOOGLE', 'google-seed-viewer-207', 'viewer207@example.com'),
-(208, 'GOOGLE', 'google-seed-viewer-208', 'viewer208@example.com'),
-(209, 'GOOGLE', 'google-seed-viewer-209', 'viewer209@example.com'),
-(210, 'GOOGLE', 'google-seed-viewer-210', 'viewer210@example.com'),
-(211, 'GOOGLE', 'google-seed-viewer-211', 'viewer211@example.com'),
-(212, 'GOOGLE', 'google-seed-viewer-212', 'viewer212@example.com'),
-(213, 'GOOGLE', 'google-seed-viewer-213', 'viewer213@example.com'),
-(214, 'GOOGLE', 'google-seed-viewer-214', 'viewer214@example.com'),
-(215, 'GOOGLE', 'google-seed-viewer-215', 'viewer215@example.com'),
-(216, 'GOOGLE', 'google-seed-viewer-216', 'viewer216@example.com'),
-(217, 'GOOGLE', 'google-seed-viewer-217', 'viewer217@example.com'),
-(218, 'GOOGLE', 'google-seed-viewer-218', 'viewer218@example.com'),
-(219, 'GOOGLE', 'google-seed-viewer-219', 'viewer219@example.com'),
-(220, 'GOOGLE', 'google-seed-viewer-220', 'viewer220@example.com');
-
 -- ---------- 광고 전용 계정 3명 (상품 글만. 비밀번호: {noop}Test1234!) ----------
 INSERT INTO `ultary_user` (
   `user_no`, `password`, `name`, `nickname`, `nickname_changed_at`,
@@ -313,13 +269,6 @@ INSERT INTO `ultary_user` (
 (106, '{noop}Test1234!', '한빛', '펫샵',   NOW(), 0, 'seed.ad106@example.com', '01010600106', '상품 광고만 올리는 계정', '서울특별시', '마포구', 'ACTIVE'),
 (107, '{noop}Test1234!', '도윤', '용품몰', NOW(), 0, 'seed.ad107@example.com', '01010700107', '상품 광고만 올리는 계정', '경기도', '성남시', 'ACTIVE'),
 (108, '{noop}Test1234!', '서준', '산책샵', NOW(), 0, 'seed.ad108@example.com', '01010800108', '상품 광고만 올리는 계정', '부산광역시', '해운대구', 'ACTIVE');
-
-INSERT INTO `ultary_user_social` (
-  `user_no`, `provider`, `provider_user_id`, `provider_email`
-) VALUES
-(106, 'GOOGLE', 'google-seed-ad-106', 'seed.ad106@example.com'),
-(107, 'GOOGLE', 'google-seed-ad-107', 'seed.ad107@example.com'),
-(108, 'GOOGLE', 'google-seed-ad-108', 'seed.ad108@example.com');
 
 -- ---------- CDN 파일 (profile 9, post 15+15, story 16, goods 2) ----------
 -- file_path = 절대 URL (FE가 그대로 표시). source_type=OWNED (Cafe24 CDN 테스트 자산)
@@ -1279,7 +1228,6 @@ ALTER TABLE `ultary_feed_reply` AUTO_INCREMENT = 300;
 ALTER TABLE `ultary_feed_comment_mention` AUTO_INCREMENT = 300;
 ALTER TABLE `ultary_story` AUTO_INCREMENT = 200;
 ALTER TABLE `ultary_neighbor` AUTO_INCREMENT = 200;
-ALTER TABLE `ultary_user_social` AUTO_INCREMENT = 200;
 ALTER TABLE `ultary_user_block` AUTO_INCREMENT = 200;
 
 -- ---------- 최근 검색 (101이 다른 유저 울타리에 1명당 1건) ----------

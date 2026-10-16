@@ -7,6 +7,80 @@ validation · database · docs 모두 **여기 한곳**에 적는다.
 
 ---
 
+## 2026-10-16 16:15
+
+### API · 회원 이름 최초 등록
+- `PATCH /auth/me`의 `name`: 비어 있을 때만 최초 등록. 이미 있으면 `400` `NAME_ALREADY_SET`
+- 카카오 등 OAuth에 이름이 없을 때 회원정보 수정에서 받는다
+
+---
+
+## 2026-10-16 14:50
+
+### API · 관리자 신고 목록
+- `GET /admin/reports` 정렬: 대상 회원이 정지면 `REQUESTED`·`CONFIRMED`여도 앞쪽 우선 묶음에서 제외
+
+---
+
+## 2026-10-16 14:25
+
+### API · BFF · 마이페이지 SNS 연동
+- `GET /auth/social/google|kakao?intent=link&returnUrl=` 로 로그인 유지 연동. 콜백이 `POST /social/link` 호출
+- `POST /social/link`·`DELETE /social/unlink` 응답을 `MeResponse`로 둔다 (`googleLinked`·`kakaoLinked`)
+
+---
+
+## 2026-10-16 14:10
+
+### DB · 시드
+- `ultary_user_social` 시드·가짜 연동 제거. 실제 OAuth로 연동한 행만 둔다
+
+---
+
+## 2026-10-16 13:40
+
+### API · 내 회원정보
+- `GET /auth/me` 등에 `googleLinked`, `kakaoLinked`. 마이페이지 소셜 연동 여부
+
+---
+
+## 2026-10-16 13:30
+
+### API · 관리자 메뉴
+- `requestedReportCount`는 신고요청·확인 합이다
+
+---
+
+## 2026-10-16 10:50
+
+### API · 관리자 신고 목록
+- `status`를 비우면 신고요청·확인이 먼저 나오고, 그다음 삭제조치·거절·정지다
+
+---
+
+## 2026-10-16 10:40
+
+### API · DB · 신고 보류 제거
+- `ON_HOLD`와 `POST /admin/reports/{reportId}/hold`를 없앤다. 기존 보류는 `CONFIRMED`로 옮긴다 (스키마 v29)
+
+---
+
+## 2026-10-16 10:30
+
+### API · 관리자 신고 조치
+- 정지·삭제조치·거절된 신고도 다시 조치할 수 있다
+- 정지에서 다른 상태로 바꾸면 회원 정지를 풀고, 다시 정지로 바꾸면 정지한다
+- 삭제조치에서 다른 상태로 바꾸면 글·댓글·답글을 복구하고, 다시 삭제조치면 삭제한다
+
+---
+
+## 2026-10-16 09:45
+
+### API · 관리자 신고
+- 목록·상세의 `targetUserNo`·`targetNickname`은 글·댓글·답글 신고에서도 작성자를 준다
+
+---
+
 ## 2026-10-15 17:30
 
 ### API · 정지 회원

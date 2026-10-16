@@ -152,6 +152,7 @@ export function DevTestDock({ groups }: Props) {
 
   if (process.env.NODE_ENV !== 'development') return null;
   if (!mounted) return null;
+  if (pathname === '/admin' || pathname.startsWith('/admin/')) return null;
 
   const remain = expiresAt == null ? null : expiresAt - now;
 

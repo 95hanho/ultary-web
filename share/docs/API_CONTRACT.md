@@ -74,6 +74,12 @@
 | `POST /stories/{storyId}/view` | 스토리 단건 (`viewedByMe`, `likedByMe`) | 해당 `storyId`만 INSERT IGNORE. **본인 스토리도 기록** |
 | `POST /stories/{storyId}/like` · `DELETE` | `likeCount`, `likedByMe` | 스토리 공감. 본인 또는 ACCEPTED 팔로우 관계만. 취소는 소프트 삭제 |
 | `GET /users/blocks` | 배열 | 내가 차단한 사용자. `nickname`, `profileFile`(대표 펫 사진, 없으면 null), `blockedAt`. 해제는 `DELETE /users/{userNo}/block` |
+| `GET /auth/me` | `name`, `googleLinked`, `kakaoLinked` 등 | 내 회원정보. `name`이 null이면 회원정보 수정에서 최초 등록 가능 |
+| `PATCH /auth/me` | `MeResponse` | 닉네임 제외. `name`은 비어 있을 때만 최초 등록(최대 20자). 이미 있으면 `NAME_ALREADY_SET` |
+| `GET /auth/social/google` · `/kakao` | 리다이렉트 | BFF OAuth 시작. `intent=link&returnUrl=/settings/mypage`면 로그인 유지 연동. 생략·`login`이면 소셜 로그인 |
+| `GET /auth/social/google/callback` · `/kakao/callback` | 리다이렉트 | `intent=link` → Spring `POST /social/link` 후 `?linked=`. 아니면 `POST /social/login` |
+| `POST /auth/social/link` | `MeResponse` | Bearer. Body는 소셜 로그인과 같음. `SOCIAL_ALREADY_LINKED`·`SOCIAL_ACCOUNT_IN_USE` |
+| `DELETE /auth/social/unlink?provider=` | `MeResponse` | Bearer. `SOCIAL_NOT_LINKED`. 비밀번호 없고 소셜 하나면 `CANNOT_UNLINK_LAST_LOGIN` |
 | `GET /notifications/unread-count` | `unreadCount` | 하단 배지. 읽음 처리 없음. `/auth/me`에 없음. 소켓이 같은 숫자를 `NOTIFICATION_UNREAD`로 밀어 줌 |
 | `POST /ws/ticket` | `ticket`, `expiresIn` | 웹소켓 입장 토큰. 30초, 한 번. Bearer. 소켓은 `ws://{Spring}/api/v1/ws` 로 브라우저가 직접 연결 |
 | 웹소켓 `/api/v1/ws` | 텍스트 JSON | 첫 메시지 `{type:AUTH,ticket}`. 성공 `AUTH_OK` 후 `NOTIFICATION_UNREAD`. 새 DM은 `DM_MESSAGE`(받는 사람 기준 `fromMe`). 읽음은 상대에게 `DM_READ`. 입력 중은 상대에게 `DM_TYPING`. 25초마다 `PING` |
@@ -86,10 +92,11 @@
 | `GET /tags/{tagId}` | 태그 | `purpose`는 `USER` 또는 `COMMERCIAL`. `title`·`content`·`link`·`images`는 `profileStatus=APPROVED`일 때만. 요청자만 `profileRequest` |
 | `POST /tags/{tagId}/profile-requests` | 요청 1개 | 상업 태그에 넣을 설명. 관리자 승인 후에만 태그 조회에 나온다 |
 | `GET /tags/profile-requests` | 배열 | 내가 넣은 태그 설명 요청. `status`를 비우면 전부 |
-| `GET /admin/menu-counts` | `pendingTagRequestCount`, `requestedReportCount` | 메뉴 뱃지. 태그 설명 요청 `PENDING` 건수와 신고 `REQUESTED` 건수. 정지 회원의 태그 요청은 세지 않는다. 목록은 없다. 없으면 0 |
+| `GET /admin/menu-counts` | `pendingTagRequestCount`, `requestedReportCount` | 메뉴 뱃지. 태그 설명 요청 `PENDING` 건수와 신고 `REQUESTED`·`CONFIRMED` 합. 정지 회원의 태그 요청은 세지 않는다. 목록은 없다. 없으면 0 |
 | `GET /admin/tags/profile-requests` | `items`, `nextCursorRequestId`, `totalCount` | 상업 태그 설명 요청. `status`를 비우면 전부, 최신순. `totalCount`는 그 `status`의 전체 건수. 커서와 `limit`는 세지 않는다. 정지 회원의 요청은 목록과 건수에서 뺀다. 다음은 `cursorRequestId` |
-| `GET /admin/reports` | `items`, `nextCursorReportId`, `totalCount` | 신고 목록. `status`를 비우면 전부, 최신순. `totalCount`는 그 `status`의 전체 건수. 커서와 `limit`는 세지 않는다. 회원 신고는 `targetNickname`, 글·댓글·답글은 `targetContent`(10자, 넘으면 `...`). `targetSuspended`는 대상 회원 또는 글·댓글·답글 작성자가 정지인지. 다음은 `cursorReportId` |
-| `GET /admin/reports/{reportId}` | 신고 1개 | 목록 항목과 같다. `targetSuspended` 포함. 없으면 404 |
+| `GET /admin/reports` | `items`, `nextCursorReportId`, `totalCount` | 신고 목록. `status`를 비우면 전부, 신고요청·확인이 먼저(대상이 정지인 건 제외), 그다음 나머지. 같은 묶음은 최신순. `totalCount`는 그 `status`의 전체 건수. 커서와 `limit`는 세지 않는다. `targetUserNo`·`targetNickname`은 대상 회원(회원 신고는 그 회원, 글·댓글·답글은 작성자). 글·댓글·답글은 `targetContent`(10자, 넘으면 `...`). `targetSuspended`는 그 회원이 정지인지. 다음은 `cursorReportId` |
+| `GET /admin/reports/{reportId}` | 신고 1개 | 목록 항목과 같다. `targetUserNo`·`targetNickname`·`targetSuspended` 포함. 없으면 404 |
+| `POST /admin/reports/{reportId}/confirm` · `reject` · `delete-content` · `suspend` | 신고 1개 | 어떤 상태에서든 다시 조치. 정지→다른 상태면 회원 정지 해제, 삭제조치→다른 상태면 글·댓글·답글 복구. 같은 대상에 같은 상태 신고가 더 있으면 유지. `delete-content`는 글·댓글·답글, `suspend`는 회원만 |
 | `POST /admin/tags/{tagId}/approve` · `reject` · `pending` | 요청 1개 | 최신 요청을 승인·거절·대기로 바꾼다. 승인·거절된 요청도 다시 바꿀 수 있다. 승인하면 그 설명이 태그에 공개된다. 거절 Body `rejectMessage`는 신청자 목록의 `rejectMessage`로 남는다. `pending`은 본문 없음 |
 | `GET /dm/rooms` | `items` | 내 대화방. `peerUserNo`, `peerNickname`, `profileFile`, `lastMessage`, `lastMessageAt`, `unreadCount`, `following`, `followedBy` |
 | `POST /dm/rooms` | 방 1개 | `{ targetUserNo }`. 팔로우 또는 팔로워만. 있으면 그 방을 다시 연다. 응답에 `following`, `followedBy` |

@@ -306,11 +306,19 @@ export default function MainClient() {
 
         <FeedList feeds={feeds} />
 
+        {feeds.length === 0 ? (
+          <div className={styles.feedEmpty}>
+            <p className={styles.feedEndMessage}>게시글이 없습니다. 팔로우를 늘려보세요.</p>
+          </div>
+        ) : null}
+
         {recommended.length > 0 ? (
           <>
-            <div className={styles.feedEnd}>
-              <p className={styles.recommendBtn}>여기부터 추천게시글입니다</p>
-            </div>
+            {feeds.length > 0 ? (
+              <div className={styles.feedEnd}>
+                <p className={styles.recommendBtn}>추천게시글</p>
+              </div>
+            ) : null}
             <FeedList feeds={recommended} label="추천 게시글" />
           </>
         ) : null}
