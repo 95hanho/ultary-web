@@ -1,0 +1,14 @@
+.root {
+  display: flex;
+  width: 100%;
+  min-height: 100dvh;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.logo {
+  width: 120px;
+  max-width: 40vw;
+  height: auto;
+}

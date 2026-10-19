@@ -3,10 +3,10 @@
 import { FooterMenu } from '@/components/common/FooterMenu';
 import { PageHeader } from '@/components/common/PageHeader';
 import { FeedGrid, type FeedGridItem } from '@/components/feed/FeedGrid';
-import { bffGet } from '@/lib/api/bffFetch';
+import { bffGet, bffPostJson } from '@/lib/api/bffFetch';
 import { bffEndpoints } from '@/lib/api/endpoints';
 import { isRecord } from '@/lib/api/error';
-import { toFeedDataList } from '@/lib/feed/toFeedData';
+import { mapFeedGrid } from '@/lib/myultary/fromApi';
 import type { BffEnvelope } from '@/types/api';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
@@ -35,6 +35,10 @@ export default function TagGridClient({ tagId }: { tagId: string }) {
     let cancelled = false;
     setState('loading');
 
+    void bffPostJson(bffEndpoints.main.searchRecent, { tagId: id }).catch((err) => {
+      console.error('[search] recent tag save failed', err);
+    });
+
     (async () => {
       try {
         const detailRes = await bffGet<BffEnvelope<unknown>>(bffEndpoints.tags.detail, {
@@ -48,23 +52,13 @@ export default function TagGridClient({ tagId }: { tagId: string }) {
         }
         setTitle(label);
 
-        const res = await bffGet<BffEnvelope<unknown>>(bffEndpoints.main.search, {
-          q: label.replace(/^#/, ''),
-          type: 'FEED',
-          limit: 20,
+        const res = await bffGet<BffEnvelope<unknown>>(bffEndpoints.main.searchTagFeeds, {
+          tagId: id,
+          limit: 30,
         });
         if (cancelled) return;
-        const data = isRecord(res.data) ? res.data : {};
-        const feeds = Array.isArray(data.feeds) ? data.feeds : [];
         setPosts(
-          toFeedDataList(feeds)
-            .filter((feed) => Boolean(feed.images[0]))
-            .map((feed) => ({
-              id: feed.id,
-              imageUrl: feed.images[0],
-              isMulti: feed.images.length > 1,
-              href: `/posts/${feed.id}`,
-            })),
+          mapFeedGrid(res.data ?? res, (feedId) => `/posts/${feedId}`),
         );
         setState('ready');
       } catch (err) {

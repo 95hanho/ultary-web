@@ -322,15 +322,25 @@ POST {{baseUrl}}/api/pets/tags/{{feedPetId}}/reject
 ### 게시글
 ### ==============================
 
-### 게시글 등록 (시드 file/pet/tag 참고)
+### 게시글 등록 (시드 file/pet/tag 참고 · Spring CreateFeedRequest JSON)
 POST {{baseUrl}}/api/feeds
 Content-Type: {{contentType}}
 
 {
   "content": "초코랑 산책 #산책",
   "visibility": "PUBLIC",
-  "imageFileIds": [{{cdnPostFileId}}],
-  "petIds": [{{petId}}],
+  "media": [
+    {
+      "fileId": {{cdnPostFileId}},
+      "mediaType": "IMAGE",
+      "mentions": [
+        { "petId": {{petId}}, "posX": 42.5, "posY": 60.0 }
+      ]
+    }
+  ],
+  "pets": [
+    { "petId": {{petId}}, "role": "TAGGED", "isMain": true }
+  ],
   "tagIds": [101]
 }
 

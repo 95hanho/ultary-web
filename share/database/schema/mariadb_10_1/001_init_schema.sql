@@ -1,5 +1,6 @@
--- schema_version: 29
+-- schema_version: 31
 -- Ultary MariaDB 10.1 초기 스키마
+-- v31: 게시글·댓글·답글 content 최대 100자 (VARCHAR(100))
 -- v29: ultary_report.status 에서 ON_HOLD(보류) 제거
 -- v28: ultary_report 에서 PET 대상과 target_pet_id 제거. 신고는 USER|FEED|COMMENT|REPLY
 -- v27: ultary_tag_profile_request.reject_message. 관리자 거절 멘트
@@ -20,6 +21,8 @@
 -- v12: 스토리 위 글자(ultary_story_text)와 펫 멘션(ultary_story_mention)
 -- v11: 유저 프로필 사진 컬럼 제거. 표시 사진은 프로필 있는 펫 중 priority가 가장 높은 것
 -- v10: ultary_user_search_history 는 들어간 유저 울타리만 (user_no + target_user_no)
+-- v30: 최근 검색에 태그 피드 진입 추가 (target_tag_id, target_user_no nullable)
+-- v31: 게시글·댓글·답글 content VARCHAR(100)
 -- v9: ultary_feed_comment_like / ultary_feed_reply_like, 댓글·답글 like_count
 -- v8: ultary_file 출처 컬럼 (source_type/author_name/source_url/license_url/copyright_notice)
 -- ULTARY MariaDB 10.1.13 Schema
@@ -40,7 +43,7 @@
 --       · 상업 설명은 ultary_tag_profile_request 가 APPROVED 된 뒤에만 태그 조회에 보인다
 --   - 닉네임 허용: 영문·숫자·한글. 한글만 2~5자, 영문·숫자만 4~10자. 혼합 시 한글1자=2, 영문·숫자1자=1, 가중치 합 4~10 (한글 최대 5자)
 --   - mention_id / tag.handle 허용: 영문·숫자·언더바 (^[A-Za-z0-9_]{1,30}$), UNIQUE, utf8_general_ci라 대소문자 동일 취급
---   - 최근 검색: 검색어가 아니라 들어간 유저 울타리. ultary_user_search_history (user_no, target_user_no) 1행
+--   - 최근 검색: 들어간 유저 울타리 또는 태그 피드. ultary_user_search_history (user|tag 각 1행)
 --   - 최근 펫 태그: 스토리 @·사진 태그에서 고른 펫. ultary_user_pet_tag_history (user_no, pet_id) 1행. 검색 기록과 섞지 않음
 --   - 피드 삭제: 작성자(user_no) 또는 COLLABORATOR 펫 보호자. deleted_by_user_no에 실제 삭제자 기록
 -- Identity change cooldown (생성 직후부터 잠금, *_changed_at에 기록):
@@ -66,6 +69,7 @@
 --   v8: ultary_file 출처 컬럼
 --   v9: 댓글·답글 좋아요 (피드 좋아요와 별도 테이블)
 --   v10: 최근 검색은 유저 울타리 방문만 남김 (search_type·펫·태그·keyword 제거)
+--   v30: 최근 검색에 태그 피드 진입 복원 (target_tag_id)
 --   v11: ultary_user.profile_file_id 제거. pet.priority (작을수록 우선)로 대표 프로필 사진·펫 목록 순서
 --   v12: 스토리 글자 스티커·펫 위치 멘션
 --   v13: 최근 펫 태그 (검색 최근 울타리와 별 테이블)
@@ -286,7 +290,7 @@ CREATE TABLE `ultary_user_block` (
 CREATE TABLE `ultary_feed` (
   `feed_id` INT(11) NOT NULL AUTO_INCREMENT,
   `user_no` INT(11) NOT NULL COMMENT '피드 작성자',
-  `content` VARCHAR(1000) NULL DEFAULT NULL,
+  `content` VARCHAR(100) NULL DEFAULT NULL COMMENT '본문. 해시태그 텍스트 포함 최대 100자',
   `visibility` ENUM('PUBLIC','NEIGHBORS','PRIVATE') NOT NULL DEFAULT 'PUBLIC' COMMENT 'PUBLIC: 전체 공개, NEIGHBORS: 팔로우 관계 공개, PRIVATE: 나만 보기',
   `like_count` INT(11) NOT NULL DEFAULT 0,
   `comment_count` INT(11) NOT NULL DEFAULT 0,
@@ -367,7 +371,7 @@ CREATE TABLE `ultary_feed_comment` (
   `feed_comment_id` INT(11) NOT NULL AUTO_INCREMENT,
   `feed_id` INT(11) NOT NULL,
   `user_no` INT(11) NOT NULL,
-  `content` VARCHAR(500) NOT NULL,
+  `content` VARCHAR(100) NOT NULL,
   `like_count` INT(11) NOT NULL DEFAULT 0,
   `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -382,7 +386,7 @@ CREATE TABLE `ultary_feed_reply` (
   `feed_reply_id` INT(11) NOT NULL AUTO_INCREMENT,
   `feed_comment_id` INT(11) NOT NULL,
   `user_no` INT(11) NOT NULL,
-  `content` VARCHAR(500) NOT NULL,
+  `content` VARCHAR(100) NOT NULL,
   `like_count` INT(11) NOT NULL DEFAULT 0,
   `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -532,14 +536,17 @@ CREATE TABLE `ultary_tag_profile_request_image` (
 
 CREATE TABLE `ultary_user_search_history` (
   `user_search_history_id` INT(11) NOT NULL AUTO_INCREMENT,
-  `user_no` INT(11) NOT NULL COMMENT '검색 후 울타리에 들어간 사용자',
-  `target_user_no` INT(11) NOT NULL COMMENT '들어간 울타리 주인',
-  `searched_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '같은 울타리 재방문 시 갱신',
+  `user_no` INT(11) NOT NULL COMMENT '검색 후 울타리·태그 피드에 들어간 사용자',
+  `target_user_no` INT(11) NULL DEFAULT NULL COMMENT '들어간 울타리 주인. 태그 이력이면 NULL',
+  `target_tag_id` INT(11) NULL DEFAULT NULL COMMENT '들어간 태그 피드. 울타리 이력이면 NULL',
+  `searched_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '같은 대상 재방문 시 갱신',
   PRIMARY KEY (`user_search_history_id`) USING BTREE,
-  UNIQUE KEY `UK_ultary_user_search_pair` (`user_no`, `target_user_no`) USING BTREE,
+  UNIQUE KEY `UK_ultary_user_search_user` (`user_no`, `target_user_no`) USING BTREE,
+  UNIQUE KEY `UK_ultary_user_search_tag` (`user_no`, `target_tag_id`) USING BTREE,
   KEY `IDX_ultary_user_search_user_time` (`user_no`, `searched_at`) USING BTREE,
-  KEY `IDX_ultary_user_search_target_user` (`target_user_no`) USING BTREE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_general_ci COMMENT='검색에서 들어간 유저 울타리. 한 사람당 대상 유저 1행';
+  KEY `IDX_ultary_user_search_target_user` (`target_user_no`) USING BTREE,
+  KEY `IDX_ultary_user_search_target_tag` (`target_tag_id`) USING BTREE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_general_ci COMMENT='검색에서 들어간 유저 울타리 또는 태그 피드. 대상별 1행';
 
 CREATE TABLE `ultary_user_pet_tag_history` (
   `user_pet_tag_history_id` INT(11) NOT NULL AUTO_INCREMENT,

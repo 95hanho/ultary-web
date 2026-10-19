@@ -130,11 +130,14 @@ FE는 OAuth code를 Spring에 보내지 않는다. BFF가 code를 교환해 `pro
 > **태그 클릭** `GET /main/search/tags/{tagId}/feeds?limit=30`. 보이는 글만 그리드, 최신순. 항목은 마이울타리 그리드와 같다(`feedId`, `coverFile`, `coverThumbnailFile`, `coverMediaType`, `mediaCount`, `likeCount`, `commentCount`, `createdAt`). 없는 태그 404.  
 > `type=PET`는 스토리 `@` 후보용이다. 검색 페이지에서 쓰지 않는다. `pets[]`에 `petId`가 있다. `mention_id`, 펫 이름, 보호자 닉네임. 본인 펫·차단은 빠진다. `type=FEED`는 게시글 본문 검색(`feeds[]`, 피드 단건과 같은 응답). `type=ALL`은 USER+PET+TAG+FEED.  
 > **`pets[]`에 보호자 닉네임**: 각 펫에 `ownerNickname`(문자열). `userNo`는 보호자. 멘션명만 맞아도 닉네임이 있어야 목록에 `닉네임` + `@mentionId`를 같이 그린다. 없으면 펫 이름만 남는다.  
-> **최근 검색**: 검색어가 아니라, 검색 후 들어간 유저 울타리. 검색창을 열면 `GET /main/search/recent` 5건(`items`, `nextCursorHistoryId`). 더보기는 그 커서로 `GET /main/search/recent/more?cursorHistoryId=` 20건. 또 남으면 응답 커서로 반복. `null`이면 끝. 항목은 `userNo`(울타리 주인), `nickname`, `profileFile`(대표 펫 사진, 없으면 null), `petTags`, `searchedAt`. `petTags`는 그 주인 펫의 `mentionId` 문자열 배열이다. `@`는 붙이지 않고, `priority` 순이다. 펫이 없으면 `[]`. 화면에는 각 `mentionId` 앞에 `@`를 붙여 한 줄로 나열한다. 탈퇴·차단 유저는 목록에서 빠짐.  
-> **저장**: 그 울타리에 들어갈 때 `POST /main/search/recent` `{ "targetUserNo" }`. 같은 울타리는 새 행 없이 `searched_at`만 갱신. 없는 유저 404, 차단 403.  
-> **한 건 지우기**: `DELETE /main/search/recent/{userSearchHistoryId}`. 목록 항목의 `userSearchHistoryId`. 내 행만 지운다. 없거나 내 것이 아니면 404. 응답 `data`는 null.  
-> **모두 지우기**: `DELETE /main/search/recent`. 내 행을 전부 삭제한다. 목록에 안 나오던 탈퇴·차단 대상도 포함. 응답 `data`는 null.  
-> **최근 펫 태그** (`/main/pet-tags/recent`): 스토리 `@`와 사진 태그 모달의 「최근 태그」. **검색 최근 울타리와 다른 테이블**(`ultary_user_pet_tag_history`). `POST /main/search/recent`를 여기서 호출하지 않는다. 검색창 최근 목록에도 이 펫이 나오면 안 된다.  
+> **최근 검색**: 검색 후 들어간 **유저 울타리**와 **태그 피드**를 같은 타임라인으로 둔다. 검색창을 열면 `GET /main/search/recent` 5건(`items`, `nextCursorHistoryId`). 더보기는 `GET /main/search/recent/more?cursorHistoryId=` 20건. `null`이면 끝.  
+> 항목 공통: `userSearchHistoryId`, `type`(`USER`|`TAG`), `searchedAt`.  
+> `type=USER`: `userNo`, `nickname`, `profileFile`(대표 펫, 없으면 null), `petTags`(`mentionId` 배열, `@` 없음). `tagId`·`hashtag`는 null. 탈퇴·차단 유저는 목록에서 빠짐.  
+> `type=TAG`: `tagId`, `hashtag`. 유저 필드는 null, `petTags`는 `[]`. 삭제·정지 작성자 태그는 목록에서 빠짐.  
+> **저장**: `POST /main/search/recent`. 울타리 `{ "targetUserNo" }` · 태그 피드(`/search/tags/{tagId}`) `{ "tagId" }`. 둘 중 하나만. 같은 대상은 `searched_at`만 갱신. 없는 유저 404, 차단 403, 없는 태그 `404` `TAG_NOT_FOUND`.  
+> **한 건 지우기**: `DELETE /main/search/recent/{userSearchHistoryId}`. 내 행만. 없으면 404.  
+> **모두 지우기**: `DELETE /main/search/recent`. 내 행 전부(목록에 안 보이던 탈퇴·차단·삭제 태그 포함).  
+> **최근 펫 태그** (`/main/pet-tags/recent`): 스토리 `@`·사진 태그용. **검색 최근과 다른 테이블**. 검색창 최근 목록에 넣지 않는다.  
 > **목록**: 모달을 열면 `GET /main/pet-tags/recent`. `items` 최대 20, `usedAt` 내림차순. 커서 없음. 항목은 `petId`, `mentionId`, `name`, `userNo`(보호자), `ownerNickname`, `profileFile`(그 펫 사진, 없으면 null), `usedAt`. 비활성·삭제 펫, 탈퇴 보호자, 차단(내가 막음/상대가 막음)은 목록에서 뺀다.  
 > **저장**: 멘션을 고를 때 `POST /main/pet-tags/recent` `{ "petId" }`. 같은 펫은 새 행 없이 `used_at`만 갱신. 없는 펫·비활성 펫 404, 차단 403.  
 > **모두 지우기**: `DELETE /main/pet-tags/recent`. 내 행을 전부 삭제한다. 목록에 안 나오던 펫도 포함. 응답 `data`는 null.  
@@ -201,6 +204,7 @@ FE는 OAuth code를 Spring에 보내지 않는다. BFF가 code를 교환해 `pro
 > Spring: `GET /api/v1/feeds/{feedId}` — **PUBLIC은 비로그인 허용**. 상세는 [`spring-auth-api.md`](./spring-auth-api.md).
 > 삭제 권한: 작성자 또는 `feed_pet.role=COLLABORATOR` 펫의 보호자. `deleted_by_user_no`에 실제 삭제자 기록.
 > 등록 시 `media` 1개 이상 필수. PATCH는 content·visibility만 (미디어/펫/태그 교체 미지원).
+> 본문·댓글·답글 `content`는 해시태그 텍스트 포함 **최대 100자**.
 > `PRIVATE`는 작성자만 조회. `NEIGHBORS`는 ACCEPTED 팔로우 관계만 조회.
 | 좋아요 | POST | `/api/feeds/:feedId/like` |
 | 좋아요 취소 | DELETE | `/api/feeds/:feedId/like` |
@@ -224,6 +228,7 @@ FE는 OAuth code를 Spring에 보내지 않는다. BFF가 code를 교환해 `pro
 | 답글 좋아요 취소 | DELETE | `/api/feeds/:feedId/comments/:commentId/replies/:replyId/like` |
 
 > 댓글·답글 응답: `likeCount`, `likedByMe`, `authorProfileFile` (`FileSummary | null`, 작성자 프로필. 미등록이면 null), `myReport`. 목록에 답글이 포함되면 답글에도 동일. 좋아요 토글·작성·수정도 해당 댓글/답글 응답을 다시 반환. 테이블은 `ultary_feed_comment_like` / `ultary_feed_reply_like` (피드 좋아요와 분리).  
+> **AI 모더레이션**: 게시글(`POST`·`PATCH /feeds`)·댓글·답글 작성·수정 시 Gemini로 유해 표현을 검사한다. unsafe면 DB에 저장하지 않고 `400` `AI_CONTENT_BLOCKED` («등록할 수 없는 표현이 포함되어 있습니다.»). 게시글은 본문(`content`)이 비어 있거나 `clearContent`만이면 검사를 건너뛴다. Gemini 장애·timeout·파싱 실패면 차단하지 않고 등록한다. 로그는 게시글 `FEED_CAPTION`, 댓글·답글 `COMMENT_FILTER`. 기존 신고·관리자 조치는 그대로다.  
 > **내 신고** `myReport`: 게시글 상세·댓글·답글·울타리(`GET /users/{userNo}/ultary`)에 있다. 없으면 `null`. 있으면 `reportId`, `status`. `status=REQUESTED`일 때 `DELETE /reports/{reportId}`로 취소한다. 관리자가 `CONFIRMED`(확인)로 바꾼 뒤, 삭제조치·거절·정지는 취소하지 않는다.
 
 ---
@@ -238,9 +243,11 @@ FE는 OAuth code를 Spring에 보내지 않는다. BFF가 code를 교환해 `pro
 | handle 변경 가능 여부 | GET | `/api/tags/:tagId/handle/change-availability` |
 | handle 변경/최초 설정 (설정·변경 후 30일 쿨다운) | PATCH | `/api/tags/:tagId/handle` |
 | 태그 검색 | GET | `/api/tags/search` |
-| 내용 입력 시 태그 추천 | GET | `/api/tags/recommend` |
+| 내용 입력 시 태그 추천 | GET | `/api/tags/recommend` | Gemini 기반(최대 5). 실패 시 DB fallback |
 | 상업 태그 설명 요청 | POST | `/api/tags/:tagId/profile-requests` |
 | 내 태그 설명 요청 | GET | `/api/tags/profile-requests` |
+
+> `GET /tags/recommend?q=`는 게시글 작성 중 **내용(q)** 으로 해시태그를 최대 5개 추천한다. FE는 **이미 존재하는 태그**(선택된 `tagId`·본문의 기존 hashtag)를 뺀 본문만 `q`로 보내고, 태그 제외 글자 수 ≥ 20일 때 버튼으로 호출한다. Gemini가 추천하고, `#`·중복·빈 값·hashtag 규칙(1~30, 영문·숫자·한글·_)에 맞게 정리한다. DB에 같은 hashtag가 있으면 그 태그의 `tagId` 등을 채우고, 없으면 `tagId`만 null인 후보를 준다. Gemini 키 없음·timeout·파싱 실패면 기존 DB LIKE/`use_count` 추천으로 fallback한다. AI 장애로 게시글 작성은 막히지 않는다.
 
 > `hashtag`는 생성 후 불변. `handle`은 선택·UNIQUE. handle 미설정(`handle_changed_at` NULL)이면 최초 설정은 언제든 가능. 생성 시 handle을 넣으면 그 시점부터 30일 쿨다운.
 
@@ -514,6 +521,7 @@ HTTP: `requests/test.http`
   - 기존 DB v7→v8: `002_file_source_attribution.sql`
   - 기존 DB v8→v9: `003_comment_reply_like.sql`
   - 기존 DB v9→v10: `004_search_history_user_only.sql` (최근 검색 = 들어간 유저 울타리만)
+  - 기존 DB v29→v30: `024_search_history_tag.sql` (최근 검색에 태그 피드 이력)
   - 기존 DB v10→v11: `005_pet_priority_profile.sql` (펫 priority, 유저 profile_file_id 제거)
   - 기존 DB v11→v12: `006_story_overlay.sql` (스토리 글자·펫 멘션)
   - 기존 DB v12→v13: `007_recent_pet_tag.sql` (사진·스토리 최근 펫 태그. 검색 최근 울타리와 별도)
@@ -590,6 +598,7 @@ HTTP: `requests/test.http`
 | 1-14 | DM | 1:1 방, 글·게시글 사진·스토리 사진. HTTP `dm.http` |
 | 1-15 | 웹소켓 | 입장 토큰 후 Spring에 직접 연결. 알림 배지·DM 푸시. HTTP `ws.http` |
 | 1-16 | DM 읽음·입력 중 | `DM_READ`, `peerLastReadMessageId`, 보는 중, `DM_TYPING` |
+| 1-17 | AI (Gemini) | `GET /tags/recommend` Gemini+DB fallback. 게시글·댓글·답글 `AI_CONTENT_BLOCKED`. 로그 `FEED_CAPTION`/`COMMENT_FILTER`/`HASHTAG` |
 | 다음 | — | |
 
 파일 업로드 상대경로: `images/{uuid}.ext`, `videos/{uuid}.ext` (`UPLOAD_DIR`).  

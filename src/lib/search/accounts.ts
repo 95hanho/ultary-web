@@ -83,11 +83,56 @@ function listFrom(raw: unknown, keys: string[]): unknown[] {
   return [];
 }
 
-/** GET /main/search/recent 의 items */
-export function mapRecentAccounts(raw: unknown): SearchAccount[] {
+export type RecentSearchUser = SearchAccount & {
+  kind: 'USER';
+  historyId: number;
+};
+
+export type RecentSearchTag = {
+  kind: 'TAG';
+  id: string;
+  historyId: number;
+  tagId: number;
+  /** `#` 포함 */
+  tag: string;
+};
+
+export type RecentSearchItem = RecentSearchUser | RecentSearchTag;
+
+function toRecentItem(raw: unknown): RecentSearchItem | null {
+  if (!isRecord(raw)) return null;
+  const historyId = pickHistoryId(raw);
+  if (historyId == null) return null;
+
+  if (raw.type === 'TAG') {
+    if (typeof raw.tagId !== 'number') return null;
+    const hashtag =
+      typeof raw.hashtag === 'string' ? raw.hashtag.trim().replace(/^#/, '') : '';
+    if (!hashtag) return null;
+    return {
+      kind: 'TAG',
+      id: `tag-${raw.tagId}`,
+      historyId,
+      tagId: raw.tagId,
+      tag: `#${hashtag}`,
+    };
+  }
+
+  const account = toAccount(raw);
+  if (!account) return null;
+  return { ...account, kind: 'USER', historyId };
+}
+
+/** GET /main/search/recent 의 items (USER·TAG 혼합) */
+export function mapRecentItems(raw: unknown): RecentSearchItem[] {
   return listFrom(raw, ['items', 'content', 'list'])
-    .map(toAccount)
-    .filter((account): account is SearchAccount => account != null);
+    .map(toRecentItem)
+    .filter((item): item is RecentSearchItem => item != null);
+}
+
+/** @deprecated mapRecentItems 사용. USER만 필요할 때 */
+export function mapRecentAccounts(raw: unknown): SearchAccount[] {
+  return mapRecentItems(raw).flatMap((item) => (item.kind === 'USER' ? [item] : []));
 }
 
 /** GET /main/search?type=USER|MENTION 의 유저 목록 */

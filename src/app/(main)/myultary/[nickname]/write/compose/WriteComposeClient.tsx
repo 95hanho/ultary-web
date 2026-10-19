@@ -2,27 +2,52 @@
 
 import { FooterMenu } from '@/components/common/FooterMenu';
 import { PageHeader } from '@/components/common/PageHeader';
-import { TagSearchPanel } from '@/components/search/TagSearchPanel';
-import { TagSuggestPreview } from '@/components/write/TagSuggestPreview';
+import { HashtagResultList } from '@/components/search/HashtagResultList';
+import { notifyAiContentBlocked } from '@/lib/ai/content-blocked';
+import { bffGet } from '@/lib/api/bffFetch';
+import { bffEndpoints } from '@/lib/api/endpoints';
+import { clampFeedContent, FEED_CONTENT_MAX_LENGTH } from '@/lib/content/limits';
+import { createFeedFromDraft } from '@/lib/feed/createFeed';
+import type { MockHashtag } from '@/lib/mock/search';
 import { splitCaptionTags } from '@/lib/mock/tags';
 import { myUltaryPath } from '@/lib/mock/ultary-accounts';
+import { mapSearchTags } from '@/lib/search/accounts';
+import { useModalStore } from '@/stores/modal.store';
 import {
+  appendHashtagIfAbsent,
+  atomicHashtagRangeForBackspace,
+  atomicHashtagRangeForDelete,
+  captionHasHashtag,
+  captionPlainLengthExcluding,
   getActiveHashtag,
+  hasCompletedSingleCharHashtag,
+  normalizeHashtagBody,
   replaceActiveHashtag,
+  shouldWarnSingleCharHashtag,
+  stripExistingHashtags,
   type ActiveHashtag,
 } from '@/lib/search/hashtag-input';
-import { getTextareaCaretRect } from '@/lib/search/textarea-caret';
+import { resolveExistingHashtagBodies } from '@/lib/tag/existing-hashtags';
+import {
+  mapRecommendTags,
+  MOCK_RECOMMEND_TAGS,
+  USE_MOCK_TAG_RECOMMEND,
+  type RecommendTag,
+} from '@/lib/tag/recommend';
 import { useWriteDraftStore } from '@/stores/write-draft.store';
+import type { BffEnvelope } from '@/types/api';
 import clsx from 'clsx';
 import { ChevronRight, Play } from 'lucide-react';
 import Image from 'next/image';
 import { useParams, useRouter } from 'next/navigation';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import styles from './compose.module.scss';
 
 const MultiIcon = '/images/icon/multi.svg';
-
-type SuggestAnchor = { top: number; left: number; bottom: number };
+const SUGGEST_LIMIT = 10;
+const SUGGEST_DELAY_MS = 300;
+const RECOMMEND_MIN_PLAIN = 20;
+const RECOMMEND_LIMIT = 5;
 
 /** 게시글 작성 — 사진 태그·내용 */
 export default function WriteComposeClient() {
@@ -37,15 +62,43 @@ export default function WriteComposeClient() {
   const caption = useWriteDraftStore((s) => s.caption);
   const setCaption = useWriteDraftStore((s) => s.setCaption);
   const clear = useWriteDraftStore((s) => s.clear);
+  const photoTagCount = items.reduce((sum, item) => sum + (item.petTags?.length ?? 0), 0);
   const backdropRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const [activeTag, setActiveTag] = useState<ActiveHashtag | null>(null);
-  const [suggestAnchor, setSuggestAnchor] = useState<SuggestAnchor | null>(null);
   const [suggestOpen, setSuggestOpen] = useState(false);
-  const [tagSearchOpen, setTagSearchOpen] = useState(false);
+  const [suggestItems, setSuggestItems] = useState<MockHashtag[]>([]);
+  const [suggestReady, setSuggestReady] = useState(false);
+  const [tagWarn, setTagWarn] = useState(false);
+  const [tagWarnFromBlur, setTagWarnFromBlur] = useState(false);
+  const [recommendItems, setRecommendItems] = useState<RecommendTag[]>([]);
+  const [recommendOpen, setRecommendOpen] = useState(false);
+  const [recommendLoading, setRecommendLoading] = useState(false);
+  const [recommendHint, setRecommendHint] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  /** DB에 있는(선택된 tagId / 조회 확인된) 해시태그 본문 — 소문자, `#` 없음 */
+  const [existingTagBodies, setExistingTagBodies] = useState<Set<string>>(() => new Set());
   const activeTagRef = useRef<ActiveHashtag | null>(null);
   activeTagRef.current = activeTag;
+  const openModal = useModalStore((s) => s.open);
+
+  const markExistingTag = useCallback((tag: string) => {
+    const key = normalizeHashtagBody(tag);
+    if (!key) return;
+    setExistingTagBodies((prev) => {
+      if (prev.has(key)) return prev;
+      const next = new Set(prev);
+      next.add(key);
+      return next;
+    });
+  }, []);
+
+  const plainLength = useMemo(
+    () => captionPlainLengthExcluding(caption, existingTagBodies),
+    [caption, existingTagBodies],
+  );
+  const recommendEnabled = plainLength >= RECOMMEND_MIN_PLAIN;
 
   const syncBackdropScroll = () => {
     const backdrop = backdropRef.current;
@@ -54,50 +107,151 @@ export default function WriteComposeClient() {
     backdrop.scrollTop = textarea.scrollTop;
   };
 
+  const clearTagWarnIfValid = useCallback((value: string) => {
+    if (!hasCompletedSingleCharHashtag(value)) {
+      setTagWarn(false);
+      setTagWarnFromBlur(false);
+    }
+  }, []);
+
   const updateSuggest = useCallback((value: string, caret: number) => {
-    const textarea = textareaRef.current;
     const active = getActiveHashtag(value, caret);
-    if (!textarea || !active || active.term.length === 0) {
+    if (!active || active.term.length === 0) {
       setActiveTag(null);
       setSuggestOpen(false);
-      setSuggestAnchor(null);
+      setSuggestItems([]);
+      setSuggestReady(false);
       return;
     }
 
-    const rect = getTextareaCaretRect(textarea, active.start);
     setActiveTag(active);
-    setSuggestAnchor({
-      top: rect.top,
-      left: rect.left,
-      bottom: rect.top + rect.height,
-    });
+    if (active.term.length < 2) {
+      setSuggestOpen(false);
+      setSuggestItems([]);
+      setSuggestReady(false);
+      return;
+    }
+
     setSuggestOpen(true);
   }, []);
 
+  const focusCaptionAt = useCallback(
+    (next: string, nextCaret: number) => {
+      const clamped = clampFeedContent(next);
+      const caret = Math.min(nextCaret, clamped.length);
+      setCaption(clamped);
+      clearTagWarnIfValid(clamped);
+      requestAnimationFrame(() => {
+        const el = textareaRef.current;
+        if (!el) return;
+        el.focus();
+        el.setSelectionRange(caret, caret);
+        syncBackdropScroll();
+        updateSuggest(clamped, caret);
+      });
+    },
+    [setCaption, clearTagWarnIfValid, updateSuggest],
+  );
+
   const applyTag = useCallback(
-    (tag: string) => {
+    (tag: string, tagId?: number | null) => {
       const textarea = textareaRef.current;
       const caret = textarea?.selectionStart ?? caption.length;
       const active = getActiveHashtag(caption, caret) ?? activeTagRef.current;
       if (!active) return;
 
       const { next, caret: nextCaret } = replaceActiveHashtag(caption, active, tag);
-      setCaption(next);
+      if (next.length > FEED_CONTENT_MAX_LENGTH) return;
+      if (tagId != null) markExistingTag(tag);
       setSuggestOpen(false);
-      setTagSearchOpen(false);
       setActiveTag(null);
-      setSuggestAnchor(null);
-
-      requestAnimationFrame(() => {
-        const el = textareaRef.current;
-        if (!el) return;
-        el.focus();
-        el.setSelectionRange(nextCaret, nextCaret);
-        syncBackdropScroll();
-      });
+      setSuggestItems([]);
+      setSuggestReady(false);
+      focusCaptionAt(next, nextCaret);
     },
-    [caption, setCaption],
+    [caption, focusCaptionAt, markExistingTag],
   );
+
+  const applyRecommendTag = useCallback(
+    (item: RecommendTag) => {
+      const { next, caret, added } = appendHashtagIfAbsent(caption, item.tag);
+      if (!added || next.length > FEED_CONTENT_MAX_LENGTH) return;
+      if (item.tagId != null) markExistingTag(item.tag);
+      focusCaptionAt(next, caret);
+    },
+    [caption, focusCaptionAt, markExistingTag],
+  );
+
+  const requestRecommend = useCallback(async () => {
+    setRecommendHint(false);
+    setRecommendLoading(true);
+    setRecommendOpen(true);
+    try {
+      if (USE_MOCK_TAG_RECOMMEND) {
+        await new Promise((r) => window.setTimeout(r, 200));
+        setRecommendItems(MOCK_RECOMMEND_TAGS);
+        return;
+      }
+
+      const resolved = await resolveExistingHashtagBodies(caption, existingTagBodies);
+      setExistingTagBodies(resolved);
+      const q = stripExistingHashtags(caption, resolved).trim();
+      if (q.length < RECOMMEND_MIN_PLAIN) {
+        setRecommendHint(true);
+        setRecommendItems([]);
+        return;
+      }
+      const res = await bffGet<BffEnvelope<unknown>>(bffEndpoints.tags.recommend, {
+        q,
+        limit: RECOMMEND_LIMIT,
+      });
+      const mapped = mapRecommendTags(res.data ?? res);
+      setRecommendItems(mapped);
+      for (const item of mapped) {
+        if (item.tagId != null) markExistingTag(item.tag);
+      }
+    } catch (err) {
+      console.error('[write-compose] tag recommend failed', err);
+      setRecommendItems([]);
+    } finally {
+      setRecommendLoading(false);
+    }
+  }, [caption, existingTagBodies, markExistingTag]);
+
+  useEffect(() => {
+    if (!suggestOpen || !activeTag || activeTag.term.length < 2) {
+      setSuggestItems([]);
+      setSuggestReady(false);
+      return;
+    }
+
+    const term = activeTag.term;
+    let cancelled = false;
+    setSuggestReady(false);
+    const timer = window.setTimeout(() => {
+      bffGet<BffEnvelope<unknown>>(bffEndpoints.main.search, {
+        q: term,
+        type: 'TAG',
+        limit: SUGGEST_LIMIT,
+      })
+        .then((res) => {
+          if (cancelled) return;
+          setSuggestItems(mapSearchTags(res.data ?? res));
+          setSuggestReady(true);
+        })
+        .catch((err) => {
+          console.error('[write-compose] tag suggest failed', err);
+          if (cancelled) return;
+          setSuggestItems([]);
+          setSuggestReady(true);
+        });
+    }, SUGGEST_DELAY_MS);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [suggestOpen, activeTag?.term]);
 
   useEffect(() => {
     if (useWriteDraftStore.getState().items.length === 0) {
@@ -107,23 +261,52 @@ export default function WriteComposeClient() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const handleSubmit = () => {
-    console.log('[write-compose] submit', {
-      caption,
-      items: items.map((item) => ({
-        id: item.id,
-        kind: item.kind,
-        fileName: item.fileName,
-        mimeType: item.mimeType,
-        hasCrop: Boolean(item.croppedDataUrl),
-      })),
-    });
-    clear();
-    router.push(basePath);
+  useEffect(() => {
+    if (recommendEnabled) setRecommendHint(false);
+  }, [recommendEnabled]);
+
+  /** 검색·추천으로 확인된 기존 태그가 본문에 있으면 enable 계산에 반영 */
+  useEffect(() => {
+    for (const item of suggestItems) {
+      if (item.tagId != null && captionHasHashtag(caption, item.tag)) {
+        markExistingTag(item.tag);
+      }
+    }
+    for (const item of recommendItems) {
+      if (item.tagId != null && captionHasHashtag(caption, item.tag)) {
+        markExistingTag(item.tag);
+      }
+    }
+  }, [suggestItems, recommendItems, caption, markExistingTag]);
+
+  const handleSubmit = async () => {
+    if (submitting || items.length === 0) return;
+    setSubmitting(true);
+    try {
+      await createFeedFromDraft({ caption, items, visibility: 'PUBLIC' });
+      clear();
+      router.push(basePath);
+    } catch (err) {
+      if (notifyAiContentBlocked(err)) return;
+      console.error('[write-compose] submit failed', err);
+      openModal({
+        variant: 'alert',
+        title: '알림창',
+        content: '게시글을 올리지 못했습니다. 다시 시도해 주세요.',
+        showCloseButton: true,
+        okButton: { label: '확인', tone: 'primary' },
+        cancelButton: { hidden: true },
+      });
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const captionParts = splitCaptionTags(caption);
-  const suggestQuery = activeTag?.raw ?? '#';
+  const suggestQuery = activeTag?.raw ?? '';
+  const showMinLengthHint = !tagWarn && activeTag?.term.length === 1;
+  const showSuggestOverlay = suggestOpen && suggestReady && suggestItems.length > 0;
+  const visibleRecommend = recommendItems.filter((item) => !captionHasHashtag(caption, item.tag));
 
   if (items.length === 0) {
     return (
@@ -142,8 +325,9 @@ export default function WriteComposeClient() {
       <PageHeader
         title="게시글 작성"
         onBack={() => router.push(cropHref)}
-        onSubmit={handleSubmit}
-        submitLabel="게시"
+        onSubmit={() => void handleSubmit()}
+        submitLabel={submitting ? '게시 중…' : '게시'}
+        submitDisabled={submitting || items.length === 0}
       />
 
       <main className={styles.main}>
@@ -183,97 +367,198 @@ export default function WriteComposeClient() {
           </div>
         </section>
 
-        <button
-          type="button"
-          className={styles.tagRow}
-          onClick={() => router.push(tagsHref)}
-        >
-          <span className={clsx(styles.labelInline, styles.tagLabel)}>사진 태그</span>
+        <button type="button" className={styles.tagRow} onClick={() => router.push(tagsHref)}>
+          <span className={clsx(styles.labelInline, styles.tagLabel)}>
+            사진 태그({photoTagCount})
+          </span>
           <ChevronRight size={20} className={styles.tagChevron} aria-hidden />
         </button>
 
         <section className={styles.section} aria-label="내용">
-          <h2 className={styles.label}>내용</h2>
-          <div className={styles.textareaWrap}>
-            <div className={styles.editorShell}>
-              <div ref={backdropRef} className={styles.editorBackdrop} aria-hidden>
-                {caption
-                  ? captionParts.map((part, i) => {
-                      if (part.type === 'tag') {
-                        return (
-                          <span key={`h-${i}`} className={styles.hashtag}>
-                            {part.value}
+          <h2 className={styles.label}>
+            내용({caption.length}/{FEED_CONTENT_MAX_LENGTH})
+          </h2>
+          <div className={styles.contentBody}>
+            <div className={styles.textareaWrap}>
+              <div className={styles.editorShell}>
+                <div ref={backdropRef} className={styles.editorBackdrop} aria-hidden>
+                  {caption
+                    ? captionParts.map((part, i) => {
+                        if (part.type === 'tag') {
+                          return (
+                            <span key={`h-${i}`} className={styles.hashtag}>
+                              {part.value}
+                            </span>
+                          );
+                        }
+                        return part.value.split('\n').map((line, li, arr) => (
+                          <span key={`t-${i}-${li}`}>
+                            {line}
+                            {li < arr.length - 1 ? <br /> : null}
                           </span>
-                        );
+                        ));
+                      })
+                    : null}
+                </div>
+                <textarea
+                  ref={textareaRef}
+                  className={styles.textarea}
+                  value={caption}
+                  maxLength={FEED_CONTENT_MAX_LENGTH}
+                  onChange={(e) => {
+                    const value = clampFeedContent(e.target.value);
+                    const caret = Math.min(e.target.selectionStart ?? value.length, value.length);
+                    setCaption(value);
+                    clearTagWarnIfValid(value);
+                    requestAnimationFrame(() => {
+                      syncBackdropScroll();
+                      updateSuggest(value, caret);
+                    });
+                  }}
+                  onScroll={syncBackdropScroll}
+                  onClick={(e) => {
+                    const el = e.currentTarget;
+                    updateSuggest(el.value, el.selectionStart ?? el.value.length);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.nativeEvent.isComposing) return;
+                    const el = e.currentTarget;
+                    const value = el.value;
+                    const start = el.selectionStart ?? value.length;
+                    const end = el.selectionEnd ?? start;
+
+                    if ((e.key === 'Backspace' || e.key === 'Delete') && start === end) {
+                      const range =
+                        e.key === 'Backspace'
+                          ? atomicHashtagRangeForBackspace(value, start)
+                          : atomicHashtagRangeForDelete(value, start);
+                      if (range) {
+                        e.preventDefault();
+                        const next = `${value.slice(0, range.start)}${value.slice(range.end)}`;
+                        focusCaptionAt(next, range.start);
+                        return;
                       }
-                      return part.value.split('\n').map((line, li, arr) => (
-                        <span key={`t-${i}-${li}`}>
-                          {line}
-                          {li < arr.length - 1 ? <br /> : null}
-                        </span>
-                      ));
-                    })
-                  : null}
+                    }
+
+                    if (e.key !== ' ' && e.key !== 'Enter') return;
+                    const active = getActiveHashtag(value, start);
+                    if (active && active.term.length === 1) {
+                      setTagWarn(true);
+                      setTagWarnFromBlur(false);
+                    }
+                  }}
+                  onKeyUp={(e) => {
+                    const el = e.currentTarget;
+                    updateSuggest(el.value, el.selectionStart ?? el.value.length);
+                  }}
+                  onFocus={() => {
+                    if (tagWarnFromBlur) {
+                      setTagWarn(false);
+                      setTagWarnFromBlur(false);
+                    }
+                    const el = textareaRef.current;
+                    if (!el) return;
+                    updateSuggest(el.value, el.selectionStart ?? el.value.length);
+                  }}
+                  onBlur={() => {
+                    const el = textareaRef.current;
+                    if (!el) return;
+                    if (
+                      shouldWarnSingleCharHashtag(el.value, el.selectionStart ?? el.value.length)
+                    ) {
+                      setTagWarn(true);
+                      setTagWarnFromBlur(true);
+                    }
+                    setSuggestOpen(false);
+                    setActiveTag(null);
+                    setSuggestItems([]);
+                    setSuggestReady(false);
+                  }}
+                  placeholder="내용을 입력하세요. #태그"
+                  rows={6}
+                />
               </div>
-              <textarea
-                ref={textareaRef}
-                className={styles.textarea}
-                value={caption}
-                onChange={(e) => {
-                  const value = e.target.value;
-                  const caret = e.target.selectionStart ?? value.length;
-                  setCaption(value);
-                  requestAnimationFrame(() => {
-                    syncBackdropScroll();
-                    updateSuggest(value, caret);
-                  });
-                }}
-                onScroll={() => {
-                  syncBackdropScroll();
-                  const el = textareaRef.current;
-                  if (!el || !suggestOpen) return;
-                  updateSuggest(el.value, el.selectionStart ?? el.value.length);
-                }}
-                onClick={(e) => {
-                  const el = e.currentTarget;
-                  updateSuggest(el.value, el.selectionStart ?? el.value.length);
-                }}
-                onKeyUp={(e) => {
-                  const el = e.currentTarget;
-                  updateSuggest(el.value, el.selectionStart ?? el.value.length);
-                }}
-                placeholder="내용을 입력하세요. #태그"
-                rows={6}
-              />
+              {tagWarn ? (
+                <p className={styles.tagWarn} role="alert">
+                  * 한 글자는 태그로 사용할 수 없습니다.
+                </p>
+              ) : null}
+              {showMinLengthHint ? (
+                <p className={styles.tagHint} role="status">
+                  2글자 이상 입력해주세요.
+                </p>
+              ) : null}
+            </div>
+
+            <div
+              className={clsx(styles.belowEditor, showSuggestOverlay && styles.belowEditorCovered)}
+            >
+              <div className={styles.recommendBlock} aria-hidden={showSuggestOverlay}>
+                {recommendEnabled ? (
+                  <button
+                    type="button"
+                    className={styles.recommendBtn}
+                    disabled={recommendLoading}
+                    onClick={() => void requestRecommend()}
+                  >
+                    {recommendLoading ? '추천 중…' : '태그 추천'}
+                  </button>
+                ) : null}
+                {recommendHint ? (
+                  <p className={styles.recommendHint} role="status">
+                    본문(기존 태그 제외)을 20자 이상 입력해 주세요.
+                  </p>
+                ) : null}
+                {recommendEnabled &&
+                recommendOpen &&
+                !recommendLoading &&
+                visibleRecommend.length > 0 ? (
+                  <div className={styles.recommendPanel}>
+                    <ul className={styles.recommendList} aria-label="추천 태그">
+                      {visibleRecommend.map((item) => (
+                        <li key={item.tag}>
+                          <button
+                            type="button"
+                            className={styles.recommendChip}
+                            onMouseDown={(e) => e.preventDefault()}
+                            onClick={() => applyRecommendTag(item)}
+                          >
+                            {item.tag}
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : null}
+                {recommendEnabled &&
+                recommendOpen &&
+                !recommendLoading &&
+                visibleRecommend.length === 0 ? (
+                  <p className={styles.recommendHint} role="status">
+                    추천할 태그가 없어요.
+                  </p>
+                ) : null}
+              </div>
+
+              {showSuggestOverlay ? (
+                <div className={styles.suggestOverlay}>
+                  <HashtagResultList
+                    items={suggestItems}
+                    highlightQuery={suggestQuery}
+                    onSelect={(tag) => {
+                      const hit = suggestItems.find((item) => item.tag === tag);
+                      applyTag(tag, hit?.tagId);
+                    }}
+                    variant="page"
+                  />
+                </div>
+              ) : null}
             </div>
           </div>
         </section>
       </main>
 
       <FooterMenu />
-
-      <TagSuggestPreview
-        open={suggestOpen && !tagSearchOpen}
-        queryLabel={suggestQuery}
-        term={activeTag?.term ?? ''}
-        anchor={suggestAnchor}
-        onSelect={applyTag}
-        onOpenSearch={() => {
-          setSuggestOpen(false);
-          setTagSearchOpen(true);
-        }}
-        onClose={() => setSuggestOpen(false)}
-      />
-
-      <TagSearchPanel
-        open={tagSearchOpen}
-        initialQuery={suggestQuery}
-        onSelect={applyTag}
-        onClose={() => {
-          setTagSearchOpen(false);
-          requestAnimationFrame(() => textareaRef.current?.focus());
-        }}
-      />
     </div>
   );
 }

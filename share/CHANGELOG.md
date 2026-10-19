@@ -7,6 +7,54 @@ validation · database · docs 모두 **여기 한곳**에 적는다.
 
 ---
 
+## 2026-10-19 13:40
+
+### schema v31 · 본문 100자
+- 게시글·댓글·답글 `content` 최대 **100자** (해시태그 텍스트 포함)
+- DB `VARCHAR(100)`. 마이그레이션 `025_content_max_100.sql`
+- API `@Size(max=100)`
+
+---
+
+## 2026-10-19 13:35
+
+### API · AI 모더레이션 게시글 확장
+- 게시글 `POST`·`PATCH /feeds`: 본문 유해 시 `400` `AI_CONTENT_BLOCKED` (댓글·답글과 동일 문구)
+- 본문 비움·`clearContent`·visibility만 변경이면 검사 생략. AI 장애 시 등록 허용
+- 로그 `feature_type=FEED_CAPTION` (댓글·답글은 `COMMENT_FILTER`)
+- `GET /tags/recommend`: FE는 기존 태그 제외 본문을 `q`로 (스키마 변경 없음)
+
+---
+
+## 2026-10-19 11:15
+
+### schema v30 · 최근 검색 태그 이력
+- `ultary_user_search_history`: `target_user_no` nullable, `target_tag_id` 추가. UK (user+user)·(user+tag)
+- `POST /main/search/recent` Body `{ targetUserNo }` 또는 `{ tagId }`
+- 목록 항목 `type=USER|TAG`. 태그 피드는 `tagId`·`hashtag`
+- 마이그레이션: `024_search_history_tag.sql`
+
+---
+
+## 2026-10-19 10:35
+
+### DB · 시드
+- 공통 태그 계정 user **100** (`울타리가든` / `01010000100` / `Test1234!`)
+- `003_common_tag_catalog.sql`: 종·품종·산책·훈련·목욕·병원 등 USER 해시태그 카탈로그
+- 기존 공통 태그(산책·낮잠·간식·공원·집사일상) 소유를 user 100으로
+
+---
+
+## 2026-10-19 10:00
+
+### API · AI (Gemini)
+- `GET /tags/recommend`: 게시글 내용 기반 해시태그 최대 5. Gemini 우선, 실패 시 DB fallback
+- 댓글·답글 작성·수정: Gemini 모더레이션. unsafe → `400` `AI_CONTENT_BLOCKED`
+- 환경변수 `GEMINI_API_KEY`·`GEMINI_MODEL`. 키 없으면 추천은 DB, 모더레이션은 통과
+- 요청 로그는 기존 `ultary_ai_request_log` (`HASHTAG`·`COMMENT_FILTER`). 원문·API Key 미저장
+
+---
+
 ## 2026-10-16 16:15
 
 ### API · 회원 이름 최초 등록

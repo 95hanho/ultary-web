@@ -1,6 +1,8 @@
 'use client';
 
+import { notifyAiContentBlocked } from '@/lib/ai/content-blocked';
 import { loadMyUserNo } from '@/lib/auth/myUserNo';
+import { clampFeedContent, FEED_CONTENT_MAX_LENGTH } from '@/lib/content/limits';
 import {
   createFeedComment,
   createFeedReply,
@@ -358,8 +360,8 @@ export function CommentSheet({
     setReplyTo({ parentCommentId, nickname });
     setDraft((prev) => {
       const mention = `@${nickname} `;
-      if (prev.startsWith(mention)) return prev;
-      return mention;
+      if (prev.startsWith(mention)) return clampFeedContent(prev);
+      return clampFeedContent(mention);
     });
     requestAnimationFrame(() => inputRef.current?.focus());
   }, []);
@@ -431,6 +433,10 @@ export function CommentSheet({
         });
       });
     } catch (err) {
+      if (notifyAiContentBlocked(err)) {
+        // 입력 내용 유지 — draft / editing / replyTo 그대로
+        return;
+      }
       console.error('[comments] save failed', err);
     } finally {
       setSending(false);
@@ -460,7 +466,7 @@ export function CommentSheet({
       setMenu(null);
       setReplyTo(null);
       setEditing(target);
-      setDraft(source.content);
+      setDraft(clampFeedContent(source.content));
       requestAnimationFrame(() => inputRef.current?.focus());
     },
     [items],
@@ -882,7 +888,8 @@ export function CommentSheet({
               ref={inputRef}
               className={styles.composerInput}
               value={draft}
-              onChange={(e) => setDraft(e.target.value)}
+              maxLength={FEED_CONTENT_MAX_LENGTH}
+              onChange={(e) => setDraft(clampFeedContent(e.target.value))}
               placeholder={
                 editing
                   ? '내용을 수정하세요…'

@@ -133,6 +133,15 @@
   flex-direction: column;
 }
 
+.minLengthHint {
+  margin: 12px 20px 0;
+  color: var(--brand-gray-500);
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  line-height: 1.35;
+}
+
 .searchPanel {
   display: flex;
   flex-direction: column;
@@ -175,6 +184,7 @@
 .accountItem {
   display: flex;
   align-items: center;
+  height: 55px;
   margin: 0;
   padding: 0;
 }
@@ -199,6 +209,7 @@
   min-width: 0;
   flex: 1;
   align-items: center;
+  height: 100%;
   padding: 0;
   border: 0;
   background: transparent;
@@ -239,6 +250,30 @@
   font-size: 13px;
   font-weight: 700;
   line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.recentTagBtn {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  align-items: center;
+  height: 100%;
+  padding: 0 10px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.recentTagLabel {
+  overflow: hidden;
+  color: var(--brand-black-700);
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.35;
   text-overflow: ellipsis;
   white-space: nowrap;
 }

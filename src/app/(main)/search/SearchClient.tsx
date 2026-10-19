@@ -6,7 +6,13 @@ import { HashtagResultList } from '@/components/search/HashtagResultList';
 import { bffDelete, bffGet, bffPostJson } from '@/lib/api/bffFetch';
 import { bffEndpoints } from '@/lib/api/endpoints';
 import { toFeedDataList } from '@/lib/feed/toFeedData';
-import { mapRecentAccounts, mapSearchTags, mapSearchUsers } from '@/lib/search/accounts';
+import {
+  mapRecentItems,
+  mapSearchTags,
+  mapSearchUsers,
+  type RecentSearchItem,
+  type RecentSearchTag,
+} from '@/lib/search/accounts';
 import type { BffEnvelope } from '@/types/api';
 import { myUltaryPath } from '@/lib/mock/ultary-accounts';
 import { type MockHashtag, type SearchAccount } from '@/lib/mock/search';
@@ -70,6 +76,34 @@ function searchType(mode: 'plain' | 'pet' | 'hashtag'): 'USER' | 'MENTION' | 'TA
   return 'USER';
 }
 
+function RemoveRecentButton({
+  label,
+  onRemove,
+}: {
+  label: string;
+  onRemove: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      className={styles.removeRecentBtn}
+      aria-label={`${label} 최근 검색 삭제`}
+      onMouseDown={(event) => event.preventDefault()}
+      onClick={onRemove}
+    >
+      <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
+        <path
+          d="M3 3l8 8M11 3L3 11"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.6"
+          strokeLinecap="round"
+        />
+      </svg>
+    </button>
+  );
+}
+
 function AccountRow({
   account,
   highlightQuery,
@@ -81,7 +115,7 @@ function AccountRow({
   highlightQuery: string;
   petQuery: string;
   onEnter: (account: SearchAccount) => void;
-  onRemove?: (account: SearchAccount) => void;
+  onRemove?: () => void;
 }) {
   const tags = sortPetTagsByMatch(account.petTags, petQuery || highlightQuery);
 
@@ -120,25 +154,31 @@ function AccountRow({
           </span>
         </span>
       </Link>
-      {onRemove ? (
-        <button
-          type="button"
-          className={styles.removeRecentBtn}
-          aria-label={`${account.nickname} 최근 검색 삭제`}
-          onMouseDown={(event) => event.preventDefault()}
-          onClick={() => onRemove(account)}
-        >
-          <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
-            <path
-              d="M3 3l8 8M11 3L3 11"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.6"
-              strokeLinecap="round"
-            />
-          </svg>
-        </button>
-      ) : null}
+      {onRemove ? <RemoveRecentButton label={account.nickname} onRemove={onRemove} /> : null}
+    </li>
+  );
+}
+
+function RecentTagRow({
+  item,
+  onEnter,
+  onRemove,
+}: {
+  item: RecentSearchTag;
+  onEnter: (item: RecentSearchTag) => void;
+  onRemove: () => void;
+}) {
+  return (
+    <li className={styles.accountItem}>
+      <button
+        type="button"
+        className={styles.recentTagBtn}
+        onMouseDown={(event) => event.preventDefault()}
+        onClick={() => onEnter(item)}
+      >
+        <span className={styles.recentTagLabel}>{item.tag}</span>
+      </button>
+      <RemoveRecentButton label={item.tag} onRemove={onRemove} />
     </li>
   );
 }
@@ -150,7 +190,7 @@ export default function SearchClient() {
   const inputRef = useRef<HTMLInputElement>(null);
   const [phase, setPhase] = useState<SearchPhase>('idle');
   const [query, setQuery] = useState('');
-  const [recentAccounts, setRecentAccounts] = useState<SearchAccount[]>([]);
+  const [recentItems, setRecentItems] = useState<RecentSearchItem[]>([]);
   const [userResults, setUserResults] = useState<SearchAccount[]>([]);
   const [tagResults, setTagResults] = useState<MockHashtag[]>([]);
   const [resultState, setResultState] = useState<'idle' | 'pending' | 'ready'>('idle');
@@ -223,7 +263,7 @@ export default function SearchClient() {
       return;
     }
     const term = parsed.term.trim();
-    if (!term) {
+    if (term.length < 2) {
       loadedSearchKeyRef.current = '';
       setUserResults([]);
       setTagResults([]);
@@ -275,20 +315,21 @@ export default function SearchClient() {
   }, [phase, parsed.mode, parsed.term, committed, submitTick]);
 
   const showRecent = phase === 'active' && query.trim() === '';
+  const termLength = parsed.term.trim().length;
+  const canSuggest = termLength >= 2;
+  const showMinLengthHint = phase === 'active' && termLength === 1;
 
-  const showAccountList =
-    phase === 'active' && parsed.mode !== 'hashtag' && parsed.term.trim().length > 0;
+  const showAccountList = phase === 'active' && parsed.mode !== 'hashtag' && canSuggest;
 
-  const showHashtagList =
-    phase === 'active' && parsed.mode === 'hashtag' && parsed.term.trim().length > 0;
+  const showHashtagList = phase === 'active' && parsed.mode === 'hashtag' && canSuggest;
 
   async function loadRecent() {
     try {
       const res = await bffGet<BffEnvelope<unknown>>(bffEndpoints.main.searchRecent);
-      setRecentAccounts(mapRecentAccounts(res.data ?? res));
+      setRecentItems(mapRecentItems(res.data ?? res));
     } catch (err) {
       console.error('[search] recent failed', err);
-      setRecentAccounts([]);
+      setRecentItems([]);
     }
   }
 
@@ -304,6 +345,11 @@ export default function SearchClient() {
       }
     }
     router.push(href);
+  }
+
+  function enterRecentTag(item: RecentSearchTag) {
+    replaceSearchUrl(searchListPath(true, query, committed));
+    router.push(`/search/tags/${item.tagId}`);
   }
 
   const openSearch = () => {
@@ -339,16 +385,14 @@ export default function SearchClient() {
   async function clearRecent() {
     try {
       await bffDelete(bffEndpoints.main.searchRecent);
-      setRecentAccounts([]);
+      setRecentItems([]);
     } catch (err) {
       console.error('[search] recent clear failed', err);
     }
   }
 
-  async function removeRecent(account: SearchAccount) {
-    if (account.historyId == null) return;
-    const historyId = account.historyId;
-    setRecentAccounts((list) => list.filter((item) => item.historyId !== historyId));
+  async function removeRecent(historyId: number) {
+    setRecentItems((list) => list.filter((item) => item.historyId !== historyId));
     try {
       await bffDelete(bffEndpoints.main.searchRecentItem, {
         userSearchHistoryId: historyId,
@@ -457,7 +501,13 @@ export default function SearchClient() {
       <main className={styles.main}>
         {phase === 'idle' ? <FeedGrid posts={recommendedPosts} /> : null}
 
-        {showRecent && recentAccounts.length > 0 ? (
+        {showMinLengthHint ? (
+          <p className={styles.minLengthHint} role="status">
+            2글자 이상 입력해주세요.
+          </p>
+        ) : null}
+
+        {showRecent && recentItems.length > 0 ? (
           <div className={styles.searchPanel}>
             <div className={styles.recentHeader}>
               <span className={styles.recentTitle}>최근 검색 항목</span>
@@ -471,16 +521,25 @@ export default function SearchClient() {
               </button>
             </div>
             <ul className={styles.accountList}>
-              {recentAccounts.map((account, i) => (
-                <AccountRow
-                  key={`${account.historyId ?? account.id}-${i}`}
-                  account={account}
-                  highlightQuery=""
-                  petQuery=""
-                  onEnter={enterUltary}
-                  onRemove={account.historyId == null ? undefined : removeRecent}
-                />
-              ))}
+              {recentItems.map((item) =>
+                item.kind === 'TAG' ? (
+                  <RecentTagRow
+                    key={`tag-${item.historyId}`}
+                    item={item}
+                    onEnter={enterRecentTag}
+                    onRemove={() => removeRecent(item.historyId)}
+                  />
+                ) : (
+                  <AccountRow
+                    key={`user-${item.historyId}`}
+                    account={item}
+                    highlightQuery=""
+                    petQuery=""
+                    onEnter={enterUltary}
+                    onRemove={() => removeRecent(item.historyId)}
+                  />
+                ),
+              )}
             </ul>
           </div>
         ) : null}

@@ -89,3 +89,12 @@
   flex-direction: column;
   padding: 0 10px;
 }
+
+.minLengthHint {
+  margin: 12px 10px 0;
+  color: var(--brand-gray-500);
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  line-height: 1.35;
+}

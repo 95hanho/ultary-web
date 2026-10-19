@@ -66,9 +66,11 @@ export const bffEndpoints = {
     feedsRecommended: '/api/main/feeds/recommended',
     /** GET 검색 ?q=&type= */
     search: '/api/main/search',
+    /** GET 태그 게시글 그리드 */
+    searchTagFeeds: '/api/main/search/tags/:tagId/feeds',
     /** GET 검색 추천 게시글 ?limit= */
     searchRecommended: '/api/main/search/recommended',
-    /** GET 최근 검색 5건 / POST 울타리 진입 저장 / DELETE 모두 지우기 */
+    /** GET 최근 검색 5건 / POST 울타리·태그 진입 저장 / DELETE 모두 지우기 */
     searchRecent: '/api/main/search/recent',
     /** DELETE 최근 검색 한 건 */
     searchRecentItem: '/api/main/search/recent/:userSearchHistoryId',
@@ -355,9 +357,11 @@ export const springEndpoints = {
     feedsRecommended: '/api/v1/main/feeds/recommended',
     /** GET */
     search: '/api/v1/main/search',
+    /** GET 태그 게시글 그리드 ?limit= */
+    searchTagFeeds: '/api/v1/main/search/tags/:tagId/feeds',
     /** GET 검색 추천 게시글 ?limit= */
     searchRecommended: '/api/v1/main/search/recommended',
-    /** GET 최근 검색 5건 / POST { targetUserNo } / DELETE 모두 지우기 */
+    /** GET 최근 검색 5건 / POST { targetUserNo|tagId } / DELETE 모두 지우기 */
     searchRecent: '/api/v1/main/search/recent',
     /** DELETE 최근 검색 한 건 */
     searchRecentItem: '/api/v1/main/search/recent/:userSearchHistoryId',

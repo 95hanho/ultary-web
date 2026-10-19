@@ -5,20 +5,21 @@ import {
   handleBffError,
   isUnauthorized,
   ok,
+  readJsonBody,
   requireAccessToken,
 } from '@/lib/api/bffRoute';
-import { springPostMultipart } from '@/lib/api/springFetch';
+import { springPostJson } from '@/lib/api/springFetch';
 
-/** BFF /api/feeds — POST */
+/** BFF /api/feeds — POST (JSON CreateFeedRequest) */
 export async function POST(request: NextRequest) {
   console.log('[API] 게시글 등록');
   try {
     const accessToken = await requireAccessToken();
     if (isUnauthorized(accessToken)) return accessToken;
-    const formData = await request.formData();
-    const data = await springPostMultipart(
+    const body = await readJsonBody(request);
+    const data = await springPostJson(
       springEndpoints.feeds.root,
-      formData,
+      body,
       bearer(accessToken),
     );
     return ok(data);

@@ -36,9 +36,12 @@ export async function POST(request: NextRequest) {
     if (isUnauthorized(accessToken)) return accessToken;
 
     const body = await readJsonBody(request);
+    const payload: { targetUserNo?: unknown; tagId?: unknown } = {};
+    if (body.targetUserNo != null) payload.targetUserNo = body.targetUserNo;
+    if (body.tagId != null) payload.tagId = body.tagId;
     const data = await springPostJson(
       springEndpoints.main.searchRecent,
-      { targetUserNo: body.targetUserNo },
+      payload,
       bearer(accessToken),
     );
     return ok(data);

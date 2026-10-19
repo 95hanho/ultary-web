@@ -93,7 +93,12 @@ export function TagSearchPanel({
         </header>
 
         <main className={styles.main}>
-          {term.trim().length > 0 ? (
+          {term.trim().length === 1 ? (
+            <p className={styles.minLengthHint} role="status">
+              2글자 이상 입력해주세요.
+            </p>
+          ) : null}
+          {term.trim().length >= 2 ? (
             <HashtagResultList items={results} onSelect={onSelect} variant="page" />
           ) : null}
         </main>

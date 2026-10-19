@@ -13,6 +13,7 @@
 -- 시드: user 101~105, 광고 전용 106~108 / pet 101~109 / file 110~224 (CDN만. 로컬 업로드 파일은 재실행 시 삭제)
 --       구경 계정 user 201~220 (피드·펫 없음, 비밀번호 Test1234!)
 --       feed 101~158 (129~158은 상품 광고·후기. 같은 CDN을 file 행만 나눠 씀) / story 101~116 / tag 101~117
+--       공통 태그 계정 user 100 + 카탈로그 태그: 별도 003_common_tag_catalog.sql (001 다음에 실행)
 --       피드·댓글·답글 좋아요는 구경 계정이 기존 글에 무작위로 누른 값
 --       주민 102·103 스토리 각 4개 (링 테스트용 viewedByMe)
 --       neighbor: 101→102·103 ACCEPTED, 105→101 ACCEPTED, 104→101 PENDING
@@ -22,6 +23,7 @@
 --       DM: 101↔102(안 읽음 3, 게시글·스토리 공유, 스토리+메시지), 101↔103, 101↔105
 --       펫 priority: 같은 유저 안에서는 pet_id 순 (1이 가장 높음). 유저 표시 사진은 그중 사진 있는 첫 펫
 -- HTTP: user 101 / phone 01011112222 / password Test1234!
+--       공통태그 user 100 / phone 01010000100 / password Test1234!
 -- SNS(ultary_user_social) 시드 없음. 실제 OAuth 연동만 DB에 둔다.
 -- ============================================================
 
@@ -149,11 +151,12 @@ WHERE `neighbor_id` IN (1, 101, 102, 103, 104, 105)
 
 DELETE FROM `ultary_tag`
 WHERE `tag_id` IN (1, 2, 3, 101, 102, 103)
-   OR `created_by_user_no` IN (1, 2, 101, 102, 103, 104, 105, 106, 107, 108)
+   OR `tag_id` BETWEEN 201 AND 320
+   OR `created_by_user_no` IN (1, 2, 100, 101, 102, 103, 104, 105, 106, 107, 108)
    OR `handle` IN ('royal_canin_01');
 
 DELETE FROM `ultary_user_privacy`
-WHERE `user_no` IN (1, 2, 101, 102, 103, 104, 105, 106, 107, 108);
+WHERE `user_no` IN (1, 2, 100, 101, 102, 103, 104, 105, 106, 107, 108);
 
 DELETE FROM `ultary_pet`
 WHERE `user_no` IN (1, 2, 101, 102, 103, 104, 105, 106, 107, 108)
@@ -161,7 +164,7 @@ WHERE `user_no` IN (1, 2, 101, 102, 103, 104, 105, 106, 107, 108)
    OR `mention_id` IN ('choco_01', 'nabi_01', 'mung_01', 'coco_01', 'tori_01', 'kong_01', 'bori_01', 'dal_01', 'momo_01');
 
 DELETE FROM `ultary_token`
-WHERE `user_no` IN (1, 2, 101, 102, 103, 104, 105, 106, 107, 108)
+WHERE `user_no` IN (1, 2, 100, 101, 102, 103, 104, 105, 106, 107, 108)
    OR `user_no` BETWEEN 201 AND 220;
 
 DELETE FROM `ultary_user_search_history`
@@ -194,11 +197,12 @@ WHERE `file_id` BETWEEN 100 AND 299
    );
 
 DELETE FROM `ultary_user`
-WHERE `user_no` IN (1, 2, 101, 102, 103, 104, 105, 106, 107, 108)
+WHERE `user_no` IN (1, 2, 100, 101, 102, 103, 104, 105, 106, 107, 108)
    OR `user_no` BETWEEN 201 AND 220
    OR `email` IN (
      'seed.dog@example.com',
      'seed.cat@example.com',
+     'seed.common@example.com',
      'myultary.test@example.com',
      'seed.neighbor@example.com',
      'seed.u103@example.com',
@@ -210,7 +214,7 @@ WHERE `user_no` IN (1, 2, 101, 102, 103, 104, 105, 106, 107, 108)
    )
    OR `email` LIKE 'viewer2%@example.com'
    OR `nickname` IN (
-     '울타리견주', '울타리냥이', '울타리', '나리집사',
+     '울타리견주', '울타리냥이', '울타리', '울타리가든', '나리집사',
      '산책러', '대기중', '팔로워',
      '구경꾼', '산책손님', '냥덕후', '강아지팬', '한강러',
      '공원지기', '간식러', '냥집사', '멍멍이', '냥냥이',
@@ -1230,14 +1234,16 @@ ALTER TABLE `ultary_story` AUTO_INCREMENT = 200;
 ALTER TABLE `ultary_neighbor` AUTO_INCREMENT = 200;
 ALTER TABLE `ultary_user_block` AUTO_INCREMENT = 200;
 
--- ---------- 최근 검색 (101이 다른 유저 울타리에 1명당 1건) ----------
+-- ---------- 최근 검색 (울타리 + 태그 혼합) ----------
 INSERT INTO `ultary_user_search_history` (
-  `user_search_history_id`, `user_no`, `target_user_no`, `searched_at`
+  `user_search_history_id`, `user_no`, `target_user_no`, `target_tag_id`, `searched_at`
 ) VALUES
-(101, 101, 102, DATE_SUB(NOW(), INTERVAL 1 MINUTE)),
-(102, 101, 103, DATE_SUB(NOW(), INTERVAL 2 MINUTE)),
-(103, 101, 104, DATE_SUB(NOW(), INTERVAL 3 MINUTE)),
-(104, 101, 105, DATE_SUB(NOW(), INTERVAL 4 MINUTE));
+(101, 101, 102, NULL, DATE_SUB(NOW(), INTERVAL 1 MINUTE)),
+(102, 101, 103, NULL, DATE_SUB(NOW(), INTERVAL 2 MINUTE)),
+(103, 101, NULL, 101, DATE_SUB(NOW(), INTERVAL 90 SECOND)),
+(104, 101, 104, NULL, DATE_SUB(NOW(), INTERVAL 3 MINUTE)),
+(105, 101, 105, NULL, DATE_SUB(NOW(), INTERVAL 4 MINUTE)),
+(106, 101, NULL, 114, DATE_SUB(NOW(), INTERVAL 5 MINUTE));
 
 ALTER TABLE `ultary_user_search_history` AUTO_INCREMENT = 200;
 

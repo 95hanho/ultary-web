@@ -21,6 +21,7 @@ export const API_ERROR_CODES = [
   'CANNOT_UNLINK_LAST_LOGIN',
   'INVALID_SOCIAL_PROVIDER',
   'NAME_ALREADY_SET',
+  'AI_CONTENT_BLOCKED',
 ] as const;
 
 export type ApiErrorCode = (typeof API_ERROR_CODES)[number];

@@ -2,6 +2,7 @@
 
 import { FooterMenu } from '@/components/common/FooterMenu';
 import { LogoHeader } from '@/components/common/LogoHeader';
+import { LogoLoading } from '@/components/common/LogoLoading';
 import { FeedList } from '@/components/feed/FeedList';
 import type { FeedData } from '@/components/feed/Feed';
 import { Profile, type StoryStatus } from '@/components/my-ultary/Profile';
@@ -133,7 +134,7 @@ export default function MainClient() {
   const [feeds, setFeeds] = useState<FeedData[]>([]);
   const [recommended, setRecommended] = useState<FeedData[]>([]);
   const [storyUsers, setStoryUsers] = useState<StoryRing[]>([]);
-  const [storiesReady, setStoriesReady] = useState(false);
+  const [ready, setReady] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -164,13 +165,17 @@ export default function MainClient() {
         console.error('[main] BFF load failed', err);
         if (!cancelled) setFeeds([]);
       } finally {
-        if (!cancelled) setStoriesReady(true);
+        if (!cancelled) setReady(true);
       }
     })();
     return () => {
       cancelled = true;
     };
   }, []);
+
+  if (!ready) {
+    return <LogoLoading />;
+  }
 
   const handleStoryFileChange = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -291,9 +296,9 @@ export default function MainClient() {
                 </button>
               ) : null}
             </>
-          ) : storiesReady ? (
+          ) : (
             <p className={styles.storyEmpty}>스토리가 없습니다</p>
-          ) : null}
+          )}
         </section>
 
         <input

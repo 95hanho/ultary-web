@@ -48,16 +48,18 @@
 | `GET /main/stories/owners` | `profileFile` | 소유자의 대표 펫 사진 `FileSummary`. 없으면 `null`. 스토리 미디어는 포함하지 않음 |
 | `GET /main/feeds` · `GET /feeds/{feedId}` | `authorProfileFile` | 작성자의 대표 펫 사진 `FileSummary`. 없으면 `null`. 게시글 `media[].file`과 별개 |
 | `GET /main/feeds/recommended` · `GET /main/search/recommended` | 피드 배열 | 나중에 추천 알고리즘 추가해야함. 지금은 조회 가능한 전체 피드를 최신순 `limit`건. 항목은 피드 단건과 동일 |
-| `GET /main/search/recent` | `items`(5), `nextCursorHistoryId` | 검색창을 열 때. 들어간 유저 울타리. `profileFile`은 대표 펫 사진, 없으면 null |
+| `GET /main/search/recent` | `items`(5), `nextCursorHistoryId` | 울타리·태그 혼합. `type=USER|TAG`. USER는 `profileFile`·`petTags`, TAG는 `tagId`·`hashtag` |
 | `GET /main/search/recent/more` | `items`(20), `nextCursorHistoryId` | `cursorHistoryId` = 직전 `nextCursorHistoryId`. 없으면 끝 |
-| `POST /main/search/recent` | `{ targetUserNo }` | 검색 후 그 울타리에 들어갈 때 저장. 같은 쌍은 `searched_at`만 갱신 |
-| `DELETE /main/search/recent` | data null | 최근 검색 모두 지우기. 탈퇴·차단으로 목록에 없던 행도 삭제 |
+| `POST /main/search/recent` | `{ targetUserNo }` 또는 `{ tagId }` | 울타리·태그 피드 진입 시. 둘 중 하나만. 같은 대상은 `searched_at`만 갱신. 태그 없으면 `TAG_NOT_FOUND` |
+| `DELETE /main/search/recent` | data null | 최근 검색 모두 지우기. 탈퇴·차단·삭제 태그로 목록에 없던 행도 삭제 |
 | `GET /main/search` | `users[]`, `pets[]` | 로그인한 본인 계정은 넣지 않는다. 내 `userNo`와, 보호자가 나인 펫을 뺀다. 검색 페이지·사진 태그·스토리 `@` 공통 |
 | `GET /main/search?type=PET` | `pets[].ownerNickname` | 보호자 닉네임. `userNo`는 보호자. 멘션명만 검색돼도 닉네임을 함께 준다 |
 | `GET /main/pet-tags/recent` | `items`(최대 20) | 스토리 `@`·사진 태그의 최근 펫. `usedAt` 내림차순. 검색 최근 울타리와 다른 저장소 |
 | `POST /main/pet-tags/recent` | `{ petId }` | 멘션을 고를 때 저장. 같은 펫은 `used_at`만 갱신. `POST /main/search/recent`와 무관 |
 | `DELETE /main/pet-tags/recent` | data null | 내 최근 펫 태그 전부 삭제 |
 | `GET /feeds/{id}/comments` · `.../replies` | `authorProfileFile` | 작성자의 대표 펫 사진 `FileSummary`. 없으면 `null`. 인라인 `replies`에도 동일 |
+| `POST`·`PATCH /feeds` · 댓글·답글 | — | `content` 최대 100자. Gemini 모더레이션. unsafe → `400` `AI_CONTENT_BLOCKED`. 게시글은 content 변경 시에만. AI 장애 시 등록 허용 |
+| `GET /tags/recommend` | `TagResponse[]` | 게시글 내용(q) 기반 해시태그 최대 5. FE는 기존 태그 제외 본문을 q로. Gemini 우선, 실패 시 DB |
 | `GET /pets` | `priority` | 작을수록 우선. 목록은 이 순서, 같으면 petId. 유저 프로필 사진은 그중 사진 있는 첫 펫. **로그인한 나의 펫만** |
 | `PATCH /pets/{petId}` | `profileFileId` | 다른 파일로 바꾸거나 `removeProfileFile=true`면 이전 `ultary_file`을 삭제 표시(`is_deleted`, `deleted_at`). 다른 곳에서 쓰는 파일은 유지 |
 | `GET /users/{userNo}/pets` | 항목은 `GET /pets`와 동일 | 그 유저의 활성 펫. 정렬도 같다. 나의 `userNo`면 `GET /pets`와 같은 결과 |

@@ -2,6 +2,7 @@
 
 import { FooterMenu } from '@/components/common/FooterMenu';
 import { LogoHeader } from '@/components/common/LogoHeader';
+import { LogoLoading } from '@/components/common/LogoLoading';
 import { FeedGrid, type FeedGridItem } from '@/components/feed/FeedGrid';
 import { Profile } from '@/components/my-ultary/Profile';
 import { bffEndpoints } from '@/lib/api/endpoints';
@@ -298,6 +299,8 @@ export default function MyUltaryClient({ nickname }: MyUltaryClientProps) {
         );
         if (!matched?.userNo) {
           setUnknownAccount(true);
+          setProfileReady(true);
+          setFeedsReady(true);
           return;
         }
         const otherUserNo = matched.userNo;
@@ -313,6 +316,8 @@ export default function MyUltaryClient({ nickname }: MyUltaryClientProps) {
         const otherProfile = mapMyUltaryProfile(otherRes.data);
         if (!otherProfile) {
           setUnknownAccount(true);
+          setProfileReady(true);
+          setFeedsReady(true);
           return;
         }
         const nextPets = mapMyPets(petsRes.data, NO_PROFILE_SRC);
@@ -679,6 +684,10 @@ export default function MyUltaryClient({ nickname }: MyUltaryClientProps) {
 
   if (unknownAccount) notFound();
   if (!expectsOwn && !mockAccount) notFound();
+
+  if (expectsOwn && (!profileReady || !feedsReady)) {
+    return <LogoLoading />;
+  }
 
   const handlePetSelect = (petId: string) => {
     if (pets.length <= 1) return;

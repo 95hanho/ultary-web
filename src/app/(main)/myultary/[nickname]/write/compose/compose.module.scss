@@ -111,8 +111,124 @@
   color: var(--brand-black-700);
 }
 
+.contentBody {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
 .textareaWrap {
   padding: 5px 14px 15px;
+}
+
+.tagWarn,
+.tagHint {
+  margin: 8px 0 0;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  line-height: 1.35;
+}
+
+.tagWarn {
+  color: var(--brand-red-500);
+}
+
+.tagHint {
+  color: var(--brand-gray-500);
+}
+
+.belowEditor {
+  position: relative;
+  min-height: 52px;
+}
+
+.belowEditorCovered {
+  min-height: 200px;
+}
+
+.recommendBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 0 14px 15px;
+}
+
+.recommendBtn {
+  align-self: flex-start;
+  padding: 8px 14px;
+  border: 1px solid var(--brand-black-700);
+  border-radius: 7px;
+  background: #fff;
+  color: var(--brand-black-700);
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.3;
+  cursor: pointer;
+
+  &:active {
+    background: var(--brand-gray-100);
+  }
+}
+
+.recommendHint {
+  margin: 0;
+  color: var(--brand-gray-500);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  line-height: 1.35;
+}
+
+.recommendPanel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+}
+
+.recommendList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.recommendChip {
+  padding: 7px 14px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--brand-grass-100);
+  color: var(--brand-black-700);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.3;
+  cursor: pointer;
+  transition:
+    background 0.12s ease,
+    transform 0.12s ease;
+
+  &:hover {
+    background: var(--brand-grass-500);
+  }
+
+  &:active {
+    background: var(--brand-grass-600);
+    transform: scale(0.97);
+  }
+}
+
+.suggestOverlay {
+  position: absolute;
+  z-index: 5;
+  inset: 0;
+  padding: 0 5px 10px;
+  overflow-y: auto;
+  background: var(--brand-sky-100);
 }
 
 .editorShell {
