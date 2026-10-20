@@ -154,7 +154,14 @@
   padding: 0 14px 15px;
 }
 
+.recommendRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
 .recommendBtn {
+  flex-shrink: 0;
   align-self: flex-start;
   padding: 8px 14px;
   border: 1px solid var(--brand-black-700);
@@ -167,8 +174,15 @@
   line-height: 1.3;
   cursor: pointer;
 
-  &:active {
+  &:active:not(:disabled) {
     background: var(--brand-gray-100);
+  }
+
+  &:disabled {
+    border-color: var(--brand-gray-200);
+    background: var(--brand-gray-100);
+    color: var(--brand-gray-400);
+    cursor: not-allowed;
   }
 }
 

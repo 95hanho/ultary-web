@@ -19,6 +19,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import styles from './notifications.module.scss';
 
 type NotificationKind =
+  | 'moderation'
   | 'neighbor'
   | 'likePost'
   | 'likeComment'
@@ -195,7 +196,7 @@ function ActorPhrase({
 
 function NotificationMessage({ item }: { item: NotificationItem }) {
   const router = useRouter();
-  const snippet = item.preview
+  const snippet = item.kind !== 'moderation' && item.preview
     ? item.message
       ? item.preview
       : toPreviewSnippet(item.preview, 6, shouldPreserveMentions(item.kind))
@@ -214,6 +215,9 @@ function NotificationMessage({ item }: { item: NotificationItem }) {
 
   let action: ReactNode;
   switch (item.kind) {
+    case 'moderation':
+      action = item.message ?? '콘텐츠 확인 결과가 있습니다.';
+      break;
     case 'neighbor':
       action =
         item.neighborStatus === 'ACCEPTED' ? (
@@ -306,7 +310,7 @@ function NotificationMessage({ item }: { item: NotificationItem }) {
 
   return (
     <p className={styles.message}>
-      {item.message ? linkifyMessage(item.message, item, router) : action}
+      {item.message && item.kind !== 'moderation' ? linkifyMessage(item.message, item, router) : action}
       {previewNode ? <> {previewNode}</> : null} {time}
     </p>
   );
@@ -325,6 +329,8 @@ function mapNotificationType(
   replyId: number | null,
 ): NotificationKind | null {
   switch (type) {
+    case 'AI_MODERATION':
+      return 'moderation';
     case 'FEED_LIKE':
       return 'likePost';
     case 'COMMENT_LIKE':

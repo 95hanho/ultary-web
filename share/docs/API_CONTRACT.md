@@ -20,6 +20,8 @@
 
 ## 응답
 
+관리자 AI 오류 로그: `GET /api/v1/admin/ai/logs`, `GET /api/v1/admin/ai/logs/{aiRequestId}`. BFF는 `/api/admin/ai/logs` 및 하위 ID 경로. 관리자 인증·필터·페이지 규약은 [비동기 모더레이션 문서](async-moderation.md#관리자-ai-로그-조회) 참조.
+
 - 성공: `ApiResponse<T>` (`success: true`, `code: "OK"`, `message`, `data`)
 - 실패 (비즈니스·Bean Validation): `ApiResponse` (`success: false`, `code`, `message`, `data`)
   - 입력 검증: `code=INVALID_INPUT`, `message`=첫 필드 오류 문구, `data`=필드별 메시지 맵
@@ -58,7 +60,9 @@
 | `POST /main/pet-tags/recent` | `{ petId }` | 멘션을 고를 때 저장. 같은 펫은 `used_at`만 갱신. `POST /main/search/recent`와 무관 |
 | `DELETE /main/pet-tags/recent` | data null | 내 최근 펫 태그 전부 삭제 |
 | `GET /feeds/{id}/comments` · `.../replies` | `authorProfileFile` | 작성자의 대표 펫 사진 `FileSummary`. 없으면 `null`. 인라인 `replies`에도 동일 |
-| `POST`·`PATCH /feeds` · 댓글·답글 | — | `content` 최대 100자. Gemini 모더레이션. unsafe → `400` `AI_CONTENT_BLOCKED`. 게시글은 content 변경 시에만. AI 장애 시 등록 허용 |
+| `POST /feeds` | 게시글 단건 | content 최대 100자. AI 검사 후 저장. 부적절하면 400 AI_CONTENT_BLOCKED와 사유, 검사 장애는 503 AI_CHECK_UNAVAILABLE. 실패 시 게시글 미생성·독립 검사 로그 저장. 승인 시 후처리 작업 없음 |
+| `PATCH /feeds/{feedId}` | 게시글 단건 | 작성자 전용. content/clearContent/visibility 및 mediaTags(기존 사진 ID별 mentions 교체), tagIds(본문 해시태그 연결 교체). 원본 미디어 교체 없음. 상세는 [feed-edit.md](feed-edit.md) |
+| `PATCH /feeds` · 댓글·답글 작성/수정 | — | content 최대 100자. 즉시 저장·공개하고 DB 작업자가 비동기 검사. 유해 시 숨김/마지막 승인 본문 복구 후 AI_MODERATION 알림. AI 장애는 FAILED 로그·재시도이며 콘텐츠 유지 |
 | `GET /tags/recommend` | `TagResponse[]` | 게시글 내용(q) 기반 해시태그 최대 5. FE는 기존 태그 제외 본문을 q로. Gemini 우선, 실패 시 DB |
 | `GET /pets` | `priority` | 작을수록 우선. 목록은 이 순서, 같으면 petId. 유저 프로필 사진은 그중 사진 있는 첫 펫. **로그인한 나의 펫만** |
 | `PATCH /pets/{petId}` | `profileFileId` | 다른 파일로 바꾸거나 `removeProfileFile=true`면 이전 `ultary_file`을 삭제 표시(`is_deleted`, `deleted_at`). 다른 곳에서 쓰는 파일은 유지 |
@@ -94,7 +98,7 @@
 | `GET /tags/{tagId}` | 태그 | `purpose`는 `USER` 또는 `COMMERCIAL`. `title`·`content`·`link`·`images`는 `profileStatus=APPROVED`일 때만. 요청자만 `profileRequest` |
 | `POST /tags/{tagId}/profile-requests` | 요청 1개 | 상업 태그에 넣을 설명. 관리자 승인 후에만 태그 조회에 나온다 |
 | `GET /tags/profile-requests` | 배열 | 내가 넣은 태그 설명 요청. `status`를 비우면 전부 |
-| `GET /admin/menu-counts` | `pendingTagRequestCount`, `requestedReportCount` | 메뉴 뱃지. 태그 설명 요청 `PENDING` 건수와 신고 `REQUESTED`·`CONFIRMED` 합. 정지 회원의 태그 요청은 세지 않는다. 목록은 없다. 없으면 0 |
+| `GET /admin/menu-counts` | `pendingTagRequestCount`, `requestedReportCount`, `failedAiRequestCount` | 메뉴 뱃지. 태그 설명 요청 `PENDING`, 대상 회원/작성자가 정지되지 않은 신고 `REQUESTED`·`CONFIRMED` 합, AI 호출 로그 `FAILED` 건수. 정지 회원의 태그 요청은 세지 않는다. AI는 재시도별 개별 실패 기록을 센다. 목록은 없다. 없으면 0 |
 | `GET /admin/tags/profile-requests` | `items`, `nextCursorRequestId`, `totalCount` | 상업 태그 설명 요청. `status`를 비우면 전부, 최신순. `totalCount`는 그 `status`의 전체 건수. 커서와 `limit`는 세지 않는다. 정지 회원의 요청은 목록과 건수에서 뺀다. 다음은 `cursorRequestId` |
 | `GET /admin/reports` | `items`, `nextCursorReportId`, `totalCount` | 신고 목록. `status`를 비우면 전부, 신고요청·확인이 먼저(대상이 정지인 건 제외), 그다음 나머지. 같은 묶음은 최신순. `totalCount`는 그 `status`의 전체 건수. 커서와 `limit`는 세지 않는다. `targetUserNo`·`targetNickname`은 대상 회원(회원 신고는 그 회원, 글·댓글·답글은 작성자). 글·댓글·답글은 `targetContent`(10자, 넘으면 `...`). `targetSuspended`는 그 회원이 정지인지. 다음은 `cursorReportId` |
 | `GET /admin/reports/{reportId}` | 신고 1개 | 목록 항목과 같다. `targetUserNo`·`targetNickname`·`targetSuspended` 포함. 없으면 404 |
@@ -123,3 +127,7 @@ Spring API(게스트 단건 GET·쓰기 401): [`spring-auth-api.md`](./spring-au
 
 아직 로직·DB가 없는 API는 `ErrorCode.NOT_IMPLEMENTED` (HTTP 501) 을 반환한다.
 로그인/refresh/logout/me, health 등 이미 구현된 API는 예외.
+
+## 비동기 콘텐츠 모더레이션 (v32)
+
+[async-moderation.md](./async-moderation.md) 참조. 새 FE 검사 API는 없으며, 작성/수정 응답 형태는 유지한다. 소켓 CONTENT_MODERATED는 본문을 포함하지 않는 무효화 이벤트, MODERATION_RESULT는 작성자에게만 보내는 결과 안내다. 알림 목록은 type=AI_MODERATION, message=서비스 안내문을 반환한다.

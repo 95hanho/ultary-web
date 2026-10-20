@@ -11,6 +11,7 @@ import { useMenuCounts, withCount } from './useMenuCounts';
 const LINKS = [
   { href: '/admin/tags', label: '태그요청' },
   { href: '/admin/reports', label: '신고목록' },
+  { href: '/admin/ai/logs', label: 'AI 오류 로그' },
 ];
 
 export default function AdminShell({ children }: { children: ReactNode }) {
@@ -58,7 +59,8 @@ export default function AdminShell({ children }: { children: ReactNode }) {
                     >
                       {withCount(
                         link.label,
-                        link.href === '/admin/tags' ? counts?.pendingTagRequestCount : counts?.requestedReportCount,
+                        link.href === '/admin/tags' ? counts?.pendingTagRequestCount
+                          : link.href === '/admin/reports' ? counts?.requestedReportCount : counts?.failedAiRequestCount,
                       )}
                     </Link>
                   );

@@ -13,7 +13,7 @@ share/
     README.md
     rules.json
   database/
-    schema/mariadb_10_1/    ← 001_init_schema.sql (schema_version 13)
+    schema/mariadb_10_1/    ← 001_init_schema.sql (schema_version 32)
     seed/mariadb_10_1/      ← 001_dev_sample_data.sql (로컬 전용, CDN 시드 포함)
   docs/
     api-memo.md             ← 엔드포인트·도메인 메모
@@ -42,3 +42,5 @@ share/
 | `docs/bff/` | **web 전용** BFF 가이드 (architecture, api-spec, development) |
 
 루트 `docs/api-memo.md` · `database/` 는 두지 않는다.
+
+비동기 콘텐츠 검사: [`docs/async-moderation.md`](./docs/async-moderation.md)

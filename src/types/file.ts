@@ -39,6 +39,8 @@ export type FileMeta = {
 
 /** 피드 media[] 항목 (읽기 응답) */
 export type FeedMediaFileEmbed = {
+  mediaType?: 'IMAGE' | 'VIDEO';
+  mentions?: Array<{ petId: number; posX: number; posY: number; mentionId?: string | null; petName?: string | null; userNo?: number | null; ownerNickname?: string | null }>;
   feedMediaId?: number;
   fileId: number;
   thumbnailFileId?: number | null;

@@ -21,6 +21,7 @@ export function listHashtagBodies(caption: string): string[] {
   const re = new RegExp(HASHTAG_TOKEN.source, 'g');
   let match: RegExpExecArray | null;
   while ((match = re.exec(caption)) !== null) {
+    if (!isTagBoundaryBefore(caption, match.index)) continue;
     out.push(match[0].slice(1));
   }
   return out;
@@ -43,7 +44,8 @@ export function stripExistingHashtags(
     [...existingBodies].map((body) => normalizeHashtagBody(body)).filter(Boolean),
   );
   if (existing.size === 0) return caption;
-  return caption.replace(HASHTAG_TOKEN, (token) => {
+  return caption.replace(HASHTAG_TOKEN, (token, offset: number) => {
+    if (!isTagBoundaryBefore(caption, offset)) return token;
     const body = normalizeHashtagBody(token);
     return existing.has(body) ? '' : token;
   });
@@ -59,7 +61,9 @@ export function captionPlainLengthExcluding(
 
 /** @deprecated 모든 해시태그 제거 — 추천 enable/q 에는 stripExistingHashtags 사용 */
 export function stripHashtags(caption: string): string {
-  return caption.replace(HASHTAG_TOKEN, '');
+  return caption.replace(HASHTAG_TOKEN, (token, offset: number) =>
+    isTagBoundaryBefore(caption, offset) ? '' : token,
+  );
 }
 
 /** @deprecated captionPlainLengthExcluding 사용 */
@@ -98,10 +102,7 @@ export function getActiveHashtag(value: string, caret: number): ActiveHashtag | 
   if (!match) return null;
 
   const start = safeCaret - match[0].length;
-  if (start > 0) {
-    const prev = value[start - 1];
-    if (prev !== ' ' && prev !== '\n' && prev !== '\t') return null;
-  }
+  if (!isTagBoundaryBefore(value, start)) return null;
 
   let end = safeCaret;
   while (end < value.length && TAG_BODY.test(value[end]!)) {
@@ -148,10 +149,10 @@ export function shouldWarnSingleCharHashtag(value: string, caret: number): boole
   return Boolean(active && active.term.length === 1);
 }
 
-function isTagBoundaryBefore(value: string, start: number): boolean {
+/** 해시태그는 본문 시작 또는 공백(줄바꿈·탭 포함) 뒤에서만 시작한다. */
+export function isTagBoundaryBefore(value: string, start: number): boolean {
   if (start <= 0) return true;
-  const prev = value[start - 1];
-  return prev === ' ' || prev === '\n' || prev === '\t';
+  return /\s/.test(value[start - 1]!);
 }
 
 /** `pos`가 가리키는 글자를 포함하는 해시태그 토큰 (`#`~본문) */

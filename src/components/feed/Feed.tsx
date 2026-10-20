@@ -4,10 +4,12 @@ import { formatFeedTime } from '@/lib/feed/formatFeedTime';
 import { RevealTime } from '@/components/common/RevealTime';
 import { MediaImage } from '@/components/common/MediaImage';
 import { Profile, type StoryStatus } from '@/components/my-ultary/Profile';
-import { bffDelete, bffPostJson } from '@/lib/api/bffFetch';
+import { bffDelete, bffGet, bffPostJson } from '@/lib/api/bffFetch';
+import { subscribeContentModerated } from '@/lib/ws/liveSocket';
+import type { BffEnvelope } from '@/types/api';
 import { loadMyUserNo } from '@/lib/auth/myUserNo';
 import { bffEndpoints } from '@/lib/api/endpoints';
-import { isRecord } from '@/lib/api/error';
+import { isRecord, isHttpError } from '@/lib/api/error';
 import { resolveFeedPetLabels, type FeedPetLabel } from '@/lib/feed/petLabels';
 import { splitCaptionTags, type TagExplain } from '@/lib/mock/tags';
 import { loadTagExplain, tagHasExplainPopup } from '@/lib/tag/explain';
@@ -16,8 +18,9 @@ import { showFooterNotice } from '@/lib/ui/footerNotice';
 import { openReportModal, cancelReport, canCancelReport, type MyReport } from '@/lib/report/openReport';
 import { NO_PROFILE_SRC } from '@/lib/profileImage';
 import { useModalStore } from '@/stores/modal.store';
+import { useWriteDraftStore } from '@/stores/write-draft.store';
 import clsx from 'clsx';
-import { Bookmark, Ellipsis, Flag, Trash2, User } from 'lucide-react';
+import { Bookmark, Ellipsis, Flag, Pencil, Trash2, User } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
@@ -147,6 +150,26 @@ export function Feed({
   const [deletePending, setDeletePending] = useState(false);
   const [myReport, setMyReport] = useState<MyReport | null>(myReportFromServer);
   const [removed, setRemoved] = useState(false);
+  const [captionOverride, setCaptionOverride] = useState<{ feedId: string; source: string; content: string } | null>(null);
+  const visibleCaption = captionOverride?.feedId === id && captionOverride.source === caption ? captionOverride.content : caption;
+  useEffect(() => {
+    let active = true;
+    const unsubscribe = subscribeContentModerated((event) => {
+      if (event.feedId !== id) return;
+      if (event.targetType === 'FEED' && event.action === 'HIDDEN') {
+        setRemoved(true);
+        return;
+      }
+      void bffGet<BffEnvelope<unknown>>(bffEndpoints.feeds.detail, { feedId: id }).then((res) => {
+        if (!active || !isRecord(res.data)) return;
+        setCaptionOverride({ feedId: id, source: caption, content: typeof res.data.content === 'string' ? res.data.content : '' });
+        if (typeof res.data.commentCount === 'number') setComments(res.data.commentCount);
+      }).catch((err) => {
+        if (active && isHttpError(err) && err.status === 404) setRemoved(true);
+      });
+    });
+    return () => { active = false; unsubscribe(); };
+  }, [id, caption]);
   const [myUserNo, setMyUserNo] = useState<number | null>(null);
   const [moreOpen, setMoreOpen] = useState(false);
   const [morePlace, setMorePlace] = useState<{ top: number; left: number } | null>(null);
@@ -489,7 +512,7 @@ export function Feed({
   const hasMultiple = safeImages.length > 1;
   const showPrev = hasMultiple && index > 0;
   const showNext = hasMultiple && index < safeImages.length - 1;
-  const captionParts = splitCaptionTags(caption);
+  const captionParts = splitCaptionTags(visibleCaption);
   const storyRing = story === 'unread' ? 'unread' : 'none';
   const storyHref =
     storyRing === 'unread' && userNo != null
@@ -601,7 +624,7 @@ export function Feed({
     const ro = new ResizeObserver(measure);
     ro.observe(el);
     return () => ro.disconnect();
-  }, [caption, nickname, expanded]);
+  }, [visibleCaption, nickname, expanded]);
 
   if (removed) return null;
 
@@ -859,7 +882,7 @@ export function Feed({
                     : { visibility: 'hidden' }
                 }
               >
-                <button
+                {!isMine ? <><button
                   type="button"
                   className={styles.moreItem}
                   role="menuitem"
@@ -889,6 +912,13 @@ export function Feed({
                   </span>
                   <span className={styles.moreLabel}>게시글 저장</span>
                 </button>
+                </> : (
+                  <Link href={`${myUltaryPath(nickname)}/write/compose?editFeedId=${encodeURIComponent(id)}`} className={styles.moreItem} role="menuitem"
+                    onClick={() => { setMoreOpen(false); useWriteDraftStore.getState().clear(); }}>
+                    <span className={styles.moreIcon}><Pencil size={22} strokeWidth={1.75} /></span>
+                    <span className={styles.moreLabel}>게시글 수정</span>
+                  </Link>
+                )}
                 {isMine ? (
                   <button
                     type="button"

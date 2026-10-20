@@ -9,6 +9,7 @@ import { useEffect, useState } from 'react';
 export type MenuCounts = {
   pendingTagRequestCount: number;
   requestedReportCount: number;
+  failedAiRequestCount: number | null;
 };
 
 export function useMenuCounts(refreshKey = '') {
@@ -40,8 +41,9 @@ function readMenuCounts(raw: unknown): MenuCounts | null {
   if (!isRecord(raw)) return null;
   const pendingTagRequestCount = readCount(raw.pendingTagRequestCount);
   const requestedReportCount = readCount(raw.requestedReportCount);
+  const failedAiRequestCount = readCount(raw.failedAiRequestCount);
   if (pendingTagRequestCount == null || requestedReportCount == null) return null;
-  return { pendingTagRequestCount, requestedReportCount };
+  return { pendingTagRequestCount, requestedReportCount, failedAiRequestCount };
 }
 
 function readCount(value: unknown) {

@@ -1,3 +1,5 @@
+import { isTagBoundaryBefore } from '@/lib/search/hashtag-input';
+
 /** 해시태그 설명 팝오버에 넣는 값. 내용은 `loadTagExplain`이 API에서 채운다. */
 
 export type TagExplain = {
@@ -19,6 +21,7 @@ export function splitCaptionTags(caption: string): Array<{ type: 'text' | 'tag';
   let last = 0;
   let match: RegExpExecArray | null;
   while ((match = re.exec(caption)) !== null) {
+    if (!isTagBoundaryBefore(caption, match.index)) continue;
     if (match.index > last) {
       parts.push({ type: 'text', value: caption.slice(last, match.index) });
     }

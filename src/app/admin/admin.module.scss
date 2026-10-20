@@ -846,3 +846,50 @@
   color: var(--brand-gray-500);
   font-size: 13px;
 }
+
+.aiFilters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 10px;
+  padding: 0 24px 12px;
+
+  label {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    color: var(--brand-gray-600);
+    font-size: 12px;
+  }
+
+  input, select {
+    box-sizing: border-box;
+    min-width: 0;
+    width: 140px;
+    height: 36px;
+    padding: 6px 8px;
+    border: 1px solid var(--brand-gray-200);
+    border-radius: 8px;
+    background: #fff;
+    color: var(--brand-black-700);
+    font-size: 13px;
+  }
+}
+
+.aiHint, .aiDetailHint {
+  margin: 0;
+  padding: 0 24px 12px;
+  color: var(--brand-gray-600);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.aiDetailHint { margin-top: 20px; padding: 0; }
+.aiCode { overflow-wrap: anywhere; }
+
+@media (max-width: 640px) {
+  .aiRowMain { flex-direction: column; }
+  .aiRowMain .rowSide { flex-direction: row; align-items: center; justify-content: space-between; }
+  .aiFilters { padding-right: 12px; padding-left: 12px; }
+  .aiFilters input, .aiFilters select { width: 130px; }
+}

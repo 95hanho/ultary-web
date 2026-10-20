@@ -268,6 +268,8 @@ export const bffEndpoints = {
     tagPending: '/api/admin/tags/:tagId/pending',
     /** GET 신고 목록 */
     reports: '/api/admin/reports',
+    aiLogs: '/api/admin/ai/logs',
+    aiLog: '/api/admin/ai/logs/:aiRequestId',
     /** POST 신고된 글·댓글·답글 삭제 */
     reportDeleteContent: '/api/admin/reports/:reportId/delete-content',
     /** POST 신고된 회원 정지 */
@@ -557,6 +559,8 @@ export const springEndpoints = {
     tagPending: '/api/v1/admin/tags/:tagId/pending',
     /** GET ?status=&limit= */
     reports: '/api/v1/admin/reports',
+    aiLogs: '/api/v1/admin/ai/logs',
+    aiLog: '/api/v1/admin/ai/logs/:aiRequestId',
     /** POST */
     reportDeleteContent: '/api/v1/admin/reports/:reportId/delete-content',
     /** POST */

@@ -1,6 +1,7 @@
 'use client';
 
 import { notifyAiContentBlocked } from '@/lib/ai/content-blocked';
+import { subscribeContentModerated } from '@/lib/ws/liveSocket';
 import { loadMyUserNo } from '@/lib/auth/myUserNo';
 import { clampFeedContent, FEED_CONTENT_MAX_LENGTH } from '@/lib/content/limits';
 import {
@@ -144,7 +145,7 @@ function CommentBody({
   item: MockCommentReply;
   compact?: boolean;
   parentCommentId: string;
-  onReply: (nickname: string, parentCommentId: string) => void;
+  onReply: (target: MockCommentReply, parentCommentId: string) => void;
   focused?: boolean;
   menuOpen?: boolean;
   onToggleMenu: (anchor: HTMLButtonElement) => void;
@@ -215,7 +216,7 @@ function CommentBody({
           <button
             type="button"
             className={styles.replyBtn}
-            onClick={() => onReply(item.nickname, parentCommentId)}
+            onClick={() => onReply(item, parentCommentId)}
           >
             답글 달기
           </button>
@@ -292,6 +293,20 @@ export function CommentSheet({
   );
   const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);
+  const [moderationRefresh, setModerationRefresh] = useState(0);
+
+  useEffect(() => subscribeContentModerated((event) => {
+    if (event.feedId === feedId) setModerationRefresh((value) => value + 1);
+  }), [feedId]);
+
+  useEffect(() => {
+    if (!open || !moderationRefresh || sending || comments) return;
+    let cancelled = false;
+    void loadFeedComments(feedId).then((list) => {
+      if (!cancelled) setItems(list);
+    }).catch((err) => console.error('[comments] moderation refresh failed', err));
+    return () => { cancelled = true; };
+  }, [feedId, open, moderationRefresh, sending, comments]);
   const [myUserNo, setMyUserNo] = useState<number | null>(null);
   const openModal = useModalStore((s) => s.open);
   const [menu, setMenu] = useState<
@@ -303,7 +318,9 @@ export function CommentSheet({
   const [replyTo, setReplyTo] = useState<{
     parentCommentId: string;
     nickname: string;
+    userNo?: number;
   } | null>(null);
+  const replyingToOwnComment = myUserNo != null && replyTo?.userNo === myUserNo;
 
   useEffect(() => {
     setHydrated(true);
@@ -354,17 +371,23 @@ export function CommentSheet({
     };
   }, []);
 
-  const startReply = useCallback((nickname: string, parentCommentId: string) => {
+  const startReply = useCallback(async (target: MockCommentReply, parentCommentId: string) => {
+    const parent = items.find((comment) => comment.id === parentCommentId);
+    if (!parent) return;
+    const currentUserNo = myUserNo ?? await loadMyUserNo();
+    if (!openRef.current) return;
+    if (currentUserNo != null) setMyUserNo(currentUserNo);
     setEditing(null);
     setMenu(null);
-    setReplyTo({ parentCommentId, nickname });
+    // 안내는 원댓글 작성자, 자동 멘션은 실제 누른 댓글/답글 작성자를 기준으로 한다.
+    setReplyTo({ parentCommentId, nickname: parent.nickname, userNo: parent.userNo });
     setDraft((prev) => {
-      const mention = `@${nickname} `;
-      if (prev.startsWith(mention)) return clampFeedContent(prev);
+      const mention = currentUserNo != null && target.userNo === currentUserNo ? '' : `@${target.nickname} `;
+      if (mention && prev.startsWith(mention)) return clampFeedContent(prev);
       return clampFeedContent(mention);
     });
     requestAnimationFrame(() => inputRef.current?.focus());
-  }, []);
+  }, [items, myUserNo]);
 
   const clearReply = useCallback(() => {
     setReplyTo(null);
@@ -862,7 +885,7 @@ export function CommentSheet({
           {replyTo && !editing ? (
             <div className={styles.replyBar}>
               <span className={styles.replyHint}>
-                <strong>@{replyTo.nickname}</strong>님에게 답글 남기는 중
+                {replyingToOwnComment ? '내 댓글에 답글 남기는 중' : <><strong>@{replyTo.nickname}</strong>님의 댓글에 답글 남기는 중</>}
               </span>
               <button
                 type="button"
@@ -894,7 +917,7 @@ export function CommentSheet({
                 editing
                   ? '내용을 수정하세요…'
                   : replyTo
-                    ? `@${replyTo.nickname}님에게 답글 남기기…`
+                    ? replyingToOwnComment ? '내 댓글에 답글 남기기…' : `@${replyTo.nickname}님의 댓글에 답글 남기기…`
                     : '댓글을 입력하세요…'
               }
               aria-label={replyTo ? '답글 입력' : '댓글 입력'}

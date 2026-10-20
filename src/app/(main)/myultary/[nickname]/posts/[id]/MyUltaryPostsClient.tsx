@@ -45,7 +45,7 @@ export default function MyUltaryPostsClient() {
         if (!cancelled) setOwnerName(isMine && meNick ? meNick : nickname);
 
         let ids: string[] = [];
-        let detailUrl = bffEndpoints.myUltary.feedDetail;
+        let detailUrl: string = bffEndpoints.myUltary.feedDetail;
 
         if (isMine) {
           const listRes = await bffGet<BffEnvelope<unknown>>(bffEndpoints.myUltary.feeds, {

@@ -203,7 +203,7 @@ FE는 OAuth code를 Spring에 보내지 않는다. BFF가 code를 교환해 `pro
 
 > Spring: `GET /api/v1/feeds/{feedId}` — **PUBLIC은 비로그인 허용**. 상세는 [`spring-auth-api.md`](./spring-auth-api.md).
 > 삭제 권한: 작성자 또는 `feed_pet.role=COLLABORATOR` 펫의 보호자. `deleted_by_user_no`에 실제 삭제자 기록.
-> 등록 시 `media` 1개 이상 필수. PATCH는 content·visibility만 (미디어/펫/태그 교체 미지원).
+> 등록 시 `media` 1개 이상 필수. PATCH는 content·clearContent·visibility와 mediaTags(기존 사진별 펫 태그), tagIds(본문 해시태그)를 지원한다. 원본 미디어/순서는 바꿀 수 없다. 내 피드 메뉴의 게시글 수정은 작성 화면을 재사용하며 사진 태그·본문만 편집한다. 상세 계약: [feed-edit.md](feed-edit.md).
 > 본문·댓글·답글 `content`는 해시태그 텍스트 포함 **최대 100자**.
 > `PRIVATE`는 작성자만 조회. `NEIGHBORS`는 ACCEPTED 팔로우 관계만 조회.
 | 좋아요 | POST | `/api/feeds/:feedId/like` |
@@ -228,7 +228,7 @@ FE는 OAuth code를 Spring에 보내지 않는다. BFF가 code를 교환해 `pro
 | 답글 좋아요 취소 | DELETE | `/api/feeds/:feedId/comments/:commentId/replies/:replyId/like` |
 
 > 댓글·답글 응답: `likeCount`, `likedByMe`, `authorProfileFile` (`FileSummary | null`, 작성자 프로필. 미등록이면 null), `myReport`. 목록에 답글이 포함되면 답글에도 동일. 좋아요 토글·작성·수정도 해당 댓글/답글 응답을 다시 반환. 테이블은 `ultary_feed_comment_like` / `ultary_feed_reply_like` (피드 좋아요와 분리).  
-> **AI 모더레이션**: 게시글(`POST`·`PATCH /feeds`)·댓글·답글 작성·수정 시 Gemini로 유해 표현을 검사한다. unsafe면 DB에 저장하지 않고 `400` `AI_CONTENT_BLOCKED` («등록할 수 없는 표현이 포함되어 있습니다.»). 게시글은 본문(`content`)이 비어 있거나 `clearContent`만이면 검사를 건너뛴다. Gemini 장애·timeout·파싱 실패면 차단하지 않고 등록한다. 로그는 게시글 `FEED_CAPTION`, 댓글·답글 `COMMENT_FILTER`. 기존 신고·관리자 조치는 그대로다.  
+> **AI 모더레이션**: 게시글 작성은 Gemini 동기 검사 후 저장한다. 부적절하면 400 AI_CONTENT_BLOCKED와 사유, 검사 장애면 503 AI_CHECK_UNAVAILABLE이며 게시글은 생성하지 않는다. 시도 로그는 독립 저장한다. 게시글 수정·댓글·답글은 즉시 저장·공개하며 DB 작업자가 비동기 검사한다. 유해 시 숨김/승인 본문 복구, 장애 시 콘텐츠 유지·재시도이며 사용자 제재가 아니다. 자세한 계약은 `async-moderation.md`.
 > **내 신고** `myReport`: 게시글 상세·댓글·답글·울타리(`GET /users/{userNo}/ultary`)에 있다. 없으면 `null`. 있으면 `reportId`, `status`. `status=REQUESTED`일 때 `DELETE /reports/{reportId}`로 취소한다. 관리자가 `CONFIRMED`(확인)로 바꾼 뒤, 삭제조치·거절·정지는 취소하지 않는다.
 
 ---
@@ -485,7 +485,7 @@ FE는 OAuth code를 Spring에 보내지 않는다. BFF가 code를 교환해 `pro
 
 `/api/v1/admin` 아래 나머지 API는 관리자 액세스 토큰만 받는다. 회원 Bearer는 `401`이다.
 
-메뉴 뱃지 `GET /api/v1/admin/menu-counts`. 쿼리는 없다. `cursor`, `limit`, `status`도 없다. 목록은 주지 않는다. `pendingTagRequestCount`는 상업 태그 설명 요청 중 `PENDING` 건수다. 정지 회원의 요청은 세지 않는다. `requestedReportCount`는 신고 중 `REQUESTED`·`CONFIRMED` 합이다. 둘 다 0 이상 정수이고, 해당 건이 없으면 0이다.
+메뉴 뱃지 `GET /api/v1/admin/menu-counts`. 쿼리는 없다. `cursor`, `limit`, `status`도 없다. 목록은 주지 않는다. `pendingTagRequestCount`는 상업 태그 설명 요청 중 `PENDING` 건수다. 정지 회원의 요청은 세지 않는다. `requestedReportCount`는 신고 중 `REQUESTED`·`CONFIRMED`이면서 대상 회원(게시글·댓글·답글은 작성자)이 정지되지 않은 건수다. 목록의 처리 우선순위와 같은 조건을 사용하며, 정지 회원 표시로 처리 대상에서 빠진 신고는 메뉴 건수에서도 제외한다. 정지 해제 시 다시 포함한다. `failedAiRequestCount`는 AI 호출 로그 중 `FAILED` 전체 건수이며, 재시도별 개별 실패 기록을 센다. 상세 열람만으로 줄어들지 않는다. 세 필드 모두 0 이상 정수이고, 해당 건이 없으면 0이다.
 
 상업 태그 설명 요청 목록은 `status`를 비우면 `PENDING`·`APPROVED`·`REJECTED` 전부, 최신 `createdAt` 순이다. 넣으면 그 상태만. `limit` 기본 30 최대 50. 응답은 `items`, `nextCursorRequestId`, `totalCount`. 다음 페이지는 `cursorRequestId`에 직전 `nextCursorRequestId`를 넣는다. 없으면 끝이고 `nextCursorRequestId`는 null이다. 페이지 번호는 응답에 없다. 한 페이지 건수는 화면 높이에 따라 바뀌고 최대 50이다. `totalCount`는 그 요청의 `status`와 같은 조건의 전체 건수다. `cursorRequestId`와 `limit`는 이 수에 영향을 주지 않는다. `status`를 비우면 `PENDING`·`APPROVED`·`REJECTED` 전체 건수다. 태그 화면은 대기 요청을 먼저 보여 준 뒤 나머지를 이어서 보여 준다. 분모로 쓰는 값은 `status`를 비운 전체 `totalCount`다. `status=PENDING` 응답의 `totalCount`는 대기 건수다. 항목은 사용자 요청과 같고, 요청한 회원 닉네임 `requesterNickname`이 있다. 요청한 회원이 정지면 관리자 목록과 `totalCount`, 메뉴 뱃지 `pendingTagRequestCount`에서 뺀다. 그 회원의 내 요청 목록은 그대로다. `POST /admin/tags/{tagId}/approve`, `reject`, `pending`은 그 태그의 최신 설명 요청 상태를 바꾼다. 대기뿐 아니라 승인·거절된 요청도 다시 승인·거절·대기로 바꿀 수 있다. 요청이 없으면 `404` `TAG_PROFILE_REQUEST_NOT_FOUND`. `approve`는 제목·소개·링크·이미지로 공개 설명을 바꾸고 `rejectMessage`는 null이다. 이후 태그 조회에 설명이 나온다. `reject`의 Body `rejectMessage`는 500자 이하이고, 비우거나 본문을 빼면 null로 저장한다. 신청자는 내 요청 목록과 태그 조회의 `profileRequest.rejectMessage`에서 본다. 이미 공개된 설명은 그대로 두고, 한 번도 승인되지 않았으면 `profileStatus=REJECTED`라 설명이 안 나온다. `pending`은 본문이 없다. 요청을 `PENDING`으로 두고 `rejectMessage`와 `reviewedAt`은 null이다. 지금 공개 중이면 `profileStatus=PENDING`으로 바꿔 설명을 숨긴다. 거절된 요청을 대기로 돌릴 때, 이전에 공개된 설명이 남아 있으면 그 설명은 그대로 둔다. 응답은 그 요청이다.
 
@@ -517,10 +517,11 @@ HTTP: `requests/test.http`
 - 코드 상수: `src/lib/api/endpoints.ts` (`bffEndpoints` / `springEndpoints`)
 - BFF 스켈레톤: `src/app/api/**/route.ts`
 - REST Client 틀: `http/bff.http` (프론트) · Spring: `requests/*.http`
-- DB 스키마: `share/database/schema/mariadb_10_1/001_init_schema.sql` (**schema_version 28**)
+- DB 스키마: `share/database/schema/mariadb_10_1/001_init_schema.sql` (**schema_version 32**)
   - 기존 DB v7→v8: `002_file_source_attribution.sql`
   - 기존 DB v8→v9: `003_comment_reply_like.sql`
   - 기존 DB v9→v10: `004_search_history_user_only.sql` (최근 검색 = 들어간 유저 울타리만)
+  - 기존 DB v31→v32: `026_async_moderation.sql` (검사 상태·작업·시도 로그·결과 알림)
   - 기존 DB v29→v30: `024_search_history_tag.sql` (최근 검색에 태그 피드 이력)
   - 기존 DB v10→v11: `005_pet_priority_profile.sql` (펫 priority, 유저 profile_file_id 제거)
   - 기존 DB v11→v12: `006_story_overlay.sql` (스토리 글자·펫 멘션)
@@ -598,8 +599,15 @@ HTTP: `requests/test.http`
 | 1-14 | DM | 1:1 방, 글·게시글 사진·스토리 사진. HTTP `dm.http` |
 | 1-15 | 웹소켓 | 입장 토큰 후 Spring에 직접 연결. 알림 배지·DM 푸시. HTTP `ws.http` |
 | 1-16 | DM 읽음·입력 중 | `DM_READ`, `peerLastReadMessageId`, 보는 중, `DM_TYPING` |
-| 1-17 | AI (Gemini) | `GET /tags/recommend` Gemini+DB fallback. 게시글·댓글·답글 `AI_CONTENT_BLOCKED`. 로그 `FEED_CAPTION`/`COMMENT_FILTER`/`HASHTAG` |
+| 1-17 | AI (Gemini) | `GET /tags/recommend` Gemini+DB fallback. 게시글 작성 동기 검사, 게시글 수정·댓글·답글 DB 기반 비동기 검사. 로그 `FEED_CAPTION`/`COMMENT_FILTER`/`HASHTAG` |
 | 다음 | — | |
 
 파일 업로드 상대경로: `images/{uuid}.ext`, `videos/{uuid}.ext` (`UPLOAD_DIR`).  
 시드 CDN·임베드 요약은 위 **FileSummary** 절 참고.
+
+## 관리자 AI 호출 로그 (2026-10-20)
+
+- Spring `GET /api/v1/admin/ai/logs`, `GET /api/v1/admin/ai/logs/{aiRequestId}`.
+- BFF `GET /api/admin/ai/logs`, `GET /api/admin/ai/logs/{aiRequestId}`.
+- 관리자 JWT 전용. 기본 FAILED, cursorAiRequestId 페이지 조회, featureType/targetType/targetId/userNo/moderationJobId/errorCode 필터.
+- 응답 필드·오류·알림 문구: [async-moderation.md](async-moderation.md#관리자-ai-로그-조회).

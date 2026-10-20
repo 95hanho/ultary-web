@@ -3,6 +3,7 @@ import { bearer, handleBffError, isUnauthorized, requireAccessToken } from '@/li
 import { springEndpoints } from '@/lib/api/endpoints';
 import { springPostJson } from '@/lib/api/springFetch';
 import type { PhoneAuthRequest, PhoneAuthResponse } from '@/types/api';
+import type { RequestHeaders } from '@/lib/api/http';
 
 /** BFF /api/auth/phone — POST */
 export async function POST(request: NextRequest) {
@@ -17,7 +18,7 @@ export async function POST(request: NextRequest) {
     }
 
     const purpose = body.purpose;
-    let headers: { Authorization: string } | undefined;
+    let headers: RequestHeaders | undefined;
     if (purpose === 'PROFILE') {
       const accessToken = await requireAccessToken();
       if (isUnauthorized(accessToken)) return accessToken;

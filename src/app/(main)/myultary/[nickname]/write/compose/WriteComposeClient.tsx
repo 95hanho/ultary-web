@@ -1,13 +1,16 @@
 'use client';
 
 import { FooterMenu } from '@/components/common/FooterMenu';
+import { FullScreenLoading } from '@/components/common/FullScreenLoading';
 import { PageHeader } from '@/components/common/PageHeader';
 import { HashtagResultList } from '@/components/search/HashtagResultList';
 import { notifyAiContentBlocked } from '@/lib/ai/content-blocked';
 import { bffGet } from '@/lib/api/bffFetch';
 import { bffEndpoints } from '@/lib/api/endpoints';
+import { isHttpError, isRecord } from '@/lib/api/error';
 import { clampFeedContent, FEED_CONTENT_MAX_LENGTH } from '@/lib/content/limits';
 import { createFeedFromDraft } from '@/lib/feed/createFeed';
+import { loadFeedEditDraft, updateFeedFromDraft } from '@/lib/feed/editFeed';
 import type { MockHashtag } from '@/lib/mock/search';
 import { splitCaptionTags } from '@/lib/mock/tags';
 import { myUltaryPath } from '@/lib/mock/ultary-accounts';
@@ -49,8 +52,21 @@ const SUGGEST_DELAY_MS = 300;
 const RECOMMEND_MIN_PLAIN = 20;
 const RECOMMEND_LIMIT = 5;
 
+function submitFailureMessage(error: unknown) {
+  if (isHttpError(error)) {
+    if (isRecord(error.data)) {
+      for (const value of [error.data.detail, error.data.message]) {
+        if (typeof value === 'string' && value.trim()) return value.trim();
+      }
+    }
+    if (error.message === 'REQUEST_TIMEOUT') return '요청 시간이 초과되었습니다. 잠시 후 다시 시도해 주세요.';
+  }
+  if (error instanceof Error && error.message.trim()) return error.message;
+  return '게시글을 올리지 못했습니다. 다시 시도해 주세요.';
+}
+
 /** 게시글 작성 — 사진 태그·내용 */
-export default function WriteComposeClient() {
+export default function WriteComposeClient({ editFeedId }: { editFeedId?: string }) {
   const router = useRouter();
   const params = useParams<{ nickname: string }>();
   const nickname = typeof params.nickname === 'string' ? params.nickname : params.nickname?.[0];
@@ -62,6 +78,25 @@ export default function WriteComposeClient() {
   const caption = useWriteDraftStore((s) => s.caption);
   const setCaption = useWriteDraftStore((s) => s.setCaption);
   const clear = useWriteDraftStore((s) => s.clear);
+  const editingFeedId = useWriteDraftStore((s) => s.editingFeedId);
+  const beginEditing = useWriteDraftStore((s) => s.beginEditing);
+  const isEditing = editFeedId != null;
+  const pageTitle = isEditing ? '게시글 수정' : '게시글 작성';
+  const [editError, setEditError] = useState<{ id: string; message: string } | null>(null);
+  const editErrorMessage = editError?.id === editFeedId ? editError?.message : null;
+  const loadingEdit = isEditing && editingFeedId !== editFeedId && !editErrorMessage;
+  const returnHref = isEditing ? `${basePath}/posts/${editFeedId}` : cropHref;
+
+  useEffect(() => {
+    if (!editFeedId || useWriteDraftStore.getState().editingFeedId === editFeedId) return;
+    let cancelled = false;
+    loadFeedEditDraft(editFeedId).then((draft) => {
+      if (!cancelled) beginEditing(editFeedId, draft.items, draft.caption);
+    }).catch((error: unknown) => {
+      if (!cancelled) setEditError({ id: editFeedId, message: submitFailureMessage(error) });
+    });
+    return () => { cancelled = true; };
+  }, [editFeedId, beginEditing]);
   const photoTagCount = items.reduce((sum, item) => sum + (item.petTags?.length ?? 0), 0);
   const backdropRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -76,7 +111,9 @@ export default function WriteComposeClient() {
   const [recommendOpen, setRecommendOpen] = useState(false);
   const [recommendLoading, setRecommendLoading] = useState(false);
   const [recommendHint, setRecommendHint] = useState(false);
+  const recommendRequestRef = useRef<{ caption: string } | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const showLoading = submitting || loadingEdit;
   /** DB에 있는(선택된 tagId / 조회 확인된) 해시태그 본문 — 소문자, `#` 없음 */
   const [existingTagBodies, setExistingTagBodies] = useState<Set<string>>(() => new Set());
   const activeTagRef = useRef<ActiveHashtag | null>(null);
@@ -182,18 +219,40 @@ export default function WriteComposeClient() {
     [caption, focusCaptionAt, markExistingTag],
   );
 
+  useEffect(() => {
+    // 앞뒤 공백을 제외한 원문이 사라지면 결과와 진행 중 요청을 함께 무효화한다.
+    const unsubscribe = useWriteDraftStore.subscribe(({ caption: nextCaption }) => {
+      const request = recommendRequestRef.current;
+      if (!request || nextCaption.trim().includes(request.caption)) return;
+      recommendRequestRef.current = null;
+      setRecommendItems([]);
+      setRecommendOpen(false);
+      setRecommendLoading(false);
+      setRecommendHint(false);
+    });
+    return () => {
+      unsubscribe();
+      recommendRequestRef.current = null;
+    };
+  }, []);
+
   const requestRecommend = useCallback(async () => {
+    const request = { caption: caption.trim() };
+    recommendRequestRef.current = request;
     setRecommendHint(false);
+    setRecommendItems([]);
     setRecommendLoading(true);
     setRecommendOpen(true);
     try {
       if (USE_MOCK_TAG_RECOMMEND) {
         await new Promise((r) => window.setTimeout(r, 200));
+        if (recommendRequestRef.current !== request) return;
         setRecommendItems(MOCK_RECOMMEND_TAGS);
         return;
       }
 
       const resolved = await resolveExistingHashtagBodies(caption, existingTagBodies);
+      if (recommendRequestRef.current !== request) return;
       setExistingTagBodies(resolved);
       const q = stripExistingHashtags(caption, resolved).trim();
       if (q.length < RECOMMEND_MIN_PLAIN) {
@@ -205,16 +264,18 @@ export default function WriteComposeClient() {
         q,
         limit: RECOMMEND_LIMIT,
       });
+      if (recommendRequestRef.current !== request) return;
       const mapped = mapRecommendTags(res.data ?? res);
       setRecommendItems(mapped);
       for (const item of mapped) {
         if (item.tagId != null) markExistingTag(item.tag);
       }
     } catch (err) {
+      if (recommendRequestRef.current !== request) return;
       console.error('[write-compose] tag recommend failed', err);
       setRecommendItems([]);
     } finally {
-      setRecommendLoading(false);
+      if (recommendRequestRef.current === request) setRecommendLoading(false);
     }
   }, [caption, existingTagBodies, markExistingTag]);
 
@@ -254,6 +315,8 @@ export default function WriteComposeClient() {
   }, [suggestOpen, activeTag?.term]);
 
   useEffect(() => {
+    if (editFeedId) return;
+    if (useWriteDraftStore.getState().editingFeedId != null) clear();
     if (useWriteDraftStore.getState().items.length === 0) {
       router.replace(basePath);
     }
@@ -283,16 +346,18 @@ export default function WriteComposeClient() {
     if (submitting || items.length === 0) return;
     setSubmitting(true);
     try {
-      await createFeedFromDraft({ caption, items, visibility: 'PUBLIC' });
+      if (editFeedId) await updateFeedFromDraft(editFeedId, caption, items);
+      else await createFeedFromDraft({ caption, items, visibility: 'PUBLIC' });
       clear();
-      router.push(basePath);
+      router.push(editFeedId ? `${basePath}/posts/${editFeedId}` : basePath);
+      router.refresh();
     } catch (err) {
       if (notifyAiContentBlocked(err)) return;
       console.error('[write-compose] submit failed', err);
       openModal({
         variant: 'alert',
         title: '알림창',
-        content: '게시글을 올리지 못했습니다. 다시 시도해 주세요.',
+        content: submitFailureMessage(err),
         showCloseButton: true,
         okButton: { label: '확인', tone: 'primary' },
         cancelButton: { hidden: true },
@@ -308,12 +373,13 @@ export default function WriteComposeClient() {
   const showSuggestOverlay = suggestOpen && suggestReady && suggestItems.length > 0;
   const visibleRecommend = recommendItems.filter((item) => !captionHasHashtag(caption, item.tag));
 
-  if (items.length === 0) {
+  if (items.length === 0 || (isEditing ? editingFeedId !== editFeedId : editingFeedId != null)) {
     return (
-      <div className={styles.shell}>
-        <PageHeader title="게시글 작성" backHref={basePath} />
+      <div className={styles.shell} inert={showLoading} aria-busy={showLoading}>
+        <FullScreenLoading open={showLoading} label={loadingEdit ? '게시글을 불러오는 중입니다.' : undefined} />
+        <PageHeader title={pageTitle} backHref={basePath} />
         <main className={styles.main}>
-          <p className={styles.empty}>작성 중인 게시글이 없습니다.</p>
+          <p className={styles.empty}>{editErrorMessage ?? (loadingEdit ? '게시글을 불러오는 중입니다.' : '작성 중인 게시글이 없습니다.')}</p>
         </main>
         <FooterMenu />
       </div>
@@ -321,12 +387,13 @@ export default function WriteComposeClient() {
   }
 
   return (
-    <div className={styles.shell}>
+    <div className={styles.shell} inert={showLoading} aria-busy={showLoading}>
+      <FullScreenLoading open={showLoading} label={isEditing ? '게시글을 수정하고 있습니다. 잠시만 기다려 주세요.' : undefined} />
       <PageHeader
-        title="게시글 작성"
-        onBack={() => router.push(cropHref)}
+        title={pageTitle}
+        onBack={() => router.push(returnHref)}
         onSubmit={() => void handleSubmit()}
-        submitLabel={submitting ? '게시 중…' : '게시'}
+        submitLabel={submitting ? isEditing ? '수정 중…' : '게시 중…' : isEditing ? '수정' : '게시'}
         submitDisabled={submitting || items.length === 0}
       />
 
@@ -494,16 +561,20 @@ export default function WriteComposeClient() {
               className={clsx(styles.belowEditor, showSuggestOverlay && styles.belowEditorCovered)}
             >
               <div className={styles.recommendBlock} aria-hidden={showSuggestOverlay}>
-                {recommendEnabled ? (
+                <div className={styles.recommendRow}>
                   <button
                     type="button"
                     className={styles.recommendBtn}
-                    disabled={recommendLoading}
+                    disabled={!recommendEnabled || recommendLoading}
+                    aria-describedby="tag-recommend-guide"
                     onClick={() => void requestRecommend()}
                   >
                     {recommendLoading ? '추천 중…' : '태그 추천'}
                   </button>
-                ) : null}
+                  <p id="tag-recommend-guide" className={styles.recommendHint}>
+                    * 20글자 이상 입력하시면 그에 맞는 태그를 추천합니다.
+                  </p>
+                </div>
                 {recommendHint ? (
                   <p className={styles.recommendHint} role="status">
                     본문(기존 태그 제외)을 20자 이상 입력해 주세요.

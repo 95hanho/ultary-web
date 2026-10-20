@@ -1,5 +1,6 @@
--- schema_version: 31
+-- schema_version: 32
 -- Ultary MariaDB 10.1 초기 스키마
+-- v32: durable/versioned asynchronous content moderation; independent attempt logs
 -- v31: 게시글·댓글·답글 content 최대 100자 (VARCHAR(100))
 -- v29: ultary_report.status 에서 ON_HOLD(보류) 제거
 -- v28: ultary_report 에서 PET 대상과 target_pet_id 제거. 신고는 USER|FEED|COMMENT|REPLY
@@ -84,6 +85,8 @@
 SET NAMES utf8;
 SET FOREIGN_KEY_CHECKS = 0;
 
+DROP TABLE IF EXISTS `ultary_ai_moderation_job`;
+DROP TABLE IF EXISTS `ultary_ai_moderation_state`;
 DROP TABLE IF EXISTS `ultary_ai_request_log`;
 DROP TABLE IF EXISTS `ultary_report`;
 DROP TABLE IF EXISTS `ultary_dm_message`;
@@ -563,7 +566,7 @@ CREATE TABLE `ultary_notification` (
   `notification_id` INT(11) NOT NULL AUTO_INCREMENT,
   `receiver_user_no` INT(11) NOT NULL COMMENT '알림을 받는 사용자',
   `actor_user_no` INT(11) NULL DEFAULT NULL COMMENT '가장 최근 행위자. 집계면 대표 이름',
-  `type` ENUM('NEIGHBOR_REQUEST','FEED_LIKE','COMMENT_LIKE','REPLY_LIKE','FEED_COMMENT','COMMENT_MENTION','REPLY_MENTION','FEED_TAG','STORY_TAG','STORY_LIKE') NOT NULL,
+  `type` ENUM('NEIGHBOR_REQUEST','FEED_LIKE','COMMENT_LIKE','REPLY_LIKE','FEED_COMMENT','COMMENT_MENTION','REPLY_MENTION','FEED_TAG','STORY_TAG','STORY_LIKE','AI_MODERATION') NOT NULL,
   `feed_id` INT(11) NULL DEFAULT NULL,
   `feed_pet_id` INT(11) NULL DEFAULT NULL,
   `feed_comment_id` INT(11) NULL DEFAULT NULL,
@@ -679,6 +682,41 @@ CREATE TABLE `ultary_report` (
   KEY `IDX_ultary_report_status_created` (`status`, `created_at`) USING BTREE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_general_ci COMMENT='사용자 신고 및 관리자 처리 이력';
 
+CREATE TABLE `ultary_ai_moderation_state` (
+  `target_type` VARCHAR(10) NOT NULL,
+  `target_id` INT(11) NOT NULL,
+  `latest_version` BIGINT NOT NULL DEFAULT 0,
+  `approved_version` BIGINT NOT NULL DEFAULT 0,
+  `approved_content` VARCHAR(100) NULL,
+  `has_approved` TINYINT(1) NOT NULL DEFAULT 0,
+  PRIMARY KEY (`target_type`, `target_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_general_ci;
+
+CREATE TABLE `ultary_ai_moderation_job` (
+  `job_id` BIGINT NOT NULL AUTO_INCREMENT,
+  `target_type` VARCHAR(10) NOT NULL,
+  `target_id` INT(11) NOT NULL,
+  `feed_id` INT(11) NOT NULL,
+  `user_no` INT(11) NOT NULL,
+  `content_version` BIGINT NOT NULL,
+  `operation` VARCHAR(10) NOT NULL,
+  `content` VARCHAR(100) NULL,
+  `status` VARCHAR(20) NOT NULL DEFAULT 'PENDING',
+  `attempt_count` INT NOT NULL DEFAULT 0,
+  `next_attempt_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `lease_until` DATETIME NULL,
+  `claim_token` VARCHAR(36) NULL,
+  `last_error_code` VARCHAR(100) NULL,
+  `last_error` VARCHAR(1000) NULL,
+  `result_action` VARCHAR(20) NULL,
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `finished_at` DATETIME NULL,
+  PRIMARY KEY (`job_id`),
+  UNIQUE KEY `UK_ai_moderation_version` (`target_type`, `target_id`, `content_version`),
+  KEY `IDX_ai_moderation_poll` (`status`, `next_attempt_at`, `lease_until`),
+  KEY `IDX_ai_moderation_user` (`user_no`, `created_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_general_ci;
+
 CREATE TABLE `ultary_ai_request_log` (
   `ai_request_id` INT(11) NOT NULL AUTO_INCREMENT,
   `user_no` INT(11) NOT NULL,
@@ -692,6 +730,15 @@ CREATE TABLE `ultary_ai_request_log` (
   `status` ENUM('PENDING','SUCCESS','FAILED') NOT NULL DEFAULT 'PENDING',
   `error_message` VARCHAR(1000) NULL DEFAULT NULL,
   `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `moderation_job_id` BIGINT NULL,
+  `target_type` VARCHAR(10) NULL,
+  `target_id` INT(11) NULL,
+  `content_version` BIGINT NULL,
+  `attempt_no` INT NULL,
+  `latency_ms` BIGINT NULL,
+  `http_status` INT NULL,
+  `error_code` VARCHAR(100) NULL,
+  KEY `IDX_ai_request_job` (`moderation_job_id`, `attempt_no`),
   PRIMARY KEY (`ai_request_id`) USING BTREE,
   KEY `IDX_ultary_ai_user_created` (`user_no`, `created_at`) USING BTREE,
   KEY `IDX_ultary_ai_target_feed_id` (`target_feed_id`) USING BTREE,

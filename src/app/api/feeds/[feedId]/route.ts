@@ -1,4 +1,3 @@
-import { NextRequest } from 'next/server';
 import { springEndpoints } from '@/lib/api/endpoints';
 import {
   bearer,
@@ -9,7 +8,7 @@ import {
   withAuth,
   withOptionalAuth,
 } from '@/lib/api/bffRoute';
-import { springDelete, springGet, springPatchForm } from '@/lib/api/springFetch';
+import { springDelete, springGet, springPatchJson } from '@/lib/api/springFetch';
 
 type FeedParams = { feedId: string };
 
@@ -37,7 +36,7 @@ export const PATCH = withAuth<FeedParams>(async ({ request, accessToken, params 
   try {
     const { feedId } = params;
     const body = await readJsonBody(request);
-    const data = await springPatchForm(
+    const data = await springPatchJson(
       springEndpoints.feeds.detail,
       { feedId, ...body },
       bearer(accessToken),

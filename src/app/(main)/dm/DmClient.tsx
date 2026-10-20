@@ -76,6 +76,7 @@ type Peer = {
   userNo: string;
   nickname: string;
   profileUrl: string;
+  petTags: string[];
 };
 
 type PeerTab = 'FOLLOW' | 'FOLLOWER';
@@ -279,6 +280,12 @@ function mapPeer(raw: unknown): Peer | null {
     userNo,
     nickname,
     profileUrl: resolveFileDisplayUrl(asFile(raw.profileFile)) ?? NO_PROFILE_SRC,
+    petTags: Array.isArray(raw.petTags)
+      ? raw.petTags.flatMap((tag) => {
+          const name = typeof tag === 'string' ? tag.trim().replace(/^@+/, '') : '';
+          return name ? [`@${name}`] : [];
+        })
+      : [],
   };
 }
 
@@ -377,6 +384,7 @@ export default function DmClient({ roomId, feedId, feedMediaId, storyId }: DmCli
   const [peerTab, setPeerTab] = useState<PeerTab>('FOLLOW');
   const [peers, setPeers] = useState<Peer[]>([]);
   const [peerStatus, setPeerStatus] = useState('');
+  const [peerQuery, setPeerQuery] = useState('');
   const [pendingShare, setPendingShare] = useState<PendingShare | null>(() =>
     initialShare({ feedId, feedMediaId, storyId }),
   );
@@ -457,6 +465,7 @@ export default function DmClient({ roomId, feedId, feedMediaId, storyId }: DmCli
         const res = await bffGet<BffEnvelope<unknown>>(bffEndpoints.users.neighbors, {
           userNo: meUserNoRef.current,
           type: peerTab,
+          limit: 50,
         });
         if (cancelled) return;
         setPeers(
@@ -827,6 +836,13 @@ export default function DmClient({ roomId, feedId, feedMediaId, storyId }: DmCli
   }
 
   if (picking) {
+    const term = peerQuery.trim().replace(/^@+/, '').toLowerCase();
+    const filteredPeers = peers.filter(
+      (peer) =>
+        !term ||
+        peer.nickname.toLowerCase().includes(term) ||
+        peer.petTags.some((tag) => tag.slice(1).toLowerCase().includes(term)),
+    );
     return (
       <div className={styles.shell}>
         <PageHeader title="대화 상대" onBack={() => setPicking(false)} />
@@ -851,31 +867,62 @@ export default function DmClient({ roomId, feedId, feedMediaId, storyId }: DmCli
               팔로워
             </button>
           </div>
+          <div className={styles.peerSearchRow}>
+            <label className={styles.peerSearchBar}>
+              <Image src="/images/icon/Search.svg" alt="" width={20} height={20} />
+              <input
+                type="search"
+                className={styles.peerSearchInput}
+                placeholder="검색"
+                aria-label="닉네임 또는 펫태그 검색"
+                value={peerQuery}
+                onChange={(event) => setPeerQuery(event.target.value)}
+              />
+              {peerQuery ? (
+                <button
+                  type="button"
+                  className={styles.peerClearQuery}
+                  aria-label="검색어 지우기"
+                  onMouseDown={(event) => event.preventDefault()}
+                  onClick={() => setPeerQuery('')}
+                >
+                  <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
+                    <path d="M3 3l8 8M11 3L3 11" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+                  </svg>
+                </button>
+              ) : null}
+            </label>
+          </div>
           {peerStatus ? <p className={styles.status}>{peerStatus}</p> : null}
-          {peers.length === 0 && !peerStatus ? (
+          {filteredPeers.length === 0 && !peerStatus ? (
             <EmptyState
-              title="목록이 비어 있어요"
-              description="팔로우나 팔로워가 있으면 여기서 고를 수 있어요."
+              title={term ? '검색 결과가 없어요' : '목록이 비어 있어요'}
+              description={term ? undefined : '팔로우나 팔로워가 있으면 여기서 고를 수 있어요.'}
             />
           ) : (
-            <ul className={styles.roomList}>
-              {peers.map((peer) => (
+            <ul className={styles.peerList}>
+              {filteredPeers.map((peer) => (
                 <li key={peer.userNo}>
                   <button
                     type="button"
-                    className={styles.roomItem}
+                    className={styles.peerItem}
                     onClick={() => void openPeer(peer)}
                   >
-                    <span className={styles.roomAvatar}>
+                    <span className={styles.peerAvatar}>
                       <MediaImage
                         src={peer.profileUrl}
                         alt=""
-                        width={48}
-                        height={48}
-                        className={styles.roomAvatarImg}
+                        width={47}
+                        height={47}
+                        className={styles.peerAvatarImg}
                       />
                     </span>
-                    <span className={styles.roomNick}>{peer.nickname}</span>
+                    <span className={styles.peerText}>
+                      <span className={styles.peerNick}>{peer.nickname}</span>
+                      {peer.petTags.length > 0 ? (
+                        <span className={styles.peerTags}>{peer.petTags.join(' ')}</span>
+                      ) : null}
+                    </span>
                   </button>
                 </li>
               ))}

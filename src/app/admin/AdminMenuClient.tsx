@@ -21,6 +21,9 @@ export default function AdminMenuClient() {
         <Link href="/admin/reports" className={styles.menuButton}>
           {withCount('신고목록', counts?.requestedReportCount)}
         </Link>
+        <Link href="/admin/ai/logs" className={styles.menuButton}>
+          {withCount('AI 오류 로그', counts?.failedAiRequestCount)}
+        </Link>
       </div>
     </div>
   );

@@ -15,7 +15,8 @@ export default function WritePhotoTagsClient() {
   const params = useParams<{ nickname: string }>();
   const nickname = typeof params.nickname === 'string' ? params.nickname : params.nickname?.[0];
   const basePath = myUltaryPath(nickname);
-  const composeHref = `${basePath}/write/compose`;
+  const editingFeedId = useWriteDraftStore((s) => s.editingFeedId);
+  const composeHref = `${basePath}/write/compose${editingFeedId ? `?editFeedId=${encodeURIComponent(editingFeedId)}` : ''}`;
 
   const items = useWriteDraftStore((s) => s.items);
   const addPetTag = useWriteDraftStore((s) => s.addPetTag);

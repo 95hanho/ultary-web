@@ -9,6 +9,20 @@ import {
 } from '@/lib/notification/unreadBadge';
 import { applyDmSocketRoom, fetchDmUnread } from '@/lib/dm/unreadBadge';
 import type { BffEnvelope } from '@/types/api';
+import { useModalStore } from '@/stores/modal.store';
+
+export type ContentModeratedEvent = {
+  jobId: string;
+  feedId: string;
+  targetId: string;
+  targetType: 'FEED' | 'COMMENT' | 'REPLY';
+  action: 'HIDDEN' | 'RESTORED';
+};
+const moderationListeners = new Set<(event: ContentModeratedEvent) => void>();
+export function subscribeContentModerated(listener: (event: ContentModeratedEvent) => void) {
+  moderationListeners.add(listener);
+  return () => { moderationListeners.delete(listener); };
+}
 
 export type DmSocketEvent = {
   dmRoomId: string;
@@ -100,6 +114,22 @@ function handleFrame(data: unknown) {
   }
   if (!isRecord(raw) || typeof raw.type !== 'string') return;
   if (raw.type === 'PING' || raw.type === 'AUTH') return;
+  if (raw.type === 'CONTENT_MODERATED') {
+    const feedId = idString(raw.feedId);
+    const targetId = idString(raw.targetId);
+    const jobId = idString(raw.jobId);
+    if (!feedId || !targetId || !jobId) return;
+    if (raw.targetType !== 'FEED' && raw.targetType !== 'COMMENT' && raw.targetType !== 'REPLY') return;
+    if (raw.action !== 'HIDDEN' && raw.action !== 'RESTORED') return;
+    const event: ContentModeratedEvent = { feedId, targetId, jobId, targetType: raw.targetType, action: raw.action };
+    moderationListeners.forEach((listener) => listener(event));
+    return;
+  }
+  if (raw.type === 'MODERATION_RESULT' && typeof raw.message === 'string') {
+    useModalStore.getState().open({ variant: 'alert', title: '콘텐츠 확인 결과', content: raw.message,
+      showCloseButton: true, okButton: { label: '확인', tone: 'primary' }, cancelButton: { hidden: true } });
+    return;
+  }
   if (raw.type === 'AUTH_OK') {
     authed = true;
     retryMs = 1000;

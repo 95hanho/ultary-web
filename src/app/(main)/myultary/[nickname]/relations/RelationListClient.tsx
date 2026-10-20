@@ -52,6 +52,7 @@ export default function RelationListClient({
   const [privateHidden, setPrivateHidden] = useState(false);
   const [query, setQuery] = useState('');
   const [searchFocused, setSearchFocused] = useState(false);
+  const [failedProfileUrls, setFailedProfileUrls] = useState<Set<string>>(() => new Set());
 
   const filteredRows = useMemo(() => filterRows(rows, query), [query, rows]);
 
@@ -201,11 +202,20 @@ export default function RelationListClient({
                 <Link href={myUltaryPath(row.nickname)} className={styles.accountBtn}>
                   <span className={styles.accountImageWrap}>
                     <MediaImage
-                      src={row.imageUrl}
+                      src={
+                        failedProfileUrls.has(row.imageUrl) ? NO_PROFILE_SRC : row.imageUrl
+                      }
                       alt=""
                       width={47}
                       height={47}
                       className={styles.accountImage}
+                      onError={() => {
+                        if (row.imageUrl === NO_PROFILE_SRC) return;
+                        setFailedProfileUrls((prev) => {
+                          if (prev.has(row.imageUrl)) return prev;
+                          return new Set(prev).add(row.imageUrl);
+                        });
+                      }}
                     />
                   </span>
                   <span className={styles.accountText}>

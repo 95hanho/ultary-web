@@ -3,6 +3,8 @@ import { create } from 'zustand';
 
 export type WriteDraftItem = {
   id: string;
+  /** Existing slot in edit mode. Original files/order cannot be changed. */
+  feedMediaId?: number;
   kind: 'image' | 'video';
   fileName: string;
   mimeType: string;
@@ -30,6 +32,8 @@ export type WritePhotoPetTag = {
 type WriteDraftState = {
   items: WriteDraftItem[];
   caption: string;
+  editingFeedId: string | null;
+  beginEditing: (feedId: string, items: WriteDraftItem[], caption: string) => void;
   /** 사진 설정에서 보고 있던 장. 작성 화면에서 돌아오면 이 장부터 */
   cropIndex: number;
   setItems: (items: WriteDraftItem[]) => void;
@@ -45,8 +49,10 @@ type WriteDraftState = {
 export const useWriteDraftStore = create<WriteDraftState>((set) => ({
   items: [],
   caption: '',
+  editingFeedId: null,
+  beginEditing: (feedId, items, caption) => set({ editingFeedId: feedId, items, caption, cropIndex: 0 }),
   cropIndex: 0,
-  setItems: (items) => set({ items, cropIndex: 0 }),
+  setItems: (items) => set((state) => ({ items, cropIndex: 0, editingFeedId: null, caption: state.editingFeedId ? '' : state.caption })),
   setCropIndex: (cropIndex) => set({ cropIndex }),
   updateCrop: (id, croppedDataUrl, cropRect) =>
     set((state) => ({
@@ -77,5 +83,5 @@ export const useWriteDraftStore = create<WriteDraftState>((set) => ({
           : { ...item, petTags: (item.petTags ?? []).filter((t) => t.id !== tagId) },
       ),
     })),
-  clear: () => set({ items: [], caption: '', cropIndex: 0 }),
+  clear: () => set({ items: [], caption: '', cropIndex: 0, editingFeedId: null }),
 }));
