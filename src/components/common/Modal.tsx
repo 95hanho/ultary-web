@@ -117,15 +117,12 @@ export function ModalHost() {
             ))}
           </ul>
         ) : (
-          <div
-            className={clsx(
-              styles.main,
-              variant === 'alert' && styles.mainAlert,
-            )}
-          >
-            {content ? <div className={styles.content}>{content}</div> : null}
+          <>
+            <div className={styles.main}>
+              {content ? <div className={styles.content}>{content}</div> : null}
+            </div>
             {showFooter ? (
-              <div className={styles.footer}>
+              <footer className={styles.footer}>
                 {!cancelButton.hidden ? (
                   <button
                     type="button"
@@ -144,9 +141,9 @@ export function ModalHost() {
                     {okButton.label}
                   </button>
                 ) : null}
-              </div>
+              </footer>
             ) : null}
-          </div>
+          </>
         )}
       </div>
     </div>,

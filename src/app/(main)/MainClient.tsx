@@ -14,6 +14,7 @@ import { NO_PROFILE_SRC } from '@/lib/profileImage';
 import { readFileAsDataUrl } from '@/lib/pending-pet-photo';
 import { myUltaryPath } from '@/lib/mock/ultary-accounts';
 import { useStoryDraftStore } from '@/stores/story-draft.store';
+import { useModalStore } from '@/stores/modal.store';
 import type { BffEnvelope, MeResponse } from '@/types/api';
 import type { StoryOwner } from '@/types/story';
 import clsx from 'clsx';
@@ -135,6 +136,36 @@ export default function MainClient() {
   const [recommended, setRecommended] = useState<FeedData[]>([]);
   const [storyUsers, setStoryUsers] = useState<StoryRing[]>([]);
   const [ready, setReady] = useState(false);
+
+  // UI 작업용 임시 confirm 미리보기 — 작업 완료 후 이 effect와 import 제거.
+  useEffect(() => {
+    const title = '알림창';
+    const openPreview = () => useModalStore.getState().open({
+      variant: 'confirm',
+      title,
+      content: '최근 검색 항목을 모두 지울까요?',
+      showCloseButton: false,
+      closeOnDimClick: false,
+      okButton: { label: '확인', tone: 'danger' },
+      cancelButton: { label: '취소', tone: 'success' },
+      onClose: openPreview,
+    });
+    openPreview();
+    const blockEscape = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      event.preventDefault();
+      event.stopImmediatePropagation();
+    };
+    document.addEventListener('keydown', blockEscape, true);
+    return () => {
+      document.removeEventListener('keydown', blockEscape, true);
+      const modal = useModalStore.getState();
+      if (modal.onCloseCallback === openPreview) {
+        useModalStore.setState({ onCloseCallback: null });
+        modal.close();
+      }
+    };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
