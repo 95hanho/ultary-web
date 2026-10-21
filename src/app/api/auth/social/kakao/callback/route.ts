@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
   const returnPath =
     intent === 'link'
       ? (await getOAuthReturnCookie()) || '/settings/mypage'
-      : await getOAuthReturnCookie();
+      : '/';
   const failRedirect = (code: string) => {
     if (intent === 'link') {
       const url = new URL(returnPath, APP_URL);

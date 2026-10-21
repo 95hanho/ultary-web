@@ -825,6 +825,20 @@ export function Feed({
               <Image src={CommentIcon} alt="" width={31} height={31} />
               <span className={styles.actionCount}>{comments}</span>
             </button>
+          </div>
+          <div className={styles.actionsRight}>
+            {!isMine ? (
+              <button
+                type="button"
+                className={styles.actionBtn}
+                aria-label={pinned ? '울타리 고정 해제' : '울타리 고정'}
+                aria-pressed={pinned}
+                disabled={pinPending}
+                onClick={() => void togglePin()}
+              >
+                <Image src={pinned ? PinFillIcon : PinIcon} alt="" width={25} height={25} />
+              </button>
+            ) : null}
             <button
               type="button"
               className={styles.actionBtn}
@@ -857,99 +871,85 @@ export function Feed({
             >
               <Image src={ShareIcon} alt="" width={27} height={10} />
             </button>
-          </div>
-          <div className={styles.moreWrap} ref={moreWrapRef}>
-            <button
-              type="button"
-              className={styles.actionBtn}
-              aria-label="더보기"
-              aria-expanded={moreOpen}
-              onClick={() => {
-                setMorePlace(null);
-                setMoreOpen((open) => !open);
-              }}
-            >
-              <Ellipsis size={25} strokeWidth={2} />
-            </button>
-            {moreOpen ? (
-              <div
-                ref={moreMenuRef}
-                className={styles.moreMenu}
-                role="menu"
-                style={
-                  morePlace
-                    ? { top: morePlace.top, left: morePlace.left }
-                    : { visibility: 'hidden' }
-                }
+            <div className={styles.moreWrap} ref={moreWrapRef}>
+              <button
+                type="button"
+                className={styles.actionBtn}
+                aria-label="더보기"
+                aria-expanded={moreOpen}
+                onClick={() => {
+                  setMorePlace(null);
+                  setMoreOpen((open) => !open);
+                }}
               >
-                {!isMine ? <><button
-                  type="button"
-                  className={styles.moreItem}
-                  role="menuitem"
-                  disabled={pinPending}
-                  onClick={() => {
-                    setMoreOpen(false);
-                    void togglePin();
-                  }}
+                <Ellipsis size={25} strokeWidth={2} />
+              </button>
+              {moreOpen ? (
+                <div
+                  ref={moreMenuRef}
+                  className={styles.moreMenu}
+                  role="menu"
+                  style={
+                    morePlace
+                      ? { top: morePlace.top, left: morePlace.left }
+                      : { visibility: 'hidden' }
+                  }
                 >
-                  <span className={styles.moreIcon}>
-                    <Image src={pinned ? PinFillIcon : PinIcon} alt="" width={22} height={22} />
-                  </span>
-                  <span className={styles.moreLabel}>울타리 고정</span>
-                </button>
-                <button
-                  type="button"
-                  className={styles.moreItem}
-                  role="menuitem"
-                  disabled={savePending}
-                  onClick={() => {
-                    setMoreOpen(false);
-                    void toggleSave();
-                  }}
-                >
-                  <span className={styles.moreIcon}>
-                    <Bookmark size={22} strokeWidth={1.75} fill={saved ? 'currentColor' : 'none'} />
-                  </span>
-                  <span className={styles.moreLabel}>게시글 저장</span>
-                </button>
-                </> : (
-                  <Link href={`${myUltaryPath(nickname)}/write/compose?editFeedId=${encodeURIComponent(id)}`} className={styles.moreItem} role="menuitem"
-                    onClick={() => { setMoreOpen(false); useWriteDraftStore.getState().clear(); }}>
-                    <span className={styles.moreIcon}><Pencil size={22} strokeWidth={1.75} /></span>
-                    <span className={styles.moreLabel}>게시글 수정</span>
-                  </Link>
-                )}
-                {isMine ? (
+                  {!isMine ? (
                   <button
                     type="button"
                     className={styles.moreItem}
                     role="menuitem"
-                    disabled={deletePending}
-                    onClick={askDelete}
+                    disabled={savePending}
+                    onClick={() => {
+                      setMoreOpen(false);
+                      void toggleSave();
+                    }}
                   >
                     <span className={styles.moreIcon}>
-                      <Trash2 size={22} strokeWidth={1.75} />
+                      <Bookmark size={22} strokeWidth={1.75} fill={saved ? 'currentColor' : 'none'} />
                     </span>
-                    <span className={styles.moreLabel}>삭제</span>
+                    <span className={styles.moreLabel}>게시글 저장</span>
                   </button>
-                ) : null}
-                {canReport ? (
-                  <button
-                    type="button"
-                    className={styles.moreItem}
-                    role="menuitem"
-                    onClick={askReport}
-                  >
-                    <span className={styles.moreIcon}>
-                      <Flag size={22} strokeWidth={1.75} />
-                    </span>
-                    <span className={styles.moreLabel}>
-                      {canCancelReport(myReport) ? '신고취소' : '신고하기'}
-                    </span>
-                  </button>
-                ) : null}
-              </div>
-            ) : null}
+                  ) : (
+                    <Link href={`${myUltaryPath(nickname)}/write/compose?editFeedId=${encodeURIComponent(id)}`} className={styles.moreItem} role="menuitem"
+                      onClick={() => { setMoreOpen(false); useWriteDraftStore.getState().clear(); }}>
+                      <span className={styles.moreIcon}><Pencil size={22} strokeWidth={1.75} /></span>
+                      <span className={styles.moreLabel}>게시글 수정</span>
+                    </Link>
+                  )}
+                  {isMine ? (
+                    <button
+                      type="button"
+                      className={styles.moreItem}
+                      role="menuitem"
+                      disabled={deletePending}
+                      onClick={askDelete}
+                    >
+                      <span className={styles.moreIcon}>
+                        <Trash2 size={22} strokeWidth={1.75} />
+                      </span>
+                      <span className={styles.moreLabel}>삭제</span>
+                    </button>
+                  ) : null}
+                  {canReport ? (
+                    <button
+                      type="button"
+                      className={styles.moreItem}
+                      role="menuitem"
+                      onClick={askReport}
+                    >
+                      <span className={styles.moreIcon}>
+                        <Flag size={22} strokeWidth={1.75} />
+                      </span>
+                      <span className={styles.moreLabel}>
+                        {canCancelReport(myReport) ? '신고취소' : '신고하기'}
+                      </span>
+                    </button>
+                  ) : null}
+                </div>
+              ) : null}
+            </div>
           </div>
         </div>
 

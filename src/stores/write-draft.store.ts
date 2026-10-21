@@ -1,3 +1,4 @@
+import type { FeedVisibility } from '@/types/enums';
 import type { NormalizedCrop } from '@/lib/write/crop-rect';
 import { create } from 'zustand';
 
@@ -32,8 +33,10 @@ export type WritePhotoPetTag = {
 type WriteDraftState = {
   items: WriteDraftItem[];
   caption: string;
+  visibility: FeedVisibility | null;
+  setVisibility: (visibility: FeedVisibility) => void;
   editingFeedId: string | null;
-  beginEditing: (feedId: string, items: WriteDraftItem[], caption: string) => void;
+  beginEditing: (feedId: string, items: WriteDraftItem[], caption: string, visibility: FeedVisibility) => void;
   /** 사진 설정에서 보고 있던 장. 작성 화면에서 돌아오면 이 장부터 */
   cropIndex: number;
   setItems: (items: WriteDraftItem[]) => void;
@@ -49,10 +52,12 @@ type WriteDraftState = {
 export const useWriteDraftStore = create<WriteDraftState>((set) => ({
   items: [],
   caption: '',
+  visibility: null,
+  setVisibility: (visibility) => set({ visibility }),
   editingFeedId: null,
-  beginEditing: (feedId, items, caption) => set({ editingFeedId: feedId, items, caption, cropIndex: 0 }),
+  beginEditing: (feedId, items, caption, visibility) => set({ editingFeedId: feedId, items, caption, visibility, cropIndex: 0 }),
   cropIndex: 0,
-  setItems: (items) => set((state) => ({ items, cropIndex: 0, editingFeedId: null, caption: state.editingFeedId ? '' : state.caption })),
+  setItems: (items) => set((state) => ({ items, cropIndex: 0, editingFeedId: null, visibility: state.editingFeedId ? null : state.visibility, caption: state.editingFeedId ? '' : state.caption })),
   setCropIndex: (cropIndex) => set({ cropIndex }),
   updateCrop: (id, croppedDataUrl, cropRect) =>
     set((state) => ({
@@ -83,5 +88,5 @@ export const useWriteDraftStore = create<WriteDraftState>((set) => ({
           : { ...item, petTags: (item.petTags ?? []).filter((t) => t.id !== tagId) },
       ),
     })),
-  clear: () => set({ items: [], caption: '', cropIndex: 0, editingFeedId: null }),
+  clear: () => set({ items: [], caption: '', visibility: null, cropIndex: 0, editingFeedId: null }),
 }));

@@ -10,8 +10,8 @@ import {
   applyAdminTokensToCookieJar,
   clearAdminAuthCookieJar,
 } from '@/lib/auth/cookies';
-import { SPRING_BASE_URL } from '@/lib/env.server';
-import type { RefreshTokenRequest, TokenResponse } from '@/types/api';
+import { requestRefreshTokens } from '@/lib/auth/refresh-request';
+import type { TokenResponse } from '@/types/api';
 
 export type AdminSessionOk = {
   ok: true;
@@ -28,25 +28,6 @@ export type AdminSessionFail = {
 export type AdminSessionResult = AdminSessionOk | AdminSessionFail;
 
 const refreshLocks = new Map<string, Promise<AdminSessionResult>>();
-
-function parseTokenResponse(raw: unknown): TokenResponse | null {
-  if (!raw || typeof raw !== 'object') return null;
-  const body = raw as TokenResponse & {
-    success?: boolean;
-    data?: TokenResponse | null;
-  };
-  if (typeof body.accessToken === 'string' && typeof body.refreshToken === 'string') {
-    return body;
-  }
-  if (
-    body.data &&
-    typeof body.data.accessToken === 'string' &&
-    typeof body.data.refreshToken === 'string'
-  ) {
-    return body.data;
-  }
-  return null;
-}
 
 /** 페이지 가드. 재발급은 하지 않는다. */
 export async function hasAdminSession() {
@@ -65,32 +46,7 @@ export async function refreshAdminViaSpringLocked(
 
   const task = (async (): Promise<AdminSessionResult> => {
     try {
-      const res = await fetch(`${SPRING_BASE_URL}${springEndpoints.admin.refresh}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-        body: JSON.stringify({ refreshToken } satisfies RefreshTokenRequest),
-        cache: 'no-store',
-      });
-      const raw = await res.json().catch(() => null);
-
-      if (!res.ok) {
-        return {
-          ok: false,
-          clearCookies: res.status === 401 || res.status === 403,
-          message: 'REFRESH_UNAUTHORIZED',
-        };
-      }
-
-      const tokens = parseTokenResponse(raw);
-      if (!tokens?.accessToken || !tokens.refreshToken) {
-        console.error('[admin-auth] refresh response missing tokens', raw);
-        return { ok: false, clearCookies: false, message: 'REFRESH_FAILED' };
-      }
-
-      return { ok: true, accessToken: tokens.accessToken, tokens };
-    } catch (err) {
-      console.error('[admin-auth] refresh failed', err);
-      return { ok: false, clearCookies: false, message: 'REFRESH_FAILED' };
+      return await requestRefreshTokens(springEndpoints.admin.refresh, refreshToken);
     } finally {
       refreshLocks.delete(lockKey);
     }

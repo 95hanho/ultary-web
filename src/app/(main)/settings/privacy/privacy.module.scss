@@ -83,46 +83,6 @@
   word-break: keep-all;
 }
 
-.visibilityBlock {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  padding: 12px 0;
-}
-
-.optionRow {
-  display: flex;
-  gap: 8px;
-}
-
-.option {
-  flex: 1;
-  height: 34px;
-  padding: 0 8px;
-  border: 1px solid var(--brand-gray-200);
-  border-radius: 10px;
-  background: #fff;
-  color: var(--brand-black-700);
-  font-size: 14px;
-  font-weight: 400;
-  line-height: 1;
-  cursor: pointer;
-}
-
-.optionActive {
-  border-color: var(--brand-grass-600);
-  background: var(--brand-grass-100);
-  color: var(--brand-black-700);
-  font-weight: 700;
-}
-
-.option:disabled {
-  border-color: var(--brand-gray-200);
-  background: var(--brand-gray-100);
-  color: var(--brand-gray-500);
-  cursor: default;
-}
-
 .switch {
   position: relative;
   display: inline-flex;

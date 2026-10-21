@@ -35,6 +35,8 @@ export default async function SharedFeedPage({ params }: PageProps) {
       springEndpoints.feeds.detail,
       { feedId },
       access ? bearer(access) : undefined,
+      // Server Component는 응답 쿠키를 바꿀 수 없다. 재발급 복구는 BFF Route Handler에서 수행한다.
+      { recoverExpiredAccess: false },
     );
     feed = toFeedData(raw, feedId);
   } catch {

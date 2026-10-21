@@ -212,7 +212,8 @@
   padding: 0 7px;
 }
 
-.actionsLeft {
+.actionsLeft,
+.actionsRight {
   display: flex;
   align-items: center;
   gap: 10px;

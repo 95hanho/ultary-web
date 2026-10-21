@@ -162,6 +162,18 @@
   line-height: 1.2;
 }
 
+.recentMoreRow { display: flex; justify-content: flex-end; padding: 10px 15px; }
+.recentMoreBtn {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--brand-gray-600);
+  font-size: 13px;
+  cursor: pointer;
+  &:disabled { cursor: default; opacity: 0.6; }
+}
+.recentError { margin: 8px 15px; color: var(--brand-red-600); font-size: 13px; }
+
 .clearAllBtn {
   padding: 0;
   border: 0;
@@ -273,12 +285,24 @@
 }
 
 .recentTagLabel {
+  min-width: 0;
+  flex: 1;
   overflow: hidden;
   color: var(--brand-black-700);
   font-size: 15px;
   font-weight: 700;
   line-height: 1.35;
   text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.recentPostCount {
+  flex-shrink: 0;
+  margin-left: 10px;
+  color: var(--brand-black-700);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.35;
   white-space: nowrap;
 }
 

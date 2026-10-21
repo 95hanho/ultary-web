@@ -3,6 +3,7 @@ import 'server-only';
 import { springEndpoints } from '@/lib/api/endpoints';
 import { isHttpError, isRecord } from '@/lib/api/error';
 import { springPostJson } from '@/lib/api/springFetch';
+import { clientConnectionHeaders } from '@/lib/auth/client-connection';
 import type {
   MeResponse,
   SocialLoginRequest,
@@ -34,6 +35,7 @@ export async function loginWithSpringSocial(input: {
   return springPostJson<SocialLoginResponse, SocialLoginRequest>(
     springEndpoints.auth.socialLogin,
     socialBody(input),
+    await clientConnectionHeaders(),
   );
 }
 

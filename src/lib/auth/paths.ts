@@ -28,11 +28,6 @@ export function isAdminPath(pathname: string): boolean {
   return pathname === '/admin' || pathname.startsWith('/admin/');
 }
 
-export function loginRedirectUrl(requestUrl: string, pathname: string, search: string): string {
-  const url = new URL('/login', requestUrl);
-  const returnUrl = `${pathname}${search}`;
-  if (returnUrl && returnUrl !== '/') {
-    url.searchParams.set('returnUrl', returnUrl);
-  }
-  return url.toString();
+export function loginRedirectUrl(requestUrl: string): string {
+  return new URL('/login', requestUrl).toString();
 }

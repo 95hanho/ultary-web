@@ -25,10 +25,6 @@ export async function GET(request: NextRequest) {
       if (!accessToken) {
         const login = new URL('/login', APP_URL);
         login.searchParams.set('error', 'UNAUTHORIZED');
-        login.searchParams.set(
-          'returnUrl',
-          returnUrl?.startsWith('/') ? returnUrl : '/settings/mypage',
-        );
         return NextResponse.redirect(login);
       }
     }
@@ -39,7 +35,7 @@ export async function GET(request: NextRequest) {
     setOAuthIntentCookie(response, intent);
     setOAuthReturnCookie(
       response,
-      intent === 'link' ? returnUrl || '/settings/mypage' : returnUrl,
+      intent === 'link' ? returnUrl || '/settings/mypage' : '/',
     );
     return response;
   } catch (err) {

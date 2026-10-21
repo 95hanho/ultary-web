@@ -1,6 +1,9 @@
 /** 서버 전용 env */
+import 'server-only';
 
 export const SPRING_BASE_URL = process.env.SPRING_BASE_URL ?? '';
+/** BFF→Spring 서버 전용. NEXT_PUBLIC_ 변수로 만들지 않는다. */
+export const BFF_INTERNAL_KEY = process.env.BFF_INTERNAL_KEY ?? '';
 
 /** 앱 오리진 (OAuth redirect용) */
 export const APP_URL =

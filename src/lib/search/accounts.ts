@@ -95,6 +95,7 @@ export type RecentSearchTag = {
   tagId: number;
   /** `#` 포함 */
   tag: string;
+  postCount: number;
 };
 
 export type RecentSearchItem = RecentSearchUser | RecentSearchTag;
@@ -115,6 +116,7 @@ function toRecentItem(raw: unknown): RecentSearchItem | null {
       historyId,
       tagId: raw.tagId,
       tag: `#${hashtag}`,
+      postCount: typeof raw.feedCount === 'number' ? raw.feedCount : 0,
     };
   }
 

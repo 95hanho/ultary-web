@@ -32,7 +32,8 @@ yarn-error.log*
 
 # env files — 실제 비밀값은 커밋하지 않음
 .env*
-!.env.local.example
+# .example로 끝나는 환경 템플릿만 공유
+!.env*.example
 
 # MCP (DB 비밀번호). .env* 에 포함되지만 경로를 명시한다.
 mcp/mariadb/.env

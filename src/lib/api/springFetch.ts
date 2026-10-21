@@ -9,7 +9,7 @@
 
 import 'server-only';
 
-import { SPRING_BASE_URL } from '@/lib/env.server';
+import { prepareSpringRequest } from '@/lib/api/spring-request';
 import {
   applyPathParams,
   applyPathParamsFromBody,
@@ -23,9 +23,17 @@ import {
 } from '@/lib/api/http';
 import type { ApiResponse } from '@/types/api';
 import { isRecord } from '@/lib/api/error';
+import { recoverExpiredAccess } from '@/lib/auth/access-recovery';
 
-const withSpring = <T>(url: string, init?: Parameters<typeof http<T>>[1]) =>
-  http<T>(url, { baseUrl: SPRING_BASE_URL, ...init });
+type SpringInit = Parameters<typeof http<unknown>>[1] & { recoverExpiredAccess?: boolean };
+const withSpring = <T>(url: string, init?: SpringInit): Promise<T> => {
+  const { recoverExpiredAccess: recover = true, ...request } = init ?? {};
+  const send = (options = request) => {
+    const prepared = prepareSpringRequest(url, options);
+    return http<T>(prepared.url, prepared.init);
+  };
+  return recover ? recoverExpiredAccess(url, request, send) : send();
+};
 
 function unwrapApiData<T>(raw: unknown): T {
   if (
@@ -40,7 +48,7 @@ function unwrapApiData<T>(raw: unknown): T {
 
 async function springHttp<T>(
   url: string,
-  init?: Parameters<typeof http<unknown>>[1],
+  init?: SpringInit,
 ): Promise<T> {
   const raw = await withSpring<unknown>(url, init);
   return unwrapApiData<T>(raw);
@@ -51,13 +59,14 @@ export function springGet<T>(
   url: string,
   params?: Params,
   headers?: RequestHeaders,
+  options?: { recoverExpiredAccess?: boolean },
 ) {
   const [path, rest] = applyPathParams(url, cloneParams(params));
   const qs =
     rest && Object.keys(rest).length > 0
       ? `?${toSearchParams(rest).toString()}`
       : '';
-  return springHttp<T>((path + qs).replace(/ /g, '%20'), { headers });
+  return springHttp<T>((path + qs).replace(/ /g, '%20'), { headers, ...options });
 }
 
 /** 파일 다운로드 */

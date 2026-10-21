@@ -1,10 +1,9 @@
 import 'server-only';
 
 import {
-  applySessionCookies,
+  applyTokensToCookieJar,
   resolveSession,
   sessionUnauthorized,
-  type SessionOk,
 } from '@/lib/auth/session';
 import { NextRequest, NextResponse } from 'next/server';
 
@@ -40,6 +39,7 @@ export function withAuth<P extends Record<string, string> = Record<string, never
   return async (request: NextRequest, context?: RouteContext<P>) => {
     const session = await resolveSession(request);
     if (!session.ok) return sessionUnauthorized(session);
+    if (session.tokens) await applyTokensToCookieJar(session.tokens);
 
     const params = (context ? await context.params : {}) as P;
     const response = await handler({
@@ -47,7 +47,7 @@ export function withAuth<P extends Record<string, string> = Record<string, never
       accessToken: session.accessToken,
       params,
     });
-    return applySessionCookies(response, session);
+    return response;
   };
 }
 
@@ -65,13 +65,14 @@ export function withOptionalAuth<P extends Record<string, string> = Record<strin
     if (!session.ok) {
       return handler({ request, accessToken: null, params });
     }
+    if (session.tokens) await applyTokensToCookieJar(session.tokens);
 
     const response = await handler({
       request,
       accessToken: session.accessToken,
       params,
     });
-    return applySessionCookies(response, session as SessionOk);
+    return response;
   };
 }
 
@@ -85,6 +86,7 @@ export async function runAuthed(
 ): Promise<NextResponse> {
   const session = await resolveSession(request);
   if (!session.ok) return sessionUnauthorized(session);
+  if (session.tokens) await applyTokensToCookieJar(session.tokens);
   const response = await run(session.accessToken);
-  return applySessionCookies(response, session);
+  return response;
 }

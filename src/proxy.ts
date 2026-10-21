@@ -15,7 +15,7 @@ import { NextRequest, NextResponse } from 'next/server';
  * share/docs/auth-access.md
  */
 export function proxy(request: NextRequest) {
-  const { pathname, search } = request.nextUrl;
+  const { pathname } = request.nextUrl;
 
   if (isAdminPath(pathname)) {
     const response = NextResponse.next();
@@ -43,7 +43,7 @@ export function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
-  return NextResponse.redirect(loginRedirectUrl(request.url, pathname, search));
+  return NextResponse.redirect(loginRedirectUrl(request.url));
 }
 
 export const config = {

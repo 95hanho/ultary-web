@@ -8,6 +8,8 @@ declare namespace NodeJS {
     NEXT_PUBLIC_SPRING_WS_URL?: string;
     /** Next 서버 → Spring */
     SPRING_BASE_URL?: string;
+    /** BFF→Spring 전용 공유 키. 브라우저 공개 금지 */
+    BFF_INTERNAL_KEY?: string;
     /** OAuth redirect / 절대 URL용 */
     APP_URL?: string;
     GOOGLE_CLIENT_ID?: string;

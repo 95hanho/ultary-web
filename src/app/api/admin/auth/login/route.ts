@@ -3,6 +3,7 @@ import { springEndpoints } from '@/lib/api/endpoints';
 import { handleBffError } from '@/lib/api/bffRoute';
 import { springPostJson } from '@/lib/api/springFetch';
 import { setAdminAuthCookies } from '@/lib/auth/cookies';
+import { clientConnectionHeaders } from '@/lib/auth/client-connection';
 import type { AdminLoginRequest, TokenResponse } from '@/types/api';
 
 /** BFF /api/admin/auth/login — POST (loginId + password) */
@@ -21,6 +22,7 @@ export async function POST(request: NextRequest) {
     const tokens = await springPostJson<TokenResponse, AdminLoginRequest>(
       springEndpoints.admin.login,
       { loginId, password: body.password },
+      await clientConnectionHeaders(),
     );
 
     const response = NextResponse.json(

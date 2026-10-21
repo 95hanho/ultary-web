@@ -1,7 +1,6 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
 import styles from './LoginRequiredModal.module.scss';
 
 type Props = {
@@ -11,11 +10,7 @@ type Props = {
 
 /** 공유 피드 게스트용 — 닫기 가능, 액션 시 다시 열림 (auth-access.md) */
 export function LoginRequiredModal({ open, onClose }: Props) {
-  const pathname = usePathname();
   if (!open) return null;
-
-  const returnUrl = pathname || '/';
-  const loginHref = `/login?returnUrl=${encodeURIComponent(returnUrl)}`;
 
   return (
     <div className={styles.root} role="dialog" aria-modal="true" aria-labelledby="login-required-title">
@@ -32,7 +27,7 @@ export function LoginRequiredModal({ open, onClose }: Props) {
           있습니다.
         </p>
         <div className={styles.actions}>
-          <Link href={loginHref} className={styles.primary}>
+          <Link href="/login" className={styles.primary}>
             로그인
           </Link>
           <button type="button" className={styles.secondary} onClick={onClose}>

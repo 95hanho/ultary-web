@@ -195,7 +195,7 @@ export async function http<T>(url: string, init?: HttpInit): Promise<T> {
     const ct = res.headers.get('content-type') ?? '';
     let raw: unknown;
 
-    if (ct.includes('application/json')) {
+    if (ct.includes('application/json') || ct.includes('+json')) {
       raw = await res.json().catch(async () => ({
         _raw: await res.text(),
       }));

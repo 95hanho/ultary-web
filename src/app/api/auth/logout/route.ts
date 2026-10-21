@@ -4,7 +4,6 @@ import { handleBffError } from '@/lib/api/bffRoute';
 import { springPostJson } from '@/lib/api/springFetch';
 import {
   clearAuthCookies,
-  getAccessToken,
   getRefreshToken,
 } from '@/lib/auth/cookies';
 
@@ -12,15 +11,13 @@ import {
 export async function POST() {
   console.log('[API] 로그아웃');
   try {
-    const accessToken = await getAccessToken();
     const refreshToken = await getRefreshToken();
 
-    if (accessToken) {
+    if (refreshToken) {
       try {
         await springPostJson(
           springEndpoints.auth.logout,
-          refreshToken ? { refreshToken } : {},
-          { Authorization: `Bearer ${accessToken}` },
+          { refreshToken },
         );
       } catch (err) {
         console.error('[API] Spring 로그아웃 호출 실패(쿠키는 삭제)', err);

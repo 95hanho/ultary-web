@@ -41,7 +41,50 @@
 }
 
 .roomBlock .roomItem {
+  min-width: 0;
+  flex: 1;
   border-bottom: 0;
+}
+
+.roomRow { display: flex; align-items: center; }
+.roomMoreBtn {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 40px;
+  margin-right: 8px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--brand-black-700);
+  cursor: pointer;
+  &:disabled { opacity: 0.55; cursor: default; }
+}
+.roomMoreMenu {
+  position: fixed;
+  z-index: 50;
+  width: 130px;
+  overflow: hidden;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
+}
+.roomDeleteBtn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 16px;
+  border: 0;
+  background: transparent;
+  color: #000;
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 1.35;
+  cursor: pointer;
+  &:hover { background: #0000000d; }
 }
 
 .relationNote {

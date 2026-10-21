@@ -54,7 +54,7 @@ export function bearer(accessToken: string): RequestHeaders {
 
 /**
  * access 쿠키 필수. 없으면 refresh로 Spring 재발급 (공유 락).
- * 실패 시 Spring 401/403일 때만 쿠키 삭제 — 파싱/네트워크 실패로 refresh를 지우지 않음.
+ * 실제 인증 거부 또는 서버 장애의 2회 재시도 소진 시 인증 쿠키를 삭제한다.
  */
 export async function requireAccessToken(): Promise<string | NextResponse> {
   const session = await resolveSessionFromCookies();

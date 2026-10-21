@@ -1,5 +1,6 @@
 'use client';
 
+import { VisibilityPicker } from '@/components/common/VisibilityPicker';
 import { FooterMenu } from '@/components/common/FooterMenu';
 import { PageHeader } from '@/components/common/PageHeader';
 import { bffGet, bffPatchJson } from '@/lib/api/bffFetch';
@@ -10,12 +11,6 @@ import type { FeedVisibility } from '@/types/enums';
 import clsx from 'clsx';
 import { useEffect, useState } from 'react';
 import styles from './privacy.module.scss';
-
-const VISIBILITY_OPTIONS: { value: FeedVisibility; label: string }[] = [
-  { value: 'PUBLIC', label: '전체' },
-  { value: 'NEIGHBORS', label: '팔로우' },
-  { value: 'PRIVATE', label: '나만' },
-];
 
 function Switch({
   checked,
@@ -40,44 +35,6 @@ function Switch({
     >
       <span className={styles.switchThumb} aria-hidden />
     </button>
-  );
-}
-
-function VisibilityPicker({
-  label,
-  value,
-  onChange,
-  disabled,
-  disabledValues,
-}: {
-  label: string;
-  value: FeedVisibility;
-  onChange: (next: FeedVisibility) => void;
-  disabled?: boolean;
-  disabledValues?: FeedVisibility[];
-}) {
-  return (
-    <div className={styles.visibilityBlock}>
-      <p className={styles.label}>{label}</p>
-      <div className={styles.optionRow} role="radiogroup" aria-label={label}>
-        {VISIBILITY_OPTIONS.map((opt) => {
-          const optionDisabled = disabled || disabledValues?.includes(opt.value) === true;
-          return (
-            <button
-              key={opt.value}
-              type="button"
-              role="radio"
-              aria-checked={value === opt.value}
-              disabled={optionDisabled}
-              className={clsx(styles.option, value === opt.value && styles.optionActive)}
-              onClick={() => onChange(opt.value)}
-            >
-              {opt.label}
-            </button>
-          );
-        })}
-      </div>
-    </div>
   );
 }
 

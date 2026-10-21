@@ -1,4 +1,6 @@
--- schema_version: 32
+-- schema_version: 34
+-- v34: bounded refresh retry recovery and token replacement lineage
+-- v33: per-login session identity and original login metadata
 -- Ultary MariaDB 10.1 초기 스키마
 -- v32: durable/versioned asynchronous content moderation; independent attempt logs
 -- v31: 게시글·댓글·답글 content 최대 100자 (VARCHAR(100))
@@ -214,17 +216,23 @@ CREATE TABLE `ultary_token` (
   `owner_type` ENUM('USER','ADMIN') NOT NULL COMMENT 'USER 또는 ADMIN',
   `user_no` INT(11) NULL DEFAULT NULL,
   `admin_no` INT(11) NULL DEFAULT NULL,
+  `session_id` CHAR(36) NULL DEFAULT NULL COMMENT '로그인 세션 식별자. 재발급 간 유지',
+  `logged_in_at` DATETIME NULL DEFAULT NULL COMMENT '최초 로그인 시각',
   `connect_ip` VARCHAR(50) NULL DEFAULT NULL,
   `connect_agent` VARCHAR(200) NULL DEFAULT NULL,
   `refresh_token` VARCHAR(500) NOT NULL,
   `expires_at` DATETIME NOT NULL,
   `is_revoked` TINYINT(1) NOT NULL DEFAULT 0 COMMENT '로그아웃/비밀번호 변경 등으로 토큰을 폐기했는지 여부',
   `revoked_at` DATETIME NULL DEFAULT NULL,
+  `replaced_by_token_id` INT(11) NULL DEFAULT NULL,
+  `rotated_at` DATETIME NULL DEFAULT NULL,
   `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`token_id`) USING BTREE,
   KEY `IDX_ultary_token_user_no` (`user_no`) USING BTREE,
   KEY `IDX_ultary_token_admin_no` (`admin_no`) USING BTREE,
+  KEY `IDX_ultary_token_user_session` (`user_no`, `session_id`) USING BTREE,
+  KEY `IDX_ultary_token_admin_session` (`admin_no`, `session_id`) USING BTREE,
   KEY `IDX_ultary_token_owner_type` (`owner_type`) USING BTREE,
   KEY `IDX_ultary_token_expires_at` (`expires_at`) USING BTREE,
   KEY `IDX_ultary_token_is_revoked` (`is_revoked`) USING BTREE

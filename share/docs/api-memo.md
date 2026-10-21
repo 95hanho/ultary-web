@@ -480,7 +480,7 @@ FE는 OAuth code를 Spring에 보내지 않는다. BFF가 code를 교환해 `pro
 
 로그인 `POST /api/v1/admin/auth/login`. Body `loginId`, `password`. 응답은 회원과 같다. `accessToken`, `refreshToken`, `tokenType`, `expiresIn`(30분). 액세스 JWT는 관리자 비밀키로 서명하고 만료는 쿠키보다 30초 길다. 리프레시는 `ultary_token.owner_type=ADMIN`. 회원 토큰과 쿠키를 따로 두면 같은 브라우저에서도 겹치지 않는다. 아이디·비밀번호가 틀리면 `401` `ADMIN_LOGIN_FAILED`. 정지 계정은 `403` `ACCOUNT_SUSPENDED`.
 
-재발급 `POST /api/v1/admin/auth/refresh`. Body `refreshToken`. 회원 리프레시 토큰은 `401` `INVALID_TOKEN`. 로그아웃 `POST /api/v1/admin/auth/logout`는 관리자 액세스 토큰이 필요하고, 그 관리자의 리프레시만 폐기한다.
+재발급 `POST /api/v1/admin/auth/refresh`. Body `refreshToken`. 회원 리프레시 토큰은 `401` `INVALID_TOKEN`. 로그아웃 `POST /api/v1/admin/auth/logout`도 Body `refreshToken`을 사용하며 Bearer는 필요 없다. 서명·소유자 검증 후 해당 관리자 **로그인 세션만** 폐기한다. 다른 기기와 회원 세션은 유지한다. 회원 로그아웃도 동일한 규칙이다. 상세: [`auth-session.md`](./auth-session.md).
 
 `/api/v1/admin` 아래 나머지 API는 관리자 액세스 토큰만 받는다. 회원 Bearer는 `401`이다.
 

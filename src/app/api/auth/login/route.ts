@@ -3,6 +3,7 @@ import { springEndpoints } from '@/lib/api/endpoints';
 import { handleBffError } from '@/lib/api/bffRoute';
 import { springPostJson } from '@/lib/api/springFetch';
 import { setAuthCookies } from '@/lib/auth/cookies';
+import { clientConnectionHeaders } from '@/lib/auth/client-connection';
 import type { LoginRequest, TokenResponse } from '@/types/api';
 
 /** BFF /api/auth/login — POST (email|phone + password) */
@@ -29,6 +30,7 @@ export async function POST(request: NextRequest) {
     const tokens = await springPostJson<TokenResponse, LoginRequest>(
       springEndpoints.auth.login,
       body,
+      await clientConnectionHeaders(),
     );
 
     const response = NextResponse.json(

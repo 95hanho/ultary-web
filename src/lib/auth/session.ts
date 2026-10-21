@@ -12,10 +12,10 @@ import {
   clearAuthCookies,
   clearDevAccessCookieJar,
   rememberDevAccessRefresh,
-  setAuthCookies,
 } from '@/lib/auth/cookies';
-import { isProd, SPRING_BASE_URL } from '@/lib/env.server';
-import type { RefreshTokenRequest, TokenResponse } from '@/types/api';
+import { isProd } from '@/lib/env.server';
+import { requestRefreshTokens } from '@/lib/auth/refresh-request';
+import type { TokenResponse } from '@/types/api';
 import { NextRequest, NextResponse } from 'next/server';
 
 export type SessionOk = {
@@ -27,7 +27,7 @@ export type SessionOk = {
 
 export type SessionFail = {
   ok: false;
-  /** Spring이 refresh를 거부(401/403)한 경우에만 true — 그 외 실패는 refresh 쿠키 유지 */
+  /** 실제 인증 거부 또는 일시 장애 재시도 소진 시 true */
   clearCookies: boolean;
   message: string;
 };
@@ -48,25 +48,6 @@ function readCookie(request: NextRequest, name: string) {
   return request.cookies.get(name)?.value?.trim() || undefined;
 }
 
-function parseTokenResponse(raw: unknown): TokenResponse | null {
-  if (!raw || typeof raw !== 'object') return null;
-  const body = raw as TokenResponse & {
-    success?: boolean;
-    data?: TokenResponse | null;
-  };
-  if (typeof body.accessToken === 'string' && typeof body.refreshToken === 'string') {
-    return body;
-  }
-  if (
-    body.data &&
-    typeof body.data.accessToken === 'string' &&
-    typeof body.data.refreshToken === 'string'
-  ) {
-    return body.data;
-  }
-  return null;
-}
-
 /**
  * Spring refresh (락 적용).
  * 토큰 로테이션 시 병렬 호출하면 두 번째가 실패하므로 반드시 공유 락 사용.
@@ -80,34 +61,7 @@ export async function refreshViaSpringLocked(
 
   const task = (async (): Promise<SessionResult> => {
     try {
-      const res = await fetch(`${SPRING_BASE_URL}${springEndpoints.auth.refresh}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-        body: JSON.stringify({ refreshToken } satisfies RefreshTokenRequest),
-        cache: 'no-store',
-      });
-
-      const raw = await res.json().catch(() => null);
-
-      if (!res.ok) {
-        return {
-          ok: false,
-          clearCookies: res.status === 401 || res.status === 403,
-          message: 'REFRESH_UNAUTHORIZED',
-        };
-      }
-
-      const tokens = parseTokenResponse(raw);
-      if (!tokens?.accessToken || !tokens.refreshToken) {
-        // 응답 형식 이상 — refresh 쿠키는 유지 (다음에 재시도 가능)
-        console.error('[auth] refresh response missing tokens', raw);
-        return { ok: false, clearCookies: false, message: 'REFRESH_FAILED' };
-      }
-
-      return { ok: true, accessToken: tokens.accessToken, tokens };
-    } catch (err) {
-      console.error('[auth] refresh failed', err);
-      return { ok: false, clearCookies: false, message: 'REFRESH_FAILED' };
+      return await requestRefreshTokens(springEndpoints.auth.refresh, refreshToken);
     } finally {
       refreshLocks.delete(lockKey);
     }
@@ -169,11 +123,6 @@ export async function clearAuthCookieJar() {
   jar.set(ACCESS_TOKEN_COOKIE, '', { ...cookieOpts, maxAge: 0 });
   jar.set(REFRESH_TOKEN_COOKIE, '', { ...cookieOpts, maxAge: 0 });
   await clearDevAccessCookieJar();
-}
-
-export function applySessionCookies(response: NextResponse, session: SessionOk) {
-  if (session.tokens) setAuthCookies(response, session.tokens, true);
-  return response;
 }
 
 export function sessionUnauthorized(session: SessionFail) {

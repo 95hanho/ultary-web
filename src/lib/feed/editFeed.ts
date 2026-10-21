@@ -1,3 +1,4 @@
+import type { FeedVisibility } from '@/types/enums';
 import { bffGet, bffPatchJson } from '@/lib/api/bffFetch';
 import { bffEndpoints } from '@/lib/api/endpoints';
 import { resolveFileDisplayUrl } from '@/lib/api/fileUrl';
@@ -34,10 +35,10 @@ export async function loadFeedEditDraft(feedId: string) {
     };
   });
   if (!items.length) throw new Error('수정할 사진이 없습니다.');
-  return { items, caption: feed.content ?? '' };
+  return { items, caption: feed.content ?? '', visibility: feed.visibility };
 }
 
-export async function updateFeedFromDraft(feedId: string, caption: string, items: WriteDraftItem[]) {
+export async function updateFeedFromDraft(feedId: string, caption: string, items: WriteDraftItem[], visibility: FeedVisibility) {
   const mediaTags = items.map((item) => {
     if (item.feedMediaId == null) throw new Error('원본 사진 정보를 확인할 수 없습니다.');
     return {
@@ -49,5 +50,5 @@ export async function updateFeedFromDraft(feedId: string, caption: string, items
     };
   });
   const tagIds = await resolveCaptionTagIds(caption);
-  return bffPatchJson(bffEndpoints.feeds.detail, { feedId, content: caption.trim(), clearContent: !caption.trim(), mediaTags, tagIds });
+  return bffPatchJson(bffEndpoints.feeds.detail, { feedId, visibility, content: caption.trim(), clearContent: !caption.trim(), mediaTags, tagIds });
 }

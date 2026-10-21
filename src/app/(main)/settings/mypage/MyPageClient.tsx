@@ -143,7 +143,7 @@ export default function MyPageClient() {
         } catch (err) {
           console.error('[mypage] logout after UNAUTHORIZED', err);
         }
-        router.replace(`/login?returnUrl=${encodeURIComponent(MYPAGE_PATH)}`);
+        router.replace('/login');
         router.refresh();
         return;
       }

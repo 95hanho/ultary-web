@@ -5,6 +5,7 @@ import { FeedGrid, type FeedGridItem } from '@/components/feed/FeedGrid';
 import { HashtagResultList } from '@/components/search/HashtagResultList';
 import { bffDelete, bffGet, bffPostJson } from '@/lib/api/bffFetch';
 import { bffEndpoints } from '@/lib/api/endpoints';
+import { isRecord } from '@/lib/api/error';
 import { toFeedDataList } from '@/lib/feed/toFeedData';
 import {
   mapRecentItems,
@@ -15,8 +16,9 @@ import {
 } from '@/lib/search/accounts';
 import type { BffEnvelope } from '@/types/api';
 import { myUltaryPath } from '@/lib/mock/ultary-accounts';
-import { type MockHashtag, type SearchAccount } from '@/lib/mock/search';
+import { formatTagPostCount, type MockHashtag, type SearchAccount } from '@/lib/mock/search';
 import { highlightMatch, sortPetTagsByMatch } from '@/lib/search/highlight';
+import { useModalStore } from '@/stores/modal.store';
 import clsx from 'clsx';
 import { MediaImage } from '@/components/common/MediaImage';
 import Image from 'next/image';
@@ -177,6 +179,7 @@ function RecentTagRow({
         onClick={() => onEnter(item)}
       >
         <span className={styles.recentTagLabel}>{item.tag}</span>
+        <span className={styles.recentPostCount}>{formatTagPostCount(item.postCount)}</span>
       </button>
       <RemoveRecentButton label={item.tag} onRemove={onRemove} />
     </li>
@@ -186,11 +189,22 @@ function RecentTagRow({
 /** 검색 페이지 */
 export default function SearchClient() {
   const router = useRouter();
+  const openModal = useModalStore((s) => s.open);
   const shellRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const [phase, setPhase] = useState<SearchPhase>('idle');
   const [query, setQuery] = useState('');
   const [recentItems, setRecentItems] = useState<RecentSearchItem[]>([]);
+  const [recentTotal, setRecentTotal] = useState(0);
+  const [recentCursor, setRecentCursor] = useState<number | null>(null);
+  const [recentLoading, setRecentLoading] = useState(false);
+  const [recentError, setRecentError] = useState('');
+  const recentRequestRef = useRef(0);
+  const recentBusyRef = useRef(false);
+  /** 포커스가 돌아와도 더보기로 펼친 목록과 커서를 유지한다. */
+  const recentLoadedRef = useRef(false);
+  const recentMutationRef = useRef(false);
+  const [recentMutating, setRecentMutating] = useState(false);
   const [userResults, setUserResults] = useState<SearchAccount[]>([]);
   const [tagResults, setTagResults] = useState<MockHashtag[]>([]);
   const [resultState, setResultState] = useState<'idle' | 'pending' | 'ready'>('idle');
@@ -324,13 +338,71 @@ export default function SearchClient() {
   const showHashtagList = phase === 'active' && parsed.mode === 'hashtag' && canSuggest;
 
   async function loadRecent() {
+    if (recentMutationRef.current) return;
+    const request = ++recentRequestRef.current;
+    recentBusyRef.current = true;
+    setRecentLoading(true);
+    setRecentError('');
     try {
       const res = await bffGet<BffEnvelope<unknown>>(bffEndpoints.main.searchRecent);
-      setRecentItems(mapRecentItems(res.data ?? res));
+      if (request !== recentRequestRef.current) return;
+      const data = res.data ?? res;
+      setRecentItems(mapRecentItems(data));
+      setRecentTotal(isRecord(data) && typeof data.totalCount === 'number' ? data.totalCount : 0);
+      setRecentCursor(isRecord(data) && typeof data.nextCursorHistoryId === 'number' ? data.nextCursorHistoryId : null);
+      recentLoadedRef.current = true;
     } catch (err) {
+      if (request !== recentRequestRef.current) return;
       console.error('[search] recent failed', err);
+      recentLoadedRef.current = false;
       setRecentItems([]);
+      setRecentTotal(0);
+      setRecentCursor(null);
+    } finally {
+      if (request === recentRequestRef.current) {
+        recentBusyRef.current = false;
+        setRecentLoading(false);
+      }
     }
+  }
+
+  async function loadMoreRecent() {
+    if (recentBusyRef.current || recentMutationRef.current || recentCursor == null || recentItems.length >= recentTotal) return;
+    const request = ++recentRequestRef.current;
+    recentBusyRef.current = true;
+    setRecentLoading(true);
+    setRecentError('');
+    try {
+      const res = await bffGet<BffEnvelope<unknown>>(bffEndpoints.main.searchRecentMore, {
+        cursorHistoryId: recentCursor,
+      });
+      if (request !== recentRequestRef.current) return;
+      const data = res.data ?? res;
+      const nextItems = mapRecentItems(data);
+      setRecentItems((previous) => {
+        const seen = new Set(previous.map((item) => item.historyId));
+        return [...previous, ...nextItems.filter((item) => !seen.has(item.historyId))];
+      });
+      setRecentTotal(isRecord(data) && typeof data.totalCount === 'number' ? data.totalCount : 0);
+      setRecentCursor(isRecord(data) && typeof data.nextCursorHistoryId === 'number' ? data.nextCursorHistoryId : null);
+    } catch (err) {
+      if (request === recentRequestRef.current) {
+        console.error('[search] recent more failed', err);
+        setRecentError('최근 검색 항목을 더 불러오지 못했습니다. 다시 시도해 주세요.');
+      }
+    } finally {
+      if (request === recentRequestRef.current) {
+        recentBusyRef.current = false;
+        setRecentLoading(false);
+      }
+    }
+  }
+
+  function invalidateRecentRequest() {
+    recentRequestRef.current++;
+    recentBusyRef.current = false;
+    setRecentLoading(false);
+    setRecentError('');
   }
 
   async function enterUltary(account: SearchAccount) {
@@ -354,7 +426,7 @@ export default function SearchClient() {
 
   const openSearch = () => {
     setPhase('active');
-    void loadRecent();
+    if (!recentLoadedRef.current && !recentBusyRef.current) void loadRecent();
   };
 
   const restoreRecommended = () => {
@@ -382,24 +454,62 @@ export default function SearchClient() {
     }, 0);
   };
 
+  function confirmClearRecent() {
+    if (recentMutationRef.current) return;
+    openModal({
+      variant: 'confirm',
+      title: '최근 검색 항목 삭제',
+      content: '최근 검색 항목을 모두 지울까요?',
+      showCloseButton: true,
+      cancelButton: { label: '취소' },
+      okButton: {
+        label: '모두 지우기',
+        tone: 'danger',
+        onClick: () => void clearRecent(),
+      },
+    });
+  }
+
   async function clearRecent() {
+    if (recentMutationRef.current) return;
+    recentMutationRef.current = true;
+    setRecentMutating(true);
+    invalidateRecentRequest();
     try {
       await bffDelete(bffEndpoints.main.searchRecent);
       setRecentItems([]);
+      setRecentTotal(0);
+      setRecentCursor(null);
     } catch (err) {
       console.error('[search] recent clear failed', err);
+    } finally {
+      recentMutationRef.current = false;
+      setRecentMutating(false);
     }
   }
 
   async function removeRecent(historyId: number) {
+    if (recentMutationRef.current) return;
+    recentMutationRef.current = true;
+    setRecentMutating(true);
+    let reload = false;
+    invalidateRecentRequest();
+    const remaining = recentItems.filter((item) => item.historyId !== historyId);
     setRecentItems((list) => list.filter((item) => item.historyId !== historyId));
+    setRecentTotal((total) => Math.max(0, total - 1));
+    if (recentCursor === historyId) setRecentCursor(remaining.at(-1)?.historyId ?? null);
     try {
       await bffDelete(bffEndpoints.main.searchRecentItem, {
         userSearchHistoryId: historyId,
       });
+      reload = remaining.length === 0;
     } catch (err) {
       console.error('[search] recent remove failed', err);
-      void loadRecent();
+      reload = true;
+    } finally {
+      recentMutationRef.current = false;
+      setRecentMutating(false);
+      if (reload) void loadRecent();
     }
   }
 
@@ -514,8 +624,9 @@ export default function SearchClient() {
               <button
                 type="button"
                 className={styles.clearAllBtn}
+                disabled={recentMutating}
                 onMouseDown={(event) => event.preventDefault()}
-                onClick={clearRecent}
+                onClick={confirmClearRecent}
               >
                 모두 지우기
               </button>
@@ -541,6 +652,17 @@ export default function SearchClient() {
                 ),
               )}
             </ul>
+            {recentError ? <p className={styles.recentError} role="alert">{recentError}</p> : null}
+            {recentCursor != null && recentItems.length < recentTotal ? (
+              <div className={styles.recentMoreRow}>
+                <button type="button" className={styles.recentMoreBtn}
+                  disabled={recentLoading || recentMutating}
+                  onMouseDown={(event) => event.preventDefault()}
+                  onClick={() => void loadMoreRecent()}>
+                  {recentLoading ? '불러오는 중…' : '더보기'}
+                </button>
+              </div>
+            ) : null}
           </div>
         ) : null}
 

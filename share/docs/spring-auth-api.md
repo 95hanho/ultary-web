@@ -6,6 +6,8 @@
 
 관련: [`auth-access.md`](./auth-access.md) · [`api-memo.md`](./api-memo.md) · [`API_CONTRACT.md`](./API_CONTRACT.md)
 
+서버 인증: 모든 Spring REST `/api/v1/**` 호출에는 BFF의 `X-BFF-Key`가 필요하다. 아래의 공개/익명 정책은 **사용자 JWT**에 대한 정책이며 BFF 서버 인증을 생략하지 않는다. local은 HTTP 허용, prod는 HTTPS 필수. 설정·WebSocket 예외는 [`bff-server-auth.md`](./bff-server-auth.md)를 따른다.
+
 ---
 
 ## 0. Spring에 복붙할 요약 (필수만)
@@ -34,6 +36,8 @@
 
 기존 `POST /api/v1/auth/login|refresh|logout|social/login` 유지.  
 refresh 요청 body: `{ "refreshToken": "..." }` → `TokenResponse` (accessToken, refreshToken, expiresIn, …).
+
+회원/관리자 로그아웃은 Bearer 없이 `{ "refreshToken": "..." }`을 전달한다. Spring이 Refresh JWT의 서명·타입·소유자를 검증하고 DB에서 해당 로그인 세션만 폐기한다. Access 만료 후에도 가능하며 다른 기기 세션은 유지한다. 재발급 장애의 BFF 재시도와 로그인 정보 저장 규칙은 [`auth-session.md`](./auth-session.md)를 따른다.
 
 ---
 

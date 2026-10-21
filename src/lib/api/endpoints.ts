@@ -210,6 +210,8 @@ export const bffEndpoints = {
     shareTargets: '/api/dm/share-targets',
     /** GET 메시지(방) 리스트 / POST 대화방 생성 */
     rooms: '/api/dm/rooms',
+    /** POST 방 생성과 첫 메시지 전송 */
+    start: '/api/dm/rooms/start',
     /** DELETE 대화방 나가기 */
     room: '/api/dm/rooms/:roomId',
     /** POST 읽음 처리 */
@@ -501,6 +503,7 @@ export const springEndpoints = {
     shareTargets: '/api/v1/dm/share-targets',
     /** GET / POST */
     rooms: '/api/v1/dm/rooms',
+    start: '/api/v1/dm/rooms/start',
     /** DELETE */
     room: '/api/v1/dm/rooms/:roomId',
     /** POST */

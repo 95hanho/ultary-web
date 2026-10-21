@@ -3,7 +3,7 @@
 import { bffPostJson } from '@/lib/api/bffFetch';
 import { bffEndpoints } from '@/lib/api/endpoints';
 import { isHttpError } from '@/lib/api/error';
-import { sanitizeReturnUrl, toLoginRequest } from '@/lib/auth/return-url';
+import { toLoginRequest } from '@/lib/auth/return-url';
 import type { BffEnvelope } from '@/types/api';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -31,7 +31,6 @@ const KAKAO_BTN_SRC = '/images/img/kakao_login_large_wide.png';
 
 type Props = {
   initialError?: string;
-  returnUrl?: string;
 };
 
 function pickLoginError(err: unknown): string {
@@ -50,15 +49,12 @@ function pickLoginError(err: unknown): string {
   return '로그인에 실패했습니다. 다시 시도해 주세요.';
 }
 
-export default function LoginClient({ initialError, returnUrl = '' }: Props) {
+export default function LoginClient({ initialError }: Props) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [loginId, setLoginId] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(socialErrorMessage(initialError));
-
-  const safeReturn = sanitizeReturnUrl(returnUrl);
-  const returnQuery = safeReturn !== '/' ? `?returnUrl=${encodeURIComponent(safeReturn)}` : '';
 
   const onSubmit = (e: FormEvent) => {
     e.preventDefault();
@@ -75,7 +71,7 @@ export default function LoginClient({ initialError, returnUrl = '' }: Props) {
           bffEndpoints.auth.login,
           toLoginRequest(loginId, password),
         );
-        router.replace(safeReturn);
+        router.replace('/');
         router.refresh();
       } catch (err) {
         setError(pickLoginError(err));
@@ -138,7 +134,7 @@ export default function LoginClient({ initialError, returnUrl = '' }: Props) {
 
             <div className={styles.social}>
               <a
-                href={`${bffEndpoints.auth.google}${returnQuery}`}
+                href={bffEndpoints.auth.google}
                 className={styles.googleBtn}
                 aria-disabled={pending}
               >
@@ -153,7 +149,7 @@ export default function LoginClient({ initialError, returnUrl = '' }: Props) {
               </a>
 
               <a
-                href={`${bffEndpoints.auth.kakao}${returnQuery}`}
+                href={bffEndpoints.auth.kakao}
                 className={styles.kakaoBtn}
                 aria-label="카카오 로그인"
                 aria-disabled={pending}

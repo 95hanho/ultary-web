@@ -23,6 +23,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import styles from './dm.module.scss';
+import { DmRoomActions } from './DmRoomActions';
 
 const SendIcon = '/images/icon/Send.svg';
 
@@ -185,7 +186,7 @@ function readLink(raw: unknown): FollowLink | null {
 }
 
 function unlinked(link: FollowLink | null | undefined) {
-  return link != null && !link.following;
+  return link != null && !link.following && !link.followedBy;
 }
 
 function mapRoom(raw: unknown): DmRoom | null {
@@ -359,6 +360,7 @@ export default function DmClient({ roomId, feedId, feedMediaId, storyId }: DmCli
   const [peerStatus, setPeerStatus] = useState('');
   const [peerQuery, setPeerQuery] = useState('');
   const [peerOpening, setPeerOpening] = useState(false);
+  const [pendingPeer, setPendingPeer] = useState<RankedAccount | null>(null);
   const peerList = useRankedAccounts('DM', picking, peerQuery);
   const [pendingShare, setPendingShare] = useState<PendingShare | null>(() =>
     initialShare({ feedId, feedMediaId, storyId }),
@@ -367,6 +369,8 @@ export default function DmClient({ roomId, feedId, feedMediaId, storyId }: DmCli
   const threadEndRef = useRef<HTMLDivElement>(null);
   const threadReqRef = useRef(0);
   const socketEpochRef = useRef(0);
+  const sendBusyRef = useRef(false);
+  const removedRoomsRef = useRef(new Set<string>());
 
   const active = roomId
     ? (rooms.find((room) => room.id === roomId) ?? {
@@ -380,7 +384,11 @@ export default function DmClient({ roomId, feedId, feedMediaId, storyId }: DmCli
         unread: 0,
         link: null,
       })
-    : null;
+    : pendingPeer ? {
+        id: '', peerUserNo: String(pendingPeer.userNo), nickname: pendingPeer.nickname,
+        profileUrl: pendingPeer.imageUrl, lastMessage: '', timeLabel: '', absoluteLabel: '', unread: 0,
+        link: { following: pendingPeer.following, followedBy: pendingPeer.followedBy },
+      } : null;
 
   useEffect(() => {
     let cancelled = false;
@@ -391,7 +399,7 @@ export default function DmClient({ roomId, feedId, feedMediaId, storyId }: DmCli
         if (cancelled) return;
         const loaded = unwrapItems(res.data)
           .map(mapRoom)
-          .filter((room): room is DmRoom => room != null);
+          .filter((room): room is DmRoom => room != null && !removedRoomsRef.current.has(room.id));
         setRooms((prev) => {
           if (socketEpochRef.current === epoch) return loaded;
           const seen = new Set<string>();
@@ -586,6 +594,18 @@ export default function DmClient({ roomId, feedId, feedMediaId, storyId }: DmCli
 
   async function openPeer(peer: RankedAccount) {
     if (peerOpening) return;
+    if (!peer.dmRoomId) {
+      setPendingPeer(peer);
+      setPicking(false);
+      setDraft('');
+      setMessages([]);
+      setOlderCursor(null);
+      setPeerReadMessageId(null);
+      setThreadLink(null);
+      setPeerTyping(false);
+      setThreadStatus('');
+      return;
+    }
     setPeerOpening(true);
     setPeerStatus('');
     try {
@@ -615,9 +635,10 @@ export default function DmClient({ roomId, feedId, feedMediaId, storyId }: DmCli
 
   async function sendMessage(event?: FormEvent) {
     event?.preventDefault();
-    if (!active || sending) return;
+    if (!active || sendBusyRef.current) return;
     const body = draft.trim();
     if (!body && !pendingShare) return;
+    sendBusyRef.current = true;
     setSending(true);
     setThreadStatus('');
     try {
@@ -628,6 +649,19 @@ export default function DmClient({ roomId, feedId, feedMediaId, storyId }: DmCli
         if (pendingShare.feedMediaId) payload.feedMediaId = Number(pendingShare.feedMediaId);
       } else if (pendingShare?.kind === 'story') {
         payload.storyId = Number(pendingShare.storyId);
+      }
+      if (!roomId && pendingPeer) {
+        delete payload.roomId;
+        payload.targetUserNo = pendingPeer.userNo;
+        const res = await bffPostJson<BffEnvelope<unknown>>(bffEndpoints.dm.start, payload);
+        const data = isRecord(res.data) ? res.data : null;
+        const createdRoom = mapRoom(data?.room);
+        if (!createdRoom) throw new Error('대화방 정보를 불러오지 못했습니다.');
+        setRooms((previous) => [createdRoom, ...previous.filter((room) => room.id !== createdRoom.id)]);
+        setDraft('');
+        setPendingShare(null);
+        router.replace(`/dm/${createdRoom.id}`);
+        return;
       }
       const res = await bffPostJson<BffEnvelope<unknown>>(bffEndpoints.dm.messages, payload);
       const created = mapMessage(res.data);
@@ -659,6 +693,7 @@ export default function DmClient({ roomId, feedId, feedMediaId, storyId }: DmCli
     } catch (err) {
       setThreadStatus(pickErrorMessage(err, '메시지를 보내지 못했습니다.'));
     } finally {
+      sendBusyRef.current = false;
       setSending(false);
     }
   }
@@ -669,7 +704,13 @@ export default function DmClient({ roomId, feedId, feedMediaId, storyId }: DmCli
       <div className={styles.shell}>
         <PageHeader
           title={active.nickname || '메시지'}
-          onBack={() => router.replace(`/dm${shareSearch(pendingShare)}`)}
+          onBack={() => {
+            if (sendBusyRef.current) return;
+            setPendingPeer(null);
+            setDraft('');
+            setThreadStatus('');
+            if (roomId) router.replace(`/dm${shareSearch(pendingShare)}`);
+          }}
           right={
             active.peerUserNo ? (
               <Link href={myUltaryPath(active.nickname)} className={styles.profileLink}>
@@ -828,6 +869,7 @@ export default function DmClient({ roomId, feedId, feedMediaId, storyId }: DmCli
           <ul className={styles.roomList}>
             {rooms.map((room) => (
               <li key={room.id} className={styles.roomBlock}>
+                <div className={styles.roomRow}>
                 <button
                   type="button"
                   className={styles.roomItem}
@@ -857,6 +899,13 @@ export default function DmClient({ roomId, feedId, feedMediaId, storyId }: DmCli
                     </span>
                   </span>
                 </button>
+                <DmRoomActions roomId={room.id} nickname={room.nickname} onDeleted={(deletedId) => {
+                  removedRoomsRef.current.add(deletedId);
+                  socketEpochRef.current += 1;
+                  setRooms((previous) => previous.filter((item) => item.id !== deletedId));
+                  clearDmRoomUnread(deletedId);
+                }} />
+                </div>
                 {unlinked(room.link) ? (
                   <p className={styles.relationNote}>* 팔로우 관계가 아닙니다.</p>
                 ) : null}

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { SPRING_BASE_URL } from '@/lib/env.server';
+import { prepareSpringRequest } from '@/lib/api/spring-request';
 import { springEndpoints } from '@/lib/api/endpoints';
 import {
   handleBffError,
@@ -23,10 +23,11 @@ export async function GET(
     if (isUnauthorized(accessToken)) return accessToken;
     const { fileId } = await params;
     const [path] = applyPathParams(springEndpoints.files.content, { fileId });
-    const res = await fetch(`${SPRING_BASE_URL}${path}`, {
+    const prepared = prepareSpringRequest(path, {
       headers: { Authorization: `Bearer ${accessToken}` },
       cache: 'no-store',
     });
+    const res = await fetch(prepared.url, prepared.init);
 
     if (!res.ok) {
       const ct = res.headers.get('content-type') ?? '';

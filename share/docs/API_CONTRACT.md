@@ -50,8 +50,8 @@
 | `GET /main/stories/owners` | `profileFile` | 소유자의 대표 펫 사진 `FileSummary`. 없으면 `null`. 스토리 미디어는 포함하지 않음 |
 | `GET /main/feeds` · `GET /feeds/{feedId}` | `authorProfileFile` | 작성자의 대표 펫 사진 `FileSummary`. 없으면 `null`. 게시글 `media[].file`과 별개 |
 | `GET /main/feeds/recommended` · `GET /main/search/recommended` | 피드 배열 | 나중에 추천 알고리즘 추가해야함. 지금은 조회 가능한 전체 피드를 최신순 `limit`건. 항목은 피드 단건과 동일 |
-| `GET /main/search/recent` | `items`(5), `nextCursorHistoryId` | 울타리·태그 혼합. `type=USER|TAG`. USER는 `profileFile`·`petTags`, TAG는 `tagId`·`hashtag` |
-| `GET /main/search/recent/more` | `items`(20), `nextCursorHistoryId` | `cursorHistoryId` = 직전 `nextCursorHistoryId`. 없으면 끝 |
+| `GET /main/search/recent` | `items`(5), `nextCursorHistoryId` | 울타리·태그 혼합. `type=USER|TAG`. USER는 `profileFile`·`petTags`, TAG는 `tagId`·`hashtag`  `totalCount`: 표시 가능한 전체 개수. 첫 5개, more는 20개씩. nextCursorHistoryId가 없으면 끝. |
+| `GET /main/search/recent/more` | `items`(20), `nextCursorHistoryId` | `cursorHistoryId` = 직전 `nextCursorHistoryId`. 없으면 끝  `totalCount`: 표시 가능한 전체 개수. 첫 5개, more는 20개씩. nextCursorHistoryId가 없으면 끝. |
 | `POST /main/search/recent` | `{ targetUserNo }` 또는 `{ tagId }` | 울타리·태그 피드 진입 시. 둘 중 하나만. 같은 대상은 `searched_at`만 갱신. 태그 없으면 `TAG_NOT_FOUND` |
 | `DELETE /main/search/recent` | data null | 최근 검색 모두 지우기. 탈퇴·차단·삭제 태그로 목록에 없던 행도 삭제 |
 | `GET /main/search` | `users[]`, `pets[]` | 로그인한 본인 계정은 넣지 않는다. 내 `userNo`와, 보호자가 나인 펫을 뺀다. 검색 페이지·사진 태그·스토리 `@` 공통 |
@@ -94,6 +94,7 @@
 | `GET /settings/notifications` · `PATCH` | 스위치 10개 | 알림 종류별 켜기. 없으면 전부 켜짐. PATCH는 넣은 필드만. 끈 종류는 알림 목록에서 빠짐 |
 | `GET /settings/privacy` · `PATCH` | 공개 범위 7개 | 비공개 계정, 게시글·스토리 범위, 팔로우 신청·댓글·멘션·태그. 행이 없으면 기본값. PATCH는 넣은 필드만 |
 | `GET /users/{userNo}/neighbors?type=` | 배열 | 팔로우·팔로워 목록. `FOLLOW` 팔로우(기본), `FOLLOWER` 팔로워. 응답 `listType`도 같다. 카운트는 `followCount`, `followerCount`. 채팅 상대도 이 목록 |
+| `POST /dm/rooms/start` | `room`, `message` | targetUserNo 및 메시지/공유 데이터. 방 생성과 첫 전송을 같은 트랜잭션으로 처리. [상세](dm-first-message.md) |
 | `GET /dm/share-targets` | `items` | 공유 대상. `mode` SHARE/DM/STORY_TAG/FEED_TAG, `q` 닉네임·펫태그 검색(제한 전), `priorityOrder` 앞 3순위 순열. 1~9순위·상세는 [공유 대상](share-targets.md). `userNo`, `nickname`, `petTags`(@ 없음), `pets`(petId·mentionId), `profileFile`, `dmRoomId`, `following`, `followedBy`, `group`, `activeAt` |
 | `GET /tags/{tagId}` | 태그 | `purpose`는 `USER` 또는 `COMMERCIAL`. `title`·`content`·`link`·`images`는 `profileStatus=APPROVED`일 때만. 요청자만 `profileRequest` |
 | `POST /tags/{tagId}/profile-requests` | 요청 1개 | 상업 태그에 넣을 설명. 관리자 승인 후에만 태그 조회에 나온다 |

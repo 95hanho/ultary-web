@@ -13,13 +13,15 @@ share/
     README.md
     rules.json
   database/
-    schema/mariadb_10_1/    ← 001_init_schema.sql (schema_version 32)
+    schema/mariadb_10_1/    ← 001_init_schema.sql (schema_version 34)
     seed/mariadb_10_1/      ← 001_dev_sample_data.sql (로컬 전용, CDN 시드 포함)
   docs/
     api-memo.md             ← 엔드포인트·도메인 메모
     API_CONTRACT.md         ← 응답·계약 요약
     auth-access.md          ← 페이지·공유 피드 인증 접근 규칙
     spring-auth-api.md      ← Spring이 맞춰야 할 인증·게스트 API
+    auth-session.md         ← 재발급 재시도·로그인 세션·현재 기기 로그아웃
+    bff-server-auth.md      ← BFF 공유 키·local/prod HTTPS·설정 안내
 ```
 
 | 경로 | 용도 |

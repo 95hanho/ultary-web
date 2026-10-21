@@ -165,6 +165,10 @@ function handleFrame(data: unknown) {
 }
 
 async function connect() {
+  if (process.env.NODE_ENV === 'production' && !SPRING_WS_URL.startsWith('wss://')) {
+    console.error('[ws] production requires a WSS endpoint');
+    return;
+  }
   if (connecting) return;
   connecting = true;
   const gen = ++generation;

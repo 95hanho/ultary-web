@@ -1,5 +1,6 @@
 'use client';
 
+import { VisibilityPicker } from '@/components/common/VisibilityPicker';
 import { FooterMenu } from '@/components/common/FooterMenu';
 import { FullScreenLoading } from '@/components/common/FullScreenLoading';
 import { PageHeader } from '@/components/common/PageHeader';
@@ -38,6 +39,7 @@ import {
   type RecommendTag,
 } from '@/lib/tag/recommend';
 import { useWriteDraftStore } from '@/stores/write-draft.store';
+import type { FeedVisibility } from '@/types/enums';
 import type { BffEnvelope } from '@/types/api';
 import clsx from 'clsx';
 import { ChevronRight, Play } from 'lucide-react';
@@ -75,6 +77,9 @@ export default function WriteComposeClient({ editFeedId }: { editFeedId?: string
   const tagsHref = `${basePath}/write/tags`;
 
   const items = useWriteDraftStore((s) => s.items);
+  const visibility = useWriteDraftStore((s) => s.visibility);
+  const setVisibility = useWriteDraftStore((s) => s.setVisibility);
+  const [visibilityError, setVisibilityError] = useState(false);
   const caption = useWriteDraftStore((s) => s.caption);
   const setCaption = useWriteDraftStore((s) => s.setCaption);
   const clear = useWriteDraftStore((s) => s.clear);
@@ -91,12 +96,27 @@ export default function WriteComposeClient({ editFeedId }: { editFeedId?: string
     if (!editFeedId || useWriteDraftStore.getState().editingFeedId === editFeedId) return;
     let cancelled = false;
     loadFeedEditDraft(editFeedId).then((draft) => {
-      if (!cancelled) beginEditing(editFeedId, draft.items, draft.caption);
+      if (!cancelled) beginEditing(editFeedId, draft.items, draft.caption, draft.visibility);
     }).catch((error: unknown) => {
       if (!cancelled) setEditError({ id: editFeedId, message: submitFailureMessage(error) });
     });
     return () => { cancelled = true; };
   }, [editFeedId, beginEditing]);
+  useEffect(() => {
+    if (isEditing || editingFeedId != null || visibility != null) return;
+    let cancelled = false;
+    bffGet<BffEnvelope<{ feedVisibility: FeedVisibility }>>(bffEndpoints.settings.privacy)
+      .then((response) => {
+        const next = response.data?.feedVisibility;
+        if (next !== 'PUBLIC' && next !== 'NEIGHBORS' && next !== 'PRIVATE') {
+          throw new Error('공개 범위를 불러오지 못했습니다.');
+        }
+        if (!cancelled && useWriteDraftStore.getState().visibility == null) setVisibility(next);
+      })
+      .catch(() => { if (!cancelled) setVisibilityError(true); });
+    return () => { cancelled = true; };
+  }, [isEditing, editingFeedId, visibility, setVisibility]);
+
   const photoTagCount = items.reduce((sum, item) => sum + (item.petTags?.length ?? 0), 0);
   const backdropRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -343,11 +363,11 @@ export default function WriteComposeClient({ editFeedId }: { editFeedId?: string
   }, [suggestItems, recommendItems, caption, markExistingTag]);
 
   const handleSubmit = async () => {
-    if (submitting || items.length === 0) return;
+    if (submitting || items.length === 0 || visibility == null) return;
     setSubmitting(true);
     try {
-      if (editFeedId) await updateFeedFromDraft(editFeedId, caption, items);
-      else await createFeedFromDraft({ caption, items, visibility: 'PUBLIC' });
+      if (editFeedId) await updateFeedFromDraft(editFeedId, caption, items, visibility);
+      else await createFeedFromDraft({ caption, items, visibility });
       clear();
       router.push(editFeedId ? `${basePath}/posts/${editFeedId}` : basePath);
       router.refresh();
@@ -394,7 +414,7 @@ export default function WriteComposeClient({ editFeedId }: { editFeedId?: string
         onBack={() => router.push(returnHref)}
         onSubmit={() => void handleSubmit()}
         submitLabel={submitting ? isEditing ? '수정 중…' : '게시 중…' : isEditing ? '수정' : '게시'}
-        submitDisabled={submitting || items.length === 0}
+        submitDisabled={submitting || items.length === 0 || visibility == null}
       />
 
       <main className={styles.main}>
@@ -440,6 +460,21 @@ export default function WriteComposeClient({ editFeedId }: { editFeedId?: string
           </span>
           <ChevronRight size={20} className={styles.tagChevron} aria-hidden />
         </button>
+
+        <section className={styles.visibilitySection}>
+          <VisibilityPicker
+            label="공개 범위"
+            labelClassName={styles.visibilityLabel}
+            value={visibility}
+            disabled={submitting || (visibility == null && !visibilityError)}
+            onChange={setVisibility}
+          />
+          {visibility == null ? (
+            <p className={styles.visibilityStatus} role="status">
+              {visibilityError ? '기본 공개 범위를 불러오지 못했습니다. 공개 범위를 직접 선택해 주세요.' : '기본 공개 범위를 불러오는 중입니다.'}
+            </p>
+          ) : null}
+        </section>
 
         <section className={styles.section} aria-label="내용">
           <h2 className={styles.label}>

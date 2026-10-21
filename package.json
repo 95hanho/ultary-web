@@ -3,10 +3,11 @@
   "version": "0.3.2",
   "private": true,
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "lint": "eslint"
+    "dev": "node --env-file=.env --env-file=.env.local node_modules/next/dist/bin/next dev",
+    "build": "node --env-file=.env --env-file=.env.production node_modules/next/dist/bin/next build",
+    "start": "node --env-file=.env --env-file=.env.production node_modules/next/dist/bin/next start",
+    "lint": "eslint",
+    "test:auth": "node --test scripts/test-auth-session.mjs"
   },
   "dependencies": {
     "@emotion/cache": "^11.14.0",
