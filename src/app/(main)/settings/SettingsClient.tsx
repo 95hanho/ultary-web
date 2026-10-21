@@ -105,7 +105,7 @@ export default function SettingsClient() {
 
   return (
     <div className={styles.shell}>
-      <PageHeader title="설정" />
+      <PageHeader backMode="history" title="설정" />
 
       <main className={styles.main}>
         {MENU_GROUPS.map((group) => (

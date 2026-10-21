@@ -1,5 +1,6 @@
 'use client';
 
+import { AccountSearchList } from '@/components/common/AccountSearchList';
 import { MediaImage } from '@/components/common/MediaImage';
 import { bffGet, bffPostJson } from '@/lib/api/bffFetch';
 import { bffEndpoints } from '@/lib/api/endpoints';
@@ -10,7 +11,15 @@ import { showFooterNotice } from '@/lib/ui/footerNotice';
 import type { BffEnvelope } from '@/types/api';
 import clsx from 'clsx';
 import Image from 'next/image';
-import { useCallback, useEffect, useRef, useState, type FormEvent, type PointerEvent as ReactPointerEvent, type TransitionEvent as ReactTransitionEvent } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type FormEvent,
+  type PointerEvent as ReactPointerEvent,
+  type TransitionEvent as ReactTransitionEvent,
+} from 'react';
 import { createPortal } from 'react-dom';
 import styles from './ShareMessageSheet.module.scss';
 
@@ -22,6 +31,7 @@ type ShareTarget = {
   userNo: number;
   nickname: string;
   imageUrl: string;
+  petTags: string[];
   dmRoomId: number | null;
   following: boolean;
   followedBy: boolean;
@@ -29,15 +39,25 @@ type ShareTarget = {
   activeAt: string;
 };
 
+export type ShareTargetPriority = 'DM' | 'OWN_STORY_TAG' | 'OWN_FEED_TAG';
+
 type ShareMessageSheetProps = {
   open: boolean;
   onClose: () => void;
   feedId: string;
   feedMediaId: number | null;
+  /** Optional permutation of the first three priority groups. */
+  priorityOrder?: readonly ShareTargetPriority[];
 };
 
 /** 게시글 공유 — 공유 대상을 골라 메시지로 보낸다 */
-export function ShareMessageSheet({ open, onClose, feedId, feedMediaId }: ShareMessageSheetProps) {
+export function ShareMessageSheet({
+  open,
+  onClose,
+  feedId,
+  feedMediaId,
+  priorityOrder,
+}: ShareMessageSheetProps) {
   const [hydrated, setHydrated] = useState(false);
   const [present, setPresent] = useState(false);
   const [shown, setShown] = useState(false);
@@ -56,6 +76,8 @@ export function ShareMessageSheet({ open, onClose, feedId, feedMediaId }: ShareM
   const [listStatus, setListStatus] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle');
   const [selectedUserNo, setSelectedUserNo] = useState<number | null>(null);
   const [draft, setDraft] = useState('');
+  const [query, setQuery] = useState('');
+  const priorityKey = priorityOrder?.join(',') ?? '';
   const [sending, setSending] = useState(false);
 
   useEffect(() => {
@@ -66,29 +88,42 @@ export function ShareMessageSheet({ open, onClose, feedId, feedMediaId }: ShareM
     if (!open) return;
     setDraft('');
     setSelectedUserNo(null);
+    setQuery('');
     setRows([]);
     setListStatus('loading');
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
     let cancelled = false;
-    (async () => {
-      try {
-        const res = await bffGet<BffEnvelope<unknown>>(bffEndpoints.dm.shareTargets, {
-          limit: 50,
-        });
-        if (cancelled) return;
-        setRows(readShareTargets(res.data));
-        setListStatus('ready');
-      } catch (err) {
-        console.error('[share-message] targets failed', err);
-        if (!cancelled) {
-          setRows([]);
-          setListStatus('error');
+    const timer = setTimeout(
+      async () => {
+        setRows([]);
+        setListStatus('loading');
+        try {
+          const res = await bffGet<BffEnvelope<unknown>>(bffEndpoints.dm.shareTargets, {
+            limit: 50,
+            q: query,
+            ...(priorityKey ? { priorityOrder: priorityKey } : {}),
+          });
+          if (cancelled) return;
+          setRows(readShareTargets(res.data));
+          setListStatus('ready');
+        } catch (err) {
+          console.error('[share-message] targets failed', err);
+          if (!cancelled) {
+            setRows([]);
+            setListStatus('error');
+          }
         }
-      }
-    })();
+      },
+      query.trim() ? 250 : 0,
+    );
     return () => {
       cancelled = true;
+      clearTimeout(timer);
     };
-  }, [open]);
+  }, [open, query, priorityKey]);
 
   const animateClose = useCallback(() => {
     if (closingRef.current || !presentRef.current) return;
@@ -241,47 +276,35 @@ export function ShareMessageSheet({ open, onClose, feedId, feedMediaId }: ShareM
           <span className={styles.bar} aria-hidden />
         </div>
 
-        <div className={styles.list}>
-          {listStatus === 'loading' ? <p className={styles.status}>불러오는 중</p> : null}
-          {listStatus === 'error' ? <p className={styles.status}>목록을 불러오지 못했습니다.</p> : null}
-          {listStatus === 'ready' && rows.length === 0 ? (
-            <p className={styles.status}>목록이 비어 있어요</p>
-          ) : null}
-          {rows.map((row) => {
-            const enabled = canMessage(row);
-            return (
-              <label key={row.userNo} className={clsx(styles.row, !enabled && styles.rowDisabled)}>
-                <span className={styles.avatar}>
-                  <MediaImage
-                    src={row.imageUrl}
-                    alt=""
-                    width={47}
-                    height={47}
-                    className={styles.avatarImg}
-                  />
-                </span>
-                <span className={styles.text}>
-                  <span className={styles.nick}>{row.nickname}</span>
-                  {!enabled ? <span className={styles.note}>* 팔로우 관계가 아닙니다.</span> : null}
-                </span>
-                <input
-                  type="radio"
-                  className={styles.radio}
-                  name={`share-message-${feedId}`}
-                  checked={selectedUserNo === row.userNo}
-                  disabled={!enabled}
-                  onChange={() => setSelectedUserNo(row.userNo)}
-                  aria-label={`${row.nickname}에게 보내기`}
-                />
-              </label>
-            );
-          })}
-        </div>
+        <AccountSearchList
+          items={rows}
+          query={query}
+          onQueryChange={(value) => {
+            setQuery(value);
+            setSelectedUserNo(null);
+            setRows([]);
+            setListStatus('loading');
+          }}
+          onSelect={(row) => setSelectedUserNo(row.userNo)}
+          selectedUserNo={selectedUserNo}
+          status={listStatus}
+          serverSearch
+          selection="radio"
+          isDisabled={(row) => !canMessage(row)}
+          getNote={(row) => (canMessage(row) ? undefined : '* 팔로우 관계가 아닙니다.')}
+          disabled={sending}
+        />
 
         <form className={styles.composer} onSubmit={(event) => void submitMessage(event)}>
           <div className={styles.composerRow}>
             <span className={styles.composerAvatar}>
-              <MediaImage src={MY_PROFILE} alt="" width={32} height={32} className={styles.avatarImg} />
+              <MediaImage
+                src={MY_PROFILE}
+                alt=""
+                width={32}
+                height={32}
+                className={styles.avatarImg}
+              />
             </span>
             <input
               className={styles.composerInput}
@@ -312,7 +335,11 @@ function canMessage(row: ShareTarget) {
 }
 
 function readShareTargets(raw: unknown): ShareTarget[] {
-  const list = Array.isArray(raw) ? raw : isRecord(raw) && Array.isArray(raw.items) ? raw.items : [];
+  const list = Array.isArray(raw)
+    ? raw
+    : isRecord(raw) && Array.isArray(raw.items)
+      ? raw.items
+      : [];
   const rows = list.flatMap((item) => {
     if (!isRecord(item) || typeof item.userNo !== 'number') return [];
     const nickname = typeof item.nickname === 'string' ? item.nickname.trim() : '';
@@ -325,14 +352,16 @@ function readShareTargets(raw: unknown): ShareTarget[] {
         dmRoomId: readRoomNumber(item.dmRoomId),
         following: item.following === true,
         followedBy: item.followedBy === true,
-        group: typeof item.group === 'number' ? item.group : 4,
+        petTags: Array.isArray(item.petTags)
+          ? item.petTags.flatMap((tag) => {
+              const name = typeof tag === 'string' ? tag.trim().replace(/^@+/, '') : '';
+              return name ? [`@${name}`] : [];
+            })
+          : [],
+        group: typeof item.group === 'number' ? item.group : 9,
         activeAt: typeof item.activeAt === 'string' ? item.activeAt : '',
       },
     ];
-  });
-  rows.sort((a, b) => {
-    if (a.group !== b.group) return a.group - b.group;
-    return b.activeAt.localeCompare(a.activeAt);
   });
   const seen = new Set<number>();
   return rows.filter((row) => {

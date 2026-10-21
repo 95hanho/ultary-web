@@ -45,6 +45,10 @@
 .item {
   margin: 0;
   padding: 0;
+
+  &:hover {
+    background: #0000000d;
+  }
 }
 
 .itemBody {

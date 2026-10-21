@@ -106,7 +106,7 @@ export default function TermsClient() {
 
   return (
     <div className={styles.shell}>
-      <PageHeader title="이용약관 · 개인정보" backHref="/settings" />
+      <PageHeader backMode="history" title="이용약관 · 개인정보" backHref="/settings" />
 
       <main className={styles.main}>
         <div className={styles.tabs} role="tablist" aria-label="약관 구분">

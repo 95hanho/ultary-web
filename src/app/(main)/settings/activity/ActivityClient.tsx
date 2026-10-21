@@ -376,7 +376,7 @@ export default function ActivityClient() {
 
   return (
     <div className={styles.shell}>
-      <PageHeader title="내 활동" backHref="/settings" />
+      <PageHeader backMode="history" title="내 활동" backHref="/settings" />
 
       <main className={styles.main}>
         {status ? <p className={styles.status}>{status}</p> : null}

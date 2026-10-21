@@ -105,6 +105,14 @@ const LogoImage = '/images/img/ultary_logo.png';
 
 let cachedAvatarSrc: string | null = null;
 let cachedNickname: string | null = null;
+const profileRefreshListeners = new Set<() => void>();
+
+/** 대표 반려동물 변경 후 캐시를 비우고 현재 메뉴의 프로필을 다시 조회한다. */
+export function refreshFooterProfile() {
+  cachedAvatarSrc = null;
+  cachedNickname = null;
+  for (const refresh of profileRefreshListeners) refresh();
+}
 /** 알림 페이지에서 PC로 넓어질 때, 메인으로 이동한 뒤 팝업을 연다 */
 let openNoticeAfterNav = false;
 
@@ -187,17 +195,16 @@ export function FooterMenu() {
   }, []);
 
   useEffect(() => {
-    if (cachedAvatarSrc && cachedNickname) return;
     let cancelled = false;
-    void (async () => {
+    let requestId = 0;
+    const refresh = async () => {
+      const currentRequest = ++requestId;
       try {
         const res = await bffGet<BffEnvelope<MeResponse>>(bffEndpoints.auth.me);
-        if (cancelled) return;
-        const url = resolveFileDisplayUrl(res.data?.profileFile);
-        if (url) {
-          cachedAvatarSrc = url;
-          setAvatarSrc(url);
-        }
+        if (cancelled || currentRequest !== requestId) return;
+        const url = resolveFileDisplayUrl(res.data?.profileFile) ?? NO_PROFILE_SRC;
+        cachedAvatarSrc = url;
+        setAvatarSrc(url);
         const nextName = res.data?.nickname?.trim();
         if (nextName) {
           cachedNickname = nextName;
@@ -206,9 +213,13 @@ export function FooterMenu() {
       } catch (err) {
         console.error('[footer] me profile failed', err);
       }
-    })();
+    };
+    const onRefresh = () => void refresh();
+    profileRefreshListeners.add(onRefresh);
+    if (!cachedAvatarSrc || !cachedNickname) void refresh();
     return () => {
       cancelled = true;
+      profileRefreshListeners.delete(onRefresh);
     };
   }, []);
 

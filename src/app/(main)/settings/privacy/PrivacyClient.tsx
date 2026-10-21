@@ -192,7 +192,7 @@ export default function PrivacyClient() {
 
   return (
     <div className={styles.shell}>
-      <PageHeader title="공개 범위" backHref="/settings" />
+      <PageHeader backMode="history" title="공개 범위" backHref="/settings" />
 
       <main className={styles.main}>
         {status ? <p className={styles.status}>{status}</p> : null}

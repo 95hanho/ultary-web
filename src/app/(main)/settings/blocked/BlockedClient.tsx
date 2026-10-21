@@ -144,7 +144,7 @@ export default function BlockedClient() {
 
   return (
     <div className={styles.shell}>
-      <PageHeader title="차단한 사용자" backHref="/settings" />
+      <PageHeader backMode="history" title="차단한 사용자" backHref="/settings" />
 
       <main className={styles.main}>
         {status ? <p className={styles.status}>{status}</p> : null}

@@ -124,7 +124,7 @@ export default function MyPagePasswordClient() {
 
   return (
     <div className={styles.shell}>
-      <PageHeader title="비밀번호 변경" backHref="/settings/mypage" onSubmit={submitPassword} />
+      <PageHeader backMode="history" title="비밀번호 변경" backHref="/settings/mypage" onSubmit={submitPassword} />
 
       <div className={styles.form}>
         {formError ? <p className={styles.errorBanner}>{formError}</p> : null}

@@ -1,5 +1,7 @@
 'use client';
 
+import { AccountSearchList } from '@/components/common/AccountSearchList';
+import { useRankedAccounts, type RankedAccount } from '@/lib/search/useRankedAccounts';
 import { EmptyState } from '@/components/common/EmptyState';
 import { RevealTime } from '@/components/common/RevealTime';
 import { FooterMenu } from '@/components/common/FooterMenu';
@@ -13,7 +15,7 @@ import { myUltaryPath } from '@/lib/mock/ultary-accounts';
 import { NO_PROFILE_SRC } from '@/lib/profileImage';
 import { subscribeDmMessage, subscribeDmRead, subscribeDmTyping } from '@/lib/ws/liveSocket';
 import { clearDmRoomUnread } from '@/lib/dm/unreadBadge';
-import type { BffEnvelope, MeResponse } from '@/types/api';
+import type { BffEnvelope } from '@/types/api';
 import type { FileSummary } from '@/types/file';
 import clsx from 'clsx';
 import Image from 'next/image';
@@ -71,15 +73,6 @@ type DmMessage = {
   minuteKey: string;
   share: DmShareCard | null;
 };
-
-type Peer = {
-  userNo: string;
-  nickname: string;
-  profileUrl: string;
-  petTags: string[];
-};
-
-type PeerTab = 'FOLLOW' | 'FOLLOWER';
 
 type DmClientProps = {
   roomId?: string;
@@ -271,24 +264,6 @@ function mapMessage(raw: unknown): DmMessage | null {
   };
 }
 
-function mapPeer(raw: unknown): Peer | null {
-  if (!isRecord(raw)) return null;
-  const userNo = idString(raw.userNo);
-  if (!userNo) return null;
-  const nickname = (typeof raw.nickname === 'string' && raw.nickname.trim()) || '사용자';
-  return {
-    userNo,
-    nickname,
-    profileUrl: resolveFileDisplayUrl(asFile(raw.profileFile)) ?? NO_PROFILE_SRC,
-    petTags: Array.isArray(raw.petTags)
-      ? raw.petTags.flatMap((tag) => {
-          const name = typeof tag === 'string' ? tag.trim().replace(/^@+/, '') : '';
-          return name ? [`@${name}`] : [];
-        })
-      : [],
-  };
-}
-
 function ShareCard({
   share,
   storyUserNo,
@@ -381,16 +356,15 @@ export default function DmClient({ roomId, feedId, feedMediaId, storyId }: DmCli
   const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);
   const [picking, setPicking] = useState(false);
-  const [peerTab, setPeerTab] = useState<PeerTab>('FOLLOW');
-  const [peers, setPeers] = useState<Peer[]>([]);
   const [peerStatus, setPeerStatus] = useState('');
   const [peerQuery, setPeerQuery] = useState('');
+  const [peerOpening, setPeerOpening] = useState(false);
+  const peerList = useRankedAccounts('DM', picking, peerQuery);
   const [pendingShare, setPendingShare] = useState<PendingShare | null>(() =>
     initialShare({ feedId, feedMediaId, storyId }),
   );
   const [threadLink, setThreadLink] = useState<FollowLink | null>(null);
   const threadEndRef = useRef<HTMLDivElement>(null);
-  const meUserNoRef = useRef<string | null>(null);
   const threadReqRef = useRef(0);
   const socketEpochRef = useRef(0);
 
@@ -448,40 +422,6 @@ export default function DmClient({ roomId, feedId, feedMediaId, storyId }: DmCli
     if (!active) return;
     threadEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [active, messages.length, peerTyping]);
-
-  useEffect(() => {
-    if (!picking) return;
-    let cancelled = false;
-    (async () => {
-      setPeerStatus('불러오는 중');
-      setPeers([]);
-      try {
-        if (!meUserNoRef.current) {
-          const me = await bffGet<BffEnvelope<MeResponse>>(bffEndpoints.auth.me);
-          const userNo = idString(me.data?.userNo);
-          if (!userNo) throw new Error('내 계정을 찾지 못했습니다.');
-          meUserNoRef.current = userNo;
-        }
-        const res = await bffGet<BffEnvelope<unknown>>(bffEndpoints.users.neighbors, {
-          userNo: meUserNoRef.current,
-          type: peerTab,
-          limit: 50,
-        });
-        if (cancelled) return;
-        setPeers(
-          unwrapItems(res.data)
-            .map(mapPeer)
-            .filter((peer): peer is Peer => peer != null),
-        );
-        setPeerStatus('');
-      } catch (err) {
-        if (!cancelled) setPeerStatus(pickErrorMessage(err, '목록을 불러오지 못했습니다.'));
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [picking, peerTab]);
 
   async function loadMessages(roomId: string, beforeMessageId?: string) {
     const params: Record<string, string> = { roomId, limit: '30' };
@@ -644,7 +584,9 @@ export default function DmClient({ roomId, feedId, feedMediaId, storyId }: DmCli
     }
   }
 
-  async function openPeer(peer: Peer) {
+  async function openPeer(peer: RankedAccount) {
+    if (peerOpening) return;
+    setPeerOpening(true);
     setPeerStatus('');
     try {
       const res = await bffPostJson<BffEnvelope<unknown>>(bffEndpoints.dm.rooms, {
@@ -652,9 +594,9 @@ export default function DmClient({ roomId, feedId, feedMediaId, storyId }: DmCli
       });
       const room = mapRoom(res.data) ?? {
         id: idString(isRecord(res.data) ? (res.data.dmRoomId ?? res.data.roomId) : null) ?? '',
-        peerUserNo: peer.userNo,
+        peerUserNo: String(peer.userNo),
         nickname: peer.nickname,
-        profileUrl: peer.profileUrl,
+        profileUrl: peer.imageUrl,
         lastMessage: '',
         timeLabel: '',
         absoluteLabel: '',
@@ -666,6 +608,8 @@ export default function DmClient({ roomId, feedId, feedMediaId, storyId }: DmCli
       router.push(`/dm/${room.id}${shareSearch(pendingShare)}`);
     } catch (err) {
       setPeerStatus(pickErrorMessage(err, '대화를 시작하지 못했습니다.'));
+    } finally {
+      setPeerOpening(false);
     }
   }
 
@@ -836,99 +780,21 @@ export default function DmClient({ roomId, feedId, feedMediaId, storyId }: DmCli
   }
 
   if (picking) {
-    const term = peerQuery.trim().replace(/^@+/, '').toLowerCase();
-    const filteredPeers = peers.filter(
-      (peer) =>
-        !term ||
-        peer.nickname.toLowerCase().includes(term) ||
-        peer.petTags.some((tag) => tag.slice(1).toLowerCase().includes(term)),
-    );
     return (
       <div className={styles.shell}>
         <PageHeader title="대화 상대" onBack={() => setPicking(false)} />
-        <main className={styles.main}>
-          <div className={styles.tabs} role="tablist">
-            <button
-              type="button"
-              role="tab"
-              aria-selected={peerTab === 'FOLLOW'}
-              className={clsx(styles.tab, peerTab === 'FOLLOW' && styles.tabOn)}
-              onClick={() => setPeerTab('FOLLOW')}
-            >
-              팔로우
-            </button>
-            <button
-              type="button"
-              role="tab"
-              aria-selected={peerTab === 'FOLLOWER'}
-              className={clsx(styles.tab, peerTab === 'FOLLOWER' && styles.tabOn)}
-              onClick={() => setPeerTab('FOLLOWER')}
-            >
-              팔로워
-            </button>
-          </div>
-          <div className={styles.peerSearchRow}>
-            <label className={styles.peerSearchBar}>
-              <Image src="/images/icon/Search.svg" alt="" width={20} height={20} />
-              <input
-                type="search"
-                className={styles.peerSearchInput}
-                placeholder="검색"
-                aria-label="닉네임 또는 펫태그 검색"
-                value={peerQuery}
-                onChange={(event) => setPeerQuery(event.target.value)}
-              />
-              {peerQuery ? (
-                <button
-                  type="button"
-                  className={styles.peerClearQuery}
-                  aria-label="검색어 지우기"
-                  onMouseDown={(event) => event.preventDefault()}
-                  onClick={() => setPeerQuery('')}
-                >
-                  <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
-                    <path d="M3 3l8 8M11 3L3 11" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-                  </svg>
-                </button>
-              ) : null}
-            </label>
-          </div>
-          {peerStatus ? <p className={styles.status}>{peerStatus}</p> : null}
-          {filteredPeers.length === 0 && !peerStatus ? (
-            <EmptyState
-              title={term ? '검색 결과가 없어요' : '목록이 비어 있어요'}
-              description={term ? undefined : '팔로우나 팔로워가 있으면 여기서 고를 수 있어요.'}
-            />
-          ) : (
-            <ul className={styles.peerList}>
-              {filteredPeers.map((peer) => (
-                <li key={peer.userNo}>
-                  <button
-                    type="button"
-                    className={styles.peerItem}
-                    onClick={() => void openPeer(peer)}
-                  >
-                    <span className={styles.peerAvatar}>
-                      <MediaImage
-                        src={peer.profileUrl}
-                        alt=""
-                        width={47}
-                        height={47}
-                        className={styles.peerAvatarImg}
-                      />
-                    </span>
-                    <span className={styles.peerText}>
-                      <span className={styles.peerNick}>{peer.nickname}</span>
-                      {peer.petTags.length > 0 ? (
-                        <span className={styles.peerTags}>{peer.petTags.join(' ')}</span>
-                      ) : null}
-                    </span>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-        </main>
+        {peerStatus ? <p className={styles.status} role="alert">{peerStatus}</p> : null}
+        <AccountSearchList
+          items={peerList.items}
+          status={peerList.status}
+          query={peerQuery}
+          onQueryChange={(query) => { setPeerQuery(query); setPeerStatus(''); }}
+          onSelect={(peer) => void openPeer(peer)}
+          serverSearch
+          disabled={peerOpening}
+          isDisabled={(peer) => !peer.following && !peer.followedBy}
+          getNote={(peer) => !peer.following && !peer.followedBy ? '* 팔로우 관계가 아닙니다.' : undefined}
+        />
       </div>
     );
   }
@@ -939,7 +805,7 @@ export default function DmClient({ roomId, feedId, feedMediaId, storyId }: DmCli
         title="메시지"
         hideBack
         right={
-          <button type="button" className={styles.textBtn} onClick={() => setPicking(true)}>
+          <button type="button" className={styles.textBtn} onClick={() => { setPeerQuery(''); setPeerStatus(''); setPicking(true); }}>
             새 메시지
           </button>
         }

@@ -67,7 +67,7 @@ export default function WithdrawClient() {
 
   return (
     <div className={styles.shell}>
-      <PageHeader title="회원탈퇴" backHref="/settings" />
+      <PageHeader backMode="history" title="회원탈퇴" backHref="/settings" />
 
       <main className={styles.main}>
         <section className={styles.noticeBox} aria-label="회원탈퇴 주의사항">

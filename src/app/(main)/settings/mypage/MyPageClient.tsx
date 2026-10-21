@@ -172,7 +172,7 @@ export default function MyPageClient() {
 
   return (
     <div className={styles.shell}>
-      <PageHeader title="마이페이지" backHref="/settings" />
+      <PageHeader backMode="history" title="마이페이지" backHref="/settings" />
 
       <div className={styles.main}>
         {error ? <p className={styles.errorBanner}>{error}</p> : null}

@@ -790,3 +790,9 @@ validation · database · docs 모두 **여기 한곳**에 적는다.
 - `share/validation/` 최초 정리 (nickname / password / phone / handle / hashtag)
 - Spring 입력 검증 오류 응답을 ApiResponse(`success` / `code` / `message` / `data`)로 통일
 - `rules.json`을 FE/BFF·Spring `*Rules.java` 동기화용 기계 판독 스펙으로 둠
+
+## 2026-10-21
+
+- 공유 대상에 펫 태그와 닉네임·펫 태그 서버 검색을 추가하고 최근 DM·양방향 스토리/피드 태그·팔로우/팔로워의 9단계 우선순위를 적용했다. 앞 3단계 순서 지정과 공통 AccountSearchList 컴포넌트를 지원한다.
+
+- 스토리 언급·피드 사진 언급·DM 대상 선택을 같은 AccountSearchList UI로 통일하고 각 모드의 첫 우선순위를 적용했다. 개별 펫 선택·본인 펫 검색을 지원하고 취소 버튼 및 DM의 팔로우/팔로워 탭을 제거했다.

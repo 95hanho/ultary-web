@@ -82,6 +82,7 @@ export default function HashtagRequestsClient() {
   return (
     <div className={styles.shell}>
       <PageHeader
+        backMode="history"
         title="해시태그 요청"
         backHref="/settings"
         right={

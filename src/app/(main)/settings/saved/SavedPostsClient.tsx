@@ -38,7 +38,7 @@ export default function SavedPostsClient() {
 
   return (
     <div className={styles.shell}>
-      <PageHeader title="저장한 게시글" backHref="/settings" />
+      <PageHeader backMode="history" title="저장한 게시글" backHref="/settings" />
       <main className={styles.main}>
         {ready ? (
           <FeedGrid posts={posts} emptyTitle="저장한 게시글이 없어요" />

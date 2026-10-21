@@ -31,7 +31,10 @@
   padding: 10px 19px;
   border-radius: 4px;
 
-  &:hover,
+  &:hover {
+    background: #0000000d;
+  }
+
   &:active {
     background: var(--brand-grass-100);
   }

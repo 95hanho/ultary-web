@@ -377,6 +377,7 @@ export default function MyPageEditClient() {
   return (
     <div className={styles.shell}>
       <PageHeader
+        backMode="history"
         title="회원 정보 수정"
         backHref="/settings/mypage"
         onSubmit={submitEdit}

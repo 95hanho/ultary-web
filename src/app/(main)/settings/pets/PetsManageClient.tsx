@@ -1,6 +1,6 @@
 'use client';
 
-import { FooterMenu } from '@/components/common/FooterMenu';
+import { FooterMenu, refreshFooterProfile } from '@/components/common/FooterMenu';
 import { PageHeader } from '@/components/common/PageHeader';
 import { PetsManageDevTools } from '@/components/dev/PetsManageDevTools';
 import { bffDelete, bffGet, bffPatchJson, bffPostJson } from '@/lib/api/bffFetch';
@@ -204,6 +204,7 @@ export default function PetsManageClient() {
       if (jobs.length === 0) return;
       try {
         await Promise.all(jobs);
+        if (ordered[0]?.priority !== 1) refreshFooterProfile();
         const next = ordered.map((pet, index) => ({ ...pet, priority: index + 1 }));
         petsRef.current = next;
         setPets(next);
@@ -512,7 +513,7 @@ export default function PetsManageClient() {
 
   return (
     <div className={styles.shell}>
-      <PageHeader title="반려동물 관리" backHref="/settings" />
+      <PageHeader backMode="history" title="반려동물 관리" backHref="/settings" />
 
       <main className={styles.main}>
         <div className={styles.toolbar}>

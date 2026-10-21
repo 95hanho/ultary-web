@@ -630,6 +630,7 @@ export default function StoryUpClient() {
       <FooterMenu />
 
       <PhotoTagAccountSearch
+        mode="STORY_TAG"
         open={searchOpen}
         onSelect={handleSelectPet}
         onClose={() => {

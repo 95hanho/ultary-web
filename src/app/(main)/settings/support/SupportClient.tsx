@@ -7,7 +7,7 @@ import styles from './support.module.scss';
 export default function SupportClient() {
   return (
     <div className={styles.shell}>
-      <PageHeader title="고객센터 / 문의" backHref="/settings" />
+      <PageHeader backMode="history" title="고객센터 / 문의" backHref="/settings" />
       <main className={styles.main}>
         <section className={styles.card}>
           <h2 className={styles.title}>도움이 필요하신가요?</h2>

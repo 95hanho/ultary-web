@@ -78,7 +78,7 @@ export default function HashtagRequestFormClient() {
   if (!draft?.croppedDataUrl) {
     return (
       <div className={formStyles.shell}>
-        <PageHeader title="해시태그 요청" backHref="/settings/hashtags" />
+        <PageHeader backMode="history" title="해시태그 요청" backHref="/settings/hashtags" />
       </div>
     );
   }
@@ -86,8 +86,9 @@ export default function HashtagRequestFormClient() {
   return (
     <div className={formStyles.shell}>
       <PageHeader
+        backMode="history"
         title="해시태그 요청"
-        onBack={() => router.push('/settings/hashtags/crop')}
+        backHref="/settings/hashtags/crop"
         onSubmit={() => void submit()}
         submitDisabled={pending}
         submitLabel="요청"

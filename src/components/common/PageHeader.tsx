@@ -11,8 +11,10 @@ const SubmitIcon = '/images/icon/Send.svg';
 
 type PageHeaderProps = {
   title: string;
-  /** 있으면 Link, 없으면 onBack 또는 router.back() */
+  /** 기본 모드의 이동 경로. history 모드에서는 이전 방문 기록이 없을 때 사용할 경로 */
   backHref?: string;
+  /** history: 방문 기록으로 뒤로 이동하고, 기록이 없으면 backHref(또는 홈)로 대체 */
+  backMode?: 'link' | 'history';
   /** 뒤로 버튼을 두지 않는다 */
   hideBack?: boolean;
   /** backHref보다 우선. 커스텀 뒤로 동작 */
@@ -29,6 +31,7 @@ type PageHeaderProps = {
 export function PageHeader({
   title,
   backHref,
+  backMode = 'link',
   hideBack = false,
   onBack,
   right,
@@ -58,6 +61,18 @@ export function PageHeader({
     <span className={styles.headerBtn} aria-hidden />
   ) : onBack ? (
     <button type="button" className={styles.headerBtn} aria-label="뒤로" onClick={onBack}>
+      <Image src={ArrowLeftIcon} alt="" width={16} height={16} />
+    </button>
+  ) : backMode === 'history' ? (
+    <button
+      type="button"
+      className={styles.headerBtn}
+      aria-label="뒤로"
+      onClick={() => {
+        if (window.history.length > 1) router.back();
+        else router.replace(backHref ?? '/');
+      }}
+    >
       <Image src={ArrowLeftIcon} alt="" width={16} height={16} />
     </button>
   ) : backHref ? (

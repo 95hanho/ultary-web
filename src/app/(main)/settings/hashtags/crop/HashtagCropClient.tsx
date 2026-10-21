@@ -41,7 +41,7 @@ export default function HashtagCropClient() {
   if (!draft?.sourceUrl) {
     return (
       <div className={styles.shell}>
-        <PageHeader title="사진 설정" backHref="/settings/hashtags" />
+        <PageHeader backMode="history" title="사진 설정" backHref="/settings/hashtags" />
         <main className={styles.main}>
           <p className={styles.empty}>사진을 불러오는 중…</p>
         </main>
@@ -53,10 +53,12 @@ export default function HashtagCropClient() {
   return (
     <div className={styles.shell}>
       <PageHeader
+        backMode="history"
         title="사진 설정"
         onBack={() => {
           clear();
-          router.push('/settings/hashtags');
+          if (window.history.length > 1) router.back();
+          else router.replace('/settings/hashtags');
         }}
         onSubmit={() => void goNext()}
         submitLabel="다음"

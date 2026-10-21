@@ -156,6 +156,7 @@ export default function WritePhotoTagsClient() {
       <FooterMenu />
 
       <PhotoTagAccountSearch
+        mode="FEED_TAG"
         open={searchOpen}
         onSelect={handleSelectPet}
         onClose={() => {

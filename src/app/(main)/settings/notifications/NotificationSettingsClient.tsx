@@ -160,7 +160,7 @@ export default function NotificationSettingsClient() {
 
   return (
     <div className={styles.shell}>
-      <PageHeader title="알림 설정" backHref="/settings" />
+      <PageHeader backMode="history" title="알림 설정" backHref="/settings" />
 
       <main className={styles.main}>
         {status ? <p className={styles.status}>{status}</p> : null}
