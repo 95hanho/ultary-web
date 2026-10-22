@@ -1,5 +1,7 @@
 'use client';
 
+import { PageLoadError } from '@/components/common/PageLoadError';
+
 import { PageHeader } from '@/components/common/PageHeader';
 import { bffGet, bffPutJson } from '@/lib/api/bffFetch';
 import { bffEndpoints } from '@/lib/api/endpoints';
@@ -33,6 +35,7 @@ function FieldHint({ message }: { message?: string }) {
 
 /** 설정 > 마이페이지 > 비밀번호 변경. PUT /auth/password/me */
 export default function MyPagePasswordClient() {
+  const [loadFailed, setLoadFailed] = useState<{ error: unknown } | null>(null);
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [hasPassword, setHasPassword] = useState(true);
@@ -52,7 +55,7 @@ export default function MyPagePasswordClient() {
       .then((res) => {
         if (!cancelled && res.data) setHasPassword(res.data.hasPassword);
       })
-      .catch(() => undefined);
+      .catch((err: unknown) => { if (!cancelled) setLoadFailed({ error: err }); });
     return () => {
       cancelled = true;
     };
@@ -121,6 +124,8 @@ export default function MyPagePasswordClient() {
       }
     });
   }
+
+  if (loadFailed) return <PageLoadError error={loadFailed.error} />;
 
   return (
     <div className={styles.shell}>

@@ -21,6 +21,10 @@
   background: transparent;
   cursor: pointer;
 
+  &:not([aria-label='뒤로']):active:not(:disabled) {
+    transform: scale(0.9);
+  }
+
   &:disabled {
     opacity: 0.35;
     cursor: not-allowed;

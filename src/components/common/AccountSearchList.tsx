@@ -1,5 +1,7 @@
 'use client';
 
+import { PageLoadError } from '@/components/common/PageLoadError';
+
 import { MediaImage } from '@/components/common/MediaImage';
 import { NO_PROFILE_SRC } from '@/lib/profileImage';
 import clsx from 'clsx';
@@ -102,9 +104,7 @@ export function AccountSearchList<T extends AccountSearchItem>({
           </p>
         ) : null}
         {status === 'error' ? (
-          <p className={styles.status} role="alert">
-            목록을 불러오지 못했습니다.
-          </p>
+          <PageLoadError />
         ) : null}
         {status === 'ready' && !visible.length ? (
           <p className={styles.status}>{term ? '검색 결과가 없어요' : '목록이 비어 있어요'}</p>

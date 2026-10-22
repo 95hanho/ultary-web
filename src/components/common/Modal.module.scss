@@ -68,10 +68,13 @@
   height: 24px;
   margin-left: auto;
   padding: 0;
-  border: 0;
   background: transparent;
   color: #000;
   cursor: pointer;
+
+  &:active:not(:disabled) {
+    background: var(--brand-gray-50);
+  }
 }
 
 /* alert / confirm 본문 */
@@ -120,6 +123,14 @@
   line-height: 1.35;
   text-align: center;
   cursor: pointer;
+
+  &:hover {
+    background: var(--brand-grass-100);
+  }
+
+  &:active {
+    background: var(--brand-grass-150);
+  }
 }
 
 .actionIcon {
@@ -144,7 +155,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border: 0;
+  border: 1px solid var(--brand-gray-100);
   color: #fff;
   font-weight: 700;
   line-height: 1.35;
@@ -157,19 +168,35 @@
 .toneDefault {
   background: var(--brand-gray-500);
   color: #fff;
+
+  &:active:not(:disabled) {
+    background: var(--brand-gray-550);
+  }
 }
 
 .tonePrimary {
-  background: var(--brand-blue-600);
+  background: var(--brand-blue-450);
   color: #fff;
+
+  &:active:not(:disabled) {
+    background: var(--brand-blue-500);
+  }
 }
 
 .toneDanger {
   background: var(--brand-red-500);
   color: #fff;
+
+  &:active:not(:disabled) {
+    background: var(--brand-red-550);
+  }
 }
 
 .toneSuccess {
   background: var(--brand-grass-500);
   color: #fff;
+
+  &:active:not(:disabled) {
+    background: var(--brand-grass-550);
+  }
 }

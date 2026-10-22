@@ -81,3 +81,21 @@
   font-size: 0.875rem;
   cursor: pointer;
 }
+
+.primary:hover {
+  background: var(--brand-grass-550);
+}
+
+.primary:active {
+  background: var(--brand-grass-600);
+}
+
+.secondary:hover,
+.close:hover {
+  background: var(--brand-gray-100);
+}
+
+.secondary:active,
+.close:active {
+  background: var(--brand-gray-150);
+}

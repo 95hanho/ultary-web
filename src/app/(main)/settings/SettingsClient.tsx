@@ -24,13 +24,27 @@ import clsx from 'clsx';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useState, useTransition } from 'react';
+import { useLayoutEffect, useRef, useState, useTransition } from 'react';
 import styles from './settings.module.scss';
 
 const ArrowRightIcon = '/images/icon/arrow_right.svg';
 
 /** 커밋 ~30개대 초반 기능 확장 단계 기준 */
 const APP_VERSION = '0.3.2';
+
+// Retained across settings subpage navigation, consumed when the menu returns.
+type SettingsReturnState = { scrollTop: number; href: string; appInfoOpen: boolean };
+let settingsReturnState: SettingsReturnState | null = null;
+
+function saveReturnState(state: SettingsReturnState | null) {
+  settingsReturnState = state;
+}
+
+function takeReturnState() {
+  const saved = settingsReturnState;
+  settingsReturnState = null;
+  return saved;
+}
 
 type MenuItem = {
   label: string;
@@ -87,9 +101,30 @@ export default function SettingsClient() {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
-  const [appInfoOpen, setAppInfoOpen] = useState(false);
+  const [appInfoOpen, setAppInfoOpen] = useState(() => settingsReturnState?.appInfoOpen ?? false);
+  const mainRef = useRef<HTMLElement>(null);
+
+  useLayoutEffect(() => {
+    const saved = takeReturnState();
+    const main = mainRef.current;
+    if (!saved || !main) return;
+    main.scrollTop = saved.scrollTop;
+    // Apply again after Next's navigation scroll handling has run.
+    const frame = requestAnimationFrame(() => { main.scrollTop = saved.scrollTop; });
+    main.querySelector<HTMLElement>(`[data-setting-href="${saved.href}"]`)?.animate([
+      { backgroundColor: 'var(--brand-grass-100)', offset: 0 },
+      { backgroundColor: 'var(--brand-grass-100)', offset: 0.7 },
+      { backgroundColor: 'transparent', offset: 1 },
+    ], { duration: 1000, easing: 'ease-out' });
+    return () => cancelAnimationFrame(frame);
+  }, []);
+
+  function rememberMenu(href: string) {
+    saveReturnState({ scrollTop: mainRef.current?.scrollTop ?? 0, href, appInfoOpen });
+  }
 
   function handleLogout() {
+    saveReturnState(null);
     setError(null);
     startTransition(async () => {
       try {
@@ -107,7 +142,7 @@ export default function SettingsClient() {
     <div className={styles.shell}>
       <PageHeader backMode="history" title="설정" />
 
-      <main className={styles.main}>
+      <main ref={mainRef} className={styles.main}>
         {MENU_GROUPS.map((group) => (
           <section key={group.title} className={styles.group}>
             <h2 className={styles.groupTitle}>{group.title}</h2>
@@ -153,7 +188,12 @@ export default function SettingsClient() {
                       </div>
                     </div>
                   ) : (
-                    <Link href={href} className={styles.menuItem}>
+                    <Link
+                      href={href}
+                      className={styles.menuItem}
+                      data-setting-href={href}
+                      onNavigate={() => rememberMenu(href)}
+                    >
                       <span className={styles.menuLeft}>
                         <span className={styles.menuIcon} aria-hidden>
                           <Icon size={30} strokeWidth={1.6} />

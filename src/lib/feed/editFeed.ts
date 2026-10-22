@@ -15,7 +15,9 @@ export async function loadFeedEditDraft(feedId: string) {
     loadMyUserNo(),
   ]);
   const feed = response.data;
-  if (!feed || userNo == null || feed.userNo !== userNo) throw new Error('본인이 작성한 게시글만 수정할 수 있습니다.');
+  if (!feed || userNo == null || feed.userNo !== userNo) {
+    throw { status: 403, message: '본인이 작성한 게시글만 수정할 수 있습니다.', data: null, url: bffEndpoints.feeds.detail };
+  }
   const media = [...(feed.media ?? [])].sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
   const petIds = [...new Set(media.flatMap((slot) => (slot.mentions ?? []).map((tag) => tag.petId)))];
   const hints = media.flatMap((slot) => (slot.mentions ?? []).map((tag) => ({ petId: tag.petId, userNo: tag.userNo ?? undefined, mentionId: tag.mentionId ?? undefined, petName: tag.petName ?? undefined, ownerNickname: tag.ownerNickname ?? undefined })));

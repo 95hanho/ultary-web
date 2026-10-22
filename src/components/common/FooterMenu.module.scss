@@ -15,11 +15,15 @@
 }
 
 .noticeHost {
-  position: absolute;
-  right: 0;
-  bottom: 100%;
-  left: 0;
+  position: fixed;
+  z-index: 160;
+  pointer-events: none;
+  bottom: calc(64px + env(safe-area-inset-bottom));
+  left: 50%;
+  width: min(430px, 100%);
+  transform: translateX(-50%);
   overflow: hidden;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
   pointer-events: none;
 }
 
@@ -127,12 +131,12 @@
   }
 
   .footer:hover {
-    width: 244px;
+    width: 204px;
   }
 
   .footerHold,
   .footerHold:hover {
-    width: 244px;
+    width: 204px;
   }
 
   .footerStill,
@@ -267,6 +271,13 @@
     background: var(--brand-grass-100);
   }
 
+  .item:active,
+  .plus:active,
+  .moreBtn:active,
+  .moreItem:active {
+    background: var(--brand-grass-150);
+  }
+
   .brand:hover {
     background: transparent;
   }
@@ -339,5 +350,18 @@
     margin-top: 4px;
     border-top: 1px solid var(--brand-gray-100);
     border-radius: 0 0 10px 10px;
+  }
+}
+
+:global(body:has([data-comment-sheet])) .noticeHost {
+  top: calc(16px + env(safe-area-inset-top));
+  bottom: auto;
+
+  .notice {
+    transform: translateY(-100%);
+  }
+
+  .noticeShown {
+    transform: translateY(0);
   }
 }

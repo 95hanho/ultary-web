@@ -1,5 +1,7 @@
 'use client';
 
+import { PageLoadError } from '@/components/common/PageLoadError';
+
 import { FeedListPage } from '@/components/feed/FeedListPage';
 import type { FeedData } from '@/components/feed/Feed';
 import { bffGet } from '@/lib/api/bffFetch';
@@ -17,8 +19,9 @@ export default function PostClient({
   mediaIndex?: number;
   feedMediaId?: string;
 }) {
-  const params = useParams<{ id: string }>();
-  const postId = typeof params.id === 'string' ? params.id : params.id?.[0];
+  const [loadFailed, setLoadFailed] = useState<{ error: unknown } | null>(null);
+  const params = useParams<{ id?: string; feedId?: string }>();
+  const postId = params.id ?? params.feedId;
   const [feeds, setFeeds] = useState<FeedData[]>([]);
   const [startIndex, setStartIndex] = useState(mediaIndex);
 
@@ -42,6 +45,7 @@ export default function PostClient({
         setFeeds([feed]);
       } catch (err) {
         console.error('[post] load failed', err);
+        if (!cancelled) setLoadFailed({ error: err });
         if (!cancelled) setFeeds([]);
       }
     })();
@@ -50,6 +54,8 @@ export default function PostClient({
       cancelled = true;
     };
   }, [postId, mediaIndex, feedMediaId]);
+
+  if (loadFailed) return <PageLoadError error={loadFailed.error} />;
 
   return <FeedListPage title="" feeds={feeds} initialMediaIndex={startIndex} />;
 }

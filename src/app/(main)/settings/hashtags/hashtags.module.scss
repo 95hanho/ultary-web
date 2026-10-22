@@ -26,6 +26,10 @@
   background: transparent;
   color: var(--brand-black-700);
   cursor: pointer;
+
+  &:active:not(:disabled) {
+    transform: scale(0.9);
+  }
 }
 
 .fileInput {

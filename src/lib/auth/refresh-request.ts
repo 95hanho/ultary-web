@@ -24,7 +24,7 @@ function parseTokens(raw: unknown): TokenResponse | null {
   return tokens as TokenResponse;
 }
 
-/** 네트워크/5xx/일시적 실패는 최초 요청 + 2회 재시도 후 인증 실패로 전환한다. */
+/** 일시 장애는 2회 재시도 후 세션을 보존한다. 다음 요청/새로고침에서 다시 시도한다. */
 export async function requestRefreshTokens(
   endpoint: string,
   refreshToken: string,
@@ -52,7 +52,7 @@ export async function requestRefreshTokens(
         const tokens = parseTokens(await response.json().catch(() => null));
         if (tokens) return { ok: true, accessToken: tokens.accessToken, tokens };
         // 잘못된 업스트림 응답은 일시적인 gateway 실패로 간주한다.
-      } else if (response.status < 500 && response.status !== 408 && response.status !== 429) {
+      } else if (response.status === 400) {
         return { ok: false, clearCookies: true, message: 'REFRESH_UNAUTHORIZED' };
       }
       console.warn('[auth] refresh upstream unavailable', { status: response.status, attempt: attempt + 1 });
@@ -62,5 +62,5 @@ export async function requestRefreshTokens(
       clearTimeout(timeout);
     }
   }
-  return { ok: false, clearCookies: true, message: 'REFRESH_RETRY_EXHAUSTED' };
+  return { ok: false, clearCookies: false, message: 'REFRESH_RETRY_EXHAUSTED' };
 }

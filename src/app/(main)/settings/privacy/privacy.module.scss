@@ -102,6 +102,18 @@
 .switchOn {
   border-color: var(--brand-grass-600);
   background: var(--brand-grass-600);
+
+  &:active:not(:disabled) {
+    background: var(--brand-grass-650);
+  }
+}
+
+.switch:not(.switchOn) {
+  border-color: var(--brand-black-700);
+
+  &:active:not(:disabled) {
+    background: var(--brand-gray-150);
+  }
 }
 
 .switchThumb {

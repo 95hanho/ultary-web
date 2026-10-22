@@ -20,7 +20,7 @@ import { NO_PROFILE_SRC } from '@/lib/profileImage';
 import { useModalStore } from '@/stores/modal.store';
 import { useWriteDraftStore } from '@/stores/write-draft.store';
 import clsx from 'clsx';
-import { Bookmark, Ellipsis, Flag, Pencil, Trash2, User } from 'lucide-react';
+import { Bookmark, Ellipsis, Flag, Heart, Siren, Pencil, Trash2, User } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
@@ -33,8 +33,6 @@ import styles from './Feed.module.scss';
 import { TagExplainPopover, type TagExplainMode } from './TagExplainPopover';
 
 /** 피드 액션 아이콘 (public) */
-const FavoriteIcon = '/images/icon/Favorite.svg';
-const FavoriteFillIcon = '/images/icon/Favorite_fill.svg';
 const CommentIcon = '/images/icon/comment.svg';
 const ShareIcon = '/images/icon/share.svg';
 const PinIcon = '/images/icon/Pin.svg';
@@ -659,7 +657,7 @@ export function Feed({
             {safeImages.map((src, i) => {
               const tags = slideTags[i] ?? [];
               return (
-                <SwiperSlide key={`${src}-${i}`}>
+                <SwiperSlide key={`${src}-${i}`} className={styles.photoSlide}>
                   <div
                     ref={i === index ? photoFrameRef : undefined}
                     className={styles.photoFrame}
@@ -756,6 +754,24 @@ export function Feed({
                         })}
                       </ul>
                     ) : null}
+                    {hasMultiple && i === index ? (
+                      <div className={styles.dots} role="group" aria-label="사진 선택">
+                        {safeImages.map((_, dotIndex) => (
+                          <button
+                            key={dotIndex}
+                            type="button"
+                            className={clsx(styles.dot, dotIndex === index && styles.dotActive)}
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              setIndex(dotIndex);
+                              swiperRef.current?.slideTo(dotIndex);
+                            }}
+                            aria-label={(dotIndex + 1) + '번째 사진'}
+                            aria-current={dotIndex === index ? 'true' : undefined}
+                          />
+                        ))}
+                      </div>
+                    ) : null}
                   </div>
                 </SwiperSlide>
               );
@@ -781,29 +797,14 @@ export function Feed({
               <Image src={ArrowRightIcon} alt="" width={16} height={16} />
             </button>
           ) : null}
-          {hasMultiple ? (
-            <div className={styles.dots} aria-hidden>
-              {safeImages.map((_, i) => (
-                <button
-                  key={i}
-                  type="button"
-                  className={clsx(styles.dot, i === index && styles.dotActive)}
-                  onClick={() => {
-                    setIndex(i);
-                    swiperRef.current?.slideTo(i);
-                  }}
-                  aria-label={`${i + 1}번째 사진`}
-                />
-              ))}
-            </div>
-          ) : null}
+
         </div>
 
         <div className={styles.actions}>
           <div className={styles.actionsLeft}>
             <button
               type="button"
-              className={styles.actionBtn}
+              className={clsx(styles.actionBtn, styles.actionPressable, styles.iconOnlyPress)}
               aria-label={`좋아요 ${likes}`}
               aria-pressed={liked}
               disabled={likePending}
@@ -811,14 +812,17 @@ export function Feed({
                 void toggleLike();
               }}
             >
-              <Image src={liked ? FavoriteFillIcon : FavoriteIcon} alt="" width={25} height={25} />
+              <span className={styles.toggleIcon}>
+                <Heart className={styles.restIcon} size={25} strokeWidth={2} fill={liked ? 'currentColor' : 'none'} aria-hidden />
+                <Heart className={styles.pressedIcon} size={25} strokeWidth={2} fill={liked ? 'none' : 'currentColor'} aria-hidden />
+              </span>
               <span className={clsx(styles.actionCount, liked && styles.actionCountOn)}>
                 {likes}
               </span>
             </button>
             <button
               type="button"
-              className={styles.actionBtn}
+              className={clsx(styles.actionBtn, styles.actionPressable, styles.iconOnlyPress)}
               aria-label={`댓글 ${comments}`}
               onClick={() => setCommentsOpen(true)}
             >
@@ -830,18 +834,21 @@ export function Feed({
             {!isMine ? (
               <button
                 type="button"
-                className={styles.actionBtn}
+                className={clsx(styles.actionBtn, styles.actionPressable)}
                 aria-label={pinned ? '울타리 고정 해제' : '울타리 고정'}
                 aria-pressed={pinned}
                 disabled={pinPending}
                 onClick={() => void togglePin()}
               >
-                <Image src={pinned ? PinFillIcon : PinIcon} alt="" width={25} height={25} />
+                <span className={styles.toggleIcon}>
+                  <Image className={styles.restIcon} src={pinned ? PinFillIcon : PinIcon} alt="" width={25} height={25} />
+                  <Image className={styles.pressedIcon} src={pinned ? PinIcon : PinFillIcon} alt="" width={25} height={25} />
+                </span>
               </button>
             ) : null}
             <button
               type="button"
-              className={styles.actionBtn}
+              className={clsx(styles.actionBtn, styles.actionPressable)}
               aria-label="공유"
               onClick={() => {
                 openModal({
@@ -851,8 +858,9 @@ export function Feed({
                     {
                       label: '링크 복사',
                       onClick: () => {
-                        const url = `${window.location.origin}/posts/${id}`;
-                        void navigator.clipboard?.writeText(url).catch(() => {
+                        const url = new URL(`/feeds/${id}`, window.location.origin);
+                        url.searchParams.set('mediaIndex', String(index));
+                        void navigator.clipboard?.writeText(url.toString()).catch(() => {
                           /* ignore */
                         });
                       },
@@ -884,6 +892,20 @@ export function Feed({
               >
                 <Ellipsis size={25} strokeWidth={2} />
               </button>
+              {myReport ? (
+                <button
+                  type="button"
+                  className={clsx(styles.actionBtn, styles.reportIndicator)}
+                  aria-label="신고한 게시글 추가 메뉴"
+                  aria-expanded={moreOpen}
+                  onClick={() => {
+                    setMorePlace(null);
+                    setMoreOpen((open) => !open);
+                  }}
+                >
+                  <Siren size={25} strokeWidth={2} aria-hidden />
+                </button>
+              ) : null}
               {moreOpen ? (
                 <div
                   ref={moreMenuRef}

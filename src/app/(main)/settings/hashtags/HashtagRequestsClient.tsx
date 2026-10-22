@@ -1,5 +1,7 @@
 'use client';
 
+import { PageLoadError } from '@/components/common/PageLoadError';
+
 import { FooterMenu } from '@/components/common/FooterMenu';
 import { MediaImage } from '@/components/common/MediaImage';
 import { PageHeader } from '@/components/common/PageHeader';
@@ -37,6 +39,7 @@ const STATUS_LABEL: Record<string, string> = {
 
 /** 설정 > 해시태그 요청 목록 */
 export default function HashtagRequestsClient() {
+  const [loadFailed, setLoadFailed] = useState<{ error: unknown } | null>(null);
   const router = useRouter();
   const fileRef = useRef<HTMLInputElement>(null);
   const setSource = useTagRequestDraft((s) => s.setSource);
@@ -55,6 +58,7 @@ export default function HashtagRequestsClient() {
         setStatus('ready');
       } catch (err) {
         console.error('[hashtag-requests] load', err);
+        if (!cancelled) setLoadFailed({ error: err });
         if (!cancelled) {
           setItems([]);
           setStatus('error');
@@ -78,6 +82,8 @@ export default function HashtagRequestsClient() {
       console.error('[hashtag-requests] file', err);
     }
   }
+
+  if (loadFailed) return <PageLoadError error={loadFailed.error} />;
 
   return (
     <div className={styles.shell}>

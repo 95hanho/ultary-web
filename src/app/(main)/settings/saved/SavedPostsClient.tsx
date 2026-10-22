@@ -1,5 +1,7 @@
 'use client';
 
+import { PageLoadError } from '@/components/common/PageLoadError';
+
 import { FooterMenu } from '@/components/common/FooterMenu';
 import { PageHeader } from '@/components/common/PageHeader';
 import { FeedGrid, type FeedGridItem } from '@/components/feed/FeedGrid';
@@ -12,6 +14,7 @@ import styles from './saved.module.scss';
 
 /** 설정 > 저장한 게시글. 나만 보는 저장 */
 export default function SavedPostsClient() {
+  const [loadFailed, setLoadFailed] = useState<{ error: unknown } | null>(null);
   const [posts, setPosts] = useState<FeedGridItem[]>([]);
   const [ready, setReady] = useState(false);
 
@@ -26,6 +29,7 @@ export default function SavedPostsClient() {
         setPosts(mapFeedGrid(res.data, (id) => `/posts/${id}`));
       } catch (err) {
         console.error('[settings] saved feeds failed', err);
+        if (!cancelled) setLoadFailed({ error: err });
         if (!cancelled) setPosts([]);
       } finally {
         if (!cancelled) setReady(true);
@@ -35,6 +39,8 @@ export default function SavedPostsClient() {
       cancelled = true;
     };
   }, []);
+
+  if (loadFailed) return <PageLoadError error={loadFailed.error} />;
 
   return (
     <div className={styles.shell}>

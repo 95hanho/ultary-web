@@ -1,5 +1,7 @@
 'use client';
 
+import { PageLoadError } from '@/components/common/PageLoadError';
+
 import { bffDelete, bffGet, bffPatchJson, bffPostJson } from '@/lib/api/bffFetch';
 import { bffEndpoints } from '@/lib/api/endpoints';
 import { resolveFileDisplayUrl } from '@/lib/api/fileUrl';
@@ -463,6 +465,7 @@ function isUnread(raw: unknown): boolean {
 
 /** 알림 목록. 알림 페이지와 PC 팝업이 같이 쓴다 */
 export function NotificationInbox({ variant = 'page' }: { variant?: 'page' | 'popup' }) {
+  const [loadFailed, setLoadFailed] = useState<{ error: unknown } | null>(null);
   const [items, setItems] = useState<NotificationItem[]>([]);
   const [status, setStatus] = useState<string | null>(null);
   const [actingId, setActingId] = useState<string | null>(null);
@@ -510,6 +513,7 @@ export function NotificationInbox({ variant = 'page' }: { variant?: 'page' | 'po
         if (!cancelled && gen === generation && !seen) {
           setItems([]);
           setStatus('알림을 불러오지 못했습니다.');
+        setLoadFailed({ error: err });
         }
       }
     }
@@ -593,6 +597,8 @@ export function NotificationInbox({ variant = 'page' }: { variant?: 'page' | 'po
       setActingId(null);
     }
   }
+
+  if (loadFailed) return <PageLoadError error={loadFailed.error} />;
 
   return (
     <>

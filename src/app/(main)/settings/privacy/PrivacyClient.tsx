@@ -1,5 +1,7 @@
 'use client';
 
+import { PageLoadError } from '@/components/common/PageLoadError';
+
 import { VisibilityPicker } from '@/components/common/VisibilityPicker';
 import { FooterMenu } from '@/components/common/FooterMenu';
 import { PageHeader } from '@/components/common/PageHeader';
@@ -105,6 +107,7 @@ function pickErrorMessage(err: unknown, fallback: string) {
 
 /** 설정 > 공개 범위. GET/PATCH /settings/privacy */
 export default function PrivacyClient() {
+  const [loadFailed, setLoadFailed] = useState<{ error: unknown } | null>(null);
   const [privacy, setPrivacy] = useState(DEFAULT_PRIVACY);
   const [ready, setReady] = useState(false);
   const [pending, setPending] = useState(false);
@@ -121,6 +124,7 @@ export default function PrivacyClient() {
         setReady(true);
       } catch (err) {
         if (!cancelled) setStatus(pickErrorMessage(err, '공개 범위를 불러오지 못했습니다.'));
+        if (!cancelled) setLoadFailed({ error: err });
       }
     })();
     return () => {
@@ -146,6 +150,8 @@ export default function PrivacyClient() {
   }
 
   const locked = !ready || pending;
+
+  if (loadFailed) return <PageLoadError error={loadFailed.error} />;
 
   return (
     <div className={styles.shell}>
@@ -185,7 +191,8 @@ export default function PrivacyClient() {
             <VisibilityPicker
               label="게시글 기본 공개 범위"
               value={privacy.feedVisibility}
-              disabled={locked}
+              disabled={!ready}
+              busy={pending}
               disabledValues={privacy.privateAccount ? ['PUBLIC'] : undefined}
               onChange={(next) => void patch({ feedVisibility: next })}
             />

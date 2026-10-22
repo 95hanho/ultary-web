@@ -1,5 +1,7 @@
 'use client';
 
+import { PageLoadError } from '@/components/common/PageLoadError';
+
 import { FooterMenu } from '@/components/common/FooterMenu';
 import { LogoHeader } from '@/components/common/LogoHeader';
 import { LogoLoading } from '@/components/common/LogoLoading';
@@ -14,7 +16,6 @@ import { NO_PROFILE_SRC } from '@/lib/profileImage';
 import { readFileAsDataUrl } from '@/lib/pending-pet-photo';
 import { myUltaryPath } from '@/lib/mock/ultary-accounts';
 import { useStoryDraftStore } from '@/stores/story-draft.store';
-import { useModalStore } from '@/stores/modal.store';
 import type { BffEnvelope, MeResponse } from '@/types/api';
 import type { StoryOwner } from '@/types/story';
 import clsx from 'clsx';
@@ -125,6 +126,7 @@ function unwrapOwners(raw: unknown): StoryOwner[] {
 }
 
 export default function MainClient() {
+  const [loadFailed, setLoadFailed] = useState<{ error: unknown } | null>(null);
   const router = useRouter();
   const storySwiperRef = useRef<SwiperType | null>(null);
   const storyFileInputRef = useRef<HTMLInputElement>(null);
@@ -137,36 +139,6 @@ export default function MainClient() {
   const [storyUsers, setStoryUsers] = useState<StoryRing[]>([]);
   const [ready, setReady] = useState(false);
 
-  // UI 작업용 임시 confirm 미리보기 — 작업 완료 후 이 effect와 import 제거.
-  useEffect(() => {
-    const title = '알림창';
-    const openPreview = () => useModalStore.getState().open({
-      variant: 'confirm',
-      title,
-      content: '최근 검색 항목을 모두 지울까요?',
-      showCloseButton: false,
-      closeOnDimClick: false,
-      okButton: { label: '확인', tone: 'danger' },
-      cancelButton: { label: '취소', tone: 'success' },
-      onClose: openPreview,
-    });
-    openPreview();
-    const blockEscape = (event: KeyboardEvent) => {
-      if (event.key !== 'Escape') return;
-      event.preventDefault();
-      event.stopImmediatePropagation();
-    };
-    document.addEventListener('keydown', blockEscape, true);
-    return () => {
-      document.removeEventListener('keydown', blockEscape, true);
-      const modal = useModalStore.getState();
-      if (modal.onCloseCallback === openPreview) {
-        useModalStore.setState({ onCloseCallback: null });
-        modal.close();
-      }
-    };
-  }, []);
-
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -174,10 +146,8 @@ export default function MainClient() {
         const [feedsRes, ownersRes, meRes, recommendedRes] = await Promise.all([
           bffGet<BffEnvelope<unknown>>(bffEndpoints.main.feeds, { size: 20 }),
           bffGet<BffEnvelope<StoryOwner[]>>(bffEndpoints.main.storyOwners),
-          bffGet<BffEnvelope<MeResponse>>(bffEndpoints.auth.me).catch(() => null),
-          bffGet<BffEnvelope<unknown>>(bffEndpoints.main.feedsRecommended, { limit: 10 }).catch(
-            () => null,
-          ),
+          bffGet<BffEnvelope<MeResponse>>(bffEndpoints.auth.me),
+          bffGet<BffEnvelope<unknown>>(bffEndpoints.main.feedsRecommended, { limit: 10 }),
         ]);
         if (cancelled) return;
 
@@ -194,6 +164,7 @@ export default function MainClient() {
         setStoryUsers(withMyStoryAdd(owners, me));
       } catch (err) {
         console.error('[main] BFF load failed', err);
+        if (!cancelled) setLoadFailed({ error: err });
         if (!cancelled) setFeeds([]);
       } finally {
         if (!cancelled) setReady(true);
@@ -226,6 +197,8 @@ export default function MainClient() {
       console.error('[main] story file', err);
     }
   };
+
+  if (loadFailed) return <PageLoadError error={loadFailed.error} />;
 
   return (
     <div className={styles.shell}>

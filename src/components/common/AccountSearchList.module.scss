@@ -86,7 +86,11 @@
   text-align: left;
   cursor: pointer;
   &:hover:not(:disabled) {
-    background: #0000000d;
+    background: var(--brand-grass-100);
+  }
+
+  &:active:not(:disabled) {
+    background: var(--brand-grass-150);
   }
   &:disabled {
     cursor: default;

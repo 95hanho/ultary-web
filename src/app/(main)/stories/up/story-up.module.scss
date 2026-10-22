@@ -262,7 +262,8 @@
   }
 }
 
-.sizeOptionActive {
+.sizeOptionActive,
+.sizeOption:active:not(:disabled) {
   border: 2px solid #f8ff28;
 }
 
@@ -280,7 +281,8 @@
   }
 }
 
-.colorSwatchActive {
+.colorSwatchActive,
+.colorSwatch:active:not(:disabled) {
   border: 2px solid #f8ff28;
 }
 
@@ -313,7 +315,8 @@
   }
 }
 
-.formatBtnActive {
+.formatBtnActive,
+.formatBtn:active:not(:disabled) {
   color: var(--brand-grass-600);
 }
 
@@ -336,6 +339,11 @@
   border: 1px solid var(--brand-gray-100);
 }
 
+.formatBtnActive .colorToggleDot,
+.formatBtn:active:not(:disabled) .colorToggleDot {
+  border: 2px solid var(--brand-grass-600);
+}
+
 .modeToggle {
   display: flex;
   align-items: center;
@@ -346,8 +354,8 @@
 .modeBtn {
   box-sizing: border-box;
   display: flex;
-  width: 49px;
-  height: 48px;
+  width: 55px;
+  height: 55px;
   align-items: center;
   justify-content: center;
   border: 2px solid transparent;
@@ -360,16 +368,17 @@
 }
 
 .modeBtnText {
-  border-radius: 50px 0 0 50px;
+  border-radius: 15px 0 0 15px;
 }
 
 .modeBtnTag {
-  border-radius: 0 50px 50px 0;
+  border-radius: 0 15px 15px 0;
   /* @ 글리프가 시각적으로 아래로 치우쳐 보여 2px 올림 */
   padding-bottom: 2px;
 }
 
-.modeBtnActive {
+.modeBtnActive,
+.modeBtn:active:not(:disabled) {
   border-color: #fff;
   background: var(--brand-grass-600);
   font-weight: 700;

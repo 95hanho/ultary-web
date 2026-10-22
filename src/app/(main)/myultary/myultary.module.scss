@@ -196,15 +196,18 @@
   flex: 1;
   height: 34px;
   padding: 0 8px;
-  border: 0;
   border-radius: 8px;
-  background: #efefef;
+  background: var(--brand-gray-100);
   color: var(--brand-black-700);
   font-size: 14px;
   font-weight: 600;
   line-height: 1;
   white-space: nowrap;
   cursor: pointer;
+  border: 1px solid var(--brand-gray-100);
+  &:active {
+    background: var(--brand-gray-150);
+  }
 }
 
 .relationBtn:disabled {
@@ -290,7 +293,7 @@
   overflow: hidden;
   width: 80px;
   height: 80px;
-  border: 2px solid #f5a623;
+  border: 2px solid var(--brand-sky-600);
   border-radius: 10px;
   background: #fff;
   transition:
@@ -427,6 +430,10 @@
   align-items: center;
   justify-content: center;
   border-radius: 999px;
+
+  &:active:not(:disabled) {
+    transform: scale(0.9);
+  }
 }
 
 .petDetailInfo {
@@ -531,4 +538,8 @@
   clip: rect(0, 0, 0, 0);
   white-space: nowrap;
   border: 0;
+}
+
+.guestLogin {
+  margin-top: 0;
 }

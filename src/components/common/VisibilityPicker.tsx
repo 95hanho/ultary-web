@@ -15,6 +15,7 @@ export function VisibilityPicker({
   value,
   onChange,
   disabled,
+  busy = false,
   disabledValues,
   labelClassName,
 }: {
@@ -22,13 +23,15 @@ export function VisibilityPicker({
   value: FeedVisibility | null;
   onChange: (next: FeedVisibility) => void;
   disabled?: boolean;
+  /** 저장 중에는 클릭을 막되 선택 색상은 유지한다. */
+  busy?: boolean;
   disabledValues?: FeedVisibility[];
   labelClassName?: string;
 }) {
   return (
     <div className={styles.visibilityBlock}>
       <p className={clsx(styles.label, labelClassName)}>{label}</p>
-      <div className={styles.optionRow} role="radiogroup" aria-label={label}>
+      <div className={styles.optionRow} role="radiogroup" aria-label={label} aria-busy={busy}>
         {VISIBILITY_OPTIONS.map((opt) => {
           const optionDisabled = disabled || disabledValues?.includes(opt.value) === true;
           return (
@@ -37,9 +40,15 @@ export function VisibilityPicker({
               type="button"
               role="radio"
               aria-checked={value === opt.value}
-              disabled={optionDisabled}
-              className={clsx(styles.option, value === opt.value && styles.optionActive)}
-              onClick={() => onChange(opt.value)}
+              disabled={optionDisabled || busy}
+              className={clsx(
+                styles.option,
+                value === opt.value && styles.optionActive,
+                busy && !optionDisabled && styles.optionBusy,
+              )}
+              onClick={() => {
+                if (!busy && !optionDisabled && value !== opt.value) onChange(opt.value);
+              }}
             >
               {opt.label}
             </button>

@@ -1,5 +1,7 @@
 'use client';
 
+import { PageLoadError } from '@/components/common/PageLoadError';
+
 import { notifyAiContentBlocked } from '@/lib/ai/content-blocked';
 import { subscribeContentModerated } from '@/lib/ws/liveSocket';
 import { loadMyUserNo } from '@/lib/auth/myUserNo';
@@ -21,9 +23,9 @@ import { myUltaryPath } from '@/lib/mock/ultary-accounts';
 import { openReportModal, cancelReport, canCancelReport, type MyReport } from '@/lib/report/openReport';
 import { useModalStore } from '@/stores/modal.store';
 import clsx from 'clsx';
-import { Ellipsis, Flag, Heart, Pencil, Trash2, X } from 'lucide-react';
+import { Ellipsis, Flag, Heart, Siren, Pencil, Trash2, X } from 'lucide-react';
 import { MediaImage } from '@/components/common/MediaImage';
-import Image from 'next/image';
+import { SendStateIcon } from '@/components/common/SendStateIcon';
 import Link from 'next/link';
 import {
   useCallback,
@@ -42,7 +44,6 @@ const CLOSE_DRAG_PX = 50;
 const COMMENT_HISTORY_KEY = 'ultaryCommentSheet';
 const COMMENT_QUERY = 'comments';
 const MY_PROFILE = '/images/mock/post2.jpg';
-const SendIcon = '/images/icon/Send.svg';
 
 function commentSheetUrl(feedId: string, withQuery: boolean) {
   const url = new URL(window.location.href);
@@ -229,6 +230,17 @@ function CommentBody({
           >
             <Ellipsis size={14} strokeWidth={2} aria-hidden />
           </button>
+          {item.myReport ? (
+            <button
+              type="button"
+              className={clsx(styles.itemMoreBtn, styles.reportIndicator)}
+              aria-label={compact ? '신고한 답글 추가 메뉴' : '신고한 댓글 추가 메뉴'}
+              aria-expanded={menuOpen}
+              onClick={(event) => onToggleMenu(event.currentTarget)}
+            >
+              <Siren size={14} strokeWidth={2} aria-hidden />
+            </button>
+          ) : null}
         </div>
       </div>
 
@@ -784,7 +796,7 @@ export function CommentSheet({
   return (
     <>
     {createPortal(
-    <div className={styles.root} role="presentation">
+    <div className={styles.root} role="presentation" data-comment-sheet>
       <button
         type="button"
         className={clsx(styles.dim, shown && styles.dimShow)}
@@ -805,7 +817,7 @@ export function CommentSheet({
         onTransitionEnd={onSheetTransitionEnd}
       >
         <div
-          className={styles.drag}
+          className={clsx(styles.drag, dragging && styles.dragging)}
           onPointerDown={onHandlePointerDown}
           onPointerMove={onHandlePointerMove}
           onPointerUp={onHandlePointerUp}
@@ -819,7 +831,7 @@ export function CommentSheet({
             <p className={styles.status}>댓글을 불러오는 중</p>
           ) : null}
           {listStatus === 'error' ? (
-            <p className={styles.status}>댓글을 불러오지 못했습니다.</p>
+            <PageLoadError />
           ) : null}
           {listStatus === 'ready' && items.length === 0 ? (
             <p className={styles.status}>댓글이 없습니다.</p>
@@ -928,7 +940,7 @@ export function CommentSheet({
               disabled={!draft.trim() || sending}
               aria-label="전송"
             >
-              <Image src={SendIcon} alt="" width={22} height={22} />
+              <SendStateIcon sending={sending} />
             </button>
           </div>
         </form>

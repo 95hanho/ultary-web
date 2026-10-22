@@ -1,6 +1,7 @@
 'use client';
 
-import Link from 'next/link';
+import { PageLoadError } from '@/components/common/PageLoadError';
+
 import { useEffect, useState } from 'react';
 import { findTagRequest } from './adminData';
 import styles from './admin.module.scss';
@@ -36,16 +37,7 @@ export default function TagDetailClient({ requestId }: { requestId: number }) {
     );
   }
   if (state === 'error' || state === 'missing' || !item) {
-    return (
-      <section className={styles.paneFull}>
-        <p className={styles.empty}>
-          {state === 'error' ? '태그 요청을 불러오지 못했습니다.' : '태그 요청을 찾지 못했습니다.'}
-        </p>
-        <Link href="/admin/tags" className={styles.backLink}>
-          목록
-        </Link>
-      </section>
-    );
+    return <PageLoadError />;
   }
 
   return <TagRequestDetail item={item} listHref="/admin/tags" onChange={setItem} />;

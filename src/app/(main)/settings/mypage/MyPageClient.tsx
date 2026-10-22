@@ -1,5 +1,7 @@
 'use client';
 
+import { PageLoadError } from '@/components/common/PageLoadError';
+
 import { FooterMenu } from '@/components/common/FooterMenu';
 import { PageHeader } from '@/components/common/PageHeader';
 import { bffGet, bffPostJson } from '@/lib/api/bffFetch';
@@ -85,6 +87,7 @@ function snsLinkErrorMessage(code: string) {
 
 /** 설정 > 마이페이지 (조회) */
 export default function MyPageClient() {
+  const [loadFailed, setLoadFailed] = useState<{ error: unknown } | null>(null);
   const router = useRouter();
   const searchParams = useSearchParams();
   const [profile, setProfile] = useState<ProfileView | null>(null);
@@ -109,6 +112,7 @@ export default function MyPageClient() {
         if (!cancelled) setProfile(meToView(res.data));
       } catch (err) {
         console.error('[mypage]', err);
+        if (!cancelled) setLoadFailed({ error: err });
         if (!cancelled) {
           const detail =
             isHttpError(err) && err.data && typeof err.data === 'object'
@@ -169,6 +173,8 @@ export default function MyPageClient() {
   }, [searchParams, router]);
 
   const view = profile;
+
+  if (loadFailed) return <PageLoadError error={loadFailed.error} />;
 
   return (
     <div className={styles.shell}>

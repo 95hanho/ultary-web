@@ -40,9 +40,13 @@
   font-weight: 700;
 }
 
-.option:disabled {
+.option:disabled:not(.optionBusy) {
   border-color: var(--brand-gray-200);
   background: var(--brand-gray-100);
   color: var(--brand-gray-500);
   cursor: default;
+}
+
+.optionBusy:disabled {
+  cursor: wait;
 }

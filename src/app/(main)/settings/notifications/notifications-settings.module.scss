@@ -88,6 +88,14 @@
   background: var(--brand-grass-600);
 }
 
+.switch:not(.switchOn):active:not(:disabled) {
+  background: var(--brand-gray-150);
+}
+
+.switchOn:active:not(:disabled) {
+  background: var(--brand-grass-650);
+}
+
 .switch:disabled {
   cursor: default;
   opacity: 0.55;

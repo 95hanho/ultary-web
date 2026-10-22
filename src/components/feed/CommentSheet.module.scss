@@ -62,6 +62,11 @@
   background: var(--brand-gray-200);
 }
 
+.drag:active .bar,
+.dragging .bar {
+  background: var(--brand-gray-250);
+}
+
 .list {
   display: flex;
   min-height: 0;
@@ -223,7 +228,7 @@
 
 .time,
 .replyBtn {
-  color: var(--brand-gray-400);
+  color: var(--brand-gray-500);
   font-size: 12px;
   font-weight: 400;
   line-height: 1.2;
@@ -287,6 +292,14 @@
 
   & + & {
     border-top: 1px dashed var(--brand-gray-100);
+  }
+
+  &:hover:not(:disabled) {
+    background: var(--brand-gray-50);
+  }
+
+  &:active:not(:disabled) {
+    background: var(--brand-gray-100);
   }
 }
 
@@ -438,4 +451,8 @@
     opacity: 0.35;
     cursor: default;
   }
+}
+
+.reportIndicator {
+  color: var(--brand-red-600);
 }

@@ -27,6 +27,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useRef, useState, type ChangeEvent, type MouseEvent } from 'react';
+import { createPortal } from 'react-dom';
 import styles from './FooterMenu.module.scss';
 import { PcNotificationDrawer } from './PcNotificationDrawer';
 
@@ -85,10 +86,11 @@ function FooterNotice() {
 
   if (!message) return null;
 
-  return (
+  return createPortal(
     <div className={styles.noticeHost} aria-live="polite">
       <p className={clsx(styles.notice, shown && styles.noticeShown)}>{message}</p>
-    </div>
+    </div>,
+    document.body,
   );
 }
 

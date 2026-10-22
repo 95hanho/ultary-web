@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import vm from 'node:vm';
@@ -80,11 +80,11 @@ test('network failure recovers on retry without clearing authentication', async 
   assert.deepEqual(fixture.delays, [2000]);
 });
 
-test('only exhausted transient failures become authentication failure', async () => {
+test('exhausted transient failures preserve authentication for the next reload', async () => {
   const fixture = retryFixture([{ status: 502 }]);
   const result = await fixture.requestRefreshTokens('/refresh', 'refresh');
   assert.equal(result.ok, false);
-  assert.equal(result.clearCookies, true);
+  assert.equal(result.clearCookies, false);
   assert.equal(result.message, 'REFRESH_RETRY_EXHAUSTED');
   assert.equal(fixture.calls.length, 3);
   assert.deepEqual(fixture.delays, [2000, 2000]);
@@ -184,7 +184,7 @@ function recoveryFixture({ admin = false, currentAccess = 'expired', hasRefresh 
   const errors = load('src/lib/api/error.ts', {});
   const refresh = role => async () => {
     calls.push(role);
-    if (failRefresh) return { ok: false, clearCookies: true, message: 'REFRESH_RETRY_EXHAUSTED' };
+    if (failRefresh) return { ok: false, clearCookies: false, message: 'REFRESH_RETRY_EXHAUSTED' };
     return { ok: true, accessToken: 'renewed', tokens: { accessToken: 'renewed', refreshToken: 'rotated' } };
   };
   const recovery = load('src/lib/auth/access-recovery.ts', {
@@ -262,11 +262,11 @@ test('missing refresh clears only the affected authentication cookies', async ()
   assert.deepEqual(fixture.cleared, ['user']); assert.equal(fixture.calls.length, 0);
 });
 
-test('exhausted refresh clears matching admin cookies and never replays the business request', async () => {
+test('exhausted refresh preserves admin cookies and never replays the business request', async () => {
   const fixture = recoveryFixture({ admin: true, failRefresh: true }); let sends = 0;
   await assert.rejects(fixture.recoverExpiredAccess(fixture.url, { headers: { Authorization: 'Bearer expired' } },
-    async () => { sends++; throw fixture.expired; }), error => error.data.code === 'REFRESH_RETRY_EXHAUSTED');
-  assert.equal(sends, 1); assert.deepEqual(fixture.cleared, ['admin']);
+    async () => { sends++; throw fixture.expired; }), error => error.status === 503 && error.data.code === 'REFRESH_RETRY_EXHAUSTED');
+  assert.equal(sends, 1); assert.deepEqual(fixture.cleared, []);
 });
 
 test('Spring application/problem+json errors preserve TOKEN_EXPIRED for the recovery decision', async () => {
@@ -352,12 +352,15 @@ test('BFF key cannot be sent to an arbitrary URL through a path argument', () =>
   assert.throws(() => springPreparation({ base: 'https://user:password@spring.test.invalid' }).prepareSpringRequest('/api/v1/health'));
 });
 
-test('file streaming proxy includes key upstream without returning it to the browser', async () => {
+for (const accessToken of ['access', null]) test(`file streaming proxy keeps BFF key server-side (${accessToken ? 'member' : 'guest'})`, async () => {
   const sent = [];
   const route = load('src/app/api/files/[fileId]/content/route.ts', {
     'next/server': { NextResponse: Response }, '@/lib/api/spring-request': springPreparation(),
     '@/lib/api/endpoints': { springEndpoints: { files: { content: '/api/v1/files/:fileId/content' } } },
-    '@/lib/api/bffRoute': { requireAccessToken: async () => 'access', isUnauthorized: () => false, handleBffError: error => { throw error; } },
+    '@/lib/api/bffRoute': {
+      withOptionalAuth: handler => async (request, ctx) => handler({ request, accessToken, params: await ctx.params }),
+      handleBffError: error => { throw error; },
+    },
     '@/lib/api/http': { applyPathParams: (path, params) => [path.replace(':fileId', params.fileId)] },
     '@/lib/api/error': { isHttpError: () => true },
   }, {
@@ -366,6 +369,8 @@ test('file streaming proxy includes key upstream without returning it to the bro
   const response = await route.GET({}, { params: Promise.resolve({ fileId: '42' }) });
   assert.equal(new Headers(sent[0].init.headers).get('x-bff-key'), 'test-only-bff-key-not-for-production-123456789');
   assert.equal(response.headers.has('X-BFF-Key'), false);
+  assert.equal(new Headers(sent[0].init.headers).get('authorization'), accessToken ? 'Bearer access' : null);
+  if (!accessToken) assert.equal(response.headers.get('cache-control'), 'no-store');
   assert.equal(await response.text(), 'file-content');
 });
 
@@ -380,4 +385,139 @@ test('production browser refuses an insecure WebSocket URL before requesting a t
   socket.ensureLiveSocket();
   await Promise.resolve();
   assert.equal(tickets, 0);
+});
+
+test('public profile page exception never opens protected profile subpages', () => {
+  const paths = load('src/lib/auth/paths.ts', {});
+  assert.equal(paths.isAuthPublicPath('/myultary/someone'), true);
+  for (const path of ['/myultary', '/myultary/someone/write/compose', '/myultary/someone/residents', '/myultary/someone/posts/101']) {
+    assert.equal(paths.isAuthPublicPath(path), false);
+  }
+});
+
+const pageErrors = load('src/lib/api/page-load-error.ts', { './error': load('src/lib/api/error.ts', {}) });
+for (const status of [403, 404, 410]) test(`page load ${status} uses the unavailable screen`, () => {
+  assert.equal(pageErrors.isUnavailablePageError({ status, message: 'failed', data: null, url: '/api/test' }), true);
+});
+for (const status of [0, 400, 401, 408, 429, 500, 502, 503, 504]) test(`page load ${status} keeps the retry screen`, () => {
+  assert.equal(pageErrors.isUnavailablePageError({ status, message: 'failed', data: null, url: '/api/test' }), false);
+});
+test('unstructured errors do not masquerade as permission or missing-page responses', () => {
+  for (const error of [null, new Error('network'), { status: 404 }, '404']) {
+    assert.equal(pageErrors.isUnavailablePageError(error), false);
+  }
+});
+
+function pageGuard(pathname, cookies = {}) {
+  const response = (type, url, options = {}) => ({ type, url: url?.toString(), ...options, headers: new Headers() });
+  const { proxy } = load('src/proxy.ts', {
+    '@/lib/auth/cookie-names': { ACCESS_TOKEN_COOKIE: 'access', REFRESH_TOKEN_COOKIE: 'refresh' },
+    '@/lib/auth/paths': load('src/lib/auth/paths.ts', {}),
+    '@/lib/auth/member-page-paths': load('src/lib/auth/member-page-paths.ts', {}),
+    'next/server': { NextResponse: {
+      next: () => response('next'), redirect: url => response('redirect', url),
+      rewrite: (url, options) => response('rewrite', url, options),
+    } },
+  });
+  return proxy({ url: `https://ultary.test${pathname}`, nextUrl: { pathname: pathname.split('?')[0] }, cookies: { get: name => cookies[name] ? { value: cookies[name] } : undefined } });
+}
+for (const path of ['/', '/settings', '/dm', '/myultary/test/residents?userNo=101']) {
+  test(`guest protected page ${path} redirects to login`, () => {
+    const result = pageGuard(path);
+    assert.equal(result.type, 'redirect');
+    assert.equal(result.url, 'https://ultary.test/login');
+  });
+}
+for (const path of ['/login', '/signup', '/feeds/101', '/myultary/test', '/unavailable', '/admin/reports']) {
+  test(`guest public or separate-auth page ${path} still reaches its own handler`, () => {
+    assert.equal(pageGuard(path).type, 'next');
+  });
+}
+test('member access and refresh cookies still pass the page guard', () => {
+  assert.equal(pageGuard('/settings', { access: 'access' }).type, 'next');
+  assert.equal(pageGuard('/settings', { refresh: 'refresh' }).type, 'next');
+  assert.equal(pageGuard('/login', { access: 'access' }).type, 'redirect');
+});
+
+for (const path of ['/does-not-exist', '/settings/does-not-exist', '/dm/1/does-not-exist']) test(`unknown URL ${path} reaches Next 404 instead of login`, () => {
+  assert.equal(pageGuard(path).type, 'next');
+});
+test('the member page guard covers every real main page and contains no stale routes', () => {
+  function pages(dir, prefix = '') {
+    return readdirSync(resolve(root, dir), { withFileTypes: true }).flatMap(entry => entry.isDirectory()
+      ? pages(`${dir}/${entry.name}`, `${prefix}/${entry.name}`)
+      : entry.name === 'page.tsx' ? [prefix || '/'] : []);
+  }
+  const actual = pages('src/app/(main)').sort();
+  const { MEMBER_PAGE_PATHS, isMemberPagePath } = load('src/lib/auth/member-page-paths.ts', {});
+  assert.deepEqual(Array.from(MEMBER_PAGE_PATHS).sort(), actual);
+  for (const path of actual) assert.equal(isMemberPagePath(path.replace(/\[[^\]]+\]/g, 'test')), true, path);
+});
+test('a failed refresh does not prevent the next reload from trying again', async () => {
+  const fixture = retryFixture([{ status: 503 }, { status: 503 }, { status: 503 }, success]);
+  const first = await fixture.requestRefreshTokens('/refresh', 'refresh');
+  assert.equal(first.clearCookies, false);
+  assert.equal((await fixture.requestRefreshTokens('/refresh', 'refresh')).ok, true);
+  assert.equal(fixture.calls.length, 4);
+});
+for (const admin of [false, true]) test(`${admin ? 'admin' : 'user'} explicit refresh returns 503 without clearing cookies on an outage`, async () => {
+  const cleared = [];
+  const route = load(`src/app/api/${admin ? 'admin/' : ''}auth/refresh/route.ts`, {
+    'next/server': { NextResponse: { json: (body, init) => ({ body, status: init.status }) } },
+    '@/lib/api/bffRoute': { handleBffError: error => { throw error; } },
+    '@/lib/auth/cookies': {
+      getRefreshToken: async () => 'refresh', getAdminRefreshToken: async () => 'refresh',
+      clearAdminAuthCookieJar: async () => cleared.push('admin'),
+    },
+    '@/lib/auth/session': { refreshViaSpringLocked: async () => ({ ok: false, message: 'REFRESH_RETRY_EXHAUSTED', clearCookies: false }), clearAuthCookieJar: async () => cleared.push('user') },
+    '@/lib/auth/admin-session': { refreshAdminViaSpringLocked: async () => ({ ok: false, message: 'REFRESH_RETRY_EXHAUSTED', clearCookies: false }) },
+  });
+  assert.equal((await route.POST()).status, 503);
+  assert.deepEqual(cleared, []);
+});
+test('optional auth does not downgrade a refresh outage into anonymous access', async () => {
+  let reached = false;
+  const wrappers = load('src/lib/auth/withAuth.ts', {
+    'server-only': {}, 'next/server': {},
+    '@/lib/auth/session': {
+      resolveSession: async () => ({ ok: false, message: 'REFRESH_RETRY_EXHAUSTED', clearCookies: false }),
+      sessionUnauthorized: () => ({ status: 503 }),
+    },
+  });
+  const response = await wrappers.withOptionalAuth(async () => { reached = true; })({});
+  assert.equal(response.status, 503);
+  assert.equal(reached, false);
+});
+
+for (const failure of [
+  { message: 'REFRESH_RETRY_EXHAUSTED', clearCookies: false, status: 503 },
+  { message: 'REFRESH_UNAUTHORIZED', clearCookies: true, status: 401 },
+]) test(`session failure ${failure.message} returns ${failure.status} and clears cookies only for rejected authentication`, () => {
+  let clears = 0;
+  const session = load('src/lib/auth/session.ts', {
+    'server-only': {}, 'next/headers': {},
+    'next/server': { NextResponse: { json: (body, init) => ({ body, status: init.status }) } },
+    '@/lib/api/endpoints': {}, '@/lib/auth/cookie-names': {}, '@/lib/env.server': {},
+    '@/lib/auth/cookies': { clearAuthCookies: () => clears++ }, '@/lib/auth/refresh-request': {},
+  });
+  const result = session.sessionUnauthorized({ ok: false, ...failure });
+  assert.equal(result.status, failure.status);
+  assert.equal(clears, failure.clearCookies ? 1 : 0);
+});
+for (const status of [404, 405, 408, 429, 500]) test(`unexpected or transient refresh HTTP ${status} never logs out the user`, async () => {
+  const f = retryFixture([{ status }]);
+  const result = await f.requestRefreshTokens('/refresh', 'refresh');
+  assert.equal(result.clearCookies, false);
+  assert.equal(f.calls.length, 3);
+});
+for (const status of [401, 503]) test(`BFF refresh failure ${status} redirects only an invalid refresh session`, async () => {
+  const redirected = [];
+  const error = { status, message: status === 401 ? 'REFRESH_UNAUTHORIZED' : 'REFRESH_RETRY_EXHAUSTED', data: null, url: '/api/test' };
+  const bff = load('src/lib/api/bffFetch.ts', {
+    '@/lib/env.client': { BFF_BASE_URL: '' },
+    '@/lib/api/error': load('src/lib/api/error.ts', {}),
+    '@/lib/api/http': { http: async () => { throw error; }, applyPathParams: url => [url] },
+  }, { window: { location: { replace: url => redirected.push(url) } } });
+  await assert.rejects(bff.bffGet('/api/test'), value => value === error);
+  assert.deepEqual(redirected, status === 401 ? ['/login'] : []);
 });

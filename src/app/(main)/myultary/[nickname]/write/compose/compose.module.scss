@@ -228,11 +228,11 @@
     transform 0.12s ease;
 
   &:hover {
-    background: var(--brand-grass-500);
+    background: var(--brand-grass-100);
   }
 
   &:active {
-    background: var(--brand-grass-600);
+    background: var(--brand-grass-150);
     transform: scale(0.97);
   }
 }

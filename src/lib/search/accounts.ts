@@ -69,6 +69,8 @@ function toAccount(raw: unknown): SearchAccount | null {
     nickname,
     imageUrl: resolveFileDisplayUrl(asFile(raw.profileFile)) ?? NO_PROFILE_SRC,
     petTags: pickPetTags(raw),
+    hasStory: raw.hasStory === true,
+    hasUnviewed: raw.hasUnviewed === true,
   };
 }
 

@@ -1,3 +1,7 @@
+import type { Metadata } from 'next';
+
+export const metadata: Metadata = { title: '스토리 - Ultray', robots: { index: false, follow: false } };
+
 import StoriesClient from './StoriesClient';
 
 type PageProps = {

@@ -1,7 +1,7 @@
 import { notFound } from 'next/navigation';
 import AiLogDetailClient from '../../../../AiLogDetailClient';
 
-export const metadata = { title: 'AI 로그 상세 · 울타리 관리' };
+export const metadata = { title: 'Ultary' };
 
 export default async function AdminAiLogDetailPage({ params }: { params: Promise<{ aiRequestId: string }> }) {
   const { aiRequestId } = await params;

@@ -1,15 +1,16 @@
 'use client';
 
+import { PageLoadError } from '@/components/common/PageLoadError';
+
 import { FooterMenu } from '@/components/common/FooterMenu';
 import { MediaImage } from '@/components/common/MediaImage';
 import { PageHeader } from '@/components/common/PageHeader';
-import { bffDelete, bffGet } from '@/lib/api/bffFetch';
+import { bffDelete, bffGet, bffPostJson } from '@/lib/api/bffFetch';
 import { bffEndpoints } from '@/lib/api/endpoints';
 import { isHttpError, isRecord } from '@/lib/api/error';
 import { resolveFileDisplayUrl } from '@/lib/api/fileUrl';
 import { myUltaryPath } from '@/lib/mock/ultary-accounts';
 import { NO_PROFILE_SRC } from '@/lib/profileImage';
-import { useModalStore } from '@/stores/modal.store';
 import type { BffEnvelope } from '@/types/api';
 import type { FileSummary } from '@/types/file';
 import clsx from 'clsx';
@@ -22,6 +23,7 @@ type BlockedUser = {
   nickname: string;
   profileUrl: string;
   blockedAtLabel: string;
+  blocked: boolean;
 };
 
 function pickErrorMessage(err: unknown, fallback: string) {
@@ -63,6 +65,7 @@ function mapBlockedUser(raw: unknown): BlockedUser | null {
     nickname,
     profileUrl: resolveFileDisplayUrl(asFile(raw.profileFile)) ?? NO_PROFILE_SRC,
     blockedAtLabel: blockedAt ? formatBlockedAt(blockedAt) : '',
+    blocked: true,
   };
 }
 
@@ -74,7 +77,7 @@ function unwrapList(data: unknown): unknown[] {
 
 /** 설정 > 차단한 사용자. GET /users/blocks */
 export default function BlockedClient() {
-  const openModal = useModalStore((s) => s.open);
+  const [loadFailed, setLoadFailed] = useState<{ error: unknown } | null>(null);
   const [items, setItems] = useState<BlockedUser[]>([]);
   const [status, setStatus] = useState('불러오는 중');
   const [busyUserNo, setBusyUserNo] = useState<number | null>(null);
@@ -96,6 +99,7 @@ export default function BlockedClient() {
         if (!cancelled) {
           setItems([]);
           setStatus(pickErrorMessage(err, '차단한 사용자를 불러오지 못했습니다.'));
+        setLoadFailed({ error: err });
         }
       }
     })();
@@ -104,43 +108,32 @@ export default function BlockedClient() {
     };
   }, []);
 
-  async function unblock(item: BlockedUser) {
+  async function toggleBlock(item: BlockedUser) {
     if (busyUserNo != null) return;
     setBusyUserNo(item.userNo);
     setStatus('');
     try {
-      await bffDelete<BffEnvelope<unknown>>(bffEndpoints.users.unblock, {
-        userNo: item.userNo,
-      });
-      setItems((prev) => {
-        const next = prev.filter((row) => row.userNo !== item.userNo);
-        if (next.length === 0) setStatus('차단한 사용자가 없습니다.');
-        return next;
-      });
+      if (item.blocked) {
+        await bffDelete<BffEnvelope<unknown>>(bffEndpoints.users.unblock, {
+          userNo: item.userNo,
+        });
+      } else {
+        await bffPostJson<BffEnvelope<unknown>>(bffEndpoints.users.block, {
+          userNo: item.userNo,
+        });
+      }
+      // Keep released rows only in this mounted page so they can be blocked again.
+      setItems((prev) => prev.map((row) => row.userNo === item.userNo
+        ? { ...row, blocked: !item.blocked, blockedAtLabel: item.blocked ? row.blockedAtLabel : formatBlockedAt(new Date().toISOString()) }
+        : row));
     } catch (err) {
-      setStatus(pickErrorMessage(err, '차단을 해제하지 못했습니다.'));
+      setStatus(pickErrorMessage(err, item.blocked ? '차단을 해제하지 못했습니다.' : '차단하지 못했습니다.'));
     } finally {
       setBusyUserNo(null);
     }
   }
 
-  function onAction(item: BlockedUser) {
-    if (busyUserNo != null) return;
-    openModal({
-      variant: 'confirm',
-      title: '차단 해제',
-      content: `${item.nickname || '이 사용자'}님의 차단을 해제할까요?`,
-      showCloseButton: true,
-      cancelButton: { label: '취소' },
-      okButton: {
-        label: '차단해제',
-        tone: 'danger',
-        onClick: () => {
-          void unblock(item);
-        },
-      },
-    });
-  }
+  if (loadFailed) return <PageLoadError error={loadFailed.error} />;
 
   return (
     <div className={styles.shell}>
@@ -188,16 +181,16 @@ export default function BlockedClient() {
                     ) : (
                       <span className={styles.nickname}>{item.nickname}</span>
                     )}
-                    <span className={styles.time}>{item.blockedAtLabel}</span>
+                    <span className={styles.time}>{item.blocked ? item.blockedAtLabel : '차단 해제됨'}</span>
                   </div>
                   <div className={styles.actionWrap}>
                     <button
                       type="button"
-                      className={clsx(styles.actionBtn, styles.actionGray)}
-                      disabled={busyUserNo === item.userNo}
-                      onClick={() => onAction(item)}
+                      className={clsx(styles.actionBtn, item.blocked ? styles.actionGray : styles.actionBlue)}
+                      disabled={busyUserNo != null}
+                      onClick={() => void toggleBlock(item)}
                     >
-                      차단해제
+                      {busyUserNo === item.userNo ? '처리 중…' : item.blocked ? '차단해제' : '차단'}
                     </button>
                   </div>
                 </div>

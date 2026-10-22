@@ -1,5 +1,7 @@
 'use client';
 
+import { PageLoadError } from '@/components/common/PageLoadError';
+
 import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
 import { REPORT_STATUS, formatWhen, loadReportPage, type ReportItem, type ReportOrigin } from './adminData';
@@ -59,7 +61,7 @@ export default function ReportListClient() {
     <section className={styles.paneFull}>
       <h1 className={styles.paneTitle}>신고목록</h1>
       {state === 'loading' && reports.length === 0 ? <p className={styles.empty}>불러오는 중</p> : null}
-      {state === 'error' ? <p className={styles.empty}>신고 목록을 불러오지 못했습니다.</p> : null}
+      {state === 'error' ? <PageLoadError /> : null}
       {state === 'ready' && reports.length === 0 ? <p className={styles.empty}>신고가 없습니다.</p> : null}
       <div ref={listRef} className={styles.listWrap}>
         <ul className={styles.list}>

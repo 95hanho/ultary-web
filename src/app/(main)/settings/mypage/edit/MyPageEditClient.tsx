@@ -1,5 +1,7 @@
 'use client';
 
+import { PageLoadError } from '@/components/common/PageLoadError';
+
 import { PageHeader } from '@/components/common/PageHeader';
 import { MyPageEditDevTools } from '@/components/dev/MyPageEditDevTools';
 import { bffGet, bffPatchJson, bffPostJson } from '@/lib/api/bffFetch';
@@ -108,6 +110,7 @@ function isSameProfile(current: ProfileSnapshot, initial: ProfileSnapshot) {
 
 /** 설정 > 마이페이지 > 회원정보 수정 */
 export default function MyPageEditClient() {
+  const [loadFailed, setLoadFailed] = useState<{ error: unknown } | null>(null);
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [loaded, setLoaded] = useState(false);
@@ -139,6 +142,7 @@ export default function MyPageEditClient() {
 
   const sigunguOptions = getSigunguOptions(regionSido);
   const sigunguDisabled = isSigunguDisabled(regionSido);
+  const phoneChanged = phone !== initialProfile.phone;
 
   useEffect(() => {
     let cancelled = false;
@@ -168,6 +172,7 @@ export default function MyPageEditClient() {
         setPhoneVerified(true);
       } catch (err) {
         console.error('[mypage-edit] load', err);
+        if (!cancelled) setLoadFailed({ error: err });
         if (!cancelled) {
           setFormError('회원정보를 불러오지 못했습니다.');
         }
@@ -197,6 +202,7 @@ export default function MyPageEditClient() {
   }
 
   function requestPhoneCode() {
+    if (!loaded || pending || !phoneChanged || phoneVerified) return;
     setFormError(null);
     setInfoMessage(null);
     const phoneErr = validatePhone(phone);
@@ -213,6 +219,7 @@ export default function MyPageEditClient() {
           purpose: 'PROFILE',
         });
         const token = res.data?.phoneAuthToken;
+        if (phoneRef.current?.value !== phone) return;
         if (!token) throw new Error('인증 토큰을 받지 못했습니다.');
         setPhoneAuthToken(token);
         setPhoneAuthCompleteToken('');
@@ -244,6 +251,7 @@ export default function MyPageEditClient() {
           { code, phoneAuthToken },
         );
         const token = res.data?.phoneAuthCompleteToken;
+        if (phoneRef.current?.value !== phone) return;
         if (!token) throw new Error('휴대폰 인증 완료 토큰이 없습니다.');
         setPhoneAuthCompleteToken(token);
         setPhoneVerified(true);
@@ -374,6 +382,8 @@ export default function MyPageEditClient() {
     });
   }
 
+  if (loadFailed) return <PageLoadError error={loadFailed.error} />;
+
   return (
     <div className={styles.shell}>
       <PageHeader
@@ -459,8 +469,11 @@ export default function MyPageEditClient() {
                 type="tel"
                 value={phone}
                 onChange={(e) => {
-                  setPhone(filterPhone(e.target.value));
+                  const nextPhone = filterPhone(e.target.value);
+                  setPhone(nextPhone);
                   resetPhoneAuth();
+                  setPhoneVerified(nextPhone === initialProfile.phone);
+                  setInfoMessage(null);
                   clearError('phone');
                 }}
                 placeholder="연락처를 입력해주세요.('-' 제외)"
@@ -470,7 +483,7 @@ export default function MyPageEditClient() {
                 type="button"
                 className={styles.sideBtn}
                 onClick={requestPhoneCode}
-                disabled={pending || phoneVerified}
+                disabled={!loaded || pending || !phoneChanged || phoneVerified}
               >
                 인증요청
               </button>

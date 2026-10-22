@@ -93,7 +93,7 @@ export function DevTestDock({ groups }: Props) {
   const router = useRouter();
   const pathname = usePathname();
   const onLoginPage = pathname === '/login' || pathname.startsWith('/login/');
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [messageOk, setMessageOk] = useState(false);

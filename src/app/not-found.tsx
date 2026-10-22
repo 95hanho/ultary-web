@@ -1,8 +1,11 @@
 import Link from 'next/link';
+import { getAccessToken, getRefreshToken } from '@/lib/auth/cookies';
 import styles from './not-found.module.scss';
 
 /** 브랜드 공통 404 */
-export default function NotFound() {
+export default async function NotFound() {
+  const [access, refresh] = await Promise.all([getAccessToken(), getRefreshToken()]);
+  const loggedIn = Boolean(access?.trim() || refresh?.trim());
   return (
     <div className={styles.shell}>
       <div className={styles.panel}>
@@ -11,8 +14,8 @@ export default function NotFound() {
         <p className={styles.desc}>
           주소가 잘못되었거나 삭제된 페이지일 수 있어요.
         </p>
-        <Link href="/" className={styles.home}>
-          홈으로 가기
+        <Link href={loggedIn ? '/' : '/login'} className={styles.home}>
+          {loggedIn ? '홈으로 가기' : '로그인으로 가기'}
         </Link>
       </div>
     </div>

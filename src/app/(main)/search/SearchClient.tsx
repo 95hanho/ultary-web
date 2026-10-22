@@ -1,5 +1,7 @@
 'use client';
 
+import { PageLoadError } from '@/components/common/PageLoadError';
+
 import { FooterMenu } from '@/components/common/FooterMenu';
 import { FeedGrid, type FeedGridItem } from '@/components/feed/FeedGrid';
 import { HashtagResultList } from '@/components/search/HashtagResultList';
@@ -20,7 +22,7 @@ import { formatTagPostCount, type MockHashtag, type SearchAccount } from '@/lib/
 import { highlightMatch, sortPetTagsByMatch } from '@/lib/search/highlight';
 import { useModalStore } from '@/stores/modal.store';
 import clsx from 'clsx';
-import { MediaImage } from '@/components/common/MediaImage';
+import { Profile, type StoryStatus } from '@/components/my-ultary/Profile';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -116,33 +118,46 @@ function AccountRow({
   account: SearchAccount;
   highlightQuery: string;
   petQuery: string;
-  onEnter: (account: SearchAccount) => void;
+  onEnter: (account: SearchAccount, href?: string) => void;
   onRemove?: () => void;
 }) {
   const tags = sortPetTagsByMatch(account.petTags, petQuery || highlightQuery);
+  const story: StoryStatus = account.hasStory ? account.hasUnviewed ? 'unread' : 'read' : 'none';
+  const storyHref = story !== 'none' && account.userNo != null
+    ? `/stories?${new URLSearchParams({ userNo: String(account.userNo), nickname: account.nickname, single: '1' }).toString()}`
+    : null;
+  const profile = <Profile imageUrl={account.imageUrl} size={45} story={story} className={styles.accountProfile} />;
 
   return (
     <li className={styles.accountItem}>
-      <Link
-        href={myUltaryPath(account.nickname)}
-        className={styles.accountBtn}
-        onMouseDown={(event) => event.preventDefault()}
-        onClick={(event) => {
-          if (account.userNo == null) return;
-          event.preventDefault();
-          onEnter(account);
-        }}
-      >
-        <span className={styles.accountImageWrap}>
-          <MediaImage
-            src={account.imageUrl}
-            alt=""
-            width={47}
-            height={47}
-            className={styles.accountImage}
-          />
-        </span>
-        <span className={styles.accountText}>
+      <div className={styles.accountInfo}>
+        <div className={styles.accountImageArea}>
+          {storyHref ? (
+            <Link
+              href={storyHref}
+              className={styles.accountImageWrap}
+              aria-label={`${account.nickname} 스토리 보기`}
+              onMouseDown={(event) => event.preventDefault()}
+              onClick={(event) => { event.preventDefault(); onEnter(account, storyHref); }}
+            >
+              {profile}
+            </Link>
+          ) : (
+            <span className={styles.accountImageWrap} onMouseDown={(event) => event.preventDefault()}>
+              {profile}
+            </span>
+          )}
+        </div>
+        <Link
+          href={myUltaryPath(account.nickname)}
+          className={styles.accountText}
+          onMouseDown={(event) => event.preventDefault()}
+          onClick={(event) => {
+            if (account.userNo == null) return;
+            event.preventDefault();
+            onEnter(account);
+          }}
+        >
           <span className={styles.accountNick}>
             {highlightMatch(account.nickname, highlightQuery, styles.hit)}
           </span>
@@ -154,8 +169,8 @@ function AccountRow({
               </span>
             ))}
           </span>
-        </span>
-      </Link>
+        </Link>
+      </div>
       {onRemove ? <RemoveRecentButton label={account.nickname} onRemove={onRemove} /> : null}
     </li>
   );
@@ -188,6 +203,7 @@ function RecentTagRow({
 
 /** 검색 페이지 */
 export default function SearchClient() {
+  const [loadFailed, setLoadFailed] = useState<{ error: unknown } | null>(null);
   const router = useRouter();
   const openModal = useModalStore((s) => s.open);
   const shellRef = useRef<HTMLDivElement>(null);
@@ -240,6 +256,7 @@ export default function SearchClient() {
         setRecommendedPosts(grid);
       } catch (err) {
         console.error('[search] recommended failed', err);
+        if (!cancelled) setLoadFailed({ error: err });
         if (!cancelled) setRecommendedPosts([]);
       }
     })();
@@ -314,6 +331,7 @@ export default function SearchClient() {
           console.error('[search] preview failed', err);
           if (cancelled) return;
           setUserResults([]);
+        setLoadFailed({ error: err });
           setTagResults([]);
           setResultState('ready');
         })
@@ -354,6 +372,7 @@ export default function SearchClient() {
     } catch (err) {
       if (request !== recentRequestRef.current) return;
       console.error('[search] recent failed', err);
+        setLoadFailed({ error: err });
       recentLoadedRef.current = false;
       setRecentItems([]);
       setRecentTotal(0);
@@ -388,6 +407,7 @@ export default function SearchClient() {
     } catch (err) {
       if (request === recentRequestRef.current) {
         console.error('[search] recent more failed', err);
+        setLoadFailed({ error: err });
         setRecentError('최근 검색 항목을 더 불러오지 못했습니다. 다시 시도해 주세요.');
       }
     } finally {
@@ -405,8 +425,7 @@ export default function SearchClient() {
     setRecentError('');
   }
 
-  async function enterUltary(account: SearchAccount) {
-    const href = myUltaryPath(account.nickname);
+  async function enterUltary(account: SearchAccount, href = myUltaryPath(account.nickname)) {
     if (account.userNo != null) {
       try {
         await bffPostJson(bffEndpoints.main.searchRecent, {
@@ -548,6 +567,8 @@ export default function SearchClient() {
       : parsed.mode === 'plain'
         ? parsed.term
         : '';
+
+  if (loadFailed) return <PageLoadError error={loadFailed.error} />;
 
   return (
     <div className={styles.shell} ref={shellRef}>

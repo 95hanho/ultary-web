@@ -63,6 +63,7 @@ export function withOptionalAuth<P extends Record<string, string> = Record<strin
     const params = (context ? await context.params : {}) as P;
 
     if (!session.ok) {
+      if (session.message !== 'UNAUTHORIZED') return sessionUnauthorized(session);
       return handler({ request, accessToken: null, params });
     }
     if (session.tokens) await applyTokensToCookieJar(session.tokens);

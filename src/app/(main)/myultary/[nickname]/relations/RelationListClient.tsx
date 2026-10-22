@@ -1,9 +1,12 @@
 'use client';
 
+import { PageLoadError } from '@/components/common/PageLoadError';
+import { notFound } from 'next/navigation';
+
 import { EmptyState } from '@/components/common/EmptyState';
 import { FooterMenu } from '@/components/common/FooterMenu';
-import { MediaImage } from '@/components/common/MediaImage';
 import { PageHeader } from '@/components/common/PageHeader';
+import { Profile, type StoryStatus } from '@/components/my-ultary/Profile';
 import { bffDelete, bffGet, bffPostJson } from '@/lib/api/bffFetch';
 import { bffEndpoints } from '@/lib/api/endpoints';
 import { isHttpError, isRecord } from '@/lib/api/error';
@@ -27,6 +30,7 @@ type RelationRow = {
   userNo: number;
   nickname: string;
   imageUrl: string;
+  story: StoryStatus;
   /** 화면용. 응답 mentionId 앞에 @를 붙인 값 */
   petTags: string[];
   neighborId: number | null;
@@ -45,6 +49,7 @@ export default function RelationListClient({
   userNo: string;
   kind: RelationKind;
 }) {
+  const [loadFailed, setLoadFailed] = useState<{ error: unknown } | null>(null);
   const [rows, setRows] = useState<RelationRow[]>([]);
   const [meUserNo, setMeUserNo] = useState<number | null>(null);
   const [status, setStatus] = useState('불러오는 중');
@@ -58,7 +63,6 @@ export default function RelationListClient({
 
   useEffect(() => {
     if (!userNo) {
-      setStatus('목록을 열 수 없습니다.');
       return;
     }
     let cancelled = false;
@@ -92,6 +96,7 @@ export default function RelationListClient({
         setStatus('');
       } catch (err) {
         console.error('[relations] load failed', err);
+        if (!cancelled) setLoadFailed({ error: err });
         if (!cancelled) {
           setRows([]);
           setStatus('목록을 불러오지 못했습니다.');
@@ -111,9 +116,7 @@ export default function RelationListClient({
         if (row.neighborId == null) throw new Error('neighbor missing');
         await bffDelete(bffEndpoints.users.neighborCancel, { neighborId: row.neighborId });
         setRows((prev) =>
-          prev.map((item) =>
-            item.userNo === row.userNo ? { ...item, following: false } : item,
-          ),
+          prev.map((item) => (item.userNo === row.userNo ? { ...item, following: false } : item)),
         );
         return;
       }
@@ -147,6 +150,9 @@ export default function RelationListClient({
     }
   };
 
+  if (!userNo || privateHidden) notFound();
+  if (loadFailed) return <PageLoadError error={loadFailed.error} />;
+
   return (
     <div className={styles.shell}>
       <PageHeader title={TITLES[kind]} />
@@ -159,7 +165,13 @@ export default function RelationListClient({
           <>
             <div className={styles.searchRow}>
               <label className={clsx(styles.searchBar, searchFocused && styles.searchBarFocus)}>
-                <Image src={SearchIcon} alt="" width={20} height={20} className={styles.searchIcon} />
+                <Image
+                  src={SearchIcon}
+                  alt=""
+                  width={20}
+                  height={20}
+                  className={styles.searchIcon}
+                />
                 <input
                   type="search"
                   className={styles.searchInput}
@@ -192,23 +204,16 @@ export default function RelationListClient({
               </label>
             </div>
             {filteredRows.length === 0 ? (
-              <EmptyState
-                title={query.trim() ? '검색 결과가 없어요' : '목록이 비어 있어요'}
-              />
+              <EmptyState title={query.trim() ? '검색 결과가 없어요' : '목록이 비어 있어요'} />
             ) : (
-          <ul className={styles.accountList}>
-            {filteredRows.map((row) => (
-              <li key={row.userNo} className={styles.accountItem}>
-                <Link href={myUltaryPath(row.nickname)} className={styles.accountBtn}>
-                  <span className={styles.accountImageWrap}>
-                    <MediaImage
-                      src={
-                        failedProfileUrls.has(row.imageUrl) ? NO_PROFILE_SRC : row.imageUrl
-                      }
-                      alt=""
-                      width={47}
-                      height={47}
-                      className={styles.accountImage}
+              <ul className={styles.accountList}>
+                {filteredRows.map((row) => {
+                  const profile = (
+                    <Profile
+                      imageUrl={failedProfileUrls.has(row.imageUrl) ? NO_PROFILE_SRC : row.imageUrl}
+                      size={45}
+                      story={row.story}
+                      className={styles.accountProfile}
                       onError={() => {
                         if (row.imageUrl === NO_PROFILE_SRC) return;
                         setFailedProfileUrls((prev) => {
@@ -217,30 +222,47 @@ export default function RelationListClient({
                         });
                       }}
                     />
-                  </span>
-                  <span className={styles.accountText}>
-                    <span className={styles.accountNick}>{row.nickname}</span>
-                    {row.petTags.length > 0 ? (
-                      <span className={styles.accountTags}>{row.petTags.join(' ')}</span>
-                    ) : null}
-                  </span>
-                </Link>
-                {meUserNo != null && row.userNo !== meUserNo ? (
-                  <button
-                    type="button"
-                    className={clsx(
-                      styles.actionBtn,
-                      row.following ? styles.actionDisconnect : styles.actionConnect,
-                    )}
-                    disabled={busyUserNo === row.userNo}
-                    onClick={() => void toggle(row)}
-                  >
-                    {row.following ? '팔로우 끊기' : '팔로우'}
-                  </button>
-                ) : null}
-              </li>
-            ))}
-          </ul>
+                  );
+                  return (
+                    <li key={row.userNo} className={styles.accountItem}>
+                      <div className={styles.accountInfo}>
+                        {row.story === 'none' ? (
+                          <span className={styles.accountImageWrap}>{profile}</span>
+                        ) : (
+                          <Link
+                            href={`/stories?${new URLSearchParams({ userNo: String(row.userNo), nickname: row.nickname, single: '1' }).toString()}`}
+                            className={styles.accountImageWrap}
+                            aria-label={`${row.nickname} 스토리 보기`}
+                          >
+                            {profile}
+                          </Link>
+                        )}
+                        <span className={styles.accountText}>
+                          <Link href={myUltaryPath(row.nickname)} className={styles.accountNick}>
+                            {row.nickname}
+                          </Link>
+                          {row.petTags.length > 0 ? (
+                            <span className={styles.accountTags}>{row.petTags.join(' ')}</span>
+                          ) : null}
+                        </span>
+                      </div>
+                      {meUserNo != null && row.userNo !== meUserNo ? (
+                        <button
+                          type="button"
+                          className={clsx(
+                            styles.actionBtn,
+                            row.following ? styles.actionDisconnect : styles.actionConnect,
+                          )}
+                          disabled={busyUserNo === row.userNo}
+                          onClick={() => void toggle(row)}
+                        >
+                          {row.following ? '팔로우 끊기' : '팔로우'}
+                        </button>
+                      ) : null}
+                    </li>
+                  );
+                })}
+              </ul>
             )}
           </>
         )}
@@ -260,16 +282,23 @@ function filterRows(rows: RelationRow[], query: string) {
 }
 
 function readRows(raw: unknown) {
-  const list = Array.isArray(raw) ? raw : isRecord(raw) && Array.isArray(raw.items) ? raw.items : [];
+  const list = Array.isArray(raw)
+    ? raw
+    : isRecord(raw) && Array.isArray(raw.items)
+      ? raw.items
+      : [];
   return list.flatMap((item) => {
     if (!isRecord(item) || typeof item.userNo !== 'number') return [];
     const nickname = typeof item.nickname === 'string' ? item.nickname.trim() : '';
     if (!nickname) return [];
+    const story: StoryStatus =
+      item.hasStory === true ? (item.hasUnviewed === false ? 'read' : 'unread') : 'none';
     return [
       {
         userNo: item.userNo,
         nickname,
         imageUrl: resolveFileDisplayUrl(asFile(item.profileFile)) ?? NO_PROFILE_SRC,
+        story,
         petTags: readPetTags(item.petTags),
         neighborId: typeof item.neighborId === 'number' ? item.neighborId : null,
         following: item.following === true,
@@ -304,7 +333,10 @@ function asFile(raw: unknown) {
 }
 
 function relationErrorMessage(err: unknown, following: boolean) {
-  const code = isHttpError(err) && isRecord(err.data) && typeof err.data.code === 'string' ? err.data.code : '';
+  const code =
+    isHttpError(err) && isRecord(err.data) && typeof err.data.code === 'string'
+      ? err.data.code
+      : '';
   if (code === 'NEIGHBOR_ALREADY_EXISTS' || code === 'NEIGHBOR_ALREADY_REQUESTED') {
     return '이미 연결된 사이입니다.';
   }

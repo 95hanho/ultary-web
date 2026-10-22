@@ -12,6 +12,8 @@ export type SearchAccount = {
   userNo?: number;
   nickname: string;
   imageUrl: string;
+  hasStory?: boolean;
+  hasUnviewed?: boolean;
   petTags: string[];
   /** 펫 검색 결과. 태그 문자열과 petId를 맞춘다 */
   petChoices?: SearchPetChoice[];

@@ -51,25 +51,20 @@
 .passwordChangeBtn,
 .passwordSetBtn {
   flex-shrink: 0;
-  padding: 7px 12px;
-  border: 0;
-  border-radius: 10px;
-  font-size: 18px;
+  padding: 9px 10px;
+  border: 1px solid var(--brand-black-700);
+  border-radius: 7px;
+  background: var(--brand-gray-100);
+  color: var(--brand-black-700);
+  font-size: 14px;
   font-weight: 400;
-  letter-spacing: 0.36px;
-  line-height: 1.2;
+  line-height: 1;
   cursor: pointer;
   text-decoration: none;
-}
 
-.passwordChangeBtn {
-  background: var(--brand-gray-150, #cecece);
-  color: var(--brand-black-700);
-}
-
-.passwordSetBtn {
-  background: var(--brand-sky-600);
-  color: #fff;
+  &:active:not(:disabled) {
+    background: var(--brand-gray-150);
+  }
 }
 
 .snsBtns {
@@ -108,8 +103,12 @@ a.snsBtn {
 
 .snsBtnOff {
   background: var(--brand-gray-100, #ececec);
-  border-color: var(--brand-gray-150, #cecece);
+  border-color: var(--brand-black-700);
   color: var(--brand-gray-400, #9a9a9a);
+
+  &:active {
+    background: var(--brand-gray-150);
+  }
 
   .snsIcon:not(.snsIconKakao) {
     filter: grayscale(1) brightness(1.05);
@@ -159,6 +158,15 @@ a.snsBtn {
   font-weight: 700;
   text-decoration: none;
   cursor: pointer;
+
+  &:active:not(:disabled) {
+    background: linear-gradient(
+      90deg,
+      var(--brand-grass-450) 21%,
+      var(--brand-grass-550) 40%,
+      var(--brand-grass-650) 74%
+    );
+  }
 }
 
 .form {
@@ -272,6 +280,10 @@ a.snsBtn {
   font-weight: 600;
   white-space: nowrap;
   cursor: pointer;
+
+  &:active:not(:disabled) {
+    background-color: var(--brand-grass-450);
+  }
 
   &:disabled {
     opacity: 0.45;

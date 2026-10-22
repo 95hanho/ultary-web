@@ -1,5 +1,6 @@
 import { NO_PROFILE_SRC } from '@/lib/profileImage';
 import clsx from 'clsx';
+import type { ReactEventHandler } from 'react';
 import { MediaImage } from '@/components/common/MediaImage';
 import styles from './Profile.module.scss';
 
@@ -13,6 +14,7 @@ export type ProfileProps = {
   /** 스토리 링 상태 */
   story?: StoryStatus;
   className?: string;
+  onError?: ReactEventHandler<HTMLImageElement>;
 };
 
 /** 공통 프로필 아바타 (닉네임은 부모가 배치) */
@@ -21,6 +23,7 @@ export function Profile({
   size,
   story = 'none',
   className,
+  onError,
 }: ProfileProps) {
   return (
     <span
@@ -39,6 +42,7 @@ export function Profile({
         width={size}
         height={size}
         className={styles.avatar}
+        onError={onError}
       />
     </span>
   );

@@ -130,9 +130,27 @@
   cursor: pointer;
 
   &:hover {
-    background: #f3f3f3;
+    background: var(--brand-gray-50);
     color: var(--brand-black-700);
   }
+
+  &:active {
+    background: var(--brand-gray-100);
+  }
+}
+
+.loginButton:active:not(:disabled) {
+  background: linear-gradient(
+    90deg,
+    var(--brand-grass-450) 21%,
+    var(--brand-grass-550) 40%,
+    var(--brand-grass-650) 74%
+  );
+}
+
+.googleBtn:active,
+.kakaoBtn:active {
+  transform: scale(0.9);
 }
 
 .signupLink {

@@ -1,5 +1,7 @@
 'use client';
 
+import { PageLoadError } from '@/components/common/PageLoadError';
+
 import { bffPostJson } from '@/lib/api/bffFetch';
 import { bffEndpoints } from '@/lib/api/endpoints';
 import { isHttpError, isRecord } from '@/lib/api/error';
@@ -87,16 +89,7 @@ export default function ReportDetailClient({ reportId }: { reportId: number }) {
     );
   }
   if (state === 'error' || state === 'missing' || !item) {
-    return (
-      <section className={styles.paneFull}>
-        <p className={styles.empty}>
-          {state === 'error' ? '신고를 불러오지 못했습니다.' : '신고를 찾지 못했습니다.'}
-        </p>
-        <Link href="/admin/reports" className={styles.backLink}>
-          목록
-        </Link>
-      </section>
-    );
+    return <PageLoadError />;
   }
 
   const typeLabel = TARGET_TYPE[item.targetType] ?? item.targetType;

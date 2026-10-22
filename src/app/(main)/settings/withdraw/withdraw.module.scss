@@ -96,7 +96,7 @@
   flex-shrink: 0;
   align-items: center;
   justify-content: center;
-  border: 1px solid var(--brand-black-700);
+  border: 1px solid var(--brand-gray-100);
   border-radius: 15px;
   background: linear-gradient(
     90deg,
@@ -109,6 +109,15 @@
   font-weight: 700;
   line-height: 1.2;
   cursor: pointer;
+
+  &:active:not(:disabled) {
+    background: linear-gradient(
+      90deg,
+      var(--brand-grass-450) 21%,
+      var(--brand-grass-550) 40%,
+      var(--brand-grass-650) 74%
+    );
+  }
 
   &:disabled {
     opacity: 0.6;

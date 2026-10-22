@@ -1,6 +1,9 @@
 'use client';
 
+import { PageLoadError } from '@/components/common/PageLoadError';
+
 import { Profile } from '@/components/my-ultary/Profile';
+import { MediaImage } from '@/components/common/MediaImage';
 import { StoryDevTools } from '@/components/dev/StoryDevTools';
 import { bffDelete, bffGet, bffPostJson } from '@/lib/api/bffFetch';
 import { bffEndpoints } from '@/lib/api/endpoints';
@@ -8,6 +11,7 @@ import { resolveFileDisplayUrl } from '@/lib/api/fileUrl';
 import { myUltaryPath } from '@/lib/mock/ultary-accounts';
 import { NO_PROFILE_SRC } from '@/lib/profileImage';
 import { STORY_IMAGE_DURATION_MS } from '@/lib/mock/stories';
+import { resolveFeedPetLabels, type FeedPetLabel } from '@/lib/feed/petLabels';
 import type { BffEnvelope, MeResponse } from '@/types/api';
 import type {
   Story,
@@ -16,7 +20,7 @@ import type {
   StoryOwner,
   StoryText,
 } from '@/types/story';
-import { Heart, Pause, Play, Send, X } from 'lucide-react';
+import { Heart, Pause, Play, Send, User, X } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
@@ -149,6 +153,7 @@ export default function StoriesClient({
   singleUser = false,
   onlyStoryId = '',
 }: Props) {
+  const [loadFailed, setLoadFailed] = useState<{ error: unknown } | null>(null);
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [items, setItems] = useState<StorySlide[]>([]);
@@ -159,6 +164,8 @@ export default function StoriesClient({
   const [playId, setPlayId] = useState(0);
   const [progress, setProgress] = useState(0);
   const [paused, setPaused] = useState(false);
+  const [likePressed, setLikePressed] = useState(false);
+  const playbackPaused = paused || likePressed;
   const [meUserNo, setMeUserNo] = useState<number | null>(null);
   const [reply, setReply] = useState('');
   const [replyError, setReplyError] = useState('');
@@ -177,10 +184,12 @@ export default function StoriesClient({
   const holdForReplyRef = useRef(false);
   const shellRef = useRef<HTMLDivElement>(null);
   indexRef.current = index;
-  pausedRef.current = paused;
+  pausedRef.current = playbackPaused;
   ownersRef.current = owners;
 
   const current = items[index] ?? null;
+  const currentStoryId = current?.storyId;
+  const currentKind = current?.kind;
 
   const close = useCallback(() => {
     router.back();
@@ -263,6 +272,7 @@ export default function StoriesClient({
         setPlayId((n) => n + 1);
       } catch (err) {
         console.error('[stories] load failed', err);
+        if (!cancelled) setLoadFailed({ error: err });
         if (!cancelled) {
           setItems([]);
           setOwners([]);
@@ -429,9 +439,9 @@ export default function StoriesClient({
     elapsedRef.current = 0;
     startRef.current = performance.now();
 
-    if (!current) return;
+    if (currentStoryId == null) return;
 
-    if (current.kind === 'image') {
+    if (currentKind === 'image') {
       const duration = STORY_IMAGE_DURATION_MS;
       const tick = (now: number) => {
         if (pausedRef.current) {
@@ -486,13 +496,13 @@ export default function StoriesClient({
       video.removeEventListener('timeupdate', onTime);
       video.removeEventListener('ended', onEnded);
     };
-  }, [current, finishOrNext, index, playId]);
+  }, [currentStoryId, currentKind, finishOrNext, index, playId]);
 
   useEffect(() => {
-    if (!current) return;
+    if (currentStoryId == null) return;
 
-    if (current.kind === 'image') {
-      if (paused) {
+    if (currentKind === 'image') {
+      if (playbackPaused) {
         elapsedRef.current += performance.now() - startRef.current;
         return;
       }
@@ -502,12 +512,12 @@ export default function StoriesClient({
 
     const video = videoRef.current;
     if (!video) return;
-    if (paused) {
+    if (playbackPaused) {
       video.pause();
     } else {
       void video.play().catch(() => undefined);
     }
-  }, [paused, current]);
+  }, [playbackPaused, currentStoryId, currentKind]);
 
   const togglePaused = () => {
     setPaused((p) => !p);
@@ -641,7 +651,9 @@ export default function StoriesClient({
     return progress;
   };
 
-  if (loading) {
+if (loadFailed) return <PageLoadError error={loadFailed.error} />;
+
+    if (loading) {
     return (
       <div
         ref={shellRef}
@@ -781,7 +793,13 @@ export default function StoriesClient({
             onClick={handleNextTap}
           />
 
-          <StoryMedia item={current} videoRef={videoRef} />
+          <StoryMedia
+            item={current}
+            videoRef={videoRef}
+            nickname={nickname}
+            paused={paused}
+            onShowTags={() => setPaused(true)}
+          />
         </div>
 
         {meUserNo == null || current.userNo !== meUserNo ? (
@@ -811,15 +829,34 @@ export default function StoriesClient({
                 }
                 aria-label={current.likedByMe ? '공감 취소' : '공감'}
                 aria-pressed={current.likedByMe}
+                onPointerDown={(event) => {
+                  if (event.button !== 0) return;
+                  event.currentTarget.setPointerCapture(event.pointerId);
+                  setLikePressed(true);
+                }}
+                onPointerUp={() => setLikePressed(false)}
+                onPointerCancel={() => setLikePressed(false)}
+                onLostPointerCapture={() => setLikePressed(false)}
+                onKeyDown={(event) => {
+                  if (event.key === ' ' || event.key === 'Enter') {
+                    event.stopPropagation();
+                    setLikePressed(true);
+                  }
+                }}
+                onKeyUp={(event) => {
+                  if (event.key === ' ' || event.key === 'Enter') setLikePressed(false);
+                }}
+                onBlur={() => setLikePressed(false)}
                 onClick={() => {
                   void toggleLike();
                 }}
               >
-                <Heart
-                  size={28}
-                  strokeWidth={2}
-                  fill={current.likedByMe ? 'currentColor' : 'none'}
-                />
+                <span className={styles.heartPreview}>
+                  <Heart className={styles.heartRest} size={28} strokeWidth={2}
+                    fill={current.likedByMe ? 'currentColor' : 'none'} />
+                  <Heart className={styles.heartPressed} size={28} strokeWidth={2}
+                    fill={current.likedByMe ? 'none' : 'currentColor'} />
+                </span>
               </button>
               <button
                 type="submit"
@@ -887,19 +924,32 @@ function mentionLabel(mention: StoryMention): string {
   return name || '태그된 펫';
 }
 
-function StoryOverlay({ texts, mentions }: { texts: StoryText[]; mentions: StoryMention[] }) {
+function storyMentionHref(mention: StoryMention, labels: Record<number, FeedPetLabel>) {
+  const ownerNickname = labels[mention.petId]?.ownerNickname?.trim() || mention.ownerNickname?.trim();
+  return ownerNickname ? myUltaryPath(ownerNickname) : null;
+}
+
+function StoryOverlay({ texts, mentions, labels }: {
+  texts: StoryText[];
+  mentions: StoryMention[];
+  labels: Record<number, FeedPetLabel>;
+}) {
   if (texts.length === 0 && mentions.length === 0) return null;
   return (
-    <div className={styles.overlay} aria-hidden>
-      {mentions.map((mention, index) => (
-        <span
-          key={`${mention.petId}-${index}`}
-          className={styles.mention}
-          style={{ left: `${mention.posX}%`, top: `${mention.posY}%` }}
-        >
-          {mentionLabel(mention)}
-        </span>
-      ))}
+    <div className={styles.overlay}>
+      {mentions.map((mention, index) => {
+        const href = storyMentionHref(mention, labels);
+        const label = labels[mention.petId]?.label ?? mentionLabel(mention);
+        const style = { left: `${mention.posX}%`, top: `${mention.posY}%` };
+        return href ? (
+          <Link key={`${mention.petId}-${index}`} href={href} className={styles.mention} style={style}
+            onClick={(event) => event.stopPropagation()}>
+            {label}
+          </Link>
+        ) : (
+          <span key={`${mention.petId}-${index}`} className={styles.mention} style={style}>{label}</span>
+        );
+      })}
       {texts.map((text, index) => (
         <span
           key={`${text.posX}-${text.posY}-${index}`}
@@ -928,10 +978,37 @@ function StoryOverlay({ texts, mentions }: { texts: StoryText[]; mentions: Story
 function StoryMedia({
   item,
   videoRef,
+  nickname,
+  paused,
+  onShowTags,
 }: {
   item: StorySlide;
   videoRef: RefObject<HTMLVideoElement | null>;
+  nickname: string;
+  paused: boolean;
+  onShowTags: () => void;
 }) {
+  const [labels, setLabels] = useState<Record<number, FeedPetLabel>>({});
+  const [tagListFor, setTagListFor] = useState<number | null>(null);
+  const showList = paused && tagListFor === item.storyId;
+
+  useEffect(() => {
+    if (item.mentions.length === 0) return;
+    let cancelled = false;
+    const ids = [...new Set(item.mentions.map((mention) => mention.petId))];
+    const hints = item.mentions.map((mention) => ({
+      petId: mention.petId,
+      userNo: mention.userNo,
+      mentionId: mention.mentionId ?? undefined,
+      petName: mention.petName ?? undefined,
+      ownerNickname: mention.ownerNickname ?? undefined,
+    }));
+    void resolveFeedPetLabels(ids, item.userNo, nickname, hints).then((found) => {
+      if (!cancelled) setLabels(found);
+    });
+    return () => { cancelled = true; };
+  }, [item.mentions, item.userNo, nickname]);
+
   return (
     <div className={styles.mediaFrame}>
       {item.kind === 'video' ? (
@@ -954,7 +1031,34 @@ function StoryMedia({
           draggable={false}
         />
       )}
-      <StoryOverlay texts={item.texts} mentions={item.mentions} />
+      <StoryOverlay texts={item.texts} mentions={paused ? item.mentions : []} labels={labels} />
+      {item.mentions.length > 0 ? (
+        <button type="button" className={styles.tagPeopleBtn} aria-label="태그된 펫"
+          aria-expanded={showList}
+          onClick={(event) => {
+            event.stopPropagation();
+            setTagListFor(showList ? null : item.storyId);
+            onShowTags();
+          }}>
+          <User size={16} strokeWidth={2.25} aria-hidden />
+        </button>
+      ) : null}
+      {showList ? (
+        <ul className={styles.tagList}>
+          {item.mentions.map((mention, index) => {
+            const info = labels[mention.petId];
+            const href = storyMentionHref(mention, labels);
+            const body = <>
+              <MediaImage src={info?.imageUrl ?? NO_PROFILE_SRC} alt="" width={28} height={28} className={styles.tagListAvatar} />
+              <span>{info?.label ?? mentionLabel(mention)}</span>
+            </>;
+            return <li key={`${mention.petId}-${index}`} className={styles.tagListItem}>
+              {href ? <Link href={href} className={styles.tagListLink}
+                onClick={(event) => event.stopPropagation()}>{body}</Link> : body}
+            </li>;
+          })}
+        </ul>
+      ) : null}
     </div>
   );
 }

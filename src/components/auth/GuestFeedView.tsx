@@ -7,13 +7,14 @@ import styles from './GuestFeedView.module.scss';
 
 type Props = {
   feed: FeedData;
+  initialMediaIndex?: number;
 };
 
 /**
  * 공유 URL 게스트 열람.
  * 최초 로그인 모달 → 닫기 가능 → 이후 모든 액션(오버레이) 시 모달 재표시.
  */
-export function GuestFeedView({ feed }: Props) {
+export function GuestFeedView({ feed, initialMediaIndex = 0 }: Props) {
   const [loginOpen, setLoginOpen] = useState(true);
 
   useEffect(() => {
@@ -23,7 +24,7 @@ export function GuestFeedView({ feed }: Props) {
   return (
     <div className={styles.shell}>
       <div className={styles.feedWrap} aria-hidden={loginOpen}>
-        <Feed {...feed} />
+        <Feed {...feed} initialMediaIndex={initialMediaIndex} />
       </div>
       {/* 정적 열람만 — 스와이프·클릭·버튼 전부 차단 후 모달 */}
       <button

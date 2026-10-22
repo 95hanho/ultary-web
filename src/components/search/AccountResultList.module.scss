@@ -9,6 +9,14 @@
 .item {
   margin: 0;
   padding: 0;
+
+  &:hover {
+    background: var(--brand-grass-100);
+  }
+
+  &:active {
+    background: var(--brand-grass-150);
+  }
 }
 
 .row {

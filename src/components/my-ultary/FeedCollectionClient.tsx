@@ -1,16 +1,17 @@
 'use client';
 
+import { PageLoadError } from '@/components/common/PageLoadError';
+
 import { FeedListPage } from '@/components/feed/FeedListPage';
 import type { FeedData } from '@/components/feed/Feed';
 import { bffGet } from '@/lib/api/bffFetch';
 import { bffEndpoints } from '@/lib/api/endpoints';
 import { toFeedData } from '@/lib/feed/toFeedData';
-import { MOCK_SAVED_FEEDS } from '@/lib/mock/feeds';
-import { getUltaryAccount, MY_NICKNAME, myUltaryPath } from '@/lib/mock/ultary-accounts';
+import { MY_NICKNAME, myUltaryPath } from '@/lib/mock/ultary-accounts';
 import { gridFeedIds } from '@/lib/myultary/fromApi';
 import { mapSearchUsers } from '@/lib/search/accounts';
 import type { BffEnvelope, MeResponse } from '@/types/api';
-import { useParams } from 'next/navigation';
+import { notFound, useParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
 type FeedCollectionClientProps = {
@@ -28,6 +29,8 @@ async function loadFeedCards(ids: string[]): Promise<FeedData[]> {
 
 /** 고정·태그 그리드에서 들어온 게시글 리스트 */
 export function FeedCollectionClient({ kind }: FeedCollectionClientProps) {
+  const [missingAccount, setMissingAccount] = useState(false);
+  const [loadFailed, setLoadFailed] = useState<{ error: unknown } | null>(null);
   const params = useParams<{ nickname: string; id: string }>();
   const nicknameParam =
     typeof params.nickname === 'string' ? params.nickname : params.nickname?.[0];
@@ -42,15 +45,7 @@ export function FeedCollectionClient({ kind }: FeedCollectionClientProps) {
 
     (async () => {
       try {
-        const mockAccount = getUltaryAccount(nickname);
-        if (mockAccount && !mockAccount.isOwnAccount) {
-          if (!cancelled) {
-            setOwnerName(mockAccount.nickname);
-            setFeeds(kind === 'pinned' ? MOCK_SAVED_FEEDS : []);
-          }
-          return;
-        }
-
+        if (postId) await bffGet(bffEndpoints.feeds.detail, { feedId: postId });
         const meRes = await bffGet<BffEnvelope<MeResponse>>(bffEndpoints.auth.me);
         const meNick = meRes.data?.nickname?.trim() ?? '';
         const isMine = nickname === MY_NICKNAME || (meNick !== '' && nickname === meNick);
@@ -73,6 +68,7 @@ export function FeedCollectionClient({ kind }: FeedCollectionClientProps) {
             (user) => user.nickname === nickname && user.userNo != null,
           );
           if (!matched?.userNo) {
+            if (!cancelled) setMissingAccount(true);
             if (!cancelled) setFeeds([]);
             return;
           }
@@ -89,6 +85,7 @@ export function FeedCollectionClient({ kind }: FeedCollectionClientProps) {
         if (!cancelled) setFeeds(next);
       } catch (err) {
         console.error('[myultary] collection load failed', err);
+        if (!cancelled) setLoadFailed({ error: err });
         if (!cancelled) setFeeds([]);
       }
     })();
@@ -96,7 +93,10 @@ export function FeedCollectionClient({ kind }: FeedCollectionClientProps) {
     return () => {
       cancelled = true;
     };
-  }, [kind, nickname]);
+  }, [kind, nickname, postId]);
+
+  if (missingAccount) notFound();
+  if (loadFailed) return <PageLoadError error={loadFailed.error} />;
 
   return (
     <FeedListPage

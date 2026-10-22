@@ -41,8 +41,8 @@ export async function recoverExpiredAccess<T>(
           if (admin) await clearAdminAuthCookieJar(); else await clearAuthCookieJar();
         }
         throw {
-          status: 401, url, message: session.message,
-          data: { code: session.message, message: session.message, detail: '로그인이 필요합니다.' },
+          status: session.message === 'REFRESH_RETRY_EXHAUSTED' ? 503 : 401, url, message: session.message,
+          data: { code: session.message, message: session.message, detail: session.message === 'REFRESH_RETRY_EXHAUSTED' ? '일시적인 오류가 발생했습니다.' : '로그인이 필요합니다.' },
         };
       }
       access = session.accessToken;

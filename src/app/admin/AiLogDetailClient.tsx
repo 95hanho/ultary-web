@@ -1,5 +1,7 @@
 'use client';
 
+import { PageLoadError } from '@/components/common/PageLoadError';
+
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { bffGet } from '@/lib/api/bffFetch';
@@ -34,7 +36,7 @@ export default function AiLogDetailClient({ aiRequestId }: { aiRequestId: number
       <div className={styles.detailScroll} aria-busy={pending}>
         <h1 className={styles.detailHash}>AI 로그 {aiRequestId}</h1>
         {pending ? <p className={styles.detailMeta} role="status">불러오는 중</p> : null}
-        {!pending && loaded?.error ? <p className={styles.detailError} role="alert">{loaded.error}</p> : null}
+        {!pending && loaded?.error ? <PageLoadError /> : null}
         {item ? <>
           <p className={styles.detailMeta}>{AI_FEATURE[item.featureType] ?? item.featureType} · {item.createdAt ? formatWhen(item.createdAt) : '시간 기록 없음'}</p>
           <Field label="호출 결과" value={AI_STATUS[item.status] ?? item.status} />

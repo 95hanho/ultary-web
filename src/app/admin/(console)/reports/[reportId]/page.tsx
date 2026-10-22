@@ -2,7 +2,7 @@ import { notFound } from 'next/navigation';
 import ReportDetailClient from '../../../ReportDetailClient';
 
 export const metadata = {
-  title: '신고 · 울타리 관리',
+  title: 'Ultary',
 };
 
 export default async function AdminReportDetailPage({

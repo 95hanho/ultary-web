@@ -27,7 +27,7 @@ export type SessionOk = {
 
 export type SessionFail = {
   ok: false;
-  /** 실제 인증 거부 또는 일시 장애 재시도 소진 시 true */
+  /** 실제 인증 거부일 때만 true. 서버·통신 장애에서는 세션을 보존한다. */
   clearCookies: boolean;
   message: string;
 };
@@ -126,9 +126,10 @@ export async function clearAuthCookieJar() {
 }
 
 export function sessionUnauthorized(session: SessionFail) {
+  const unavailable = session.message === 'REFRESH_RETRY_EXHAUSTED';
   const response = NextResponse.json(
-    { message: session.message, detail: '로그인이 필요합니다.' },
-    { status: 401 },
+    { message: session.message, detail: unavailable ? '일시적인 오류가 발생했습니다.' : '로그인이 필요합니다.' },
+    { status: unavailable ? 503 : 401 },
   );
   if (session.clearCookies) clearAuthCookies(response);
   return response;

@@ -1,5 +1,7 @@
 'use client';
 
+import { PageLoadError } from '@/components/common/PageLoadError';
+
 import { FeedListPage } from '@/components/feed/FeedListPage';
 import type { FeedData } from '@/components/feed/Feed';
 import { bffGet } from '@/lib/api/bffFetch';
@@ -9,7 +11,7 @@ import { MY_NICKNAME, myUltaryPath } from '@/lib/mock/ultary-accounts';
 import { gridFeedIds } from '@/lib/myultary/fromApi';
 import { mapSearchUsers } from '@/lib/search/accounts';
 import type { BffEnvelope, MeResponse } from '@/types/api';
-import { useParams } from 'next/navigation';
+import { notFound, useParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
 async function loadFeedCards(
@@ -25,6 +27,8 @@ async function loadFeedCards(
 }
 
 export default function MyUltaryPostsClient() {
+  const [missingAccount, setMissingAccount] = useState(false);
+  const [loadFailed, setLoadFailed] = useState<{ error: unknown } | null>(null);
   const params = useParams<{ nickname: string; id: string }>();
   const nicknameParam =
     typeof params.nickname === 'string' ? params.nickname : params.nickname?.[0];
@@ -39,6 +43,7 @@ export default function MyUltaryPostsClient() {
 
     (async () => {
       try {
+        if (postId) await bffGet(bffEndpoints.feeds.detail, { feedId: postId });
         const meRes = await bffGet<BffEnvelope<MeResponse>>(bffEndpoints.auth.me);
         const meNick = meRes.data?.nickname?.trim() ?? '';
         const isMine = nickname === MY_NICKNAME || (meNick !== '' && nickname === meNick);
@@ -60,7 +65,10 @@ export default function MyUltaryPostsClient() {
           const matched = mapSearchUsers(searchRes.data).find(
             (user) => user.nickname === nickname && user.userNo != null,
           );
-          if (!matched?.userNo) return;
+          if (!matched?.userNo) {
+            if (!cancelled) setMissingAccount(true);
+            return;
+          }
           const listRes = await bffGet<BffEnvelope<unknown>>(bffEndpoints.users.feeds, {
             userNo: matched.userNo,
             limit: 50,
@@ -73,6 +81,7 @@ export default function MyUltaryPostsClient() {
         if (!cancelled) setFeeds(next);
       } catch (err) {
         console.error('[myultary] posts load failed', err);
+        if (!cancelled) setLoadFailed({ error: err });
         if (!cancelled) setFeeds([]);
       }
     })();
@@ -80,7 +89,10 @@ export default function MyUltaryPostsClient() {
     return () => {
       cancelled = true;
     };
-  }, [nickname]);
+  }, [nickname, postId]);
+
+  if (missingAccount) notFound();
+  if (loadFailed) return <PageLoadError error={loadFailed.error} />;
 
   return (
     <FeedListPage

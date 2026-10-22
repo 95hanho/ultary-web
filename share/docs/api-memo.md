@@ -130,6 +130,7 @@ FE는 OAuth code를 Spring에 보내지 않는다. BFF가 code를 교환해 `pro
 > **태그 클릭** `GET /main/search/tags/{tagId}/feeds?limit=30`. 보이는 글만 그리드, 최신순. 항목은 마이울타리 그리드와 같다(`feedId`, `coverFile`, `coverThumbnailFile`, `coverMediaType`, `mediaCount`, `likeCount`, `commentCount`, `createdAt`). 없는 태그 404.  
 > `type=PET`는 스토리 `@` 후보용이다. 검색 페이지에서 쓰지 않는다. `pets[]`에 `petId`가 있다. `mention_id`, 펫 이름, 보호자 닉네임. 본인 펫·차단은 빠진다. `type=FEED`는 게시글 본문 검색(`feeds[]`, 피드 단건과 같은 응답). `type=ALL`은 USER+PET+TAG+FEED.  
 > **`pets[]`에 보호자 닉네임**: 각 펫에 `ownerNickname`(문자열). `userNo`는 보호자. 멘션명만 맞아도 닉네임이 있어야 목록에 `닉네임` + `@mentionId`를 같이 그린다. 없으면 펫 이름만 남는다.  
+> 계정 검색(`type=USER|MENTION`)의 `users` 및 최근 검색 USER 항목은 `hasStory`, `hasUnviewed`를 조회자 기준으로 반환한다. 최근 검색 더보기·저장 응답에도 동일 적용. 스토리 사진은 해당 사용자만 재생하고, 스토리가 없으면 사진 클릭 동작은 없다. TAG 항목의 두 값은 false.
 > **최근 검색**: 검색 후 들어간 **유저 울타리**와 **태그 피드**를 같은 타임라인으로 둔다. 검색창을 열면 `GET /main/search/recent` 5건(`items`, `nextCursorHistoryId`). 더보기는 `GET /main/search/recent/more?cursorHistoryId=` 20건. `null`이면 끝.  
 > 항목 공통: `userSearchHistoryId`, `type`(`USER`|`TAG`), `searchedAt`.  
 > `type=USER`: `userNo`, `nickname`, `profileFile`(대표 펫, 없으면 null), `petTags`(`mentionId` 배열, `@` 없음). `tagId`·`hashtag`는 null. 탈퇴·차단 유저는 목록에서 빠짐.  
@@ -281,6 +282,7 @@ FE는 OAuth code를 Spring에 보내지 않는다. BFF가 code를 교환해 `pro
 | 신고 | POST | `/api/reports` | `/api/v1/reports` | 구현 |
 
 > `type=FOLLOW`(팔로우, 기본) · `type=FOLLOWER`(팔로워). 예전 `RESIDENTS`·`NEIGHBORS`도 같은 목록으로 받는다. 응답 `listType`은 `FOLLOW` 또는 `FOLLOWER`.  
+> 목록의 `hasStory`는 현재 조회자가 볼 수 있는 스토리 유무, `hasUnviewed`는 그중 미열람 스토리 유무다. 접근할 수 없거나 스토리가 없으면 둘 다 false. 프로필 클릭은 `/stories?userNo=...&nickname=...&single=1`로 해당 사용자의 스토리만 재생한다.
 > `pair_key` = `minUserNo:maxUserNo` (한 쌍에 관계 행 1개).  
 > 목록 항목에 `petTags`(펫 `mentionId`, `@` 없음, `priority` 순, 없으면 `[]`)와 `following`(로그인한 내가 그 유저를 팔로우 중이면 true). 버튼은 `neighborId` 유무가 아니라 `following`으로 나눈다. `false`면 팔로우, `true`면 팔로우 끊기.  
 > 상대가 공개 계정이면 `POST /users/{userNo}/neighbors/request`는 바로 `ACCEPTED`다. 신청한 사람만 팔로우하고 `followedBack=false`. 비공개 계정이면 `PENDING`이고, 상대가 수락하면 `ACCEPTED`이면서 `followedBack=true`(수락한 사람도 신청한 사람을 팔로우). 둘 다 상대에게 알림이 간다. 맞팔 전용 상태값은 없다. `followed_back=1`이 서로 팔로우다. 상대만 나를 팔로우한 상태(`following=false`, `followedBy=true`)에서 다시 신청하면 새 행 없이 맞팔로 바로 연결한다. 이미 내가 팔로우 중이면 `409` `NEIGHBOR_ALREADY_EXISTS`. 상대가 신청을 꺼 두면 `403` `NEIGHBOR_REQUEST_CLOSED`. 맞팔에서 `DELETE /neighbors/{neighborId}`는 호출한 사람의 팔로우만 끊고, 상대 팔로우는 남긴다. 한 방향뿐이면 행을 지운다.  

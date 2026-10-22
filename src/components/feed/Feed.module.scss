@@ -44,6 +44,16 @@
 
 .swiper {
   width: 100%;
+  border: 1px solid var(--brand-gray-50);
+  border-radius: 7px;
+
+  :global(.swiper-wrapper) {
+    align-items: center;
+  }
+}
+
+.swiper .photoSlide {
+  height: auto;
 }
 
 .photo {
@@ -222,7 +232,7 @@
 .actionBtn {
   display: inline-flex;
   align-items: center;
-  gap: 2px;
+  gap: 5px;
   padding: 0;
   border: 0;
   background: transparent;
@@ -235,10 +245,44 @@
 
 .actionCount {
   min-width: 1ch;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 400;
   line-height: 1;
   font-variant-numeric: tabular-nums;
+}
+
+.actionPressable:active:not(:disabled) {
+  transform: scale(0.9);
+
+  .restIcon {
+    visibility: hidden;
+  }
+
+  .pressedIcon {
+    visibility: visible;
+  }
+}
+
+.iconOnlyPress:active:not(:disabled) {
+  transform: none;
+
+  > .toggleIcon,
+  > img {
+    transform: scale(0.9);
+  }
+}
+
+.toggleIcon {
+  display: inline-grid;
+
+  > img,
+  > svg {
+    grid-area: 1 / 1;
+  }
+}
+
+.pressedIcon {
+  visibility: hidden;
 }
 
 .actionCountOn {
@@ -247,6 +291,9 @@
 
 .moreWrap {
   position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
 .moreMenu {
@@ -278,6 +325,14 @@
 
   & + & {
     border-top: 1px dashed var(--brand-gray-100);
+  }
+
+  &:hover:not(:disabled) {
+    background: var(--brand-gray-50);
+  }
+
+  &:active:not(:disabled) {
+    background: var(--brand-gray-100);
   }
 
   &:disabled {
@@ -382,4 +437,8 @@
   font-size: 12px;
   line-height: 1.2;
   white-space: nowrap;
+}
+
+.reportIndicator {
+  color: var(--brand-red-600);
 }

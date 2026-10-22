@@ -23,8 +23,8 @@ export async function POST() {
     if (!session.ok) {
       if (session.clearCookies) await clearAuthCookieJar();
       return NextResponse.json(
-        { message: session.message, detail: '로그인이 필요합니다.' },
-        { status: 401 },
+        { message: session.message, detail: session.message === 'REFRESH_RETRY_EXHAUSTED' ? '일시적인 오류가 발생했습니다.' : '로그인이 필요합니다.' },
+        { status: session.message === 'REFRESH_RETRY_EXHAUSTED' ? 503 : 401 },
       );
     }
 

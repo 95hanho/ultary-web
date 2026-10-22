@@ -1,5 +1,7 @@
 'use client';
 
+import { PageLoadError } from '@/components/common/PageLoadError';
+
 import { FooterMenu, refreshFooterProfile } from '@/components/common/FooterMenu';
 import { PageHeader } from '@/components/common/PageHeader';
 import { PetsManageDevTools } from '@/components/dev/PetsManageDevTools';
@@ -134,6 +136,7 @@ function toManaged(pet: Pet): ManagedPet {
 
 /** 설정 > 반려동물 관리 */
 export default function PetsManageClient() {
+  const [loadFailed, setLoadFailed] = useState<{ error: unknown } | null>(null);
   const router = useRouter();
   const openModal = useModalStore((s) => s.open);
   const [pets, setPets] = useState<ManagedPet[]>([]);
@@ -179,6 +182,7 @@ export default function PetsManageClient() {
       } catch (err) {
         if (!cancelled) {
           setListError(pickErrorMessage(err, '반려동물 목록을 불러오지 못했습니다.'));
+        setLoadFailed({ error: err });
         }
       } finally {
         if (!cancelled) setLoading(false);
@@ -510,6 +514,8 @@ export default function PetsManageClient() {
       )}
     </>
   );
+
+  if (loadFailed) return <PageLoadError error={loadFailed.error} />;
 
   return (
     <div className={styles.shell}>

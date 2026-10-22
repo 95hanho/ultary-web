@@ -3,9 +3,9 @@
   "version": "0.3.2",
   "private": true,
   "scripts": {
-    "dev": "node --env-file=.env --env-file=.env.local node_modules/next/dist/bin/next dev",
-    "build": "node --env-file=.env --env-file=.env.production node_modules/next/dist/bin/next build",
-    "start": "node --env-file=.env --env-file=.env.production node_modules/next/dist/bin/next start",
+    "dev": "node scripts/run-next.mjs dev",
+    "build": "node scripts/run-next.mjs build",
+    "start": "node scripts/run-next.mjs start",
     "lint": "eslint",
     "test:auth": "node --test scripts/test-auth-session.mjs"
   },

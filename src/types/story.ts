@@ -61,6 +61,8 @@ export type StoryText = {
 
 export type StoryMention = {
   petId: number;
+  userNo?: number;
+  ownerNickname?: string | null;
   mentionId?: string | null;
   petName?: string | null;
   posX: number;

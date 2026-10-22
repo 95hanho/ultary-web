@@ -5,6 +5,7 @@
  */
 
 import { BFF_BASE_URL } from '@/lib/env.client';
+import { isHttpError } from '@/lib/api/error';
 import {
   applyPathParams,
   applyPathParamsFromBody,
@@ -14,8 +15,17 @@ import {
   type RequestHeaders,
 } from '@/lib/api/http';
 
-const withBff = <T>(url: string, init?: Parameters<typeof http<T>>[1]) =>
-  http<T>(url, { baseUrl: BFF_BASE_URL, ...init });
+const withBff = async <T>(url: string, init?: Parameters<typeof http<T>>[1]) => {
+  try {
+    return await http<T>(url, { baseUrl: BFF_BASE_URL, ...init });
+  } catch (error) {
+    if (typeof window !== 'undefined' && !url.startsWith('/api/admin/') && isHttpError(error)
+      && error.status === 401 && error.message === 'REFRESH_UNAUTHORIZED') {
+      window.location.replace('/login');
+    }
+    throw error;
+  }
+};
 
 /** GET + query */
 export function bffGet<T>(

@@ -1,10 +1,12 @@
+import { APP_URL } from '@/lib/env.server';
 import { Providers } from '@/providers/Providers';
 import '@/styles';
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
   title: 'Ultary',
-  description: 'Ultary web',
+  metadataBase: new URL(APP_URL),
+  description: '반려동물과 함께하는 일상을 나누는 공간, 울타리.',
 };
 
 export default function RootLayout({

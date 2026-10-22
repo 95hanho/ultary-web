@@ -1,5 +1,7 @@
 'use client';
 
+import { PageLoadError } from '@/components/common/PageLoadError';
+
 import { FooterMenu } from '@/components/common/FooterMenu';
 import { PageHeader } from '@/components/common/PageHeader';
 import { bffGet, bffPatchJson } from '@/lib/api/bffFetch';
@@ -114,6 +116,7 @@ function Switch({
 
 /** 설정 > 알림 설정. GET/PATCH /settings/notifications */
 export default function NotificationSettingsClient() {
+  const [loadFailed, setLoadFailed] = useState<{ error: unknown } | null>(null);
   const [enabled, setEnabled] = useState(allEnabled);
   const [ready, setReady] = useState(false);
   const [pendingKey, setPendingKey] = useState<SettingKey | null>(null);
@@ -131,6 +134,7 @@ export default function NotificationSettingsClient() {
       } catch (err) {
         if (!cancelled) {
           setStatus(pickErrorMessage(err, '알림 설정을 불러오지 못했습니다.'));
+        setLoadFailed({ error: err });
         }
       }
     })();
@@ -157,6 +161,8 @@ export default function NotificationSettingsClient() {
       setPendingKey(null);
     }
   }
+
+  if (loadFailed) return <PageLoadError error={loadFailed.error} />;
 
   return (
     <div className={styles.shell}>

@@ -1,5 +1,7 @@
 'use client';
 
+import { PageLoadError } from '@/components/common/PageLoadError';
+
 import { FooterMenu } from '@/components/common/FooterMenu';
 import { MediaImage } from '@/components/common/MediaImage';
 import { PageHeader } from '@/components/common/PageHeader';
@@ -323,6 +325,7 @@ function ActivityMessage({ item }: { item: ActivityItem }) {
 
 /** 설정 > 내 활동. GET /settings/activities */
 export default function ActivityClient() {
+  const [loadFailed, setLoadFailed] = useState<{ error: unknown } | null>(null);
   const [items, setItems] = useState<ActivityItem[]>([]);
   const [status, setStatus] = useState('불러오는 중');
   const [cancelingId, setCancelingId] = useState<string | null>(null);
@@ -344,6 +347,7 @@ export default function ActivityClient() {
         if (!cancelled) {
           setItems([]);
           setStatus(pickErrorMessage(err, '활동을 불러오지 못했습니다.'));
+        setLoadFailed({ error: err });
         }
       }
     })();
@@ -373,6 +377,8 @@ export default function ActivityClient() {
   }
 
   const groups = groupByMonth(items);
+
+  if (loadFailed) return <PageLoadError error={loadFailed.error} />;
 
   return (
     <div className={styles.shell}>

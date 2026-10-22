@@ -1,5 +1,7 @@
 'use client';
 
+import { PageLoadError } from '@/components/common/PageLoadError';
+
 import { FooterMenu } from '@/components/common/FooterMenu';
 import { PageHeader } from '@/components/common/PageHeader';
 import { FeedGrid, type FeedGridItem } from '@/components/feed/FeedGrid';
@@ -20,6 +22,7 @@ function hashtagLabel(raw: unknown) {
 
 /** 태그 검색 그리드. 주소는 /search/tags/{tagId} */
 export default function TagGridClient({ tagId }: { tagId: string }) {
+  const [loadFailed, setLoadFailed] = useState<{ error: unknown } | null>(null);
   const router = useRouter();
   const [title, setTitle] = useState('');
   const [posts, setPosts] = useState<FeedGridItem[]>([]);
@@ -63,6 +66,7 @@ export default function TagGridClient({ tagId }: { tagId: string }) {
         setState('ready');
       } catch (err) {
         console.error('[search] tag grid failed', err);
+        if (!cancelled) setLoadFailed({ error: err });
         if (!cancelled) setState('ready');
       }
     })();
@@ -71,6 +75,8 @@ export default function TagGridClient({ tagId }: { tagId: string }) {
       cancelled = true;
     };
   }, [tagId]);
+
+  if (loadFailed) return <PageLoadError error={loadFailed.error} />;
 
   return (
     <div className={styles.shell}>

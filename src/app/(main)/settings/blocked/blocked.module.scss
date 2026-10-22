@@ -128,11 +128,20 @@
 }
 
 .actionBlue {
-  background: var(--brand-blue-600);
+  background: var(--brand-blue-450);
   color: #fff;
+
+  &:active:not(:disabled) {
+    background: var(--brand-blue-500);
+  }
 }
 
 .actionGray {
   background: var(--brand-gray-100);
+  border-color: var(--brand-black-700);
   color: var(--brand-black-700);
+
+  &:active:not(:disabled) {
+    background: var(--brand-gray-150);
+  }
 }

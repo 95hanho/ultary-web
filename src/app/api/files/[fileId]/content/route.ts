@@ -3,8 +3,7 @@ import { prepareSpringRequest } from '@/lib/api/spring-request';
 import { springEndpoints } from '@/lib/api/endpoints';
 import {
   handleBffError,
-  isUnauthorized,
-  requireAccessToken,
+  withOptionalAuth,
 } from '@/lib/api/bffRoute';
 import { applyPathParams } from '@/lib/api/http';
 import { isHttpError } from '@/lib/api/error';
@@ -13,18 +12,13 @@ import { isHttpError } from '@/lib/api/error';
  * BFF /api/files/[fileId]/content — GET
  * Spring 바이너리 프록시. CDN 절대 URL(filePath)에는 FE가 이 API를 호출하지 않음.
  */
-export async function GET(
-  _request: Request,
-  { params }: { params: Promise<{ fileId: string }> },
-) {
+export const GET = withOptionalAuth<{ fileId: string }>(async ({ accessToken, params }) => {
   console.log('[API] 파일 content 프록시');
   try {
-    const accessToken = await requireAccessToken();
-    if (isUnauthorized(accessToken)) return accessToken;
-    const { fileId } = await params;
+    const { fileId } = params;
     const [path] = applyPathParams(springEndpoints.files.content, { fileId });
     const prepared = prepareSpringRequest(path, {
-      headers: { Authorization: `Bearer ${accessToken}` },
+      headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
       cache: 'no-store',
     });
     const res = await fetch(prepared.url, prepared.init);
@@ -60,10 +54,10 @@ export async function GET(
           ? { 'Content-Length': res.headers.get('content-length')! }
           : {}),
         'Cache-Control':
-          res.headers.get('cache-control') ?? 'private, max-age=3600',
+          accessToken ? (res.headers.get('cache-control') ?? 'private, max-age=3600') : 'no-store',
       },
     });
   } catch (err) {
     return handleBffError(err);
   }
-}
+});

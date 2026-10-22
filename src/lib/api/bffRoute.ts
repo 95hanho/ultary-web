@@ -54,12 +54,13 @@ export function bearer(accessToken: string): RequestHeaders {
 
 /**
  * access 쿠키 필수. 없으면 refresh로 Spring 재발급 (공유 락).
- * 실제 인증 거부 또는 서버 장애의 2회 재시도 소진 시 인증 쿠키를 삭제한다.
+ * 실제 인증 거부만 쿠키를 삭제한다. 서버 장애는 503으로 반환하고 세션을 보존한다.
  */
 export async function requireAccessToken(): Promise<string | NextResponse> {
   const session = await resolveSessionFromCookies();
   if (!session.ok) {
     if (session.clearCookies) await clearAuthCookieJar();
+    if (session.message === 'REFRESH_RETRY_EXHAUSTED') return handleBffError({ status: 503, url: '', data: null, message: session.message });
     return unauthorized(
       session.message === 'REFRESH_UNAUTHORIZED'
         ? '세션이 만료되었습니다. 다시 로그인해 주세요.'
@@ -80,6 +81,7 @@ export function isUnauthorized(
 export async function requireAdminAccessToken(): Promise<string | NextResponse> {
   const session = await requireAdminSession();
   if (!session.ok) {
+    if (session.message === 'REFRESH_RETRY_EXHAUSTED') return handleBffError({ status: 503, url: '', data: null, message: session.message });
     return unauthorized(
       session.message === 'REFRESH_UNAUTHORIZED'
         ? '세션이 만료되었습니다. 다시 로그인해 주세요.'

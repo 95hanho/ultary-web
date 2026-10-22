@@ -62,16 +62,8 @@ function readPhotoTags(media: unknown): FeedPhotoTag[] {
  * nickname은 응답 루트 또는 author.* 에서 읽음 (spring-auth-api.md).
  */
 export function toFeedData(raw: unknown, fallbackId: string): FeedData {
-  if (!isRecord(raw)) {
-    return {
-      id: fallbackId,
-      nickname: 'ULTARY',
-      profileUrl: NO_PROFILE_SRC,
-      images: [FALLBACK_POST],
-      caption: '',
-      likeCount: 0,
-      commentCount: 0,
-    };
+  if (!isRecord(raw) || raw.feedId == null) {
+    throw new Error('게시글을 불러오지 못했습니다.');
   }
 
   const detail = raw as FeedDetailResponse & {

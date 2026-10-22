@@ -132,7 +132,7 @@
   padding: 0;
   border: 0;
   background: transparent;
-  color: #222ced;
+  color: var(--brand-blue-500);
   font-size: 14px;
   font-weight: 500;
   line-height: 1.35;
@@ -147,7 +147,7 @@
 
 .link {
   margin-left: auto;
-  color: #222ced;
+  color: var(--brand-blue-500);
   font-size: 14px;
   font-weight: 500;
   line-height: 1.35;

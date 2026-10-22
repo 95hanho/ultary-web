@@ -2,6 +2,7 @@
 
 import { AccountSearchList } from '@/components/common/AccountSearchList';
 import { MediaImage } from '@/components/common/MediaImage';
+import { SendStateIcon } from '@/components/common/SendStateIcon';
 import { bffGet, bffPostJson } from '@/lib/api/bffFetch';
 import { bffEndpoints } from '@/lib/api/endpoints';
 import { isRecord } from '@/lib/api/error';
@@ -10,7 +11,6 @@ import { NO_PROFILE_SRC } from '@/lib/profileImage';
 import { showFooterNotice } from '@/lib/ui/footerNotice';
 import type { BffEnvelope } from '@/types/api';
 import clsx from 'clsx';
-import Image from 'next/image';
 import {
   useCallback,
   useEffect,
@@ -23,7 +23,6 @@ import {
 import { createPortal } from 'react-dom';
 import styles from './ShareMessageSheet.module.scss';
 
-const SendIcon = '/images/icon/Send.svg';
 const MY_PROFILE = '/images/mock/post2.jpg';
 const CLOSE_DRAG_PX = 90;
 
@@ -320,7 +319,7 @@ export function ShareMessageSheet({
               disabled={selectedUserNo == null || sending}
               aria-label="전송"
             >
-              <Image src={SendIcon} alt="" width={22} height={22} />
+              <SendStateIcon sending={sending} />
             </button>
           </div>
         </form>

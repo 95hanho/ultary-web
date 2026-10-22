@@ -16,7 +16,7 @@ export function isAuthPublicPath(pathname: string): boolean {
   if (AUTH_PUBLIC_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`))) {
     return true;
   }
-  return SHARED_FEED_PATH.test(pathname);
+  return SHARED_FEED_PATH.test(pathname) || /^\/myultary\/[^/]+$/.test(pathname);
 }
 
 export function isSharedFeedPath(pathname: string): boolean {

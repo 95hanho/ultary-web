@@ -1,5 +1,7 @@
 'use client';
 
+import { PageLoadError } from '@/components/common/PageLoadError';
+
 import { VisibilityPicker } from '@/components/common/VisibilityPicker';
 import { FooterMenu } from '@/components/common/FooterMenu';
 import { FullScreenLoading } from '@/components/common/FullScreenLoading';
@@ -79,7 +81,7 @@ export default function WriteComposeClient({ editFeedId }: { editFeedId?: string
   const items = useWriteDraftStore((s) => s.items);
   const visibility = useWriteDraftStore((s) => s.visibility);
   const setVisibility = useWriteDraftStore((s) => s.setVisibility);
-  const [visibilityError, setVisibilityError] = useState(false);
+  const [visibilityError, setVisibilityError] = useState<{ error: unknown } | null>(null);
   const caption = useWriteDraftStore((s) => s.caption);
   const setCaption = useWriteDraftStore((s) => s.setCaption);
   const clear = useWriteDraftStore((s) => s.clear);
@@ -87,7 +89,7 @@ export default function WriteComposeClient({ editFeedId }: { editFeedId?: string
   const beginEditing = useWriteDraftStore((s) => s.beginEditing);
   const isEditing = editFeedId != null;
   const pageTitle = isEditing ? '게시글 수정' : '게시글 작성';
-  const [editError, setEditError] = useState<{ id: string; message: string } | null>(null);
+  const [editError, setEditError] = useState<{ id: string; message: string; error: unknown } | null>(null);
   const editErrorMessage = editError?.id === editFeedId ? editError?.message : null;
   const loadingEdit = isEditing && editingFeedId !== editFeedId && !editErrorMessage;
   const returnHref = isEditing ? `${basePath}/posts/${editFeedId}` : cropHref;
@@ -98,7 +100,7 @@ export default function WriteComposeClient({ editFeedId }: { editFeedId?: string
     loadFeedEditDraft(editFeedId).then((draft) => {
       if (!cancelled) beginEditing(editFeedId, draft.items, draft.caption, draft.visibility);
     }).catch((error: unknown) => {
-      if (!cancelled) setEditError({ id: editFeedId, message: submitFailureMessage(error) });
+      if (!cancelled) setEditError({ id: editFeedId, message: submitFailureMessage(error), error });
     });
     return () => { cancelled = true; };
   }, [editFeedId, beginEditing]);
@@ -113,7 +115,7 @@ export default function WriteComposeClient({ editFeedId }: { editFeedId?: string
         }
         if (!cancelled && useWriteDraftStore.getState().visibility == null) setVisibility(next);
       })
-      .catch(() => { if (!cancelled) setVisibilityError(true); });
+      .catch((error: unknown) => { if (!cancelled) setVisibilityError({ error }); });
     return () => { cancelled = true; };
   }, [isEditing, editingFeedId, visibility, setVisibility]);
 
@@ -392,6 +394,8 @@ export default function WriteComposeClient({ editFeedId }: { editFeedId?: string
   const showMinLengthHint = !tagWarn && activeTag?.term.length === 1;
   const showSuggestOverlay = suggestOpen && suggestReady && suggestItems.length > 0;
   const visibleRecommend = recommendItems.filter((item) => !captionHasHashtag(caption, item.tag));
+
+  if (editErrorMessage || visibilityError) return <PageLoadError error={editErrorMessage ? editError?.error : visibilityError?.error} />;
 
   if (items.length === 0 || (isEditing ? editingFeedId !== editFeedId : editingFeedId != null)) {
     return (

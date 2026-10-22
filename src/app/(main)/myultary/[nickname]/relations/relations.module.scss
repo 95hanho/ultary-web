@@ -97,6 +97,7 @@
 .accountList {
   display: flex;
   flex-direction: column;
+  gap: 6px;
   margin: 0;
   padding: 0 5px;
   list-style: none;
@@ -109,7 +110,7 @@
   padding: 0;
 }
 
-.accountBtn {
+.accountInfo {
   display: flex;
   min-width: 0;
   flex: 1;
@@ -125,15 +126,14 @@
   flex-shrink: 0;
   align-items: center;
   justify-content: center;
-  padding: 4px;
+  width: 45px;
+  height: 45px;
+  padding: 0;
+  text-decoration: none;
 }
 
-.accountImage {
-  display: block;
-  width: 47px;
-  height: 47px;
-  object-fit: cover;
-  border-radius: 5px;
+.accountImageWrap .accountProfile {
+  padding: 2px;
 }
 
 .accountText {
@@ -146,13 +146,16 @@
 }
 
 .accountNick {
+  align-self: flex-start;
+  max-width: 100%;
   overflow: hidden;
   color: var(--brand-black-700);
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 700;
   line-height: 1.2;
   text-overflow: ellipsis;
   white-space: nowrap;
+  text-decoration: none;
 }
 
 .accountTags {
@@ -168,11 +171,11 @@
 .actionBtn {
   display: inline-flex;
   flex-shrink: 0;
-  height: 29px;
+  // height: 29px;
   align-items: center;
   justify-content: center;
   margin-right: 8px;
-  padding: 5px 8px;
+  padding: 9px 10px;
   border: 1px solid var(--brand-black-700);
   border-radius: 7px;
   font-size: 14px;
@@ -188,11 +191,19 @@
 }
 
 .actionConnect {
-  background: var(--brand-blue-600);
+  background: var(--brand-blue-450);
   color: #fff;
+
+  &:active:not(:disabled) {
+    background: var(--brand-blue-500);
+  }
 }
 
 .actionDisconnect {
   background: var(--brand-gray-100);
   color: var(--brand-black-700);
+
+  &:active:not(:disabled) {
+    background: var(--brand-gray-150);
+  }
 }

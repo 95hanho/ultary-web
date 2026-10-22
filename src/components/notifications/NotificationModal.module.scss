@@ -64,3 +64,11 @@
   color: var(--brand-black-700);
   cursor: pointer;
 }
+
+.close:hover {
+  background: var(--brand-gray-100);
+}
+
+.close:active {
+  background: var(--brand-gray-150);
+}

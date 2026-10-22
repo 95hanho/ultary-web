@@ -65,6 +65,12 @@
   gap: 10px;
 }
 
+.menuItem:active,
+.menuItemBtn:active,
+.logout:active:not(:disabled) {
+  background: var(--brand-grass-100);
+}
+
 .menuIcon {
   display: flex;
   flex-shrink: 0;

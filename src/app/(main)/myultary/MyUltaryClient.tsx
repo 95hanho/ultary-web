@@ -1,5 +1,10 @@
 'use client';
 
+import type { PublicUltaryView } from '@/types/public-ultary';
+import { ultaryTitle } from '@/lib/myultary/title';
+import reloadStyles from '@/components/common/PageLoadError.module.scss';
+import { PageLoadError } from '@/components/common/PageLoadError';
+
 import { FooterMenu } from '@/components/common/FooterMenu';
 import { LogoHeader } from '@/components/common/LogoHeader';
 import { LogoLoading } from '@/components/common/LogoLoading';
@@ -151,13 +156,16 @@ function slidePetsByHalf(swiper: SwiperType, direction: 'prev' | 'next') {
 
 type MyUltaryClientProps = {
   nickname: string;
+  guestData?: PublicUltaryView;
 };
 
 /** 마이울타리 (/myultary/[nickname]) — 내 계정·다른 사람 모두 API, 예시 계정만 mock */
-export default function MyUltaryClient({ nickname }: MyUltaryClientProps) {
+export default function MyUltaryClient({ nickname, guestData }: MyUltaryClientProps) {
+  const guest = guestData != null;
+  const [loadFailed, setLoadFailed] = useState<{ error: unknown } | null>(null);
   const router = useRouter();
   const mockAccount = getUltaryAccount(nickname);
-  const expectsOwn = !mockAccount || mockAccount.isOwnAccount;
+  const expectsOwn = guest || !mockAccount || mockAccount.isOwnAccount;
   const basePath = myUltaryPath(nickname);
 
   const petSwiperRef = useRef<SwiperType | null>(null);
@@ -169,19 +177,19 @@ export default function MyUltaryClient({ nickname }: MyUltaryClientProps) {
   const [contentTab, setContentTab] = useState<ContentTab>('feed');
   const pendingGridScrollY = useRef<number | null>(null);
   const [photoTargetPetId, setPhotoTargetPetId] = useState<string | null>(null);
-  const [profile, setProfile] = useState<MyUltaryProfile | null>(null);
-  const [viewingOwn, setViewingOwn] = useState(mockAccount?.isOwnAccount === true);
-  const [profileReady, setProfileReady] = useState(!expectsOwn);
+  const [profile, setProfile] = useState<MyUltaryProfile | null>(guestData?.profile ?? null);
+  const [viewingOwn, setViewingOwn] = useState(!guest && mockAccount?.isOwnAccount === true);
+  const [profileReady, setProfileReady] = useState(guest || !expectsOwn);
   const [unknownAccount, setUnknownAccount] = useState(false);
-  const [apiPets, setApiPets] = useState<Pet[]>([]);
-  const [apiFeedPosts, setApiFeedPosts] = useState<FeedGridItem[]>([]);
-  const [pinnedPosts, setPinnedPosts] = useState<FeedGridItem[]>([]);
-  const [taggedPosts, setTaggedPosts] = useState<FeedGridItem[]>([]);
-  const [feedsReady, setFeedsReady] = useState(!expectsOwn);
-  const [pinnedReady, setPinnedReady] = useState(!expectsOwn);
-  const [taggedReady, setTaggedReady] = useState(!expectsOwn);
-  const [bio, setBio] = useState(() => (expectsOwn ? '' : (mockAccount?.bio ?? '')));
-  const [savedBio, setSavedBio] = useState(() => (expectsOwn ? '' : (mockAccount?.bio ?? '')));
+  const [apiPets, setApiPets] = useState<Pet[]>(guestData?.pets ?? []);
+  const [apiFeedPosts, setApiFeedPosts] = useState<FeedGridItem[]>(guestData?.feeds ?? []);
+  const [pinnedPosts, setPinnedPosts] = useState<FeedGridItem[]>(guestData?.pinned ?? []);
+  const [taggedPosts, setTaggedPosts] = useState<FeedGridItem[]>(guestData?.tagged ?? []);
+  const [feedsReady, setFeedsReady] = useState(guest || !expectsOwn);
+  const [pinnedReady, setPinnedReady] = useState(guest || !expectsOwn);
+  const [taggedReady, setTaggedReady] = useState(guest || !expectsOwn);
+  const [bio, setBio] = useState(() => (guestData?.profile.bio ?? (expectsOwn ? '' : (mockAccount?.bio ?? ''))));
+  const [savedBio, setSavedBio] = useState(() => (guestData?.profile.bio ?? (expectsOwn ? '' : (mockAccount?.bio ?? ''))));
   const [editingBio, setEditingBio] = useState(false);
   const bioInputRef = useRef<HTMLInputElement>(null);
 
@@ -220,6 +228,11 @@ export default function MyUltaryClient({ nickname }: MyUltaryClientProps) {
     : (mockAccount?.followerCount ?? 0);
 
   useEffect(() => {
+    if (!profileReady) return;
+    document.title = ultaryTitle(displayNickname, pets.map(pet => pet.handle));
+  }, [profileReady, displayNickname, pets]);
+
+  useEffect(() => {
     if (!editingBio) return;
     const input = bioInputRef.current;
     if (!input) return;
@@ -249,7 +262,7 @@ export default function MyUltaryClient({ nickname }: MyUltaryClientProps) {
   };
 
   useEffect(() => {
-    if (!expectsOwn) return;
+    if (guest || !expectsOwn) return;
     let cancelled = false;
     setProfileReady(false);
     setFeedsReady(false);
@@ -336,6 +349,7 @@ export default function MyUltaryClient({ nickname }: MyUltaryClientProps) {
         setFeedsReady(true);
       } catch (err) {
         console.error('[myultary] profile load failed', err);
+        if (!cancelled) setLoadFailed({ error: err });
         if (!cancelled) {
           setProfileReady(true);
           setFeedsReady(true);
@@ -345,10 +359,10 @@ export default function MyUltaryClient({ nickname }: MyUltaryClientProps) {
     return () => {
       cancelled = true;
     };
-  }, [basePath, expectsOwn, nickname]);
+  }, [basePath, expectsOwn, nickname, guest]);
 
   useEffect(() => {
-    if (!profileReady || contentTab !== 'pinned' || pinnedReady) return;
+    if (guest || !profileReady || contentTab !== 'pinned' || pinnedReady) return;
     const ownerUserNo = profile?.userNo;
     if (!viewingOwn && ownerUserNo == null) return;
     let cancelled = false;
@@ -366,6 +380,7 @@ export default function MyUltaryClient({ nickname }: MyUltaryClientProps) {
         setPinnedPosts(mapFeedGrid(res.data, (id) => `${basePath}/pinned/${id}`));
       } catch (err) {
         console.error('[myultary] pinned feeds failed', err);
+        if (!cancelled) setLoadFailed({ error: err });
         if (!cancelled) setPinnedPosts([]);
       } finally {
         if (!cancelled) setPinnedReady(true);
@@ -374,10 +389,10 @@ export default function MyUltaryClient({ nickname }: MyUltaryClientProps) {
     return () => {
       cancelled = true;
     };
-  }, [basePath, contentTab, pinnedReady, profile?.userNo, profileReady, viewingOwn]);
+  }, [basePath, contentTab, pinnedReady, profile?.userNo, profileReady, viewingOwn, guest]);
 
   useEffect(() => {
-    if (!profileReady || contentTab !== 'tagged' || taggedReady) return;
+    if (guest || !profileReady || contentTab !== 'tagged' || taggedReady) return;
     const ownerUserNo = profile?.userNo;
     if (!viewingOwn && ownerUserNo == null) return;
     let cancelled = false;
@@ -395,6 +410,7 @@ export default function MyUltaryClient({ nickname }: MyUltaryClientProps) {
         setTaggedPosts(mapFeedGrid(res.data, (id) => `${basePath}/tagged/${id}`));
       } catch (err) {
         console.error('[myultary] tagged feeds failed', err);
+        if (!cancelled) setLoadFailed({ error: err });
         if (!cancelled) setTaggedPosts([]);
       } finally {
         if (!cancelled) setTaggedReady(true);
@@ -481,7 +497,7 @@ export default function MyUltaryClient({ nickname }: MyUltaryClientProps) {
     setContentTab(saved.tab);
   }, [nickname]);
 
-  const showRelationActions = profileReady && !isOwnAccount && profile?.userNo != null;
+  const showRelationActions = !guest && profileReady && !isOwnAccount && profile?.userNo != null;
 
   const toggleFollow = async () => {
     if (!profile?.userNo || relationBusy || isOwnAccount) return;
@@ -729,12 +745,14 @@ export default function MyUltaryClient({ nickname }: MyUltaryClientProps) {
     }
   };
 
+  if (loadFailed) return <PageLoadError error={loadFailed.error} />;
+
   return (
     <div className={styles.shell}>
       <LogoHeader
-        hideOnDesktop
+        hideOnDesktop={!guest}
         actions={
-          isOwnAccount ? (
+          guest ? <Link href="/login" className={clsx(reloadStyles.reload, styles.guestLogin)}>로그인</Link> : isOwnAccount ? (
             <>
               <button
                 type="button"
@@ -756,7 +774,7 @@ export default function MyUltaryClient({ nickname }: MyUltaryClientProps) {
         <div className={styles.profileMain}>
           <div className={styles.nicknameRow}>
             <h1 className={styles.nickname}>{displayNickname}</h1>
-            {!isOwnAccount ? (
+            {!guest && !isOwnAccount ? (
               <button
                 type="button"
                 className={styles.nickMoreBtn}
@@ -781,7 +799,7 @@ export default function MyUltaryClient({ nickname }: MyUltaryClientProps) {
               </button>
             </li>
             <li className={styles.statItem}>
-              {profile?.userNo != null && !postsLocked ? (
+              {!guest && profile?.userNo != null && !postsLocked ? (
                 <Link
                   href={`${myUltaryPath(profile.nickname)}/residents?userNo=${profile.userNo}`}
                   className={styles.statLink}
@@ -797,7 +815,7 @@ export default function MyUltaryClient({ nickname }: MyUltaryClientProps) {
               )}
             </li>
             <li className={styles.statItem}>
-              {profile?.userNo != null && !postsLocked ? (
+              {!guest && profile?.userNo != null && !postsLocked ? (
                 <Link
                   href={`${myUltaryPath(profile.nickname)}/neighbors?userNo=${profile.userNo}`}
                   className={styles.statLink}
@@ -1124,6 +1142,7 @@ export default function MyUltaryClient({ nickname }: MyUltaryClientProps) {
           onChange={handlePetPhotoChange}
         />
       ) : null}
+      {!guest ? <>
       <input
         ref={writeFileInputRef}
         type="file"
@@ -1140,7 +1159,8 @@ export default function MyUltaryClient({ nickname }: MyUltaryClientProps) {
         onChange={(e) => void handleStoryFileChange(e)}
       />
 
-      <FooterMenu />
+      </> : null}
+      {!guest ? <FooterMenu /> : null}
       {petMenu
         ? createPortal(
             <>

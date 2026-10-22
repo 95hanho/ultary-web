@@ -92,9 +92,12 @@
   cursor: pointer;
   touch-action: manipulation;
 
-  &:hover,
+  &:hover {
+    background: var(--brand-grass-100);
+  }
+
   &:active {
-    background: rgba(114, 202, 211, 0.1);
+    background: var(--brand-grass-150);
   }
 }
 
@@ -175,6 +178,10 @@
   background: transparent;
   cursor: pointer;
   line-height: 0;
+
+  &:active:not(:disabled) {
+    transform: scale(0.9);
+  }
 }
 
 .info {

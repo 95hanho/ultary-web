@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import AdminMenuClient from './AdminMenuClient';
 
 export const metadata: Metadata = {
-  title: '울타리 관리',
+  title: 'Ultary',
   robots: { index: false, follow: false },
 };
 

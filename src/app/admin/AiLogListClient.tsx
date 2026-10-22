@@ -1,5 +1,7 @@
 'use client';
 
+import { PageLoadError } from '@/components/common/PageLoadError';
+
 import Link from 'next/link';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { bffGet } from '@/lib/api/bffFetch';
@@ -74,7 +76,7 @@ export default function AiLogListClient() {
       <p className={styles.aiHint}>호출 시도별 기록입니다. 실패 이후 재시도 결과는 상세에서 확인할 수 있습니다.</p>
       <div ref={listRef} className={styles.listWrap} aria-busy={pending}>
         {pending ? <p className={styles.empty} role="status">불러오는 중</p> : null}
-        {error ? <p className={styles.empty} role="alert">AI 로그를 불러오지 못했습니다. 새로고침으로 다시 시도해 주세요.</p> : null}
+        {error ? <PageLoadError /> : null}
         {data?.items.length === 0 ? <p className={styles.empty}>조건에 맞는 AI 로그가 없습니다.</p> : null}
         <ul className={styles.list}>
           {data?.items.map((item) => (

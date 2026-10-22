@@ -7,6 +7,7 @@ import {
   isAuthPublicPath,
   loginRedirectUrl,
 } from '@/lib/auth/paths';
+import { isMemberPagePath } from '@/lib/auth/member-page-paths';
 import { NextRequest, NextResponse } from 'next/server';
 
 /**
@@ -43,7 +44,9 @@ export function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
-  return NextResponse.redirect(loginRedirectUrl(request.url));
+  if (isMemberPagePath(pathname)) return NextResponse.redirect(loginRedirectUrl(request.url));
+  // 실제 라우트가 없는 URL은 Next.js의 공통 404가 처리한다.
+  return NextResponse.next();
 }
 
 export const config = {

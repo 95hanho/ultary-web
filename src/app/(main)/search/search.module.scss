@@ -162,7 +162,11 @@
   line-height: 1.2;
 }
 
-.recentMoreRow { display: flex; justify-content: flex-end; padding: 10px 15px; }
+.recentMoreRow {
+  display: flex;
+  justify-content: flex-end;
+  padding: 10px 15px;
+}
 .recentMoreBtn {
   padding: 0;
   border: 0;
@@ -170,9 +174,16 @@
   color: var(--brand-gray-600);
   font-size: 13px;
   cursor: pointer;
-  &:disabled { cursor: default; opacity: 0.6; }
+  &:disabled {
+    cursor: default;
+    opacity: 0.6;
+  }
 }
-.recentError { margin: 8px 15px; color: var(--brand-red-600); font-size: 13px; }
+.recentError {
+  margin: 8px 15px;
+  color: var(--brand-red-600);
+  font-size: 13px;
+}
 
 .clearAllBtn {
   padding: 0;
@@ -196,12 +207,15 @@
 .accountItem {
   display: flex;
   align-items: center;
-  height: 55px;
   margin: 0;
   padding: 0;
 
   &:hover {
-    background: #0000000d;
+    background: var(--brand-grass-100);
+  }
+
+  &:active {
+    background: var(--brand-grass-150);
   }
 }
 
@@ -220,7 +234,7 @@
   cursor: pointer;
 }
 
-.accountBtn {
+.accountInfo {
   display: flex;
   min-width: 0;
   flex: 1;
@@ -232,7 +246,11 @@
   color: inherit;
   text-align: left;
   text-decoration: none;
-  cursor: pointer;
+}
+
+.accountImageArea {
+  flex-shrink: 0;
+  padding: 4px 0;
 }
 
 .accountImageWrap {
@@ -240,19 +258,20 @@
   flex-shrink: 0;
   align-items: center;
   justify-content: center;
-  padding: 4px;
+  width: 45px;
+  height: 45px;
+  padding: 0;
+  text-decoration: none;
 }
 
-.accountImage {
-  display: block;
-  width: 47px;
-  height: 47px;
-  object-fit: cover;
-  border-radius: 5px;
+.accountImageWrap .accountProfile {
+  padding: 2px;
 }
 
 .accountText {
   display: flex;
+  color: inherit;
+  text-decoration: none;
   min-width: 0;
   flex: 1;
   flex-direction: column;
@@ -263,7 +282,7 @@
 .accountNick {
   overflow: hidden;
   color: var(--brand-black-700);
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 700;
   line-height: 1.2;
   text-overflow: ellipsis;

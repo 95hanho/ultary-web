@@ -93,7 +93,7 @@
 | `GET /settings/activities` | `items` | 내 활동. 내가 한 좋아요·댓글·답글·팔로우·게시글·스토리. `neighborStatus`가 `PENDING` 또는 `ACCEPTED`면 취소 `DELETE /neighbors/{neighborId}` |
 | `GET /settings/notifications` · `PATCH` | 스위치 10개 | 알림 종류별 켜기. 없으면 전부 켜짐. PATCH는 넣은 필드만. 끈 종류는 알림 목록에서 빠짐 |
 | `GET /settings/privacy` · `PATCH` | 공개 범위 7개 | 비공개 계정, 게시글·스토리 범위, 팔로우 신청·댓글·멘션·태그. 행이 없으면 기본값. PATCH는 넣은 필드만 |
-| `GET /users/{userNo}/neighbors?type=` | 배열 | 팔로우·팔로워 목록. `FOLLOW` 팔로우(기본), `FOLLOWER` 팔로워. 응답 `listType`도 같다. 카운트는 `followCount`, `followerCount`. 채팅 상대도 이 목록 |
+| `GET /users/{userNo}/neighbors?type=` | 배열 | 팔로우·팔로워 목록. `FOLLOW` 팔로우(기본), `FOLLOWER` 팔로워. 응답 `listType`도 같다. 카운트는 `followCount`, `followerCount`. 항목의 `hasStory`, `hasUnviewed`는 조회자 기준 스토리 유무·미열람 상태. 채팅 상대도 이 목록 |
 | `POST /dm/rooms/start` | `room`, `message` | targetUserNo 및 메시지/공유 데이터. 방 생성과 첫 전송을 같은 트랜잭션으로 처리. [상세](dm-first-message.md) |
 | `GET /dm/share-targets` | `items` | 공유 대상. `mode` SHARE/DM/STORY_TAG/FEED_TAG, `q` 닉네임·펫태그 검색(제한 전), `priorityOrder` 앞 3순위 순열. 1~9순위·상세는 [공유 대상](share-targets.md). `userNo`, `nickname`, `petTags`(@ 없음), `pets`(petId·mentionId), `profileFile`, `dmRoomId`, `following`, `followedBy`, `group`, `activeAt` |
 | `GET /tags/{tagId}` | 태그 | `purpose`는 `USER` 또는 `COMMERCIAL`. `title`·`content`·`link`·`images`는 `profileStatus=APPROVED`일 때만. 요청자만 `profileRequest` |

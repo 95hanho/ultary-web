@@ -1,5 +1,7 @@
 'use client';
 
+import { PageLoadError } from '@/components/common/PageLoadError';
+
 import { AccountSearchList } from '@/components/common/AccountSearchList';
 import { useRankedAccounts, type RankedAccount } from '@/lib/search/useRankedAccounts';
 import { EmptyState } from '@/components/common/EmptyState';
@@ -346,6 +348,7 @@ function ShareCard({
 
 /** 메시지(DM) — 방 목록 + 스레드 */
 export default function DmClient({ roomId, feedId, feedMediaId, storyId }: DmClientProps) {
+  const [loadFailed, setLoadFailed] = useState<{ error: unknown } | null>(null);
   const router = useRouter();
   const [rooms, setRooms] = useState<DmRoom[]>([]);
   const [status, setStatus] = useState('불러오는 중');
@@ -419,6 +422,7 @@ export default function DmClient({ roomId, feedId, feedMediaId, storyId }: DmCli
         setStatus('');
       } catch (err) {
         if (!cancelled) setStatus(pickErrorMessage(err, '메시지를 불러오지 못했습니다.'));
+        if (!cancelled) setLoadFailed({ error: err });
       }
     })();
     return () => {
@@ -473,6 +477,7 @@ export default function DmClient({ roomId, feedId, feedMediaId, storyId }: DmCli
         clearDmRoomUnread(roomId);
       } catch (err) {
         if (cancelled || threadReqRef.current !== req) return;
+        setLoadFailed({ error: err });
         setThreadStatus(pickErrorMessage(err, '대화를 불러오지 못했습니다.'));
       }
     })();
@@ -839,6 +844,8 @@ export default function DmClient({ roomId, feedId, feedMediaId, storyId }: DmCli
       </div>
     );
   }
+
+  if (loadFailed) return <PageLoadError error={loadFailed.error} />;
 
   return (
     <div className={styles.shell}>

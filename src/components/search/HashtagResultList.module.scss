@@ -32,11 +32,11 @@
   border-radius: 4px;
 
   &:hover {
-    background: #0000000d;
+    background: var(--brand-grass-100);
   }
 
   &:active {
-    background: var(--brand-grass-100);
+    background: var(--brand-grass-150);
   }
 }
 
@@ -46,11 +46,11 @@
   border-radius: 0;
 
   &:hover {
-    background: var(--brand-sky-100);
+    background: var(--brand-grass-100);
   }
 
   &:active {
-    background: var(--brand-gray-100);
+    background: var(--brand-grass-150);
   }
 }
 

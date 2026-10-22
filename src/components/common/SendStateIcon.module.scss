@@ -1,0 +1,28 @@
+.icon {
+  display: inline-grid;
+
+  > img,
+  > span {
+    grid-area: 1 / 1;
+  }
+}
+
+.filled {
+  display: block;
+  width: 22px;
+  height: 22px;
+  background: var(--brand-grass-600);
+  mask: url('/images/icon/Send_fill.svg') center / contain no-repeat;
+  visibility: hidden;
+}
+
+.icon[data-sending='true'],
+button:active:not(:disabled) .icon {
+  .outline {
+    visibility: hidden;
+  }
+
+  .filled {
+    visibility: visible;
+  }
+}

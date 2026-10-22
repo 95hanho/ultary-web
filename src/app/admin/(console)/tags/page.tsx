@@ -1,7 +1,7 @@
 import TagListClient from '../../TagListClient';
 
 export const metadata = {
-  title: '태그요청 · 울타리 관리',
+  title: 'Ultary',
 };
 
 export default function AdminTagListPage() {

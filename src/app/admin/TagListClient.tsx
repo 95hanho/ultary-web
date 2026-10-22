@@ -1,5 +1,7 @@
 'use client';
 
+import { PageLoadError } from '@/components/common/PageLoadError';
+
 import { MediaImage } from '@/components/common/MediaImage';
 import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
@@ -72,7 +74,7 @@ export default function TagListClient() {
     <section className={styles.paneFull}>
       <h1 className={styles.paneTitle}>태그요청</h1>
       {state === 'loading' && tags.length === 0 ? <p className={styles.empty}>불러오는 중</p> : null}
-      {state === 'error' ? <p className={styles.empty}>태그 목록을 불러오지 못했습니다.</p> : null}
+      {state === 'error' ? <PageLoadError /> : null}
       {state === 'ready' && tags.length === 0 ? <p className={styles.empty}>요청이 없습니다.</p> : null}
       <div ref={listRef} className={styles.listWrap}>
         <ul className={styles.list}>

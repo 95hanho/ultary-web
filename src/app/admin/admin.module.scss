@@ -127,7 +127,11 @@
   text-decoration: none;
 
   &:hover {
-    background: var(--brand-gray-150);
+    background: var(--brand-grass-100);
+  }
+
+  &:active {
+    background: var(--brand-grass-150);
   }
 }
 
@@ -225,12 +229,18 @@
   text-decoration: none;
 
   &:hover {
-    background: var(--brand-gray-150);
+    background: var(--brand-grass-100);
+  }
+
+  &:active {
+    background: var(--brand-grass-150);
   }
 }
 
-.sideLinkActive {
-  background: var(--brand-gray-100);
+.sideLinkActive,
+.sideLinkActive:hover,
+.sideLinkActive:active {
+  background: var(--brand-grass-200);
 }
 
 .workspaceMain {
@@ -333,7 +343,11 @@
   text-decoration: none;
 
   &:hover {
-    background: var(--brand-gray-150);
+    background: var(--brand-grass-100);
+  }
+
+  &:active {
+    background: var(--brand-grass-150);
   }
 }
 
@@ -349,7 +363,11 @@
   background: var(--brand-gray-100);
 
   &:hover {
-    background: var(--brand-gray-150);
+    background: var(--brand-grass-100);
+  }
+
+  &:active {
+    background: var(--brand-grass-150);
   }
 }
 
