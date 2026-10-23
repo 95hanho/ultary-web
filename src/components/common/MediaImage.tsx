@@ -11,6 +11,7 @@ function loadsInBrowser(src: ImageProps['src']): boolean {
   if (typeof src !== 'string') return false;
   return (
     src.startsWith('/api/files/') ||
+    /^\/api\/admin\/reports\/\d+\/files\/\d+\/content$/.test(src) ||
     src.startsWith('blob:') ||
     src.startsWith('data:')
   );

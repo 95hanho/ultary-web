@@ -91,9 +91,12 @@
   flex: 1;
   align-items: center;
   padding: 4px 5px;
+  overflow: hidden;
 }
 
 .message {
+  width: 100%;
+  min-width: 0;
   margin: 0;
   color: var(--brand-black-700);
   font-size: 13px;
@@ -123,10 +126,14 @@
 }
 
 .preview {
-  display: inline;
+  display: inline-block;
+  max-width: 100%;
+  overflow: hidden;
   color: var(--brand-black-700);
   font-weight: 400;
   white-space: nowrap;
+  text-overflow: ellipsis;
+  vertical-align: bottom;
 }
 
 .time {
@@ -180,3 +187,5 @@
     background: var(--brand-gray-150);
   }
 }
+
+.tagRejected { color: var(--brand-red-500); }

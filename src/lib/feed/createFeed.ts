@@ -74,7 +74,7 @@ function readExactTagId(raw: unknown, hashtag: string): number | null {
 }
 
 /** 본문 해시태그 → tagId (없으면 생성) */
-export async function resolveCaptionTagIds(caption: string): Promise<number[]> {
+export async function resolveCaptionTagIds(caption: string, existingTags: Array<{ tagId: number; hashtag: string }> = []): Promise<number[]> {
   const bodies = [...new Set(listHashtagBodies(caption).map((b) => b.trim()).filter(Boolean))];
   const ids: number[] = [];
   for (const body of bodies) {
@@ -83,6 +83,7 @@ export async function resolveCaptionTagIds(caption: string): Promise<number[]> {
       limit: 20,
     });
     let tagId = readExactTagId(searchRes.data ?? searchRes, body);
+    if (tagId == null) tagId = existingTags.find(tag => normalizeHashtagBody(tag.hashtag) === normalizeHashtagBody(body))?.tagId ?? null;
     if (tagId == null) {
       const created = await bffPostJson<BffEnvelope<unknown>>(bffEndpoints.tags.root, {
         hashtag: body,

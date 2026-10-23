@@ -5,7 +5,7 @@
  */
 
 import { BFF_BASE_URL } from '@/lib/env.client';
-import { isHttpError } from '@/lib/api/error';
+import { isHttpError, isRecord } from '@/lib/api/error';
 import {
   applyPathParams,
   applyPathParamsFromBody,
@@ -20,7 +20,8 @@ const withBff = async <T>(url: string, init?: Parameters<typeof http<T>>[1]) => 
     return await http<T>(url, { baseUrl: BFF_BASE_URL, ...init });
   } catch (error) {
     if (typeof window !== 'undefined' && !url.startsWith('/api/admin/') && isHttpError(error)
-      && error.status === 401 && error.message === 'REFRESH_UNAUTHORIZED') {
+      && error.status === 401 && (error.message === 'REFRESH_UNAUTHORIZED'
+        || (isRecord(error.data) && error.data.code === 'REFRESH_UNAUTHORIZED'))) {
       window.location.replace('/login');
     }
     throw error;
@@ -32,13 +33,14 @@ export function bffGet<T>(
   url: string,
   params?: Params,
   headers?: RequestHeaders,
+  options?: { timeoutMs?: number },
 ) {
   const [path, rest] = applyPathParams(url, params ? { ...params } : undefined);
   const qs =
     rest && Object.keys(rest).length > 0
       ? `?${toSearchParams(rest).toString()}`
       : '';
-  return withBff<T>((path + qs).replace(/ /g, '%20'), { headers });
+  return withBff<T>((path + qs).replace(/ /g, '%20'), { headers, ...options });
 }
 
 /** POST JSON */

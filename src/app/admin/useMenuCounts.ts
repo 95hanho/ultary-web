@@ -13,6 +13,12 @@ export type MenuCounts = {
 };
 
 export function useMenuCounts(refreshKey = '') {
+  const [revision, setRevision] = useState(0);
+  useEffect(() => {
+    const refresh = () => setRevision((value) => value + 1);
+    window.addEventListener('admin-status-changed', refresh);
+    return () => window.removeEventListener('admin-status-changed', refresh);
+  }, []);
   const [counts, setCounts] = useState<MenuCounts | null>(null);
 
   useEffect(() => {
@@ -28,7 +34,7 @@ export function useMenuCounts(refreshKey = '') {
     return () => {
       cancelled = true;
     };
-  }, [refreshKey]);
+  }, [refreshKey, revision]);
 
   return counts;
 }

@@ -44,12 +44,26 @@
 
 .swiper {
   width: 100%;
-  border: 1px solid var(--brand-gray-50);
   border-radius: 7px;
 
   :global(.swiper-wrapper) {
     align-items: center;
   }
+}
+
+.blurBackdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.blurMedia {
+  object-fit: cover;
+  filter: blur(30px) saturate(1.15);
+  transform: scale(1.12);
+  opacity: 0.9;
 }
 
 .swiper .photoSlide {
@@ -441,4 +455,8 @@
 
 .reportIndicator {
   color: var(--brand-red-600);
+}
+.readOnlyPreview {
+  position: relative;
+  min-height: min(80dvh, 700px);
 }

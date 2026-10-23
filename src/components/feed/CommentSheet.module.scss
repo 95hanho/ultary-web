@@ -120,10 +120,10 @@
   flex-shrink: 0;
   width: 40px;
   height: 40px;
-  padding: 2px;
+  padding: 0;
   box-sizing: border-box;
   border-radius: 7px;
-  overflow: hidden;
+  overflow: visible;
   text-decoration: none;
 }
 
@@ -455,4 +455,11 @@
 
 .reportIndicator {
   color: var(--brand-red-600);
+}
+.contained {
+  position: absolute;
+
+  .sheet {
+    height: min(90dvh, 100%);
+  }
 }

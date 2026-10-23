@@ -547,36 +547,6 @@ GET {{baseUrl}}/api/files/{{fileId}}/content
 # ------WebKitFormBoundary--
 
 ### ==============================
-### 게시글 작성 중
-### ==============================
-
-### 작성 사진 임시저장 (시드 CDN post file)
-POST {{baseUrl}}/api/write/draft-photos
-Content-Type: {{contentType}}
-
-{
-  "fileIds": [{{cdnPostFileId}}]
-}
-
-### 편집 사진 저장
-POST {{baseUrl}}/api/write/edited-photos
-Content-Type: {{contentType}}
-
-{
-  "fileId": {{fileId}},
-  "edits": {}
-}
-
-### 사진 태그 저장
-POST {{baseUrl}}/api/write/photo-tags
-Content-Type: {{contentType}}
-
-{
-  "fileId": {{fileId}},
-  "tags": []
-}
-
-### ==============================
 ### DM
 ### ==============================
 
@@ -627,21 +597,6 @@ PATCH {{baseUrl}}/api/notifications/1/read
 
 ### 알림 전체 읽음
 POST {{baseUrl}}/api/notifications/read-all
-
-### ==============================
-### 설정
-### ==============================
-
-### 설정 조회
-GET {{baseUrl}}/api/settings
-
-### 설정 변경
-PATCH {{baseUrl}}/api/settings
-Content-Type: {{contentType}}
-
-{
-  "profileVisibility": "PUBLIC"
-}
 
 ### ==============================
 ### 관리자

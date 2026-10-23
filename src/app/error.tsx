@@ -15,5 +15,5 @@ export default function GlobalError({ error }: ErrorProps) {
     console.error('[app-error]', error);
   }, [error]);
 
-  return <PageLoadError />;
+  return <PageLoadError error={error} />;
 }

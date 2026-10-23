@@ -285,7 +285,7 @@ export default function WriteComposeClient({ editFeedId }: { editFeedId?: string
       const res = await bffGet<BffEnvelope<unknown>>(bffEndpoints.tags.recommend, {
         q,
         limit: RECOMMEND_LIMIT,
-      });
+      }, undefined, { timeoutMs: 70000 });
       if (recommendRequestRef.current !== request) return;
       const mapped = mapRecommendTags(res.data ?? res);
       setRecommendItems(mapped);
@@ -296,6 +296,8 @@ export default function WriteComposeClient({ editFeedId }: { editFeedId?: string
       if (recommendRequestRef.current !== request) return;
       console.error('[write-compose] tag recommend failed', err);
       setRecommendItems([]);
+      useModalStore.getState().open({ variant: 'alert', title: '알림창',
+        content: '서버 오류로 태그 추천을 잠시 사용할 수 없습니다. 불편을 드려 죄송합니다. 잠시 후 다시 시도해 주세요.', showCloseButton: true });
     } finally {
       if (recommendRequestRef.current === request) setRecommendLoading(false);
     }
@@ -312,9 +314,8 @@ export default function WriteComposeClient({ editFeedId }: { editFeedId?: string
     let cancelled = false;
     setSuggestReady(false);
     const timer = window.setTimeout(() => {
-      bffGet<BffEnvelope<unknown>>(bffEndpoints.main.search, {
+      bffGet<BffEnvelope<unknown>>(bffEndpoints.tags.search, {
         q: term,
-        type: 'TAG',
         limit: SUGGEST_LIMIT,
       })
         .then((res) => {
@@ -340,7 +341,7 @@ export default function WriteComposeClient({ editFeedId }: { editFeedId?: string
     if (editFeedId) return;
     if (useWriteDraftStore.getState().editingFeedId != null) clear();
     if (useWriteDraftStore.getState().items.length === 0) {
-      router.replace(basePath);
+      router.replace('/');
     }
     // 진입 시에만 — 이탈 시 clear와 footer 이동이 겹치지 않게
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -374,7 +375,7 @@ export default function WriteComposeClient({ editFeedId }: { editFeedId?: string
       router.push(editFeedId ? `${basePath}/posts/${editFeedId}` : basePath);
       router.refresh();
     } catch (err) {
-      if (notifyAiContentBlocked(err)) return;
+      if (notifyAiContentBlocked(err, () => requestAnimationFrame(() => textareaRef.current?.focus()))) return;
       console.error('[write-compose] submit failed', err);
       openModal({
         variant: 'alert',

@@ -55,6 +55,7 @@ const TEST_LOGINS = [
 ] as const;
 
 const TEST_LOGIN_PASSWORD = 'Test1234!';
+const COLLAPSED_STORAGE_KEY = 'ultary:dev-test-dock:collapsed';
 
 function readCookie(name: string) {
   const prefix = `${name}=`;
@@ -110,6 +111,12 @@ export function DevTestDock({ groups }: Props) {
   const refreshClearedRef = useRef(false);
 
   useEffect(() => {
+    try {
+      const saved = window.localStorage.getItem(COLLAPSED_STORAGE_KEY);
+      if (saved === 'true' || saved === 'false') setCollapsed(saved === 'true');
+    } catch {
+      // 스토리지 접근이 제한되어도 패널은 사용할 수 있다.
+    }
     setMounted(true);
   }, []);
 
@@ -156,6 +163,15 @@ export function DevTestDock({ groups }: Props) {
 
   const remain = expiresAt == null ? null : expiresAt - now;
 
+  const updateCollapsed = (next: boolean) => {
+    setCollapsed(next);
+    try {
+      window.localStorage.setItem(COLLAPSED_STORAGE_KEY, String(next));
+    } catch {
+      // 저장할 수 없어도 현재 화면의 열림·닫힘은 반영한다.
+    }
+  };
+
   const run = async (action: DevTestAction) => {
     if (busyId) return;
     setBusyId(action.id);
@@ -186,7 +202,7 @@ export function DevTestDock({ groups }: Props) {
           type="button"
           className={styles.peekBtn}
           aria-label="테스트 패널 열기"
-          onClick={() => setCollapsed(false)}
+          onClick={() => updateCollapsed(false)}
         >
           <ChevronLeft size={16} strokeWidth={2.5} />
         </button>
@@ -198,7 +214,7 @@ export function DevTestDock({ groups }: Props) {
               type="button"
               className={styles.hideBtn}
               aria-label="테스트 패널 숨기기"
-              onClick={() => setCollapsed(true)}
+              onClick={() => updateCollapsed(true)}
             >
               숨기기
               <ChevronRight size={14} strokeWidth={2.5} />

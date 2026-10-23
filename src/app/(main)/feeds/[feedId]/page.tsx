@@ -29,6 +29,7 @@ export default async function SharedFeedPage({ params, searchParams }: PageProps
   if (access || refresh) return <PostClient mediaIndex={mediaIndex} />;
 
   let feed: FeedData | null = null;
+  let loadError: unknown;
   try {
     const raw = await springGet(
       springEndpoints.feeds.detail,
@@ -40,9 +41,10 @@ export default async function SharedFeedPage({ params, searchParams }: PageProps
     if (isRecord(raw) && raw.feedId != null) feed = toFeedData(raw, feedId);
   } catch (error) {
     if (isUnavailablePageError(error)) notFound();
+    loadError = error;
   }
 
-  if (!feed) return <PageLoadError />;
+  if (!feed) return <PageLoadError error={loadError} />;
   const initialMediaIndex = Math.min(mediaIndex, Math.max(0, feed.images.length - 1));
   return <GuestFeedView feed={feed} initialMediaIndex={initialMediaIndex} />;
 }

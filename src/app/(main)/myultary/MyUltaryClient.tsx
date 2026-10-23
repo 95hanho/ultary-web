@@ -38,7 +38,7 @@ import { useWriteDraftStore } from '@/stores/write-draft.store';
 import { useStoryDraftStore } from '@/stores/story-draft.store';
 import { useModalStore } from '@/stores/modal.store';
 import clsx from 'clsx';
-import { Check, Ellipsis, Flag } from 'lucide-react';
+import { Ban, Check, Ellipsis, Flag, Settings } from 'lucide-react';
 import { MediaImage } from '@/components/common/MediaImage';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -53,7 +53,6 @@ import { Swiper, SwiperSlide } from 'swiper/react';
 import styles from './myultary.module.scss';
 
 const AddIcon = '/images/icon/Add_round.svg';
-const SettingIcon = '/images/icon/Setting_line.svg';
 const EditIcon = '/images/icon/Edit.svg';
 const CakeIcon = '/images/icon/cake.svg';
 const SettingFillIcon = '/images/icon/Setting_fill.svg';
@@ -197,6 +196,8 @@ export default function MyUltaryClient({ nickname, guestData }: MyUltaryClientPr
   const [petMenu, setPetMenu] = useState<DOMRect | null>(null);
   const [petMenuPlace, setPetMenuPlace] = useState<{ top: number; left: number } | null>(null);
   const [accountReport, setAccountReport] = useState<MyReport | null>(null);
+  const [blockingAccount, setBlockingAccount] = useState(false);
+  const [profileReload, setProfileReload] = useState(0);
   const [relationBusy, setRelationBusy] = useState(false);
   const petMenuRef = useRef<HTMLDivElement>(null);
   const setWriteItems = useWriteDraftStore((s) => s.setItems);
@@ -317,8 +318,21 @@ export default function MyUltaryClient({ nickname, guestData }: MyUltaryClientPr
           return;
         }
         const otherUserNo = matched.userNo;
-        const [otherRes, petsRes, feedsRes] = await Promise.all([
-          bffGet<BffEnvelope<unknown>>(bffEndpoints.users.ultary, { userNo: otherUserNo }),
+        const otherRes = await bffGet<BffEnvelope<unknown>>(bffEndpoints.users.ultary, { userNo: otherUserNo });
+        const otherProfile = mapMyUltaryProfile(otherRes.data);
+        if (cancelled) return;
+        if (otherProfile?.relationStatus === 'BLOCKED') {
+          setViewingOwn(false);
+          setProfile(otherProfile);
+          setBio(otherProfile.bio);
+          setSavedBio(otherProfile.bio);
+          setApiPets([]);
+          setApiFeedPosts([]);
+          setProfileReady(true);
+          setFeedsReady(true);
+          return;
+        }
+        const [petsRes, feedsRes] = await Promise.all([
           bffGet<BffEnvelope<unknown>>(bffEndpoints.users.pets, { userNo: otherUserNo }),
           bffGet<BffEnvelope<unknown>>(bffEndpoints.users.feeds, {
             userNo: otherUserNo,
@@ -326,7 +340,6 @@ export default function MyUltaryClient({ nickname, guestData }: MyUltaryClientPr
           }),
         ]);
         if (cancelled) return;
-        const otherProfile = mapMyUltaryProfile(otherRes.data);
         if (!otherProfile) {
           setUnknownAccount(true);
           setProfileReady(true);
@@ -359,10 +372,10 @@ export default function MyUltaryClient({ nickname, guestData }: MyUltaryClientPr
     return () => {
       cancelled = true;
     };
-  }, [basePath, expectsOwn, nickname, guest]);
+  }, [basePath, expectsOwn, nickname, guest, profileReload]);
 
   useEffect(() => {
-    if (guest || !profileReady || contentTab !== 'pinned' || pinnedReady) return;
+    if (guest || profile?.relationStatus === 'BLOCKED' || !profileReady || contentTab !== 'pinned' || pinnedReady) return;
     const ownerUserNo = profile?.userNo;
     if (!viewingOwn && ownerUserNo == null) return;
     let cancelled = false;
@@ -389,10 +402,10 @@ export default function MyUltaryClient({ nickname, guestData }: MyUltaryClientPr
     return () => {
       cancelled = true;
     };
-  }, [basePath, contentTab, pinnedReady, profile?.userNo, profileReady, viewingOwn, guest]);
+  }, [basePath, contentTab, pinnedReady, profile?.userNo, profile?.relationStatus, profileReady, viewingOwn, guest]);
 
   useEffect(() => {
-    if (guest || !profileReady || contentTab !== 'tagged' || taggedReady) return;
+    if (guest || profile?.relationStatus === 'BLOCKED' || !profileReady || contentTab !== 'tagged' || taggedReady) return;
     const ownerUserNo = profile?.userNo;
     if (!viewingOwn && ownerUserNo == null) return;
     let cancelled = false;
@@ -419,7 +432,7 @@ export default function MyUltaryClient({ nickname, guestData }: MyUltaryClientPr
     return () => {
       cancelled = true;
     };
-  }, [basePath, contentTab, profile?.userNo, profileReady, taggedReady, viewingOwn]);
+  }, [basePath, contentTab, profile?.userNo, profile?.relationStatus, profileReady, taggedReady, viewingOwn, guest]);
 
   const openCreateMenu = () => {
     openModal({
@@ -497,7 +510,8 @@ export default function MyUltaryClient({ nickname, guestData }: MyUltaryClientPr
     setContentTab(saved.tab);
   }, [nickname]);
 
-  const showRelationActions = !guest && profileReady && !isOwnAccount && profile?.userNo != null;
+  const blockedByMe = !guest && !isOwnAccount && profile?.relationStatus === 'BLOCKED';
+  const showRelationActions = !guest && !blockedByMe && profileReady && !isOwnAccount && profile?.userNo != null;
 
   const toggleFollow = async () => {
     if (!profile?.userNo || relationBusy || isOwnAccount) return;
@@ -617,7 +631,7 @@ export default function MyUltaryClient({ nickname, guestData }: MyUltaryClientPr
         : !expectsOwn || feedsReady;
   const showEmptyGrid = gridReady && posts.length === 0;
   const postsLocked =
-    !viewingOwn && profile?.privateAccount === true && profile.following !== true;
+    blockedByMe || (!viewingOwn && profile?.privateAccount === true && profile.following !== true);
 
   useEffect(() => {
     const y = pendingGridScrollY.current;
@@ -698,6 +712,44 @@ export default function MyUltaryClient({ nickname, guestData }: MyUltaryClientPr
     openReportModal({ targetType: 'USER', targetId: userNo }, setAccountReport);
   }, [accountReport, openModal, profile?.userNo]);
 
+  const toggleAccountBlock = async () => {
+    const userNo = profile?.userNo;
+    if (guest || isOwnAccount || userNo == null || blockingAccount) return;
+    setBlockingAccount(true);
+    const showBlockedProfile = () => {
+      setProfile(current => current ? { ...current, relationStatus: 'BLOCKED', following: false, followedBy: false,
+        neighborId: null, followerCount: Math.max(0, current.followerCount - (current.following ? 1 : 0)),
+        followCount: Math.max(0, current.followCount - (current.followedBy ? 1 : 0)) } : current);
+      setApiPets([]);
+      setApiFeedPosts([]);
+      setPinnedPosts([]);
+      setTaggedPosts([]);
+      setPetMenu(null);
+    };
+    try {
+      if (blockedByMe) {
+        await bffDelete<BffEnvelope<unknown>>(bffEndpoints.users.unblock, { userNo });
+        setPetMenu(null);
+        setProfileReload(value => value + 1);
+        return;
+      }
+      await bffPostJson<BffEnvelope<unknown>>(bffEndpoints.users.block, { userNo });
+      showBlockedProfile();
+    } catch (error) {
+      setPetMenu(null);
+      const code = isHttpError(error) && isRecord(error.data) ? error.data.code : '';
+      if (blockedByMe && code === 'USER_NOT_BLOCKED') {
+        setProfileReload(value => value + 1);
+      } else if (!blockedByMe && code === 'USER_ALREADY_BLOCKED') {
+        showBlockedProfile();
+      } else {
+        openModal({ variant: 'alert', title: '알림창', content: relationErrorMessage(error, false, blockedByMe ? '차단을 해제하지 못했습니다. 잠시 후 다시 시도해 주세요.' : '사용자를 차단하지 못했습니다. 잠시 후 다시 시도해 주세요.'), showCloseButton: true });
+      }
+    } finally {
+      setBlockingAccount(false);
+    }
+  };
+
   if (unknownAccount) notFound();
   if (!expectsOwn && !mockAccount) notFound();
 
@@ -750,20 +802,20 @@ export default function MyUltaryClient({ nickname, guestData }: MyUltaryClientPr
   return (
     <div className={styles.shell}>
       <LogoHeader
-        hideOnDesktop={!guest}
+        hideOnDesktop={!guest && !isOwnAccount}
         actions={
           guest ? <Link href="/login" className={clsx(reloadStyles.reload, styles.guestLogin)}>로그인</Link> : isOwnAccount ? (
             <>
               <button
                 type="button"
-                className={styles.iconBtn}
-                aria-label="글쓰기"
+                className={clsx(styles.iconBtn, styles.headerIconBtn)}
+                aria-label="만들기"
                 onClick={openCreateMenu}
               >
-                <Image src={AddIcon} alt="" width={32} height={32} />
+                <Image src={AddIcon} alt="" width={28} height={28} />
               </button>
-              <Link href="/settings" className={styles.iconBtn} aria-label="설정">
-                <Image src={SettingIcon} alt="" width={32} height={32} />
+              <Link href="/settings" className={clsx(styles.iconBtn, styles.headerIconBtn)} aria-label="설정">
+                <Settings size={28} strokeWidth={1.75} aria-hidden />
               </Link>
             </>
           ) : undefined
@@ -793,7 +845,7 @@ export default function MyUltaryClient({ nickname, guestData }: MyUltaryClientPr
 
           <ul className={styles.stats}>
             <li className={styles.statItem}>
-              <button type="button" className={styles.statBtn} onClick={() => setContentTab('feed')}>
+              <button type="button" className={styles.statBtn} disabled={blockedByMe} onClick={() => setContentTab('feed')}>
                 <strong>게시물</strong>
                 {postCount}
               </button>
@@ -874,6 +926,7 @@ export default function MyUltaryClient({ nickname, guestData }: MyUltaryClientPr
             )}
           </div>
 
+          {!blockedByMe ? <>
           {birthdayPet ? (
             <p className={styles.birthdayRow}>
               <span>🎂오늘 생일을 맞이한 {birthdayPet.name}를 축하해주세요.</span>
@@ -1033,6 +1086,7 @@ export default function MyUltaryClient({ nickname, guestData }: MyUltaryClientPr
               </div>
             ) : null}
           </div>
+          </> : <p className={styles.feedEmpty} role="status">차단한 유저입니다.</p>}
         </div>
 
         {postsLocked ? null : (
@@ -1120,7 +1174,7 @@ export default function MyUltaryClient({ nickname, guestData }: MyUltaryClientPr
         aria-label="게시물 그리드"
         onClick={rememberGridScroll}
       >
-        {postsLocked ? (
+        {blockedByMe ? null : postsLocked ? (
           <p className={styles.feedEmpty} role="status">
             비공개 계정입니다
           </p>
@@ -1193,6 +1247,16 @@ export default function MyUltaryClient({ nickname, guestData }: MyUltaryClientPr
                     {canCancelReport(accountReport) ? '신고취소' : '신고하기'}
                   </span>
                 </button>
+                {!guest && !isOwnAccount ? <button
+                  type="button"
+                  className={styles.petMenuBtn}
+                  role="menuitem"
+                  onClick={() => void toggleAccountBlock()}
+                  disabled={blockingAccount || profile?.userNo == null}
+                >
+                  <span className={styles.petMenuIcon}><Ban size={22} strokeWidth={1.75} /></span>
+                  <span className={styles.petMenuLabel}>{blockingAccount ? (blockedByMe ? '해제 중...' : '차단 중...') : (blockedByMe ? '차단해제' : '차단하기')}</span>
+                </button> : null}
               </div>
             </>,
             document.body,

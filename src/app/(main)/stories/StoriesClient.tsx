@@ -240,6 +240,10 @@ export default function StoriesClient({
         const list = onlyStoryId
           ? loaded.filter((story) => String(story.storyId) === onlyStoryId)
           : loaded;
+        if (onlyStoryId && list.length === 0) {
+          setLoadFailed({ error: { status: 404, message: 'STORY_NOT_FOUND', data: { code: 'STORY_NOT_FOUND' }, url: bffEndpoints.main.stories } });
+          return;
+        }
         const ownerList = ownersRes
           ? unwrapList<StoryOwner>(ownersRes.data ?? ownersRes)
           : [];

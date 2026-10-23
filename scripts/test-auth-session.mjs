@@ -10,7 +10,8 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 function load(path, mocks, globals = {}) {
   const exports = {};
   const code = ts.transpileModule(readFileSync(resolve(root, path), 'utf8'), {
-    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
+    fileName: path,
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX },
   }).outputText;
   vm.runInNewContext(code, {
     exports,
@@ -396,10 +397,10 @@ test('public profile page exception never opens protected profile subpages', () 
 });
 
 const pageErrors = load('src/lib/api/page-load-error.ts', { './error': load('src/lib/api/error.ts', {}) });
-for (const status of [403, 404, 410]) test(`page load ${status} uses the unavailable screen`, () => {
+for (const status of [404, 410]) test(`page load ${status} uses the unavailable screen`, () => {
   assert.equal(pageErrors.isUnavailablePageError({ status, message: 'failed', data: null, url: '/api/test' }), true);
 });
-for (const status of [0, 400, 401, 408, 429, 500, 502, 503, 504]) test(`page load ${status} keeps the retry screen`, () => {
+for (const status of [0, 400, 401, 403, 408, 429, 500, 502, 503, 504]) test(`page load ${status} keeps the retry screen`, () => {
   assert.equal(pageErrors.isUnavailablePageError({ status, message: 'failed', data: null, url: '/api/test' }), false);
 });
 test('unstructured errors do not masquerade as permission or missing-page responses', () => {
@@ -520,4 +521,64 @@ for (const status of [401, 503]) test(`BFF refresh failure ${status} redirects o
   }, { window: { location: { replace: url => redirected.push(url) } } });
   await assert.rejects(bff.bffGet('/api/test'), value => value === error);
   assert.deepEqual(redirected, status === 401 ? ['/login'] : []);
+});
+
+const errorTools = load('src/lib/api/error.ts', {});
+for (const status of [403, 404, 500, 502, 503, 504]) test(`API error ${status} keeps its HTTP status and supplies a machine-readable code`, () => {
+  const response = errorTools.toErrorResponse({ status, message: '조회 실패', url: '/api/test', data: null });
+  assert.equal(response.status, status);
+  assert.equal(response.payload.status, status);
+  assert.equal(typeof response.payload.code, 'string');
+  assert.notEqual(response.payload.code, '조회 실패');
+});
+test('Spring business error code and validation fields survive BFF normalization', () => {
+  const data = { code: 'USER_NOT_FOUND', message: '사용자를 찾을 수 없습니다.', data: { nickname: 'invalid' } };
+  const result = errorTools.toErrorResponse({ status: 404, message: data.message, data, url: '/api/test' });
+  assert.equal(result.payload.code, 'USER_NOT_FOUND');
+  assert.equal(result.payload.data, data.data);
+  assert.equal(data.status, undefined);
+});
+test('upstream body status cannot override the actual HTTP response', () => {
+  const result = errorTools.toErrorResponse({ status: 503, message: 'SERVICE_UNAVAILABLE', data: { status: 404 }, url: '/api/test' });
+  assert.equal(result.payload.status, 503);
+});
+for (const [message, expected] of [['NETWORK_ERROR', 502], ['REQUEST_TIMEOUT', 504]]) test(`browser ${message} is displayed as ${expected}`, () => {
+  const error = { status: 0, message, url: '/api/test', data: null };
+  assert.equal(errorTools.httpErrorStatus(error), expected);
+  assert.equal(errorTools.toErrorResponse(error).payload.status, expected);
+});
+test('unclassified failures become 500 with INTERNAL_SERVER_ERROR', () => {
+  assert.equal(errorTools.toErrorResponse(new Error('failed')).payload.code, 'INTERNAL_SERVER_ERROR');
+  assert.equal(errorTools.httpErrorStatus(new Error('failed')), 500);
+});
+function loadErrorScreen() {
+  const jsx = (type, props) => ({ type, props });
+  return load('src/components/common/PageLoadError.tsx', {
+    'react/jsx-runtime': { jsx, jsxs: jsx }, 'lucide-react': { RefreshCw: 'icon' },
+    'next/navigation': { notFound: () => { throw new Error('NOT_FOUND'); }, redirect: url => { throw new Error(`REDIRECT:${url}`); } },
+    '@/lib/api/error': errorTools, '@/lib/api/page-load-error': pageErrors,
+    './PageLoadError.module.scss': { default: {} },
+  });
+}
+for (const status of [403, 500, 502, 503, 504]) test(`page error ${status} displays its number and keeps retry UI`, () => {
+  const { PageLoadError } = loadErrorScreen();
+  const node = PageLoadError({ error: { status, message: 'error', data: null, url: '/api/test' } });
+  assert.equal(node.props.children[0].props.children, status);
+  assert.equal(node.props.children[1].props.children, '일시적인 오류가 발생했습니다.');
+  assert.equal(node.props.children[3].type, 'button');
+});
+test('404 keeps the branded not-found page while 401 still redirects to login', () => {
+  const { PageLoadError } = loadErrorScreen();
+  assert.throws(() => PageLoadError({ error: { status: 404, message: 'missing', data: null, url: '/api/test' } }), /NOT_FOUND/);
+  assert.throws(() => PageLoadError({ error: { status: 401, message: 'login', data: null, url: '/api/test' } }), /REDIRECT:\/login/);
+});
+test('invalid refresh is recognized by code even when the error message is translated', async () => {
+  const redirects = [];
+  const error = { status: 401, message: '세션이 만료되었습니다.', data: { code: 'REFRESH_UNAUTHORIZED' }, url: '/api/test' };
+  const bff = load('src/lib/api/bffFetch.ts', {
+    '@/lib/env.client': { BFF_BASE_URL: '' }, '@/lib/api/error': errorTools,
+    '@/lib/api/http': { http: async () => { throw error; }, applyPathParams: url => [url] },
+  }, { window: { location: { replace: url => redirects.push(url) } } });
+  await assert.rejects(bff.bffGet('/api/test'));
+  assert.deepEqual(redirects, ['/login']);
 });

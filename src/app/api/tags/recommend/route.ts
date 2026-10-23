@@ -20,6 +20,7 @@ export async function GET(request: NextRequest) {
       springEndpoints.tags.recommend,
       queryParams(request),
       bearer(accessToken),
+      { timeoutMs: 65000 },
     );
     return ok(data);
   } catch (err) {

@@ -26,25 +26,16 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useLayoutEffect, useRef, useState, useTransition } from 'react';
 import styles from './settings.module.scss';
+import {
+  readSettingsReturnState,
+  saveSettingsReturnState,
+  takeSettingsReturnState,
+} from './SettingsReturnTracker';
 
 const ArrowRightIcon = '/images/icon/arrow_right.svg';
 
 /** 커밋 ~30개대 초반 기능 확장 단계 기준 */
 const APP_VERSION = '0.3.2';
-
-// Retained across settings subpage navigation, consumed when the menu returns.
-type SettingsReturnState = { scrollTop: number; href: string; appInfoOpen: boolean };
-let settingsReturnState: SettingsReturnState | null = null;
-
-function saveReturnState(state: SettingsReturnState | null) {
-  settingsReturnState = state;
-}
-
-function takeReturnState() {
-  const saved = settingsReturnState;
-  settingsReturnState = null;
-  return saved;
-}
 
 type MenuItem = {
   label: string;
@@ -101,11 +92,11 @@ export default function SettingsClient() {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
-  const [appInfoOpen, setAppInfoOpen] = useState(() => settingsReturnState?.appInfoOpen ?? false);
+  const [appInfoOpen, setAppInfoOpen] = useState(() => readSettingsReturnState()?.appInfoOpen ?? false);
   const mainRef = useRef<HTMLElement>(null);
 
   useLayoutEffect(() => {
-    const saved = takeReturnState();
+    const saved = takeSettingsReturnState();
     const main = mainRef.current;
     if (!saved || !main) return;
     main.scrollTop = saved.scrollTop;
@@ -120,11 +111,11 @@ export default function SettingsClient() {
   }, []);
 
   function rememberMenu(href: string) {
-    saveReturnState({ scrollTop: mainRef.current?.scrollTop ?? 0, href, appInfoOpen });
+    saveSettingsReturnState({ scrollTop: mainRef.current?.scrollTop ?? 0, href, appInfoOpen });
   }
 
   function handleLogout() {
-    saveReturnState(null);
+    saveSettingsReturnState(null);
     setError(null);
     startTransition(async () => {
       try {

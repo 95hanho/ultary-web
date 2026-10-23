@@ -91,9 +91,16 @@ function fetchDetail(tagId: number) {
   if (cached) return cached;
   const pending = bffGet<BffEnvelope<unknown>>(bffEndpoints.tags.detail, { tagId })
     .then((res) => parseTag(res.data))
-    .catch(() => null);
+    .catch(() => null)
+    .finally(() => detailInflight.delete(tagId));
   detailInflight.set(tagId, pending);
   return pending;
+}
+
+/** 관리자 미리보기처럼 이미 조회한 태그를 팝업 데이터로 바꾼다. */
+export function tagExplainFromResponse(raw: unknown): TagExplain | null {
+  const tag = parseTag(raw);
+  return tag ? toExplain(tag) : null;
 }
 
 function searchExact(hashtag: string) {
@@ -111,10 +118,7 @@ function searchExact(hashtag: string) {
         return tag && sameHashtag(tag.hashtag, hashtag) ? [tag] : [];
       });
     })
-    .catch((err: unknown) => {
-      searchInflight.delete(key);
-      throw err;
-    });
+    .finally(() => searchInflight.delete(key));
   searchInflight.set(key, pending);
   return pending;
 }

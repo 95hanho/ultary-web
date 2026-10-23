@@ -229,7 +229,7 @@ FE는 OAuth code를 Spring에 보내지 않는다. BFF가 code를 교환해 `pro
 | 답글 좋아요 취소 | DELETE | `/api/feeds/:feedId/comments/:commentId/replies/:replyId/like` |
 
 > 댓글·답글 응답: `likeCount`, `likedByMe`, `authorProfileFile` (`FileSummary | null`, 작성자 프로필. 미등록이면 null), `myReport`. 목록에 답글이 포함되면 답글에도 동일. 좋아요 토글·작성·수정도 해당 댓글/답글 응답을 다시 반환. 테이블은 `ultary_feed_comment_like` / `ultary_feed_reply_like` (피드 좋아요와 분리).  
-> **AI 모더레이션**: 게시글 작성은 Gemini 동기 검사 후 저장한다. 부적절하면 400 AI_CONTENT_BLOCKED와 사유, 검사 장애면 503 AI_CHECK_UNAVAILABLE이며 게시글은 생성하지 않는다. 시도 로그는 독립 저장한다. 게시글 수정·댓글·답글은 즉시 저장·공개하며 DB 작업자가 비동기 검사한다. 유해 시 숨김/승인 본문 복구, 장애 시 콘텐츠 유지·재시도이며 사용자 제재가 아니다. 자세한 계약은 `async-moderation.md`.
+> **AI 모더레이션**: 게시글 작성/수정은 동기 AI 검사 통과 후 저장한다. 부적절(400)·장애(503)에는 저장하지 않는다. 댓글·답글 작성/수정은 저장과 검사 작업 등록을 같은 트랜잭션에서 처리하고 즉시 응답한다. AI는 DB 작업자가 비동기 검사하며 시도 로그를 독립 저장한다. 관리자 오류 처리는 ai-manual-review-and-phone-demo.md 참고. 유해 시 숨김/승인 본문 복구, 장애 시 콘텐츠 유지·재시도이며 사용자 제재가 아니다. 자세한 계약은 `async-moderation.md`.
 > **내 신고** `myReport`: 게시글 상세·댓글·답글·울타리(`GET /users/{userNo}/ultary`)에 있다. 없으면 `null`. 있으면 `reportId`, `status`. `status=REQUESTED`일 때 `DELETE /reports/{reportId}`로 취소한다. 관리자가 `CONFIRMED`(확인)로 바꾼 뒤, 삭제조치·거절·정지는 취소하지 않는다.
 
 ---
@@ -244,11 +244,11 @@ FE는 OAuth code를 Spring에 보내지 않는다. BFF가 code를 교환해 `pro
 | handle 변경 가능 여부 | GET | `/api/tags/:tagId/handle/change-availability` |
 | handle 변경/최초 설정 (설정·변경 후 30일 쿨다운) | PATCH | `/api/tags/:tagId/handle` |
 | 태그 검색 | GET | `/api/tags/search` |
-| 내용 입력 시 태그 추천 | GET | `/api/tags/recommend` | Gemini 기반(최대 5). 실패 시 DB fallback |
+| 내용 입력 시 태그 추천 | GET | `/api/tags/recommend` | Gemini 기반(최대 5). 총 3회 실패 시 서비스 오류 |
 | 상업 태그 설명 요청 | POST | `/api/tags/:tagId/profile-requests` |
 | 내 태그 설명 요청 | GET | `/api/tags/profile-requests` |
 
-> `GET /tags/recommend?q=`는 게시글 작성 중 **내용(q)** 으로 해시태그를 최대 5개 추천한다. FE는 **이미 존재하는 태그**(선택된 `tagId`·본문의 기존 hashtag)를 뺀 본문만 `q`로 보내고, 태그 제외 글자 수 ≥ 20일 때 버튼으로 호출한다. Gemini가 추천하고, `#`·중복·빈 값·hashtag 규칙(1~30, 영문·숫자·한글·_)에 맞게 정리한다. DB에 같은 hashtag가 있으면 그 태그의 `tagId` 등을 채우고, 없으면 `tagId`만 null인 후보를 준다. Gemini 키 없음·timeout·파싱 실패면 기존 DB LIKE/`use_count` 추천으로 fallback한다. AI 장애로 게시글 작성은 막히지 않는다.
+> `GET /tags/recommend?q=`는 게시글 작성 중 **내용(q)** 으로 해시태그를 최대 5개 추천한다. FE는 **이미 존재하는 태그**(선택된 `tagId`·본문의 기존 hashtag)를 뺀 본문만 `q`로 보내고, 태그 제외 글자 수 ≥ 20일 때 버튼으로 호출한다. Gemini가 추천하고, `#`·중복·빈 값·hashtag 규칙(1~30, 영문·숫자·한글·_)에 맞게 정리한다. DB에 같은 hashtag가 있으면 그 태그의 `tagId` 등을 채우고, 없으면 `tagId`만 null인 후보를 준다. Gemini 요청은 총 3회 시도하며 최종 실패 시 503 서비스 오류를 표시한다. 정상 빈 응답일 때만 DB 추천으로 보완한다. AI 장애로 게시글 작성은 막히지 않는다.
 
 > `hashtag`는 생성 후 불변. `handle`은 선택·UNIQUE. handle 미설정(`handle_changed_at` NULL)이면 최초 설정은 언제든 가능. 생성 시 handle을 넣으면 그 시점부터 30일 쿨다운.
 
@@ -303,11 +303,7 @@ FE는 OAuth code를 Spring에 보내지 않는다. BFF가 code를 교환해 `pro
 
 ## 8. 게시글 작성 중
 
-| 기능 | Method | BFF |
-|------|--------|-----|
-| 작성할 사진 목록 임시저장 | POST | `/api/write/draft-photos` |
-| 사진 편집본 저장 | POST | `/api/write/edited-photos` |
-| 사진 태그 저장 | POST | `/api/write/photo-tags` |
+작성 중 사진·편집 결과·사진 태그는 브라우저 메모리에 유지한다. 최종 게시 시 파일 업로드와 게시글 작성/수정 API로 저장한다. 별도 단계별 저장 API는 제공하지 않는다. 메모리 데이터 없이 작성 단계에 접근하면 메인으로 이동하며, 데이터가 남아 있으면 기존 단계 간 이동을 유지한다.
 
 태그 검색·추천은 [6. 태그](#6-태그) 참고.
 
@@ -400,10 +396,7 @@ FE는 OAuth code를 Spring에 보내지 않는다. BFF가 code를 교환해 `pro
 
 ## 11. 설정
 
-| 기능 | Method | BFF |
-|------|--------|-----|
-| 설정 조회 (프로필 공개 범위 등) | GET | `/api/settings` |
-| 설정 변경 | PATCH | `/api/settings` |
+통합 설정 조회·변경 API는 제공하지 않는다. 아래 개별 설정 API를 사용한다.
 
 | 기능 | Method | BFF | Spring | 상태 |
 |------|--------|-----|--------|------|
@@ -600,7 +593,7 @@ HTTP: `requests/test.http`
 | 1-14 | DM | 1:1 방, 글·게시글 사진·스토리 사진. HTTP `dm.http` |
 | 1-15 | 웹소켓 | 입장 토큰 후 Spring에 직접 연결. 알림 배지·DM 푸시. HTTP `ws.http` |
 | 1-16 | DM 읽음·입력 중 | `DM_READ`, `peerLastReadMessageId`, 보는 중, `DM_TYPING` |
-| 1-17 | AI (Gemini) | `GET /tags/recommend` Gemini+DB fallback. 게시글 작성 동기 검사, 게시글 수정·댓글·답글 DB 기반 비동기 검사. 로그 `FEED_CAPTION`/`COMMENT_FILTER`/`HASHTAG` |
+| 1-17 | AI (Gemini) | `GET /tags/recommend` Gemini+DB fallback. 게시글 작성/수정 사전 동기 검사, 댓글·답글 DB 기반 비동기 검사. 로그 `FEED_CAPTION`/`COMMENT_FILTER`/`HASHTAG` |
 | 다음 | — | |
 
 파일 업로드 상대경로: `images/{uuid}.ext`, `videos/{uuid}.ext` (`UPLOAD_DIR`).  

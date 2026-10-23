@@ -32,7 +32,7 @@ export default function WritePhotoTagsClient() {
 
   useEffect(() => {
     if (useWriteDraftStore.getState().items.length === 0) {
-      router.replace(basePath);
+      router.replace('/');
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

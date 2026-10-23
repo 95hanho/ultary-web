@@ -16,6 +16,7 @@ export function notImplemented(feature: string) {
     {
       success: false,
       code: 'NOT_IMPLEMENTED',
+      status: 501,
       message: `${feature} is not implemented yet`,
       data: null,
     },
@@ -33,16 +34,16 @@ export function ok<T>(data: T, status = 200) {
   return NextResponse.json({ success: true, data }, { status });
 }
 
-export function unauthorized(detail = '로그인이 필요합니다.') {
+export function unauthorized(detail = '로그인이 필요합니다.', code = 'UNAUTHORIZED') {
   return NextResponse.json(
-    { message: 'UNAUTHORIZED', detail },
+    { status: 401, code, message: 'UNAUTHORIZED', detail },
     { status: 401 },
   );
 }
 
 export function badRequest(message: string, detail?: string) {
   return NextResponse.json(
-    { message, detail: detail ?? message },
+    { status: 400, code: /^[A-Z][A-Z0-9_]*$/.test(message) ? message : 'BAD_REQUEST', message, detail: detail ?? message },
     { status: 400 },
   );
 }
@@ -65,6 +66,7 @@ export async function requireAccessToken(): Promise<string | NextResponse> {
       session.message === 'REFRESH_UNAUTHORIZED'
         ? '세션이 만료되었습니다. 다시 로그인해 주세요.'
         : undefined,
+      session.message,
     );
   }
   if (session.tokens) await applyTokensToCookieJar(session.tokens);
@@ -86,6 +88,7 @@ export async function requireAdminAccessToken(): Promise<string | NextResponse> 
       session.message === 'REFRESH_UNAUTHORIZED'
         ? '세션이 만료되었습니다. 다시 로그인해 주세요.'
         : undefined,
+      session.message,
     );
   }
   return session.accessToken;

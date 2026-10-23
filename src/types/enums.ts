@@ -31,6 +31,8 @@ export type FeedPetStatus = 'APPROVED' | 'PENDING' | 'REJECTED';
 /** ultary_notification.type — share 알림 목록 */
 export type NotificationType =
   | 'AI_MODERATION'
+  | 'TAG_PROFILE_APPROVED'
+  | 'TAG_PROFILE_REJECTED'
   | 'NEIGHBOR_REQUEST'
   | 'FEED_LIKE'
   | 'COMMENT_LIKE'

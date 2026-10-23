@@ -39,7 +39,7 @@ export default function WriteCropClient() {
 
   useEffect(() => {
     if (useWriteDraftStore.getState().items.length === 0) {
-      router.replace(basePath);
+      router.replace('/');
     }
     // 진입 시에만 — 이탈 시 clear와 footer 이동이 겹치지 않게
     // eslint-disable-next-line react-hooks/exhaustive-deps

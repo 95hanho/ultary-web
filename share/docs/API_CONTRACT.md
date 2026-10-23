@@ -60,10 +60,11 @@
 | `POST /main/pet-tags/recent` | `{ petId }` | 멘션을 고를 때 저장. 같은 펫은 `used_at`만 갱신. `POST /main/search/recent`와 무관 |
 | `DELETE /main/pet-tags/recent` | data null | 내 최근 펫 태그 전부 삭제 |
 | `GET /feeds/{id}/comments` · `.../replies` | `authorProfileFile` | 작성자의 대표 펫 사진 `FileSummary`. 없으면 `null`. 인라인 `replies`에도 동일 |
-| `POST /feeds` | 게시글 단건 | content 최대 100자. AI 검사 후 저장. 부적절하면 400 AI_CONTENT_BLOCKED와 사유, 검사 장애는 503 AI_CHECK_UNAVAILABLE. 실패 시 게시글 미생성·독립 검사 로그 저장. 승인 시 후처리 작업 없음 |
+| `POST /feeds` | 게시글 단건 | content 최대 100자. AI 검사 통과 후 저장. 400 AI_CONTENT_BLOCKED 또는 503 AI_CHECK_UNAVAILABLE이면 미저장·독립 검사 로그 보관. 상세 ai-manual-review-and-phone-demo.md |
 | `PATCH /feeds/{feedId}` | 게시글 단건 | 작성자 전용. content/clearContent/visibility 및 mediaTags(기존 사진 ID별 mentions 교체), tagIds(본문 해시태그 연결 교체). 원본 미디어 교체 없음. 상세는 [feed-edit.md](feed-edit.md) |
-| `PATCH /feeds` · 댓글·답글 작성/수정 | — | content 최대 100자. 즉시 저장·공개하고 DB 작업자가 비동기 검사. 유해 시 숨김/마지막 승인 본문 복구 후 AI_MODERATION 알림. AI 장애는 FAILED 로그·재시도이며 콘텐츠 유지 |
-| `GET /tags/recommend` | `TagResponse[]` | 게시글 내용(q) 기반 해시태그 최대 5. FE는 기존 태그 제외 본문을 q로. Gemini 우선, 실패 시 DB |
+| `PATCH /feeds/{feedId}` | 게시글 단건 | content 최대 100자. 작성과 같이 저장 전 동기 검사. 실패하면 원본 유지 |
+| 댓글·답글 작성/수정 | — | content 최대 100자. 즉시 저장·공개하고 DB 작업자가 비동기 검사. 유해 시 숨김/마지막 승인 본문 복구 후 AI_MODERATION 알림. AI 장애는 FAILED 로그·재시도이며 콘텐츠 유지 |
+| `GET /tags/recommend` | `TagResponse[]` | 게시글 내용(q) 기반 해시태그 최대 5. 총 3회 시도 후 실패 시 503 서비스 오류 안내. 정상 빈 결과만 DB 추천으로 보완 |
 | `GET /pets` | `priority` | 작을수록 우선. 목록은 이 순서, 같으면 petId. 유저 프로필 사진은 그중 사진 있는 첫 펫. **로그인한 나의 펫만** |
 | `PATCH /pets/{petId}` | `profileFileId` | 다른 파일로 바꾸거나 `removeProfileFile=true`면 이전 `ultary_file`을 삭제 표시(`is_deleted`, `deleted_at`). 다른 곳에서 쓰는 파일은 유지 |
 | `GET /users/{userNo}/pets` | 항목은 `GET /pets`와 동일 | 그 유저의 활성 펫. 정렬도 같다. 나의 `userNo`면 `GET /pets`와 같은 결과 |
@@ -124,10 +125,9 @@
 FE 라우트 가드·공유 게시글 게스트 열람·로그인 모달: [`auth-access.md`](./auth-access.md).  
 Spring API(게스트 단건 GET·쓰기 401): [`spring-auth-api.md`](./spring-auth-api.md).
 
-## 스켈레톤
+## 작성 데이터와 설정
 
-아직 로직·DB가 없는 API는 `ErrorCode.NOT_IMPLEMENTED` (HTTP 501) 을 반환한다.
-로그인/refresh/logout/me, health 등 이미 구현된 API는 예외.
+작성 단계 데이터는 브라우저 메모리에만 보관하며 별도 사진 임시저장·편집본 저장·사진 태그 저장 API를 제공하지 않는다. 최종 게시/수정은 `/feeds`와 `/feeds/{feedId}`를 사용한다. 데이터 없는 작성 단계 접근은 메인으로 이동한다. 설정은 개별 조회·변경 API만 제공한다. 미사용 501 API 5개와 관련 스켈레톤/엔드포인트를 제거했다.
 
 ## 비동기 콘텐츠 모더레이션 (v32)
 

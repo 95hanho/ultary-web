@@ -1,5 +1,6 @@
 'use client';
 
+import { Profile } from '@/components/my-ultary/Profile';
 import { PageLoadError } from '@/components/common/PageLoadError';
 
 import { notifyAiContentBlocked } from '@/lib/ai/content-blocked';
@@ -84,6 +85,10 @@ type CommentSheetProps = {
   feedId: string;
   /** 넘기면 API 대신 이 목록을 쓴다 */
   comments?: MockComment[];
+  readOnly?: boolean;
+  focusCommentId?: string;
+  focusReplyId?: string;
+  portalTarget?: HTMLElement | null;
   /** 댓글 저장에 성공하면 피드 카드 수를 올린다. 답글은 글의 commentCount에 포함되지 않는다 */
   onCommentCreated?: () => void;
   /** 댓글 삭제에 성공하면 피드 카드 수를 내린다 */
@@ -115,10 +120,10 @@ function patchThreadReport(
   });
 }
 
-function renderContent(content: string) {
+function renderContent(content: string, readOnly = false) {
   const parts = content.split(/(@[A-Za-z0-9_]+)/g);
   return parts.map((part, i) => {
-    if (!part.startsWith('@')) {
+    if (!part.startsWith('@') || readOnly) {
       return <span key={i}>{part}</span>;
     }
     const nickname = part.slice(1);
@@ -142,6 +147,7 @@ function CommentBody({
   focused,
   menuOpen,
   onToggleMenu,
+  readOnly = false,
 }: {
   item: MockCommentReply;
   compact?: boolean;
@@ -150,6 +156,7 @@ function CommentBody({
   focused?: boolean;
   menuOpen?: boolean;
   onToggleMenu: (anchor: HTMLButtonElement) => void;
+  readOnly?: boolean;
 }) {
   const [expanded, setExpanded] = useState(false);
   const [needsMore, setNeedsMore] = useState(false);
@@ -176,18 +183,14 @@ function CommentBody({
       id={compact ? `reply-${item.id}` : `comment-${item.id}`}
       className={clsx(styles.item, compact && styles.itemReply, focused && styles.itemFocus)}
     >
-      <Link
-        href={myUltaryPath(item.nickname)}
-        className={clsx(styles.avatarWrap, compact && styles.avatarWrapSm)}
-      >
-        <MediaImage
-          src={item.profileUrl}
-          alt=""
-          width={compact ? 32 : 40}
-          height={compact ? 32 : 40}
-          className={styles.avatar}
-        />
-      </Link>
+      {!readOnly && item.story && item.story !== 'none' && item.userNo != null ? (
+        <Link href={`/stories?${new URLSearchParams({ userNo: String(item.userNo), nickname: item.nickname, single: '1' }).toString()}`}
+          className={clsx(styles.avatarWrap, compact && styles.avatarWrapSm)} aria-label={`${item.nickname} 스토리`}>
+          <Profile imageUrl={item.profileUrl} size={compact ? 32 : 40} story={item.story} />
+        </Link>
+      ) : <span className={clsx(styles.avatarWrap, compact && styles.avatarWrapSm)}>
+        <Profile imageUrl={item.profileUrl} size={compact ? 32 : 40} story="none" />
+      </span>}
 
       <div className={styles.body}>
         <div className={styles.textWrap}>
@@ -195,10 +198,10 @@ function CommentBody({
             ref={textRef}
             className={clsx(styles.text, !expanded && styles.textClamped)}
           >
-            <Link href={myUltaryPath(item.nickname)} className={styles.nick}>
+            {readOnly ? <span className={styles.nick}>{item.nickname}</span> : <Link href={myUltaryPath(item.nickname)} className={styles.nick}>
               {item.nickname}
-            </Link>{' '}
-            {renderContent(item.content)}
+            </Link>}{' '}
+            {renderContent(item.content, readOnly)}
           </p>
           {!expanded && needsMore ? (
             <span className={styles.moreFade}>
@@ -214,7 +217,7 @@ function CommentBody({
         </div>
         <div className={styles.meta}>
           <span className={styles.time}>{item.timeLabel}</span>
-          <button
+          {!readOnly ? <><button
             type="button"
             className={styles.replyBtn}
             onClick={() => onReply(item, parentCommentId)}
@@ -240,11 +243,11 @@ function CommentBody({
             >
               <Siren size={14} strokeWidth={2} aria-hidden />
             </button>
-          ) : null}
+          ) : null}</> : null}
         </div>
       </div>
 
-      <button
+      {!readOnly ? <button
         type="button"
         className={clsx(styles.likeBtn, liked && styles.likeBtnOn)}
         aria-label={`좋아요 ${likeCount}`}
@@ -262,7 +265,7 @@ function CommentBody({
           aria-hidden
         />
         <span className={styles.likeCount}>{likeCount}</span>
-      </button>
+      </button> : null}
     </div>
   );
 }
@@ -273,6 +276,10 @@ export function CommentSheet({
   onClose,
   feedId,
   comments,
+  readOnly = false,
+  focusCommentId,
+  focusReplyId,
+  portalTarget,
   onCommentCreated,
   onCommentDeleted,
 }: CommentSheetProps) {
@@ -300,6 +307,7 @@ export function CommentSheet({
   const [focusDomId, setFocusDomId] = useState('');
 
   const [items, setItems] = useState<MockComment[]>(comments ?? []);
+  const [listError, setListError] = useState<unknown>(null);
   const [listStatus, setListStatus] = useState<'idle' | 'loading' | 'ready' | 'error'>(
     'idle',
   );
@@ -307,9 +315,9 @@ export function CommentSheet({
   const [sending, setSending] = useState(false);
   const [moderationRefresh, setModerationRefresh] = useState(0);
 
-  useEffect(() => subscribeContentModerated((event) => {
+  useEffect(() => readOnly ? undefined : subscribeContentModerated((event) => {
     if (event.feedId === feedId) setModerationRefresh((value) => value + 1);
-  }), [feedId]);
+  }), [feedId, readOnly]);
 
   useEffect(() => {
     if (!open || !moderationRefresh || sending || comments) return;
@@ -344,7 +352,7 @@ export function CommentSheet({
     setReplyTo(null);
     setEditing(null);
     setMenu(null);
-    setFocusDomId(commentFocusDomId());
+    setFocusDomId(focusReplyId ? `reply-${focusReplyId}` : focusCommentId ? `comment-${focusCommentId}` : readOnly ? '' : commentFocusDomId());
 
     if (comments) {
       setItems(comments);
@@ -365,23 +373,25 @@ export function CommentSheet({
         console.error('[comments] load failed', err);
         if (cancelled) return;
         setItems([]);
+        setListError(err);
         setListStatus('error');
       });
 
     return () => {
       cancelled = true;
     };
-  }, [open, comments, feedId]);
+  }, [open, comments, feedId, focusCommentId, focusReplyId, readOnly]);
 
   useEffect(() => {
     let cancelled = false;
+    if (readOnly) return;
     void loadMyUserNo().then((userNo) => {
       if (!cancelled) setMyUserNo(userNo);
     });
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [readOnly]);
 
   const startReply = useCallback(async (target: MockCommentReply, parentCommentId: string) => {
     const parent = items.find((comment) => comment.id === parentCommentId);
@@ -650,7 +660,7 @@ export function CommentSheet({
 
   /** 모바일 뒤로가기 = 시트만 닫히도록 history 엔트리 추가 */
   useEffect(() => {
-    if (!open) return;
+    if (!open || readOnly) return;
 
     const url = new URL(window.location.href);
     const alreadyOpen = url.searchParams.get(COMMENT_QUERY) === feedId;
@@ -682,7 +692,7 @@ export function CommentSheet({
 
     window.addEventListener('popstate', onPopState);
     return () => window.removeEventListener('popstate', onPopState);
-  }, [open, feedId, animateClose]);
+  }, [open, feedId, animateClose, readOnly]);
 
   useEffect(() => {
     if (!open) {
@@ -700,13 +710,14 @@ export function CommentSheet({
     const id = requestAnimationFrame(() => {
       requestAnimationFrame(() => setShown(true));
     });
+    if (readOnly) return () => cancelAnimationFrame(id);
     const prev = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     return () => {
       cancelAnimationFrame(id);
       document.body.style.overflow = prev;
     };
-  }, [open, animateClose]);
+  }, [open, animateClose, readOnly]);
 
   function finishClose() {
     presentRef.current = false;
@@ -729,7 +740,7 @@ export function CommentSheet({
       queueMicrotask(() => {
         ignorePopRef.current = false;
       });
-    } else if (!byPop) {
+    } else if (!byPop && !readOnly) {
       stripCommentQuery(feedId);
     }
   }
@@ -796,7 +807,7 @@ export function CommentSheet({
   return (
     <>
     {createPortal(
-    <div className={styles.root} role="presentation" data-comment-sheet>
+    <div className={clsx(styles.root, portalTarget && styles.contained)} role="presentation" data-comment-sheet>
       <button
         type="button"
         className={clsx(styles.dim, shown && styles.dimShow)}
@@ -831,7 +842,7 @@ export function CommentSheet({
             <p className={styles.status}>댓글을 불러오는 중</p>
           ) : null}
           {listStatus === 'error' ? (
-            <PageLoadError />
+            <PageLoadError error={listError} />
           ) : null}
           {listStatus === 'ready' && items.length === 0 ? (
             <p className={styles.status}>댓글이 없습니다.</p>
@@ -840,6 +851,7 @@ export function CommentSheet({
             <div key={comment.id} className={styles.thread}>
               <CommentBody
                 item={comment}
+                readOnly={readOnly}
                 parentCommentId={comment.id}
                 onReply={startReply}
                 focused={focusDomId === `comment-${comment.id}`}
@@ -858,6 +870,7 @@ export function CommentSheet({
                     <CommentBody
                       key={reply.id}
                       item={reply}
+                      readOnly={readOnly}
                       compact
                       parentCommentId={comment.id}
                       onReply={startReply}
@@ -878,7 +891,7 @@ export function CommentSheet({
           ))}
         </div>
 
-        <form className={styles.composer} onSubmit={submitComment}>
+        {!readOnly ? <form className={styles.composer} onSubmit={submitComment}>
           {editing ? (
             <div className={styles.replyBar}>
               <span className={styles.replyHint}>
@@ -943,10 +956,10 @@ export function CommentSheet({
               <SendStateIcon sending={sending} />
             </button>
           </div>
-        </form>
+        </form> : null}
       </div>
     </div>,
-    document.body,
+    portalTarget ?? document.body,
   )}
     {menu
       ? createPortal(

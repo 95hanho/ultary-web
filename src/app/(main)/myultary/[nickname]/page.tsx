@@ -14,6 +14,9 @@ import { isUnavailablePageError } from '@/lib/api/page-load-error';
 type PageProps = { params: Promise<{ nickname: string }> };
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+  const [access, refresh] = await Promise.all([getAccessToken(), getRefreshToken()]);
+  // 회원의 차단 접근을 공개 프로필 metadata로 우회하지 않는다. 허용된 화면의 제목은 클라이언트가 설정한다.
+  if (access || refresh) return { title: 'Ultary', robots: { index: false, follow: false } };
   const { nickname: encodedNickname } = await params;
   try {
     const nickname = decodeURIComponent(encodedNickname);
@@ -38,13 +41,15 @@ export default async function MyUltaryNicknamePage({ params }: PageProps) {
   }
   const [access, refresh] = await Promise.all([getAccessToken(), getRefreshToken()]);
   if (access || refresh) return <MyUltaryClient key={`${nickname}:member`} nickname={nickname} />;
-  const guestData = await loadPublicUltary(nickname).catch((error: unknown) => {
-    if (isUnavailablePageError(error)) notFound();
-    return null;
-  });
+  const { data: guestData, error: loadError } = await loadPublicUltary(nickname)
+    .then(data => ({ data, error: undefined }))
+    .catch((error: unknown) => {
+      if (isUnavailablePageError(error)) notFound();
+      return { data: null, error };
+    });
   if (guestData) return <MyUltaryClient key={`${nickname}:guest`} nickname={nickname} guestData={guestData} />;
   return <div style={{ width: '100%', maxWidth: 430, marginInline: 'auto' }}>
       <LogoHeader actions={<Link href="/login" className={reloadStyles.reload} style={{ marginTop: 0 }}>로그인</Link>} />
-      <PageLoadError />
+      <PageLoadError error={loadError} />
     </div>;
 }

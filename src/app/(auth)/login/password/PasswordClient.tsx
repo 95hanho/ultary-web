@@ -1,4 +1,5 @@
 'use client';
+import { PhoneDemoCode } from '@/components/auth/PhoneDemoCode';
 
 import { PageHeader } from '@/components/common/PageHeader';
 import { bffPostJson, bffPutJson } from '@/lib/api/bffFetch';
@@ -48,6 +49,7 @@ export default function PasswordClient() {
   const [phone, setPhone] = useState('');
   const [code, setCode] = useState('');
   const [phoneAuthToken, setPhoneAuthToken] = useState('');
+  const [demoCode, setDemoCode] = useState('');
   const [phoneAuthCompleteToken, setPhoneAuthCompleteToken] = useState('');
   const [phoneVerified, setPhoneVerified] = useState(false);
   const [password, setPassword] = useState('');
@@ -89,9 +91,10 @@ export default function PasswordClient() {
         const token = res.data?.phoneAuthToken;
         if (!token) throw new Error('인증 토큰을 받지 못했습니다.');
         setPhoneAuthToken(token);
+        setDemoCode(res.data?.demoCode ?? '');
         setPhoneAuthCompleteToken('');
         setPhoneVerified(false);
-        setInfoMessage('인증번호를 발송했습니다.');
+        setInfoMessage(res.data?.demoCode ? '데모 인증번호를 확인해 주세요.' : '인증번호를 발송했습니다.');
       } catch (err) {
         setFormError(pickErrorMessage(err, '인증번호 발송에 실패했습니다.'));
       }
@@ -192,6 +195,7 @@ export default function PasswordClient() {
                   setPhone(filterPhone(e.target.value));
                   clearError('phone');
                   setPhoneAuthToken('');
+                  setDemoCode('');
                   setPhoneAuthCompleteToken('');
                   setPhoneVerified(false);
                 }}
@@ -210,6 +214,7 @@ export default function PasswordClient() {
                 인증요청
               </button>
             </div>
+            <PhoneDemoCode code={demoCode} />
             {phoneAuthToken && !phoneVerified ? (
               <div className={styles.codeRow}>
                 <input

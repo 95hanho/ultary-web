@@ -134,7 +134,7 @@ export default function HashtagRequestsClient() {
                 {item.content ? <span className={styles.content}>{item.content}</span> : null}
                 {item.link ? <span className={styles.link}>{item.link}</span> : null}
                 {item.rejectMessage ? (
-                  <span className={styles.reject}>* {item.rejectMessage}</span>
+                  <span className={styles.reject}>사유 : {item.rejectMessage}</span>
                 ) : null}
                 <span className={styles.time}>
                   요청 {formatWhen(item.createdAt)}

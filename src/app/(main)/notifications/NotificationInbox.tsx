@@ -21,6 +21,8 @@ import { useEffect, useState, type ReactNode } from 'react';
 import styles from './notifications.module.scss';
 
 type NotificationKind =
+  | 'tagApproved'
+  | 'tagRejected'
   | 'moderation'
   | 'neighbor'
   | 'likePost'
@@ -206,6 +208,10 @@ function NotificationMessage({ item }: { item: NotificationItem }) {
   const previewNode =
     snippet != null ? <span className={styles.preview}>&quot;{snippet}&quot;</span> : null;
   const time = <span className={styles.time}>{item.timeLabel}</span>;
+  if (item.kind === 'tagApproved' || item.kind === 'tagRejected') {
+    const rejected = item.kind === 'tagRejected';
+    return <p className={styles.message}><Link href="/settings/hashtags" className={styles.keyword}>#{item.preview}</Link> 의 태그 요청이 {rejected ? <span className={styles.tagRejected}>거절</span> : '수락'}되었습니다. {time}</p>;
+  }
   const actor = (
     <ActorPhrase nickname={item.actorNickname} othersCount={item.othersCount} />
   );
@@ -359,6 +365,11 @@ function mapNotificationType(
     case 'NEIGHBOR_REQUEST':
       return 'neighbor';
     case 'NEIGHBOR_ACCEPTED':
+      return null;
+    case 'TAG_PROFILE_APPROVED':
+      return 'tagApproved';
+    case 'TAG_PROFILE_REJECTED':
+      return 'tagRejected';
     case 'SYSTEM':
     default:
       return null;

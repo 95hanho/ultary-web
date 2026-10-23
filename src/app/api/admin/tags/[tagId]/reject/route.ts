@@ -21,11 +21,13 @@ export async function POST(
     if (isUnauthorized(accessToken)) return accessToken;
     const { tagId } = await params;
     const body = await readJsonBody(request);
+    const requestId = Number(body.requestId);
     const rejectMessage = typeof body.rejectMessage === 'string' ? body.rejectMessage.trim() : '';
     const data = await springPostJson(
       springEndpoints.admin.tagReject,
       {
         tagId: Number(tagId),
+        ...(Number.isSafeInteger(requestId) && requestId > 0 ? { requestId } : {}),
         ...(rejectMessage ? { rejectMessage } : {}),
       },
       bearer(accessToken),

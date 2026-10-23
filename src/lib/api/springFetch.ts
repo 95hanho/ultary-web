@@ -59,7 +59,7 @@ export function springGet<T>(
   url: string,
   params?: Params,
   headers?: RequestHeaders,
-  options?: { recoverExpiredAccess?: boolean },
+  options?: { recoverExpiredAccess?: boolean; timeoutMs?: number },
 ) {
   const [path, rest] = applyPathParams(url, cloneParams(params));
   const qs =

@@ -15,6 +15,20 @@
   justify-content: center;
 }
 
+.headerIconBtn {
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--brand-black-700);
+  cursor: pointer;
+
+  &:active {
+    transform: scale(0.9);
+  }
+}
+
 .profileSection {
   position: relative;
   padding: 8px 5px 12px;
@@ -86,6 +100,10 @@
   color: inherit;
   font: inherit;
   cursor: pointer;
+
+  &:disabled {
+    cursor: default;
+  }
 }
 
 .bioRow {

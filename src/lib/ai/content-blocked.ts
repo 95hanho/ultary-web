@@ -24,12 +24,13 @@ export function readAiContentBlockedMessage(err: unknown): string | null {
 }
 
 /** 유해 콘텐츠 차단 알림. 차단이면 true */
-export function notifyAiContentBlocked(err: unknown): boolean {
+export function notifyAiContentBlocked(err: unknown, onClose?: () => void): boolean {
   const message = readAiContentBlockedMessage(err);
   if (!message) return false;
   useModalStore.getState().open({
     variant: 'alert',
     title: '알림창',
+    onClose,
     content: message,
     showCloseButton: true,
     okButton: { label: '확인', tone: 'primary' },

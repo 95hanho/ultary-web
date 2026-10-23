@@ -28,6 +28,7 @@ import type { Swiper as SwiperType } from 'swiper';
 import 'swiper/css';
 import { Swiper, SwiperSlide } from 'swiper/react';
 import { CommentSheet } from './CommentSheet';
+import type { MockComment } from '@/lib/mock/comments';
 import { ShareMessageSheet } from './ShareMessageSheet';
 import styles from './Feed.module.scss';
 import { TagExplainPopover, type TagExplainMode } from './TagExplainPopover';
@@ -107,6 +108,12 @@ type FeedProps = FeedData & {
   showAuthor?: boolean;
   /** 캐러셀 시작 위치. 0이 첫 장 */
   initialMediaIndex?: number;
+  /** 관리자 신고 원문 미리보기. 사용자 이동·변경 API를 사용하지 않는다. */
+  readOnly?: boolean;
+  previewComments?: MockComment[];
+  tagExplanations?: TagExplain[];
+  focusCommentId?: string;
+  focusReplyId?: string;
 };
 
 /** 메인 피드 게시글 카드 */
@@ -130,7 +137,13 @@ export function Feed({
   myReport: myReportFromServer = null,
   showAuthor = true,
   initialMediaIndex = 0,
+  readOnly = false,
+  previewComments,
+  tagExplanations,
+  focusCommentId,
+  focusReplyId,
 }: FeedProps) {
+  const [previewRoot, setPreviewRoot] = useState<HTMLElement | null>(null);
   const openModal = useModalStore((s) => s.open);
   const slideCount = Math.max(images.length, 1);
   const startIndex = Math.min(Math.max(0, Math.floor(initialMediaIndex) || 0), slideCount - 1);
@@ -151,6 +164,7 @@ export function Feed({
   const [captionOverride, setCaptionOverride] = useState<{ feedId: string; source: string; content: string } | null>(null);
   const visibleCaption = captionOverride?.feedId === id && captionOverride.source === caption ? captionOverride.content : caption;
   useEffect(() => {
+    if (readOnly) return;
     let active = true;
     const unsubscribe = subscribeContentModerated((event) => {
       if (event.feedId !== id) return;
@@ -167,7 +181,7 @@ export function Feed({
       });
     });
     return () => { active = false; unsubscribe(); };
-  }, [id, caption]);
+  }, [id, caption, readOnly]);
   const [myUserNo, setMyUserNo] = useState<number | null>(null);
   const [moreOpen, setMoreOpen] = useState(false);
   const [morePlace, setMorePlace] = useState<{ top: number; left: number } | null>(null);
@@ -194,7 +208,7 @@ export function Feed({
   tagOpenRef.current = tagOpen;
   const tagReqRef = useRef(0);
   const hoverTagRef = useRef<string | null>(null);
-  const [commentsOpen, setCommentsOpen] = useState(false);
+  const [commentsOpen, setCommentsOpen] = useState(Boolean(readOnly && (focusCommentId || focusReplyId)));
   const [shareOpen, setShareOpen] = useState(false);
   const [shareMediaId, setShareMediaId] = useState<number | null>(null);
   const [tagsOpen, setTagsOpen] = useState(false);
@@ -224,13 +238,14 @@ export function Feed({
 
   useEffect(() => {
     let cancelled = false;
+    if (readOnly) return;
     void loadMyUserNo().then((userNo) => {
       if (!cancelled) setMyUserNo(userNo);
     });
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [readOnly]);
 
   const isMine = myUserNo != null && userNo === myUserNo;
   const canReport = myUserNo != null && userNo != null && userNo !== myUserNo;
@@ -252,6 +267,7 @@ export function Feed({
 
   useEffect(() => {
     const ids = [...new Set((photoTags ?? []).flat().map((tag) => tag.petId))];
+    if (readOnly) return;
     if (ids.length === 0) return;
     let cancelled = false;
     resolveFeedPetLabels(ids, userNo, nickname, (photoTags ?? []).flat()).then((found) => {
@@ -260,7 +276,7 @@ export function Feed({
     return () => {
       cancelled = true;
     };
-  }, [id, nickname, photoTags, userNo]);
+  }, [id, nickname, photoTags, userNo, readOnly]);
 
   useLayoutEffect(() => {
     if (!moreOpen) return;
@@ -511,9 +527,9 @@ export function Feed({
   const showPrev = hasMultiple && index > 0;
   const showNext = hasMultiple && index < safeImages.length - 1;
   const captionParts = splitCaptionTags(visibleCaption);
-  const storyRing = story === 'unread' ? 'unread' : 'none';
+  const storyRing = story ?? 'none';
   const storyHref =
-    storyRing === 'unread' && userNo != null
+    !readOnly && storyRing !== 'none' && userNo != null
       ? `/stories?${new URLSearchParams({
           userNo: String(userNo),
           nickname,
@@ -547,7 +563,10 @@ export function Feed({
     const rect = el.getBoundingClientRect();
     const token = ++tagReqRef.current;
 
-    void loadTagExplain(key, tagIds).then((data) => {
+    const known = tagExplanations?.find(tag => tag.tag.replace(/^#/, '').toLowerCase() === key.toLowerCase());
+    const explanation = readOnly ? Promise.resolve(known ?? null) : loadTagExplain(key, tagIds);
+    void explanation.then((data) => {
+      if (!data) return;
       if (tagReqRef.current !== token) return;
       if (!tagHasExplainPopup(data)) return;
       if (mode === 'preview' && hoverTagRef.current !== key) return;
@@ -627,7 +646,7 @@ export function Feed({
   if (removed) return null;
 
   return (
-    <article id={`feed-${id}`} className={styles.feed}>
+    <article ref={readOnly ? setPreviewRoot : undefined} id={`feed-${id}`} className={clsx(styles.feed, readOnly && styles.readOnlyPreview)}>
       {showAuthor ? (
         <header className={styles.header}>
           {storyHref ? (
@@ -635,11 +654,11 @@ export function Feed({
               <Profile imageUrl={profileUrl} size={36} story={storyRing} />
             </Link>
           ) : (
-            <Profile imageUrl={profileUrl} size={36} story={storyRing} />
+            <Profile imageUrl={profileUrl} size={36} story={readOnly ? 'none' : storyRing} />
           )}
-          <Link href={myUltaryPath(nickname)} className={styles.nickname}>
+          {readOnly ? <span className={styles.nickname}>{nickname}</span> : <Link href={myUltaryPath(nickname)} className={styles.nickname}>
             {nickname}
-          </Link>
+          </Link>}
         </header>
       ) : null}
       <div className={styles.content}>
@@ -654,6 +673,16 @@ export function Feed({
             onSlideChange={(swiper) => setIndex(swiper.activeIndex)}
             className={styles.swiper}
           >
+            <div slot="container-start" className={styles.blurBackdrop} aria-hidden>
+              <MediaImage
+                src={safeImages[index] ?? safeImages[0]}
+                alt=""
+                fill
+                sizes="(max-width: 430px) 100vw, 430px"
+                className={styles.blurMedia}
+                draggable={false}
+              />
+            </div>
             {safeImages.map((src, i) => {
               const tags = slideTags[i] ?? [];
               return (
@@ -682,9 +711,9 @@ export function Feed({
                     {tagsOpen && i === index
                       ? tags.map((tag) => {
                           const href = tagOwnerHref(tag, petLabels);
-                          const label = petLabels[tag.petId]?.label ?? '태그';
+                          const label = petLabels[tag.petId]?.label ?? tag.mentionId ?? tag.petName ?? '태그';
                           const style = { left: `${tag.x * 100}%`, top: `${tag.y * 100}%` };
-                          if (!href) {
+                          if (!href || readOnly) {
                             return (
                               <span key={tag.petId} className={styles.petTag} style={style}>
                                 {label}
@@ -738,7 +767,7 @@ export function Feed({
                           );
                           return (
                             <li key={tag.petId} className={styles.tagListItem}>
-                              {href ? (
+                              {href && !readOnly ? (
                                 <Link
                                   href={href}
                                   className={styles.tagListLink}
@@ -802,7 +831,7 @@ export function Feed({
 
         <div className={styles.actions}>
           <div className={styles.actionsLeft}>
-            <button
+            {!readOnly ? <button
               type="button"
               className={clsx(styles.actionBtn, styles.actionPressable, styles.iconOnlyPress)}
               aria-label={`좋아요 ${likes}`}
@@ -819,7 +848,7 @@ export function Feed({
               <span className={clsx(styles.actionCount, liked && styles.actionCountOn)}>
                 {likes}
               </span>
-            </button>
+            </button> : null}
             <button
               type="button"
               className={clsx(styles.actionBtn, styles.actionPressable, styles.iconOnlyPress)}
@@ -830,7 +859,7 @@ export function Feed({
               <span className={styles.actionCount}>{comments}</span>
             </button>
           </div>
-          <div className={styles.actionsRight}>
+          {!readOnly ? <div className={styles.actionsRight}>
             {!isMine ? (
               <button
                 type="button"
@@ -972,7 +1001,7 @@ export function Feed({
                 </div>
               ) : null}
             </div>
-          </div>
+          </div> : null}
         </div>
 
         <div className={styles.captionWrap}>
@@ -1055,15 +1084,20 @@ export function Feed({
         open={commentsOpen}
         onClose={() => setCommentsOpen(false)}
         feedId={id}
+        readOnly={readOnly}
+        comments={previewComments}
+        focusCommentId={focusCommentId}
+        focusReplyId={focusReplyId}
+        portalTarget={readOnly ? previewRoot : undefined}
         onCommentCreated={() => setComments((count) => count + 1)}
         onCommentDeleted={() => setComments((count) => Math.max(0, count - 1))}
       />
-      <ShareMessageSheet
+      {!readOnly ? <ShareMessageSheet
         open={shareOpen}
         onClose={() => setShareOpen(false)}
         feedId={id}
         feedMediaId={shareMediaId}
-      />
+      /> : null}
     </article>
   );
 }

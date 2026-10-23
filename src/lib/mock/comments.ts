@@ -6,6 +6,7 @@ export type MockCommentReply = {
   id: string;
   nickname: string;
   profileUrl: string;
+  story?: 'none' | 'read' | 'unread';
   content: string;
   timeLabel: string;
   likeCount: number;

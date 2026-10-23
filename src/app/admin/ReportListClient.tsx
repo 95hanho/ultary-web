@@ -1,17 +1,20 @@
 'use client';
 
 import { PageLoadError } from '@/components/common/PageLoadError';
+import { httpErrorStatus } from '@/lib/api/error';
 
 import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
-import { REPORT_STATUS, formatWhen, loadReportPage, type ReportItem, type ReportOrigin } from './adminData';
+import { formatWhen, loadReportPage, type ReportItem, type ReportOrigin } from './adminData';
 import { Pager, badgeClass, useFitCount } from './adminListUi';
 import styles from './admin.module.scss';
+import ReportStatusControl from './ReportStatusControl';
 
 export default function ReportListClient() {
   const listRef = useRef<HTMLDivElement>(null);
   const [reports, setReports] = useState<ReportItem[]>([]);
   const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading');
+  const [failureStatus, setFailureStatus] = useState(500);
   const [page, setPage] = useState(0);
   const [origins, setOrigins] = useState<ReportOrigin[]>([{}]);
   const [next, setNext] = useState<ReportOrigin | null>(null);
@@ -38,7 +41,10 @@ export default function ReportListClient() {
         setState('ready');
       } catch (err) {
         console.error('[admin] reports', err);
-        if (!cancelled) setState('error');
+        if (!cancelled) {
+          setFailureStatus(httpErrorStatus(err));
+          setState('error');
+        }
       }
     })();
     return () => {
@@ -60,23 +66,36 @@ export default function ReportListClient() {
   return (
     <section className={styles.paneFull}>
       <h1 className={styles.paneTitle}>신고목록</h1>
-      {state === 'loading' && reports.length === 0 ? <p className={styles.empty}>불러오는 중</p> : null}
-      {state === 'error' ? <PageLoadError /> : null}
-      {state === 'ready' && reports.length === 0 ? <p className={styles.empty}>신고가 없습니다.</p> : null}
+      {state === 'loading' && reports.length === 0 ? (
+        <p className={styles.empty}>불러오는 중</p>
+      ) : null}
+      {state === 'error' ? <PageLoadError status={failureStatus} /> : null}
+      {state === 'ready' && reports.length === 0 ? (
+        <p className={styles.empty}>신고가 없습니다.</p>
+      ) : null}
       <div ref={listRef} className={styles.listWrap}>
         <ul className={styles.list}>
           {reports.map((item) => {
             const blocked = item.targetSuspended && item.targetType !== 'USER';
             const rowClass = [
               styles.row,
-              blocked || (item.status !== 'REQUESTED' && item.status !== 'CONFIRMED') ? styles.settled : '',
+              blocked || (item.status !== 'REQUESTED' && item.status !== 'CONFIRMED')
+                ? styles.settled
+                : '',
               blocked ? styles.rowBlocked : '',
             ]
               .filter(Boolean)
               .join(' ');
             const body = (
               <span className={styles.rowMain}>
-                <span className={styles.rowLead}>
+                <Link
+                  href={`/admin/reports/${item.reportId}`}
+                  className={`${styles.rowLead} ${styles.rowLink}`}
+                  aria-disabled={blocked}
+                  onClick={(event) => {
+                    if (blocked) event.preventDefault();
+                  }}
+                >
                   <span className={styles.rowId}>{item.reportId}</span>
                   <span className={styles.rowBody}>
                     <span className={styles.rowMeta}>{item.headline}</span>
@@ -85,26 +104,37 @@ export default function ReportListClient() {
                       <span className={styles.rowSuspended}>* 정지된 회원입니다</span>
                     ) : null}
                   </span>
-                </span>
+                </Link>
                 <span className={styles.rowSide}>
-                  <span className={`${badgeClass(blocked ? 'SUSPENDED' : item.status)} ${styles.badgeReport}`}>
-                    {blocked ? '정지된 회원' : (REPORT_STATUS[item.status] ?? item.status)}
-                  </span>
-                  {item.createdAt ? <span className={styles.rowWhen}>{formatWhen(item.createdAt)}</span> : null}
+                  {blocked ? (
+                    <span className={`${badgeClass('SUSPENDED')} ${styles.badgeReport}`}>
+                      정지된 회원
+                    </span>
+                  ) : (
+                    <ReportStatusControl
+                      item={item}
+                      onChange={(next) =>
+                        setReports((values) =>
+                          values.map((value) => {
+                            if (value.reportId === next.reportId) return next;
+                            return value.targetUserNo === next.targetUserNo
+                              ? { ...value, targetSuspended: next.targetSuspended }
+                              : value;
+                          }),
+                        )
+                      }
+                    />
+                  )}
+
+                  {item.createdAt ? (
+                    <span className={styles.rowWhen}>{formatWhen(item.createdAt)}</span>
+                  ) : null}
                 </span>
               </span>
             );
             return (
               <li key={item.reportId}>
-                {blocked ? (
-                  <div className={rowClass} aria-disabled="true">
-                    {body}
-                  </div>
-                ) : (
-                  <Link href={`/admin/reports/${item.reportId}`} className={rowClass}>
-                    {body}
-                  </Link>
-                )}
+                <div className={rowClass}>{body}</div>
               </li>
             );
           })}

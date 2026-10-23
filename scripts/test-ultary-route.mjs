@@ -60,3 +60,13 @@ test('ASCII nicknames stay intact and malformed encoding becomes 404', async () 
   assert.equal(result.props.nickname, 'pet_owner');
   await assert.rejects(f.default({ params: Promise.resolve({ nickname: '%broken' }) }), /NOT_FOUND/);
 });
+
+test('member metadata never reads the public profile to bypass an incoming block', async () => {
+  for (const member of ['access', 'refresh']) {
+    const f = fixture(member);
+    const result = await f.generateMetadata({ params: Promise.resolve({ nickname: encodeURIComponent('울타리') }) });
+    assert.equal(result.title, 'Ultary');
+    assert.equal(f.calls.length, 0);
+    assert.equal(result.robots.index, false);
+  }
+});

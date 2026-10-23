@@ -99,23 +99,6 @@ function withMyStoryAdd(owners: StoryOwner[], me: MeResponse | null): StoryRing[
   ];
 }
 
-/** 피드 프로필: 안 읽은 스토리만 unread, 없거나 다 읽었으면 none */
-function applyOwnerStory(feeds: FeedData[], owners: StoryOwner[]): FeedData[] {
-  const byUser = new Map(owners.map((o) => [o.userNo, o]));
-  const byNick = new Map(owners.map((o) => [o.nickname, o]));
-
-  return feeds.map((feed) => {
-    const owner =
-      (feed.userNo != null ? byUser.get(feed.userNo) : undefined) ??
-      byNick.get(feed.nickname);
-    return {
-      ...feed,
-      userNo: feed.userNo ?? owner?.userNo,
-      story: owner?.hasUnviewed ? 'unread' : 'none',
-    };
-  });
-}
-
 function unwrapOwners(raw: unknown): StoryOwner[] {
   if (Array.isArray(raw)) return raw as StoryOwner[];
   if (raw && typeof raw === 'object') {
@@ -153,10 +136,10 @@ export default function MainClient() {
 
         const owners = unwrapOwners(ownersRes.data ?? ownersRes);
         const mapped = toFeedDataList(feedsRes.data ?? feedsRes);
-        setFeeds(applyOwnerStory(mapped, owners));
+        setFeeds(mapped);
         if (recommendedRes) {
           setRecommended(
-            applyOwnerStory(toFeedDataList(recommendedRes.data ?? recommendedRes), owners),
+            toFeedDataList(recommendedRes.data ?? recommendedRes),
           );
         }
 

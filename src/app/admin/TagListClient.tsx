@@ -1,27 +1,28 @@
 'use client';
 
 import { PageLoadError } from '@/components/common/PageLoadError';
+import { httpErrorStatus } from '@/lib/api/error';
 
 import { MediaImage } from '@/components/common/MediaImage';
 import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
 import {
-  TAG_STATUS,
   fetchTagTotalCount,
   formatWhen,
   loadTagPage,
-  memberLabel,
   sameTagOrigin,
   type TagOrigin,
 } from './adminData';
-import { Pager, badgeClass, useFitCount } from './adminListUi';
+import { Pager, useFitCount } from './adminListUi';
 import styles from './admin.module.scss';
+import TagStatusControl from './TagStatusControl';
 import type { TagRequest } from './TagRequestDetail';
 
 export default function TagListClient() {
   const listRef = useRef<HTMLDivElement>(null);
   const [tags, setTags] = useState<TagRequest[]>([]);
   const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading');
+  const [failureStatus, setFailureStatus] = useState(500);
   const [page, setPage] = useState(0);
   const [origins, setOrigins] = useState<TagOrigin[]>([{ mode: 'pending' }]);
   const [next, setNext] = useState<TagOrigin | null>(null);
@@ -51,7 +52,10 @@ export default function TagListClient() {
         setState('ready');
       } catch (err) {
         console.error('[admin] tag requests', err);
-        if (!cancelled) setState('error');
+        if (!cancelled) {
+          setFailureStatus(httpErrorStatus(err));
+          setState('error');
+        }
       }
     })();
     return () => {
@@ -73,39 +77,78 @@ export default function TagListClient() {
   return (
     <section className={styles.paneFull}>
       <h1 className={styles.paneTitle}>태그요청</h1>
-      {state === 'loading' && tags.length === 0 ? <p className={styles.empty}>불러오는 중</p> : null}
-      {state === 'error' ? <PageLoadError /> : null}
-      {state === 'ready' && tags.length === 0 ? <p className={styles.empty}>요청이 없습니다.</p> : null}
+      {state === 'loading' && tags.length === 0 ? (
+        <p className={styles.empty}>불러오는 중</p>
+      ) : null}
+      {state === 'error' ? <PageLoadError status={failureStatus} /> : null}
+      {state === 'ready' && tags.length === 0 ? (
+        <p className={styles.empty}>요청이 없습니다.</p>
+      ) : null}
       <div ref={listRef} className={styles.listWrap}>
         <ul className={styles.list}>
           {tags.map((item) => (
             <li key={item.requestId}>
-              <Link
-                href={`/admin/tags/${item.requestId}`}
-                className={item.status === 'APPROVED' ? `${styles.row} ${styles.settled}` : styles.row}
+              <div
+                className={
+                  item.status === 'APPROVED'
+                    ? `${styles.row} ${styles.settled}`
+                    : item.status === 'REJECTED'
+                      ? `${styles.row} ${styles.tagRejected}`
+                      : styles.row
+                }
               >
                 <span className={styles.rowMain}>
-                  <span className={styles.rowLead}>
+                  <Link
+                    href={`/admin/tags/${item.requestId}`}
+                    className={`${styles.rowLead} ${styles.rowLink}`}
+                  >
                     {item.tagId != null ? <span className={styles.rowId}>{item.tagId}</span> : null}
                     {item.imageUrls[0] ? (
                       <span className={styles.thumb}>
-                        <MediaImage src={item.imageUrls[0]} alt="" width={60} height={60} className={styles.thumbImg} />
+                        <MediaImage
+                          src={item.imageUrls[0]}
+                          alt=""
+                          width={60}
+                          height={60}
+                          className={styles.thumbImg}
+                        />
                       </span>
                     ) : null}
                     <span className={styles.rowBody}>
-                      <span className={styles.rowName}>#{item.hashtag}</span>
+                      <span className={styles.tagNameLine}>
+                        <span className={styles.rowName}>#{item.hashtag}</span>
+                        <span className={styles.tagFeedCount}>- {item.feedCount} Feeds</span>
+                      </span>
                       {item.title ? <span className={styles.rowMeta}>{item.title}</span> : null}
-                      {item.requesterUserNo != null ? (
-                        <span className={styles.rowMeta}>{memberLabel(item.requesterUserNo, item.requesterNickname)}</span>
-                      ) : null}
+                      <span className={styles.rowMeta}>
+                        {item.requesterUserNo != null
+                          ? `${item.requesterNickname || '알 수 없는 사용자'}(${item.requesterUserNo})`
+                          : ''}
+                        {item.createdAt ? (
+                          <span className={styles.tagRequestWhen}>
+                            {formatWhen(item.createdAt)}
+                          </span>
+                        ) : null}
+                      </span>
                     </span>
-                  </span>
+                  </Link>
                   <span className={styles.rowSide}>
-                    <span className={badgeClass(item.status)}>{TAG_STATUS[item.status] ?? item.status}</span>
-                    {item.createdAt ? <span className={styles.rowWhen}>{formatWhen(item.createdAt)}</span> : null}
+                    <TagStatusControl
+                      item={item}
+                      onChange={(next) =>
+                        setTags((values) =>
+                          values.map((value) =>
+                            value.requestId === next.requestId ? next : value,
+                          ),
+                        )
+                      }
+                    />
+                    {item.statusChangedAt ? (
+                      <span className={styles.rowWhen}>{formatWhen(item.statusChangedAt)}</span>
+                    ) : null}
                   </span>
                 </span>
-              </Link>
+              </div>
             </li>
           ))}
         </ul>

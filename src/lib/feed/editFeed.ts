@@ -51,6 +51,12 @@ export async function updateFeedFromDraft(feedId: string, caption: string, items
       }),
     };
   });
-  const tagIds = await resolveCaptionTagIds(caption);
+  const current = await bffGet<BffEnvelope<FeedDetailResponse>>(bffEndpoints.feeds.detail, { feedId });
+  const existing = await Promise.all((current.data?.tagIds ?? []).map(async tagId => {
+    const tag = await bffGet<BffEnvelope<{ hashtag: string }>>(bffEndpoints.tags.detail, { tagId });
+    if (!tag.data?.hashtag) throw new Error('기존 태그 정보를 불러오지 못했습니다.');
+    return { tagId, hashtag: tag.data.hashtag };
+  }));
+  const tagIds = await resolveCaptionTagIds(caption, existing);
   return bffPatchJson(bffEndpoints.feeds.detail, { feedId, visibility, content: caption.trim(), clearContent: !caption.trim(), mediaTags, tagIds });
 }

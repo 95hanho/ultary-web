@@ -1,4 +1,5 @@
 'use client';
+import { PhoneDemoCode } from '@/components/auth/PhoneDemoCode';
 
 import { PageLoadError } from '@/components/common/PageLoadError';
 
@@ -126,6 +127,7 @@ export default function MyPageEditClient() {
   const [initialProfile, setInitialProfile] = useState<ProfileSnapshot>(INITIAL_PROFILE);
 
   const [phoneAuthToken, setPhoneAuthToken] = useState('');
+  const [demoCode, setDemoCode] = useState('');
   const [phoneAuthCompleteToken, setPhoneAuthCompleteToken] = useState('');
   const [phoneVerified, setPhoneVerified] = useState(false);
 
@@ -195,6 +197,7 @@ export default function MyPageEditClient() {
   }
 
   function resetPhoneAuth() {
+    setDemoCode('');
     setPhoneAuthToken('');
     setPhoneAuthCompleteToken('');
     setPhoneVerified(false);
@@ -222,9 +225,10 @@ export default function MyPageEditClient() {
         if (phoneRef.current?.value !== phone) return;
         if (!token) throw new Error('인증 토큰을 받지 못했습니다.');
         setPhoneAuthToken(token);
+        setDemoCode(res.data?.demoCode ?? '');
         setPhoneAuthCompleteToken('');
         setPhoneVerified(false);
-        setInfoMessage('인증번호를 발송했습니다. 로컬은 서버 로그의 code를 입력하세요.');
+        setInfoMessage(res.data?.demoCode ? '데모 인증번호를 확인해 주세요.' : '인증번호를 발송했습니다.');
       } catch (err) {
         setFormError(pickErrorMessage(err, '인증번호 발송에 실패했습니다.'));
       }
@@ -488,6 +492,7 @@ export default function MyPageEditClient() {
                 인증요청
               </button>
             </div>
+            <PhoneDemoCode code={demoCode} />
             <FieldHint message={errors.phone} />
           </div>
         </div>

@@ -128,7 +128,7 @@ export async function clearAuthCookieJar() {
 export function sessionUnauthorized(session: SessionFail) {
   const unavailable = session.message === 'REFRESH_RETRY_EXHAUSTED';
   const response = NextResponse.json(
-    { message: session.message, detail: unavailable ? '일시적인 오류가 발생했습니다.' : '로그인이 필요합니다.' },
+    { status: unavailable ? 503 : 401, code: session.message, message: session.message, detail: unavailable ? '일시적인 오류가 발생했습니다.' : '로그인이 필요합니다.' },
     { status: unavailable ? 503 : 401 },
   );
   if (session.clearCookies) clearAuthCookies(response);

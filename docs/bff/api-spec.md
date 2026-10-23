@@ -198,11 +198,7 @@ share `API_CONTRACT` / `api-memo` 참고. 피드·스토리 상세·프로필·�
 
 ## 9. 게시글 작성 중
 
-| Method | BFF | Spring | Auth | 상태 |
-|--------|-----|--------|------|------|
-| POST | `/api/write/draft-photos` | `/api/v1/write/draft-photos` | ✅ | 🚧 |
-| POST | `/api/write/edited-photos` | `/api/v1/write/edited-photos` | ✅ | 🚧 |
-| POST | `/api/write/photo-tags` | `/api/v1/write/photo-tags` | ✅ | 🚧 |
+별도 단계별 저장 API 없음. 브라우저 draft를 최종 `/api/feeds` 작성·수정 시 저장한다.
 
 ---
 
@@ -234,10 +230,7 @@ share `API_CONTRACT` / `api-memo` 참고. 피드·스토리 상세·프로필·�
 
 ## 12. 설정
 
-| Method | BFF | Spring | Auth | 상태 |
-|--------|-----|--------|------|------|
-| GET | `/api/settings` | `/api/v1/settings` | ✅ | 🚧 |
-| PATCH | `/api/settings` | `/api/v1/settings` | ✅ | 🚧 |
+통합 설정 API 없음. `/api/settings/notifications`, `/api/settings/privacy`, `/api/settings/activities` 등 개별 API를 사용한다.
 
 ---
 

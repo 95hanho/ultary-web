@@ -24,6 +24,8 @@ export type FeedDetailResponse = Feed & {
   /** 작성자 표시명 — Spring 게스트 단건에도 포함 (spring-auth-api.md) */
   nickname?: string | null;
   authorNickname?: string | null;
+  authorHasStory?: boolean;
+  authorHasUnviewedStory?: boolean;
   /** 현재 로그인 유저가 이 글을 울타리에 고정했는지 */
   pinnedByMe?: boolean;
   /** 현재 로그인 유저가 나만 보기로 저장했는지 */
@@ -78,6 +80,8 @@ export type FeedComment = {
   /** 현재 로그인 유저가 이 댓글을 좋아요 했는지 */
   likedByMe: boolean;
   authorNickname?: string | null;
+  authorHasStory?: boolean;
+  authorHasUnviewedStory?: boolean;
   /** 작성자 프로필. 미등록이면 null */
   authorProfileFile?: FileSummary | null;
   replyCount?: number;
@@ -95,6 +99,8 @@ export type FeedReply = {
   /** 현재 로그인 유저가 이 답글을 좋아요 했는지 */
   likedByMe: boolean;
   authorNickname?: string | null;
+  authorHasStory?: boolean;
+  authorHasUnviewedStory?: boolean;
   /** 작성자 프로필. 미등록이면 null */
   authorProfileFile?: FileSummary | null;
 } & Timestamps &

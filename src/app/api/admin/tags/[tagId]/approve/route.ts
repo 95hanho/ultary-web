@@ -10,7 +10,7 @@ import { springPostForm } from '@/lib/api/springFetch';
 
 /** BFF /api/admin/tags/[tagId]/approve — POST */
 export async function POST(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ tagId: string }> },
 ) {
   console.log('[API] 관리자 태그 승인');
@@ -18,9 +18,11 @@ export async function POST(
     const accessToken = await requireAdminAccessToken();
     if (isUnauthorized(accessToken)) return accessToken;
     const { tagId } = await params;
+    const body = await request.json().catch(() => ({}));
+    const requestId = typeof body.requestId === 'number' && Number.isSafeInteger(body.requestId) && body.requestId > 0 ? body.requestId : undefined;
     const data = await springPostForm(
       springEndpoints.admin.tagApprove,
-      { tagId },
+      { tagId, requestId },
       bearer(accessToken),
     );
     return ok(data);

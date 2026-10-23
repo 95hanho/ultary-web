@@ -19,6 +19,9 @@ export type AiLog = {
   resultAction: string | null;
   jobAttemptCount: number | null;
   nextAttemptAt: string | null;
+  adminReviewStatus: string | null;
+  adminReviewedAt: string | null;
+  inspectionContent: string | null;
 };
 
 export type AiLogPage = { items: AiLog[]; nextCursorAiRequestId: number | null; totalCount: number };

@@ -1,4 +1,4 @@
--- schema_version: 34
+-- schema_version: 38
 -- v34: bounded refresh retry recovery and token replacement lineage
 -- v33: per-login session identity and original login metadata
 -- Ultary MariaDB 10.1 초기 스키마
@@ -528,6 +528,7 @@ CREATE TABLE `ultary_tag_profile_request` (
   `reject_message` VARCHAR(500) NULL DEFAULT NULL COMMENT '관리자가 거절할 때 남기는 멘트. 승인이면 NULL',
   `reviewed_by_admin_id` INT(11) NULL DEFAULT NULL,
   `reviewed_at` DATETIME NULL DEFAULT NULL,
+  `status_changed_at` DATETIME NULL DEFAULT NULL,
   `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`tag_profile_request_id`) USING BTREE,
@@ -574,7 +575,7 @@ CREATE TABLE `ultary_notification` (
   `notification_id` INT(11) NOT NULL AUTO_INCREMENT,
   `receiver_user_no` INT(11) NOT NULL COMMENT '알림을 받는 사용자',
   `actor_user_no` INT(11) NULL DEFAULT NULL COMMENT '가장 최근 행위자. 집계면 대표 이름',
-  `type` ENUM('NEIGHBOR_REQUEST','FEED_LIKE','COMMENT_LIKE','REPLY_LIKE','FEED_COMMENT','COMMENT_MENTION','REPLY_MENTION','FEED_TAG','STORY_TAG','STORY_LIKE','AI_MODERATION') NOT NULL,
+  `type` ENUM('NEIGHBOR_REQUEST','FEED_LIKE','COMMENT_LIKE','REPLY_LIKE','FEED_COMMENT','COMMENT_MENTION','REPLY_MENTION','FEED_TAG','STORY_TAG','STORY_LIKE','AI_MODERATION','TAG_PROFILE_APPROVED','TAG_PROFILE_REJECTED') NOT NULL,
   `feed_id` INT(11) NULL DEFAULT NULL,
   `feed_pet_id` INT(11) NULL DEFAULT NULL,
   `feed_comment_id` INT(11) NULL DEFAULT NULL,
@@ -701,6 +702,9 @@ CREATE TABLE `ultary_ai_moderation_state` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_general_ci;
 
 CREATE TABLE `ultary_ai_moderation_job` (
+  `admin_review_status` VARCHAR(10) NOT NULL DEFAULT 'PENDING',
+  `admin_reviewed_at` DATETIME NULL,
+  `admin_reviewed_by` INT(11) NULL,
   `job_id` BIGINT NOT NULL AUTO_INCREMENT,
   `target_type` VARCHAR(10) NOT NULL,
   `target_id` INT(11) NOT NULL,
@@ -731,6 +735,7 @@ CREATE TABLE `ultary_ai_request_log` (
   `feature_type` ENUM('FEED_CAPTION','HASHTAG','PET_PROFILE','COMMENT_FILTER','ALT_TEXT') NOT NULL,
   `target_feed_id` INT(11) NULL DEFAULT NULL,
   `target_pet_id` INT(11) NULL DEFAULT NULL,
+  `inspection_content` TEXT NULL,
   `prompt` VARCHAR(1000) NULL DEFAULT NULL,
   `result` VARCHAR(2000) NULL DEFAULT NULL,
   `model_name` VARCHAR(100) NULL DEFAULT NULL,

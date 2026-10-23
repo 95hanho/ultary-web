@@ -92,6 +92,7 @@ function mapReply(raw: unknown): MockCommentReply | null {
     id,
     nickname: pickNickname(raw),
     profileUrl: pickProfile(raw),
+    story: raw.authorHasStory ? (raw.authorHasUnviewedStory ? 'unread' : 'read') : 'none',
     content,
     timeLabel: formatCommentTime(raw.createdAt ?? raw.created_at),
     likeCount,
@@ -121,6 +122,7 @@ function mapComment(raw: unknown): { comment: MockComment; fetchReplies: boolean
       id,
       nickname: pickNickname(raw),
       profileUrl: pickProfile(raw),
+      story: raw.authorHasStory ? (raw.authorHasUnviewedStory ? 'unread' : 'read') : 'none',
       content: typeof raw.content === 'string' ? raw.content : '',
       timeLabel: formatCommentTime(raw.createdAt ?? raw.created_at),
       likeCount,
@@ -130,6 +132,14 @@ function mapComment(raw: unknown): { comment: MockComment; fetchReplies: boolean
       replies,
     },
   };
+}
+
+/** 관리자 원문 조회 응답: 답글이 포함된 목록이며 일반 사용자 API를 호출하지 않는다. */
+export function toFeedComments(rows: unknown[]): MockComment[] {
+  return rows.flatMap(row => {
+    const mapped = mapComment(row);
+    return mapped ? [mapped.comment] : [];
+  });
 }
 
 function listFrom(raw: Record<string, unknown>): unknown[] | null {

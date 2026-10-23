@@ -98,6 +98,7 @@ export type PhoneAuthRequest = {
 
 export type PhoneAuthResponse = {
   phoneAuthToken: string;
+  demoCode?: string | null;
 };
 
 /** POST /api/v1/auth/phone/verify */

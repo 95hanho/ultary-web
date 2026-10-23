@@ -134,13 +134,12 @@
   font-size: 13px;
 }
 
-.infoBanner {
+.fieldSuccess {
   margin: 0;
-  padding: 10px 12px;
-  border-radius: 8px;
-  background: #f0fff4;
-  color: #237804;
-  font-size: 13px;
+  padding: 0 5px;
+  color: var(--brand-grass-600);
+  font-size: 12px;
+  line-height: 1.35;
 }
 
 /* 입력 검증 오류 (조건부) */

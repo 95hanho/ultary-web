@@ -911,3 +911,28 @@
   .aiFilters { padding-right: 12px; padding-left: 12px; }
   .aiFilters input, .aiFilters select { width: 130px; }
 }
+
+.tagRejected { background: var(--brand-red-100); }
+.reportDetailColumns {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  align-items: start;
+  gap: 28px;
+}
+
+.reportDetailInfo { min-width: 0; }
+.reportPreviewColumn { min-width: 0; }
+.reportFeedPreview { width: 100%; max-width: 430px; margin: 0 auto; }
+
+@media (max-width: 900px) {
+  .reportDetailColumns { grid-template-columns: minmax(0, 1fr); }
+}
+.tagNameLine { display: flex; align-items: baseline; flex-wrap: wrap; gap: 6px; }
+.tagFeedCount { color: var(--brand-gray-600); font-size: 14px; font-weight: 400; }
+.tagRequestWhen { margin-left: 8px; white-space: nowrap; }
+
+.rowLink { flex: 1; color: inherit; text-decoration: none; }
+.listStatusControl { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
+.actionRow > .listStatusControl { margin-left: auto; }
+.listStatusControl .messageField { width: min(320px, 75vw); padding: 12px; background: #fff; border: 1px solid var(--brand-gray-200); border-radius: 10px; box-shadow: 0 4px 16px #0002; }
+.aiContent { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 14px; color: var(--brand-black-700); }

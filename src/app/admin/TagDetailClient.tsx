@@ -1,6 +1,7 @@
 'use client';
 
 import { PageLoadError } from '@/components/common/PageLoadError';
+import { httpErrorStatus } from '@/lib/api/error';
 
 import { useEffect, useState } from 'react';
 import { findTagRequest } from './adminData';
@@ -10,6 +11,7 @@ import TagRequestDetail, { type TagRequest } from './TagRequestDetail';
 export default function TagDetailClient({ requestId }: { requestId: number }) {
   const [item, setItem] = useState<TagRequest | null>(null);
   const [state, setState] = useState<'loading' | 'ready' | 'missing' | 'error'>('loading');
+  const [failureStatus, setFailureStatus] = useState(500);
 
   useEffect(() => {
     let cancelled = false;
@@ -21,7 +23,7 @@ export default function TagDetailClient({ requestId }: { requestId: number }) {
         setState(found ? 'ready' : 'missing');
       } catch (err) {
         console.error('[admin] tag detail', err);
-        if (!cancelled) setState('error');
+        if (!cancelled) { setFailureStatus(httpErrorStatus(err)); setState('error'); }
       }
     })();
     return () => {
@@ -37,7 +39,7 @@ export default function TagDetailClient({ requestId }: { requestId: number }) {
     );
   }
   if (state === 'error' || state === 'missing' || !item) {
-    return <PageLoadError />;
+    return <PageLoadError status={state === 'missing' ? 404 : failureStatus} />;
   }
 
   return <TagRequestDetail item={item} listHref="/admin/tags" onChange={setItem} />;

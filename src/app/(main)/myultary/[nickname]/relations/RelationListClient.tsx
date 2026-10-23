@@ -150,7 +150,8 @@ export default function RelationListClient({
     }
   };
 
-  if (!userNo || privateHidden) notFound();
+  if (!userNo) notFound();
+  if (privateHidden) return <PageLoadError status={403} />;
   if (loadFailed) return <PageLoadError error={loadFailed.error} />;
 
   return (

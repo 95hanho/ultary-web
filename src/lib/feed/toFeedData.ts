@@ -122,6 +122,7 @@ export function toFeedData(raw: unknown, fallbackId: string): FeedData {
     userNo: typeof detail.userNo === 'number' ? detail.userNo : undefined,
     nickname,
     profileUrl,
+    story: detail.authorHasStory ? (detail.authorHasUnviewedStory ? 'unread' : 'read') : 'none',
     images,
     mediaIds,
     photoTags,

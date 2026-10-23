@@ -196,14 +196,6 @@ export const bffEndpoints = {
     reportCancel: '/api/reports/:reportId',
   },
 
-  write: {
-    /** POST 작성 사진 목록 임시저장 */
-    draftPhotos: '/api/write/draft-photos',
-    /** POST 편집된 사진 저장 */
-    editedPhoto: '/api/write/edited-photos',
-    /** POST 사진 태그 저장 */
-    photoTags: '/api/write/photo-tags',
-  },
 
   dm: {
     /** GET 피드 공유 «메시지로 보내기» 대상 */
@@ -241,8 +233,6 @@ export const bffEndpoints = {
   },
 
   settings: {
-    /** GET 설정 조회 / PATCH 설정 변경 */
-    root: '/api/settings',
     /** GET 내 활동 */
     activities: '/api/settings/activities',
     /** GET / PATCH 알림 설정 */
@@ -270,6 +260,7 @@ export const bffEndpoints = {
     tagPending: '/api/admin/tags/:tagId/pending',
     /** GET 신고 목록 */
     reports: '/api/admin/reports',
+    reportPreview: '/api/admin/reports/:reportId/preview',
     aiLogs: '/api/admin/ai/logs',
     aiLog: '/api/admin/ai/logs/:aiRequestId',
     /** POST 신고된 글·댓글·답글 삭제 */
@@ -489,14 +480,6 @@ export const springEndpoints = {
     reportCancel: '/api/v1/reports/:reportId',
   },
 
-  write: {
-    /** POST */
-    draftPhotos: '/api/v1/write/draft-photos',
-    /** POST */
-    editedPhoto: '/api/v1/write/edited-photos',
-    /** POST */
-    photoTags: '/api/v1/write/photo-tags',
-  },
 
   dm: {
     /** GET 피드 공유 대상 */
@@ -533,8 +516,6 @@ export const springEndpoints = {
   },
 
   settings: {
-    /** GET / PATCH */
-    root: '/api/v1/settings',
     /** GET 내 활동 */
     activities: '/api/v1/settings/activities',
     /** GET / PATCH 알림 설정 */
@@ -562,6 +543,7 @@ export const springEndpoints = {
     tagPending: '/api/v1/admin/tags/:tagId/pending',
     /** GET ?status=&limit= */
     reports: '/api/v1/admin/reports',
+    reportPreview: '/api/v1/admin/reports/:reportId/preview',
     aiLogs: '/api/v1/admin/ai/logs',
     aiLog: '/api/v1/admin/ai/logs/:aiRequestId',
     /** POST */

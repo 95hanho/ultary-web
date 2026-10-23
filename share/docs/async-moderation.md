@@ -1,16 +1,15 @@
-# 콘텐츠 모더레이션: 동기 작성·비동기 후처리 (schema v32)
+# 콘텐츠 모더레이션: 게시글 사전 검사·댓글/답글 후처리 (schema v38)
 
 ## 사용자 동작
 
-- 게시글 작성 `POST /feeds`는 AI 검사 완료 후 저장한다. `FeedCreationService`가 콘텐츠 트랜잭션 밖에서 검사하고, 승인 시 `FeedService`의 저장 트랜잭션을 실행한다.
-- 부적절 판정은 400 `AI_CONTENT_BLOCKED`와 분류별 한국어 사유를 반환한다. Gemini 장애는 503 `AI_CHECK_UNAVAILABLE`이며 유해 판정과 구분한다. 이때 게시글·게시글 알림·검사 작업은 생성하지 않고 초안은 유지한다.
-- 검사 시도 로그는 독립 저장한다. 저장 전 검사이므로 `featureType=FEED_CAPTION,targetType=FEED,attemptNo=1`이며 작업/대상 ID·버전은 null일 수 있다. 성공한 신규 게시글은 승인 본문만 상태 테이블에 보존하고 중복 후처리 작업을 만들지 않는다.
-- 게시글 수정과 댓글·답글 작성/수정은 AI를 기다리지 않고 저장·즉시 공개하며 아래 DB 작업자 후처리를 사용한다.
-- 작성 화면은 업로드·AI 검사·저장을 기다리는 동안 전체 화면 dim과 중앙 회전 아이콘으로 조작·스크롤을 막는다. 실패 모달에는 서버 사유를 표시한다.
+- 게시글 작성·수정은 AI 검사 통과 후 저장한다. AI 호출 중 저장 트랜잭션을 열지 않는다. 부적절 판정(400 AI_CONTENT_BLOCKED)·검사 장애(503 AI_CHECK_UNAVAILABLE)에는 저장하지 않는다. 승인 본문/버전을 저장하며 과거 작업은 새 승인 내용을 덮어쓸 수 없다.
+- 댓글·답글 작성/수정은 AI를 기다리지 않고 저장·즉시 공개하며 아래 DB 작업자 후처리를 사용한다. 본문 저장과 검사 작업 등록은 같은 트랜잭션이다.
+- 검사 시도 로그는 독립 저장한다. Gemini 장애 시 콘텐츠를 유지하고 재시도하며, 관리자가 오류 상세에서 확인 대기/유지/삭제조치를 선택한다. 최신 상세 계약은 ai-manual-review-and-phone-demo.md.
+- 작성 화면은 업로드·저장을 기다리는 동안 전체 화면 dim과 중앙 회전 아이콘으로 조작·스크롤을 막는다. 저장 실패 모달에는 서버 사유를 표시한다.
 - 로딩 dim은 검정 30% 불투명도이며, 실제 게시 요청 중에만 표시한다. UI 확인용 상시 미리보기 코드는 제거했다. 빈 초안으로 직접 진입하면 기존처럼 울타리로 돌아간다.
 - 최대 100자·인증·소유권·공개 범위 등 기존 검증은 저장 요청에서 계속 수행한다.
-- 태그 추천 `GET /tags/recommend`는 동기 응답과 DB fallback을 유지한다.
-- 콘텐츠 저장과 검사 상태/작업 등록은 하나의 DB 트랜잭션이다. 등록이 실패하면 저장도 롤백한다. 신규 게시글은 작업 대신 승인 상태만 기록한다.
+- 태그 추천 `GET /tags/recommend`는 동기로 총 3회 시도 후 최종 실패를 서비스 오류로 전달한다. 정상 빈 결과에만 DB 추천을 사용한다.
+- 콘텐츠 저장과 승인 상태(게시글) 또는 검사 작업 등록(댓글·답글)은 하나의 DB 트랜잭션이다. 등록 실패 시 저장도 롤백한다.
 
 ## 영속 작업
 
@@ -50,7 +49,7 @@
 
 ### 관리자 AI 로그 조회
 
-- 메뉴 건수 `GET /api/v1/admin/menu-counts`의 `failedAiRequestCount`는 FAILED 호출 로그 전체 건수다. 기본 실패 목록과 동일하며 필터·페이지와 무관하다. 재시도별 개별 기록을 세고, 상세 열람만으로 줄어들지 않는다. 관리자 홈과 사이드 메뉴에 `AI 오류 로그 (N)`으로 표시한다. 별도 읽음·처리 완료 상태나 DB 변경은 없다.
+- 메뉴 건수 `GET /api/v1/admin/menu-counts`의 `failedAiRequestCount`는 FAILED 호출 로그 전체 건수다. 기본 실패 목록과 동일하며 필터·페이지와 무관하다. 재시도별 개별 기록을 세고, 상세 열람만으로 줄어들지 않는다. 관리자 홈과 사이드 메뉴에 `AI 오류 로그 (N)`으로 표시한다. 유지/삭제조치로 처리 완료한 작업의 오류는 메뉴 건수에서 제외한다. 상세 계약은 ai-manual-review-and-phone-demo.md.
 
 - 관리자 홈·사이드 메뉴의 **AI 오류 로그**: `/admin/ai/logs`, 상세 `/admin/ai/logs/{aiRequestId}`. 신고목록과 같은 관리자 레이아웃·목록/상세 스타일을 사용한다.
 - 화면은 실패를 기본으로 조회하며 결과/기능/대상/오류 코드/대상 ID/회원/작업 필터, 화면 높이에 맞춘 목록 개수와 현재/전체 페이지·이전/다음 이동, 새로고침을 제공한다. 필터·화면 크기 변경 시 첫 페이지로 돌아간다. 상세는 호출 당시 오류와 현재 작업 상태·조치를 구분한다.
@@ -65,7 +64,7 @@
 - 항목: `aiRequestId,userNo,featureType,targetFeedId,targetType,targetId,moderationJobId,contentVersion,attemptNo,modelName,status,errorCode,errorMessage,latencyMs,httpStatus,createdAt,jobStatus,resultAction,jobAttemptCount,nextAttemptAt`.
 - `status`는 해당 호출 당시 결과다. `jobStatus/resultAction/jobAttemptCount/nextAttemptAt`는 조회 시점의 작업 상태로, 실패 후 재시도 성공·복구 여부를 구분할 수 있다. 태그 추천/이전 로그 등 작업이 없는 항목은 작업 필드가 null.
 - 부적절 판정도 호출은 SUCCESS다. FAILED 목록은 인프라/AI 오류 목록이며 유해 콘텐츠 목록과 다르다.
-- 프롬프트, 제공자 응답 본문, 콘텐츠 스냅샷, API 키는 조회 응답에 포함하지 않는다. 이전 로그는 새 진단 컬럼이 null일 수 있다.
+- 프롬프트, 제공자 응답 본문, API 키는 조회 응답에 포함하지 않는다. 관리자 목록·상세에는 inspectionContent(검사 당시 본문)를 포함한다. 이전 로그는 새 진단 컬럼이 null일 수 있다.
 - 잘못된 필터·ID·limit는 400 INVALID_INPUT. 별도 DB 변경은 없다. 요청 예시는 `requests/admin.http`.
 
 ### 사용자 안내 문구
@@ -80,7 +79,7 @@
 - `logging.level.[org.mybatis.spring.SqlSessionUtils]=INFO`, `logging.level.[org.mybatis.spring.transaction.SpringManagedTransaction]=INFO`로 이 두 로거의 반복 DEBUG만 줄인다. WARN/ERROR 및 다른 로거는 유지한다. 설정 반영에는 Backend 재시작이 필요하다.
 - 실제 로컬 설정에서 두 항목이 누락되어 반복 출력이 재발한 경우를 보완했다. `MyBatisSessionLoggingConfig`는 ApplicationReadyEvent마다 이 두 로거만 INFO로 맞추며 DevTools 자동 재시작에도 적용한다. 매퍼 SQL 로거와 실제 장애 기록은 유지한다.
 
-- 신규 DB: `001_init_schema.sql` v32. 기존 v31: `026_async_moderation.sql` 한 번 적용 후 Backend 반영.
+- 신규 DB: `001_init_schema.sql` v38. 기존 DB는 해당 버전 이후 migration을 순서대로 적용한다. v37→v38은 `032_ai_inspection_content.sql`.
 - `ai.moderation.worker-enabled` 기본 true, `poll-ms` 기본 1000, `initial-delay-ms` 기본 5000.
 - 테스트에서는 worker-enabled=false로 실제 사용자 작업 소비와 Gemini 호출을 막는다.
 - 실패 작업 확인: `SELECT job_id,target_type,target_id,content_version,attempt_count,last_error_code,last_error FROM ultary_ai_moderation_job WHERE status='FAILED' ORDER BY job_id DESC;`

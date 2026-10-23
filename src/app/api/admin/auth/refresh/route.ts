@@ -15,7 +15,7 @@ export async function POST() {
     const refreshToken = await getAdminRefreshToken();
     if (!refreshToken) {
       return NextResponse.json(
-        { message: 'UNAUTHORIZED', detail: '리프레시 토큰이 없습니다.' },
+        { status: 401, code: 'UNAUTHORIZED', message: 'UNAUTHORIZED', detail: '리프레시 토큰이 없습니다.' },
         { status: 401 },
       );
     }
@@ -24,14 +24,14 @@ export async function POST() {
     if (!session.ok) {
       if (session.clearCookies) await clearAdminAuthCookieJar();
       return NextResponse.json(
-        { message: session.message, detail: session.message === 'REFRESH_RETRY_EXHAUSTED' ? '일시적인 오류가 발생했습니다.' : '로그인이 필요합니다.' },
+        { status: session.message === 'REFRESH_RETRY_EXHAUSTED' ? 503 : 401, code: session.message, message: session.message, detail: session.message === 'REFRESH_RETRY_EXHAUSTED' ? '일시적인 오류가 발생했습니다.' : '로그인이 필요합니다.' },
         { status: session.message === 'REFRESH_RETRY_EXHAUSTED' ? 503 : 401 },
       );
     }
 
     if (!session.tokens) {
       return NextResponse.json(
-        { message: 'REFRESH_FAILED', detail: '토큰 재발급에 실패했습니다.' },
+        { status: 500, code: 'REFRESH_FAILED', message: 'REFRESH_FAILED', detail: '토큰 재발급에 실패했습니다.' },
         { status: 500 },
       );
     }
