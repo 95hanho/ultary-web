@@ -75,3 +75,19 @@ test('server validation and duplicate errors map to inputs while transport error
  assert.ok(fieldErrors({status:409,data:{code:'NICKNAME_DUPLICATED'}}).nickname);
  assert.equal(Object.keys(fieldErrors({status:503,data:{code:'SERVICE_UNAVAILABLE'}})).length,0);
 });
+
+test('signup accepts the null Spring success payload without issuing auth cookies', async () => {
+ const calls=[];
+ const route=load('app/api/auth/signup/route.ts',{
+  'next/server':{NextResponse:{json:(body,init)=>({body,status:init.status})}},
+  '@/lib/api/bffRoute':{handleBffError:err=>{throw err;}},
+  '@/lib/api/endpoints':{springEndpoints:{auth:{signup:'/signup'}}},
+  '@/lib/api/springFetch':{springPostJson:async(...args)=>{calls.push(args);return null;}},
+  '@/lib/auth/signup-rules':{validateNickname:()=>null},
+ });
+ const response=await route.POST({json:async()=>({phoneAuthCompleteToken:'verified',password:'Test1234!',nickname:'tester'})});
+ assert.equal(calls.length,1);
+ assert.equal(response.status,200);
+ assert.equal(response.body.success,true);
+ assert.equal(response.body.message,'SIGNUP_SUCCESS');
+});

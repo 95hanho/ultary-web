@@ -23,4 +23,4 @@ npm run dev
 
 운영은 `.env.production.example`을 `.env.production`으로 복사해 HTTPS/WSS 주소와 BE prod의 BFF 키를 채운 후 `npm run build`, `npm start`로 실행한다. 운영 서버에는 로컬 설정 파일을 배포하지 않는다.
 
-Next 기본 로딩은 `.env.local`이 `.env.production`보다 우선한다. 이를 피하기 위해 npm 스크립트가 `scripts/run-next.mjs`에서 Node의 `loadEnvFile()`로 환경 파일을 읽은 후 Next를 실행한다. 우선순위는 **서버 환경변수 → 선택한 환경 파일 → 공통 `.env`** 순이다. 따라서 개발/운영 모두 **위 npm 스크립트로 실행**한다. `.example`은 자동으로 읽지 않는다. `--env-file` 실행 옵션은 Next 하위 프로세스의 `NODE_OPTIONS`와 충돌하므로 사용하지 않는다.
+Next 기본 로딩은 `.env.local`이 `.env.production`보다 우선한다. 이를 피하기 위해 npm 스크립트가 `scripts/run-next.mjs`에서 Next에 포함된 `@next/env` 로더로 환경 파일을 읽은 후 Next를 실행한다. Node 20.11에서도 실행할 수 있으며, 우선순위는 **서버 환경변수 → 선택한 환경 파일 → 공통 `.env`** 순이다. 따라서 개발/운영 모두 **위 npm 스크립트로 실행**한다. `.example`은 자동으로 읽지 않는다. `--env-file` 실행 옵션은 Next 하위 프로세스의 `NODE_OPTIONS`와 충돌하므로 사용하지 않는다.

@@ -100,9 +100,9 @@
 | `GET /tags/{tagId}` | 태그 | `purpose`는 `USER` 또는 `COMMERCIAL`. `title`·`content`·`link`·`images`는 `profileStatus=APPROVED`일 때만. 요청자만 `profileRequest` |
 | `POST /tags/{tagId}/profile-requests` | 요청 1개 | 상업 태그에 넣을 설명. 관리자 승인 후에만 태그 조회에 나온다 |
 | `GET /tags/profile-requests` | 배열 | 내가 넣은 태그 설명 요청. `status`를 비우면 전부 |
-| `GET /admin/menu-counts` | `pendingTagRequestCount`, `requestedReportCount`, `failedAiRequestCount` | 메뉴 뱃지. 태그 설명 요청 `PENDING`, 대상 회원/작성자가 정지되지 않은 신고 `REQUESTED`·`CONFIRMED` 합, AI 호출 로그 `FAILED` 건수. 정지 회원의 태그 요청은 세지 않는다. AI는 재시도별 개별 실패 기록을 센다. 목록은 없다. 없으면 0 |
+| `GET /admin/menu-counts` | `pendingTagRequestCount`, `requestedReportCount`, `failedAiRequestCount` | 메뉴 뱃지. 태그 설명 요청 `PENDING`, 대상 회원/작성자가 정지되지 않은 신고 `REQUESTED`·`CONFIRMED` 합, AI 호출 로그 `FAILED` 건수. 정지 회원의 태그 요청은 세지 않는다. AI는 같은 작업의 실패를 1건으로 세며 관리자 처리 완료 작업은 제외한다. 목록은 없다. 없으면 0 |
 | `GET /admin/tags/profile-requests` | `items`, `nextCursorRequestId`, `totalCount` | 상업 태그 설명 요청. `status`를 비우면 전부, 최신순. `totalCount`는 그 `status`의 전체 건수. 커서와 `limit`는 세지 않는다. 정지 회원의 요청은 목록과 건수에서 뺀다. 다음은 `cursorRequestId` |
-| `GET /admin/reports` | `items`, `nextCursorReportId`, `totalCount` | 신고 목록. `status`를 비우면 전부, 신고요청·확인이 먼저(대상이 정지인 건 제외), 그다음 나머지. 같은 묶음은 최신순. `totalCount`는 그 `status`의 전체 건수. 커서와 `limit`는 세지 않는다. `targetUserNo`·`targetNickname`은 대상 회원(회원 신고는 그 회원, 글·댓글·답글은 작성자). 글·댓글·답글은 `targetContent`(10자, 넘으면 `...`). `targetSuspended`는 그 회원이 정지인지. 다음은 `cursorReportId` |
+| `GET /admin/reports` | `items`, `nextCursorReportId`, `totalCount` | 신고 목록. `status`를 비우면 전부, 신고요청·확인이 먼저(대상이 정지인 건 제외), 그다음 나머지. 같은 묶음은 최신순. `totalCount`는 그 `status`의 전체 건수. 커서와 `limit`는 세지 않는다. `reporterUserNo`·`reporterNickname`은 신고 회원. `targetUserNo`·`targetNickname`은 대상 회원(회원 신고는 그 회원, 글·댓글·답글은 작성자). 글·댓글·답글은 `targetContent`(30자, 넘으면 `...`). `targetSuspended`는 그 회원이 정지인지. 다음은 `cursorReportId` |
 | `GET /admin/reports/{reportId}` | 신고 1개 | 목록 항목과 같다. `targetUserNo`·`targetNickname`·`targetSuspended` 포함. 없으면 404 |
 | `POST /admin/reports/{reportId}/confirm` · `reject` · `delete-content` · `suspend` | 신고 1개 | 어떤 상태에서든 다시 조치. 정지→다른 상태면 회원 정지 해제, 삭제조치→다른 상태면 글·댓글·답글 복구. 같은 대상에 같은 상태 신고가 더 있으면 유지. `delete-content`는 글·댓글·답글, `suspend`는 회원만 |
 | `POST /admin/tags/{tagId}/approve` · `reject` · `pending` | 요청 1개 | 최신 요청을 승인·거절·대기로 바꾼다. 승인·거절된 요청도 다시 바꿀 수 있다. 승인하면 그 설명이 태그에 공개된다. 거절 Body `rejectMessage`는 신청자 목록의 `rejectMessage`로 남는다. `pending`은 본문 없음 |
@@ -111,7 +111,7 @@
 | `GET /dm/rooms/{roomId}/messages` | `items`, `nextCursorMessageId`, `peerLastReadMessageId`, `following`, `followedBy` | 오래된 순. 조회하면 읽음. `following`·`followedBy`는 그 방 상대와 나. 둘 다 false면 팔로우 관계가 아님 |
 | `POST /dm/rooms/{roomId}/viewing` | 없음 | `{ viewing }`. true는 약 10초마다. 20초 없으면 방을 나간 것. 둘 다 보고 있으면 새 메시지는 바로 읽음 |
 | `POST /dm/rooms/{roomId}/typing` | 없음 | `{ typing }`. 상대에게 `DM_TYPING`. 4초 안에 true가 없으면 멈춤 |
-| `POST /dm/rooms/{roomId}/messages` | 메시지 1개 | `{ body, feedId, feedMediaId }` 게시글 사진 공유. `{ body, storyId }` 스토리 사진만. 글만 보내도 된다 |
+| `POST /dm/rooms/{roomId}/messages` | 메시지 1개 | `{ body, feedId, feedMediaId }` 게시글 사진 공유. `{ body, storyId }` 스토리 공유. 둘 다 실제 작성자 `authorUserNo`·`authorNickname`·`authorProfileFile` 및 조회자 기준 `authorHasStory`·`authorHasUnviewed` 포함. 글만 보내도 된다 |
 | `PATCH /notifications/{notificationId}/read` | 그 항목 | 내 알림만 읽음 |
 | `POST /notifications/read-all` | data null | 내 알림 전부 읽음 |
 
@@ -125,10 +125,14 @@
 FE 라우트 가드·공유 게시글 게스트 열람·로그인 모달: [`auth-access.md`](./auth-access.md).  
 Spring API(게스트 단건 GET·쓰기 401): [`spring-auth-api.md`](./spring-auth-api.md).
 
+## 팔로우·팔로워 맞팔 구분
+
+`GET /users/{userNo}/neighbors?type=FOLLOW|FOLLOWER`의 각 항목에 `mutual`을 포함한다. 목록 주인(`userNo`)과 해당 사용자가 서로 팔로우하면 true이며, 로그인 조회자 기준인 `following`과 구분한다. 맞팔을 먼저 조회하고 각 그룹 안에서는 기존 최신순을 유지한다. FE는 맞팔을 상단의 «서로 팔로우 하는 목록»에 표시하며 나머지 목록과 구분한다.
+
 ## 작성 데이터와 설정
 
 작성 단계 데이터는 브라우저 메모리에만 보관하며 별도 사진 임시저장·편집본 저장·사진 태그 저장 API를 제공하지 않는다. 최종 게시/수정은 `/feeds`와 `/feeds/{feedId}`를 사용한다. 데이터 없는 작성 단계 접근은 메인으로 이동한다. 설정은 개별 조회·변경 API만 제공한다. 미사용 501 API 5개와 관련 스켈레톤/엔드포인트를 제거했다.
 
 ## 비동기 콘텐츠 모더레이션 (v32)
 
-[async-moderation.md](./async-moderation.md) 참조. 새 FE 검사 API는 없으며, 작성/수정 응답 형태는 유지한다. 소켓 CONTENT_MODERATED는 본문을 포함하지 않는 무효화 이벤트, MODERATION_RESULT는 작성자에게만 보내는 결과 안내다. 알림 목록은 type=AI_MODERATION, message=서비스 안내문을 반환한다.
+[async-moderation.md](./async-moderation.md) 참조. 새 FE 검사 API는 없으며, 작성/수정 응답 형태는 유지한다. 소켓 CONTENT_MODERATED는 본문을 포함하지 않는 무효화 이벤트다. 결과 모달은 표시하지 않으며 알림 목록은 type=AI_MODERATION, message=서비스 안내문과 대상 이동용 feedId/feedCommentId/feedReplyId를 반환한다.

@@ -200,6 +200,7 @@ export default function SignupClient() {
         if (!token) throw new Error('휴대폰 인증 완료 토큰이 없습니다.');
         setPhoneAuthCompleteToken(token);
         setPhoneVerified(true);
+        setDemoCode('');
         setPhoneMessage('휴대폰 인증이 완료되었습니다.');
       } catch (err) {
         if (revision !== phoneRevision.current) return;
@@ -276,7 +277,7 @@ export default function SignupClient() {
     startTransition(async () => {
       try {
         await bffPostJson(bffEndpoints.auth.signup, body);
-        router.replace('/');
+        router.replace('/login?signup=complete');
         router.refresh();
       } catch (err) {
         const fieldErrors = signupFieldErrors(err);

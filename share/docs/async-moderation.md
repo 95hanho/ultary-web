@@ -40,7 +40,7 @@
 - API 키와 제공자 응답 원문은 로그에 넣지 않는다. 작업 테이블의 최대 100자 본문 스냅샷은 검사·복구용이며 진단 로그와 구분한다.
 - 조치·작업 완료·알림 저장은 같은 트랜잭션이다. 중복 완료 호출은 조치·개수·알림을 중복 반영하지 않는다.
 - 영속 알림 `type=AI_MODERATION`. `message`는 서비스 안내문이며, 숨긴 글의 feed FK를 넣지 않아 글이 숨겨져도 안내가 남는다.
-- 기존 알림 종류별 설정과 관계없이 이 서비스 안내를 표시한다. 로그인한 작성자에게만 MODERATION_RESULT 소켓 안내를 보낸다.
+- 기존 알림 종류별 설정과 관계없이 이 서비스 안내를 알림 목록에 표시한다. MODERATION_RESULT 결과 모달은 사용하지 않으며 NOTIFICATION_UNREAD로 배지를 갱신한다.
 - CONTENT_MODERATED는 연결된 클라이언트에 `{ jobId, feedId, targetType, targetId, action }`만 보내는 무효화 이벤트다. 원문이나 판정 사유는 방송하지 않는다.
 - 열린 피드/댓글 화면은 권한이 적용되는 기존 조회 API로 다시 읽는다. 숨긴 게시글 카드는 제거하고, 복구된 본문/댓글과 댓글 수를 갱신한다.
 - 오프라인 중 놓친 안내는 알림 목록에서 확인한다. 별도 FE 검사 요청 API는 만들지 않는다.
@@ -49,19 +49,20 @@
 
 ### 관리자 AI 로그 조회
 
-- 메뉴 건수 `GET /api/v1/admin/menu-counts`의 `failedAiRequestCount`는 FAILED 호출 로그 전체 건수다. 기본 실패 목록과 동일하며 필터·페이지와 무관하다. 재시도별 개별 기록을 세고, 상세 열람만으로 줄어들지 않는다. 관리자 홈과 사이드 메뉴에 `AI 오류 로그 (N)`으로 표시한다. 유지/삭제조치로 처리 완료한 작업의 오류는 메뉴 건수에서 제외한다. 상세 계약은 ai-manual-review-and-phone-demo.md.
+- 메뉴 건수 `GET /api/v1/admin/menu-counts`의 `failedAiRequestCount`는 FAILED 호출 로그 전체 건수다. 필터·페이지와 무관한 미처리 실패 작업 건수다. 같은 moderationJobId의 실패는 1건으로 세고(작업 ID 없는 로그는 개별 집계), 상세 열람만으로 줄어들지 않는다. 관리자 홈과 사이드 메뉴에 `AI 오류 로그 (N)`으로 표시한다. 유지/삭제조치로 처리 완료한 작업의 오류는 메뉴 건수에서 제외한다. 상세 계약은 ai-manual-review-and-phone-demo.md.
 
 - 관리자 홈·사이드 메뉴의 **AI 오류 로그**: `/admin/ai/logs`, 상세 `/admin/ai/logs/{aiRequestId}`. 신고목록과 같은 관리자 레이아웃·목록/상세 스타일을 사용한다.
-- 화면은 실패를 기본으로 조회하며 결과/기능/대상/오류 코드/대상 ID/회원/작업 필터, 화면 높이에 맞춘 목록 개수와 현재/전체 페이지·이전/다음 이동, 새로고침을 제공한다. 필터·화면 크기 변경 시 첫 페이지로 돌아간다. 상세는 호출 당시 오류와 현재 작업 상태·조치를 구분한다.
+- 화면은 실패 요청만 조회한다. 오류 코드·대상 휴대폰 번호·이메일을 검색하고 우측 전체/태그 추천/게시글/댓글/답글 선택은 변경 즉시 조회한다. 요청별 한 행을 표시하고 상세는 hr 위 요청 요약 테이블, 아래 전체 시도 테이블로 구성한다. 필터·화면 크기 변경 시 첫 페이지로 돌아간다.
 
 - 관리자 JWT 전용. 일반 회원 토큰 및 비로그인 요청은 401. 관리자 화면은 관리자 쿠키를 사용하는 BFF로 호출한다.
 - Spring 목록: `GET /api/v1/admin/ai/logs`; BFF 목록: `GET /api/admin/ai/logs`.
 - Spring 상세: `GET /api/v1/admin/ai/logs/{aiRequestId}`; BFF 상세: `GET /api/admin/ai/logs/{aiRequestId}`. 없는 ID는 404.
+- 관리자 원문 미리보기: Spring `GET /api/v1/admin/ai/logs/{aiRequestId}/preview`, BFF `GET /api/admin/ai/logs/{aiRequestId}/preview`. 로그에 연결된 FEED/COMMENT/REPLY만 조회하며 `{feed,comments,tags}`를 반환한다. 비공개·삭제된 대상도 조회하고 대상 댓글·답글은 강조한다. 대상이 없으면 404이며 조회로 상태를 변경하지 않는다. 이미지는 해당 로그의 `/files/{fileId}/content` 관리자 경로를 사용하고 미리보기에 포함된 파일만 허용한다. 화면은 상단 요청 정보 오른쪽에 원문을, hr 아래에는 전체 시도를 표시한다. FAILED는 호출 오류이며 유해 텍스트 판정을 뜻하지 않는다.
 - 목록 기본값: `status=FAILED`, `limit=30`. `status=ALL`이면 전체, `SUCCESS`/`PENDING`도 선택 가능.
-- 선택 필터: `featureType`(FEED_CAPTION/HASHTAG/PET_PROFILE/COMMENT_FILTER/ALT_TEXT), `targetType`(FEED/COMMENT/REPLY), `targetId`, `userNo`, `moderationJobId`, `errorCode`.
-- ID 내림차순. `limit=1..100`, 다음 페이지는 `cursorAiRequestId=nextCursorAiRequestId`. 마지막 페이지 커서는 null. `totalCount`는 동일 필터의 전체 건수이며 커서·limit의 영향을 받지 않는다.
-- `data={items: [...], nextCursorAiRequestId, totalCount}`. 상세는 `data`에 같은 단일 항목을 반환한다.
-- 항목: `aiRequestId,userNo,featureType,targetFeedId,targetType,targetId,moderationJobId,contentVersion,attemptNo,modelName,status,errorCode,errorMessage,latencyMs,httpStatus,createdAt,jobStatus,resultAction,jobAttemptCount,nextAttemptAt`.
+- 선택 필터: `featureType`(FEED_CAPTION/HASHTAG/PET_PROFILE/COMMENT_FILTER/ALT_TEXT), `targetType`(MODERATION/FEED/COMMENT/REPLY/HASHTAG), `targetId`, `userNo`, `moderationJobId`, `errorCode`, `phone`, `email`. phone은 공백·하이픈을 제거해 일치 검색, email은 일치 검색한다. HASHTAG 대상은 featureType=HASHTAG를 조회한다.
+- 같은 moderationJobId는 한 요청으로 묶고, 작업 ID가 없으면 각 로그를 독립 요청으로 유지한다. 필터에 맞는 최신 ID를 대표로 사용한다. FAILED이며 작업 ID가 있고 관리자 상태가 PENDING인 요청을 먼저 표시하고, 처리 완료·조치 대상 없음은 아래에 표시한다. 각 묶음은 대표 ID 내림차순이며 커서는 우선순위와 ID를 함께 적용한다. 상태변경 후 첫 페이지를 다시 조회한다. `limit=1..100`, 다음 페이지는 `cursorAiRequestId=nextCursorAiRequestId`, 마지막은 null. `totalCount`는 동일 필터의 전체 요청 수이며 커서·limit의 영향을 받지 않는다.
+- `data={items: [...], nextCursorAiRequestId, totalCount}`. 상세는 `data`에 요청 정보와 `attempts` 배열을 반환한다. attempts는 같은 작업의 성공·실패 호출 전체를 ID 오름차순으로 반환하며 작업 ID가 없으면 해당 호출 한 건이다.
+- 항목: `aiRequestId,userNo,userNickname,userPhone,userEmail,attemptCount,featureType,targetFeedId,targetType,targetId,moderationJobId,contentVersion,attemptNo,modelName,status,errorCode,errorMessage,latencyMs,httpStatus,createdAt,jobStatus,resultAction,jobAttemptCount,nextAttemptAt`.
 - `status`는 해당 호출 당시 결과다. `jobStatus/resultAction/jobAttemptCount/nextAttemptAt`는 조회 시점의 작업 상태로, 실패 후 재시도 성공·복구 여부를 구분할 수 있다. 태그 추천/이전 로그 등 작업이 없는 항목은 작업 필드가 null.
 - 부적절 판정도 호출은 SUCCESS다. FAILED 목록은 인프라/AI 오류 목록이며 유해 콘텐츠 목록과 다르다.
 - 프롬프트, 제공자 응답 본문, API 키는 조회 응답에 포함하지 않는다. 관리자 목록·상세에는 inspectionContent(검사 당시 본문)를 포함한다. 이전 로그는 새 진단 컬럼이 null일 수 있다.
@@ -71,7 +72,7 @@
 
 - 숨김: `{게시글|댓글|답글}에 부적절한 표현이 확인되어 숨김 처리되었습니다.`
 - 복구: `{게시글|댓글|답글} 수정 내용이 부적절한 표현으로 판정되어 이전 내용으로 복구되었습니다.`
-- 조치 커밋 후 작성자의 연결된 세션에 `MODERATION_RESULT`를 보내며 FE는 `콘텐츠 확인 결과` 안내창을 표시한다. 같은 안내는 영속 알림에도 저장한다. AI 장애만으로는 이 안내를 보내지 않는다.
+- 자동 판정 결과와 관리자 상태변경 결과는 작성자의 영속 AI_MODERATION 알림에 저장한다. 관리자 변경은 실제 변경마다 별도 알림을 남기며 동일 상태 재요청은 중복 저장하지 않는다. 결과 모달을 열지 않고 CONTENT_MODERATED 화면 갱신과 NOTIFICATION_UNREAD 배지 갱신만 전달한다. 문구의 게시글·댓글·답글 링크는 알림 응답의 feedId/feedCommentId/feedReplyId로 이동한다. 알림 자체의 콘텐츠 FK는 null로 유지하고 작업에서 이동 정보를 조회하므로 숨김·삭제 후에도 안내는 남는다. AI 호출 장애만으로 부적절 판정 알림을 보내지 않는다.
 
 ### 배포 및 재처리
 

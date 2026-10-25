@@ -35,6 +35,7 @@ type RelationRow = {
   petTags: string[];
   neighborId: number | null;
   following: boolean;
+  mutual: boolean;
 };
 
 const TITLES: Record<RelationKind, string> = {
@@ -60,6 +61,15 @@ export default function RelationListClient({
   const [failedProfileUrls, setFailedProfileUrls] = useState<Set<string>>(() => new Set());
 
   const filteredRows = useMemo(() => filterRows(rows, query), [query, rows]);
+  const ownList = meUserNo != null && String(meUserNo) === userNo;
+  const isMutual = (row: RelationRow) =>
+    ownList ? row.following && (kind === 'neighbors' || row.mutual) : row.mutual;
+  const mutualRows = filteredRows.filter(isMutual);
+  const otherRows = filteredRows.filter((row) => !isMutual(row));
+  const groups = [
+    { key: 'mutual', rows: mutualRows, title: '서로 팔로우 하는 목록' },
+    { key: 'other', rows: otherRows, title: null },
+  ].filter((group) => group.rows.length > 0);
 
   useEffect(() => {
     if (!userNo) {
@@ -207,8 +217,15 @@ export default function RelationListClient({
             {filteredRows.length === 0 ? (
               <EmptyState title={query.trim() ? '검색 결과가 없어요' : '목록이 비어 있어요'} />
             ) : (
-              <ul className={styles.accountList}>
-                {filteredRows.map((row) => {
+              <div>
+                {groups.map((group, index) => (
+                  <section
+                    key={group.key}
+                    className={clsx(styles.accountGroup, index > 0 && styles.accountGroupDivider)}
+                  >
+                    {group.title ? <h2 className={styles.groupTitle}>{group.title}</h2> : null}
+                    <ul className={styles.accountList}>
+                {group.rows.map((row) => {
                   const profile = (
                     <Profile
                       imageUrl={failedProfileUrls.has(row.imageUrl) ? NO_PROFILE_SRC : row.imageUrl}
@@ -263,7 +280,10 @@ export default function RelationListClient({
                     </li>
                   );
                 })}
-              </ul>
+                    </ul>
+                  </section>
+                ))}
+              </div>
             )}
           </>
         )}
@@ -303,6 +323,7 @@ function readRows(raw: unknown) {
         petTags: readPetTags(item.petTags),
         neighborId: typeof item.neighborId === 'number' ? item.neighborId : null,
         following: item.following === true,
+        mutual: item.mutual === true,
       },
     ];
   });

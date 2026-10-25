@@ -359,8 +359,7 @@ export function FooterMenu() {
     } catch (err) {
       console.error('[footer] logout', err);
     }
-    router.replace('/login');
-    router.refresh();
+    window.location.replace('/login');
   };
 
   return (

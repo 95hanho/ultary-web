@@ -1,5 +1,6 @@
 'use client';
 import { useRef, useState } from 'react';
+import { FullScreenLoading } from '@/components/common/FullScreenLoading';
 import { bffPostJson } from '@/lib/api/bffFetch';
 import { bffEndpoints } from '@/lib/api/endpoints';
 import { isHttpError } from '@/lib/api/error';
@@ -42,16 +43,19 @@ export default function AiReviewControl({
     }
   };
   return (
+    <>
+    <FullScreenLoading open={saving} label="AI 오류 처리 상태를 변경하고 있습니다. 잠시만 기다려 주세요." />
     <select
       className={styles.statusSelect}
       aria-label="AI 오류 처리"
       value={item.adminReviewStatus ?? 'PENDING'}
-      disabled={saving || item.adminReviewStatus === 'DELETED'}
+      disabled={saving}
       onChange={(event) => void change(event.target.value)}
     >
       <option value="PENDING">확인 대기</option>
       <option value="KEPT">유지</option>
       <option value="DELETED">삭제조치</option>
     </select>
+    </>
   );
 }

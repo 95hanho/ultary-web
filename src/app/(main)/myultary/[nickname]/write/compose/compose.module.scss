@@ -254,6 +254,11 @@
   border-radius: 7px;
   background: #fff8f5;
 
+  &.hasContent,
+  &:focus-within {
+    background: #fff;
+  }
+
   &:focus-within {
     border-color: var(--brand-sky-600);
     box-shadow: 0 0 0 1px var(--brand-sky-600);

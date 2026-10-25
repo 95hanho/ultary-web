@@ -10,7 +10,8 @@ const ArrowLeftIcon = '/images/icon/arrow_left.svg';
 const SubmitIcon = '/images/icon/Send.svg';
 
 type PageHeaderProps = {
-  title: string;
+  title: ReactNode;
+  titleAlign?: 'center' | 'start';
   /** 기본 모드의 이동 경로. history 모드에서는 이전 방문 기록이 없을 때 사용할 경로 */
   backHref?: string;
   /** history: 방문 기록으로 뒤로 이동하고, 기록이 없으면 backHref(또는 홈)로 대체 */
@@ -30,6 +31,7 @@ type PageHeaderProps = {
 /** 뒤로 + 가운데 제목 헤더 (회원가입 / 게시글 / 프로필 사진 등) */
 export function PageHeader({
   title,
+  titleAlign = 'center',
   backHref,
   backMode = 'link',
   hideBack = false,
@@ -93,7 +95,7 @@ export function PageHeader({
   return (
     <header className={styles.header}>
       {backButton}
-      <h1 className={styles.title}>{title}</h1>
+      <h1 className={titleAlign === 'start' ? `${styles.title} ${styles.titleStart}` : styles.title}>{title}</h1>
       {rightSlot}
     </header>
   );

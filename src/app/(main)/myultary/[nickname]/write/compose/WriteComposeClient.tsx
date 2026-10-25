@@ -487,7 +487,7 @@ export default function WriteComposeClient({ editFeedId }: { editFeedId?: string
           </h2>
           <div className={styles.contentBody}>
             <div className={styles.textareaWrap}>
-              <div className={styles.editorShell}>
+              <div className={clsx(styles.editorShell, caption.length > 0 && styles.hasContent)}>
                 <div ref={backdropRef} className={styles.editorBackdrop} aria-hidden>
                   {caption
                     ? captionParts.map((part, i) => {

@@ -2,7 +2,7 @@ import { bffGet } from '@/lib/api/bffFetch';
 import { bffEndpoints } from '@/lib/api/endpoints';
 import { isRecord } from '@/lib/api/error';
 import type { BffEnvelope } from '@/types/api';
-import { readTagRequest, type TagRequest } from './TagRequestDetail';
+import { readTagRequest, type TagRequest } from './tagRequestData';
 
 export type ReportItem = {
   reportId: number;
@@ -14,6 +14,7 @@ export type ReportItem = {
   targetType: string;
   reason: string;
   reporterUserNo: number | null;
+  reporterNickname: string;
   targetUserNo: number | null;
   targetFeedId: number | null;
   targetCommentId: number | null;
@@ -180,18 +181,6 @@ export async function fetchTagTotalCount() {
   }
 }
 
-export async function findTagRequest(requestId: number) {
-  return findInPages(requestId, async (cursor) => {
-    const page = await fetchPage(
-      bffEndpoints.admin.tagProfileRequests,
-      { limit: API_LIMIT, ...(cursor != null ? { cursorRequestId: cursor } : {}) },
-      'nextCursorRequestId',
-      readTagRequests,
-    );
-    return { items: page.items, nextCursor: page.nextCursor };
-  }, (item) => item.requestId);
-}
-
 export async function findReport(reportId: number) {
   return findInPages(reportId, async (cursor) => {
     const page = await fetchPage(
@@ -286,6 +275,7 @@ function readReports(raw: unknown): ReportItem[] {
         targetType,
         reason: reasonCode,
         reporterUserNo: typeof item.reporterUserNo === 'number' ? item.reporterUserNo : null,
+        reporterNickname: typeof item.reporterNickname === 'string' ? item.reporterNickname : '',
         targetUserNo: userNo,
         targetFeedId: typeof item.targetFeedId === 'number' ? item.targetFeedId : null,
         targetCommentId: typeof item.targetCommentId === 'number' ? item.targetCommentId : null,

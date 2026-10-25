@@ -94,6 +94,22 @@
   text-align: center;
 }
 
+.accountGroup {
+  padding-bottom: 12px;
+}
+
+.accountGroupDivider {
+  padding-top: 12px;
+  border-top: 1px solid var(--brand-gray-100);
+}
+
+.groupTitle {
+  color: var(--brand-gray-200);
+  margin: 0 8px 8px;
+  font-size: 12px;
+  font-weight: 400;
+}
+
 .accountList {
   display: flex;
   flex-direction: column;

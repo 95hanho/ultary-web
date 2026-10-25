@@ -3,6 +3,7 @@
 import { PageLoadError } from '@/components/common/PageLoadError';
 
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { httpErrorStatus } from '@/lib/api/error';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { bffGet } from '@/lib/api/bffFetch';
@@ -15,8 +16,10 @@ import styles from './admin.module.scss';
 import AiReviewControl from './AiReviewControl';
 
 export default function AiLogListClient() {
+  const router = useRouter();
   const listRef = useRef<HTMLDivElement>(null);
-  const [filters, setFilters] = useState('status=FAILED&targetType=MODERATION');
+  const [filters, setFilters] = useState('');
+  const [targetType, setTargetType] = useState('');
   const [page, setPage] = useState(0);
   const [cursors, setCursors] = useState<(number | null)[]>([null]);
   const [refresh, setRefresh] = useState(0);
@@ -36,7 +39,7 @@ export default function AiLogListClient() {
   }
 
   const cursor = cursors[page];
-  const query = `${filters}&limit=${pageSize}${cursor != null ? `&cursorAiRequestId=${cursor}` : ''}`;
+  const query = `status=FAILED&${filters}&targetType=${targetType}&limit=${pageSize}${cursor != null ? `&cursorAiRequestId=${cursor}` : ''}`;
   const key = `${query}:${refresh}`;
   const pending = loaded?.key !== key;
   const data = pending ? null : loaded?.data;
@@ -76,38 +79,6 @@ export default function AiLogListClient() {
       <h1 className={styles.paneTitle}>AI 오류 로그</h1>
       <form className={styles.aiFilters} onSubmit={search}>
         <label>
-          호출 결과
-          <select name="status" defaultValue="FAILED">
-            <option value="FAILED">실패</option>
-            <option value="ALL">전체</option>
-            <option value="SUCCESS">성공</option>
-            <option value="PENDING">대기</option>
-          </select>
-        </label>
-        <label>
-          기능
-          <select name="featureType">
-            <option value="">전체</option>
-            {Object.entries(AI_FEATURE).map(([value, label]) => (
-              <option key={value} value={value}>
-                {label}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          대상
-          <select name="targetType" defaultValue="MODERATION">
-            <option value="MODERATION">게시글·댓글·답글</option>
-            <option value="">전체</option>
-            {['FEED', 'COMMENT', 'REPLY'].map((value) => (
-              <option key={value} value={value}>
-                {TARGET_TYPE[value]}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
           오류 코드
           <input
             name="errorCode"
@@ -117,16 +88,12 @@ export default function AiLogListClient() {
           />
         </label>
         <label>
-          대상 ID
-          <input name="targetId" type="number" min="1" step="1" />
+          대상 휴대폰 번호
+          <input name="phone" type="tel" placeholder="01012345678" maxLength={24} />
         </label>
         <label>
-          회원 번호
-          <input name="userNo" type="number" min="1" step="1" />
-        </label>
-        <label>
-          작업 ID
-          <input name="moderationJobId" type="number" min="1" step="1" />
+          이메일
+          <input name="email" type="email" placeholder="이메일 주소" maxLength={254} />
         </label>
         <button type="submit" className={styles.pageButton}>
           조회
@@ -140,10 +107,22 @@ export default function AiLogListClient() {
           새로고침
         </button>
       </form>
-      <p className={styles.aiHint}>
-        호출 시도별 기록입니다. 실패 이후 재시도 결과는 상세에서 확인할 수 있습니다.
-      </p>
-      <div ref={listRef} className={styles.listWrap} aria-busy={pending}>
+      <div className={styles.aiListToolbar}>
+        <p className={styles.aiHint}>실패가 발생한 요청을 작업별로 표시합니다. 전체 시도 내역은 상세에서 확인할 수 있습니다.</p>
+        <select className={styles.statusSelect} aria-label="AI 로그 대상 필터" value={targetType}
+          onChange={(event) => {
+            setTargetType(event.target.value);
+            setPage(0);
+            setCursors([null]);
+          }}>
+          <option value="">전체</option>
+          <option value="HASHTAG">태그 추천</option>
+          <option value="FEED">게시글</option>
+          <option value="COMMENT">댓글</option>
+          <option value="REPLY">답글</option>
+        </select>
+      </div>
+      <div ref={listRef} className={styles.listWrap + ' ' + styles.tableWrap} aria-busy={pending}>
         {pending ? (
           <p className={styles.empty} role="status">
             불러오는 중
@@ -153,91 +132,74 @@ export default function AiLogListClient() {
         {data?.items.length === 0 ? (
           <p className={styles.empty}>조건에 맞는 AI 로그가 없습니다.</p>
         ) : null}
-        <ul className={styles.list}>
-          {data?.items.map((item) => (
-            <li key={item.aiRequestId}>
-              <div
-                className={`${styles.row} ${item.adminReviewStatus === 'KEPT' || item.adminReviewStatus === 'DELETED' ? styles.settled : ''}`}
-              >
-                <span className={`${styles.rowMain} ${styles.aiRowMain}`}>
-                  <Link
-                    href={`/admin/ai/logs/${item.aiRequestId}`}
-                    className={`${styles.rowLead} ${styles.rowLink}`}
-                  >
-                    <span className={styles.rowId}>{item.aiRequestId}</span>
-                    <span className={styles.rowBody}>
-                      <span className={`${styles.rowName} ${styles.aiCode}`}>
-                        {item.errorCode ?? AI_STATUS[item.status] ?? item.status}
-                      </span>
-                      <span className={styles.rowMeta}>
-                        {AI_FEATURE[item.featureType] ?? item.featureType}
-                        {item.targetType
-                          ? ` · ${TARGET_TYPE[item.targetType] ?? item.targetType} #${item.targetId}`
-                          : ''}
-                      </span>
-                      <span className={styles.rowMeta}>
-                        {aiDuration(item.latencyMs)}
-                        {item.attemptNo != null ? ` · ${item.attemptNo}번째 시도` : ''}
-                        {item.jobStatus
-                          ? ` · 현재 ${AI_STATUS[item.jobStatus] ?? item.jobStatus}`
-                          : ''}
-                      </span>
-                      {item.targetType && ['FEED', 'COMMENT', 'REPLY'].includes(item.targetType) ? (
-                        <span className={styles.aiContent}>
-                          {item.inspectionContent ?? '내용 기록 없음'}
-                        </span>
-                      ) : null}
-                      {item.adminReviewStatus ? (
-                        <span className={styles.rowMeta}>
-                          관리자:{' '}
-                          {{ PENDING: '확인 대기', KEPT: '유지', DELETED: '삭제조치' }[
-                            item.adminReviewStatus
-                          ] ?? item.adminReviewStatus}
-                        </span>
-                      ) : null}
+        <table className={styles.dataTable + ' ' + styles.aiTable}>
+          <caption className={styles.tableCaption}>AI 오류 로그 목록</caption>
+          <colgroup>
+            <col className={styles.numberColumn} /><col /><col /><col className={styles.memberColumn} />
+            <col className={styles.attemptColumn} /><col className={styles.dateColumn} />
+            <col className={styles.dateColumn} /><col className={styles.resultColumn} />
+            <col className={styles.actionColumn} />
+          </colgroup>
+          <thead><tr>
+            <th scope="col">번호</th><th scope="col">기능 · 대상</th><th scope="col">오류 · 검사 내용</th>
+            <th scope="col">회원(no)</th><th scope="col">시도 · 소요</th>
+            <th scope="col">발생날짜</th><th scope="col">처리날짜</th>
+            <th scope="col">호출결과</th><th scope="col">상태변경</th>
+          </tr></thead>
+          <tbody>
+            {data?.items.map((item, index) => (
+              <tr key={item.aiRequestId}
+                className={[styles.rowClickable,
+                  item.adminReviewStatus === 'KEPT' || item.adminReviewStatus === 'DELETED' ? styles.settled : '',
+                ].filter(Boolean).join(' ')}
+                onClick={(event) => {
+                  if (event.defaultPrevented || (event.target instanceof Element && event.target.closest('a'))) return;
+                  router.push('/admin/ai/logs/' + item.aiRequestId);
+                }}>
+                <td className={styles.tableNumber}>{(data?.totalCount ?? 0) - page * pageSize - index}</td>
+                <td>
+                  <Link href={'/admin/ai/logs/' + item.aiRequestId} className={styles.tableLink}>
+                    <span className={styles.tableText}>{AI_FEATURE[item.featureType] ?? item.featureType}</span>
+                  </Link>
+                  <span className={styles.tableMuted}>
+                    {item.targetType ? (TARGET_TYPE[item.targetType] ?? item.targetType) + (item.targetId != null ? ' #' + item.targetId : '') : '–'}
+                  </span>
+                </td>
+                <td>
+                  <Link href={'/admin/ai/logs/' + item.aiRequestId} className={styles.tableLink}>
+                    <span className={styles.tableText} title={item.errorCode ?? undefined}>
+                      {item.errorCode ?? AI_STATUS[item.status] ?? item.status}
                     </span>
                   </Link>
-                  <span className={styles.rowSide}>
-                    {item.status === 'FAILED' && item.moderationJobId != null ? (
-                      <AiReviewControl
-                        item={item}
-                        onChange={(next) =>
-                          setLoaded((current) =>
-                            current?.data
-                              ? {
-                                  ...current,
-                                  data: {
-                                    ...current.data,
-                                    items: current.data.items.map((value) =>
-                                      value.moderationJobId === next.moderationJobId
-                                        ? {
-                                            ...value,
-                                            adminReviewStatus: next.adminReviewStatus,
-                                            jobStatus: next.jobStatus,
-                                          }
-                                        : value,
-                                    ),
-                                  },
-                                }
-                              : current,
-                          )
-                        }
-                      />
-                    ) : null}
-                    <span
-                      className={`${styles.badge} ${item.status === 'FAILED' ? styles.toneNo : styles.toneOk}`}
-                    >
-                      {AI_STATUS[item.status] ?? item.status}
-                    </span>
-                    <span className={styles.rowWhen}>
-                      {item.createdAt ? formatWhen(item.createdAt) : '기록 없음'}
-                    </span>
+                  <span className={styles.tableText} title={item.inspectionContent ?? undefined}>
+                    {item.inspectionContent ?? '내용 기록 없음'}
                   </span>
-                </span>
-              </div>
-            </li>
-          ))}
-        </ul>
+                </td>
+                <td>{item.userNo ?? '–'}</td>
+                <td>
+                  <span className={styles.tableText}>총 {item.attemptCount ?? 1}회</span>
+                  <span className={styles.tableMuted}>{aiDuration(item.latencyMs)}</span>
+                </td>
+                <td className={styles.tableDate}>{item.createdAt ? formatWhen(item.createdAt) : '–'}</td>
+                <td className={styles.tableDate}>{item.adminReviewedAt ? formatWhen(item.adminReviewedAt) : '–'}</td>
+                <td>
+                  <span className={styles.badge + ' ' + (item.status === 'FAILED' ? styles.toneNo : styles.toneOk)}>
+                    {AI_STATUS[item.status] ?? item.status}
+                  </span>
+                </td>
+                <td className={styles.tableActions} onClick={(event) => event.stopPropagation()}>
+                  {item.status === 'FAILED' && item.moderationJobId != null ? (
+                    <AiReviewControl item={item} onChange={() => {
+                      setPage(0);
+                      setCursors([null]);
+                      setRefresh((value) => value + 1);
+                    }} />
+                  ) : <span className={styles.tableMuted}>조치 대상 없음</span>}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
       <Pager
         page={page}

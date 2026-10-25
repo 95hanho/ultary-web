@@ -14,6 +14,7 @@ function fixture(path, overrides = {}) {
       useState: initial => { const i = cursor++; if (!(i in hooks)) hooks[i] = initial; return [hooks[i], value => { hooks[i] = typeof value === 'function' ? value(hooks[i]) : value; }]; },
     },
     'react/jsx-runtime': { jsx: element, jsxs: element },
+    '@/components/common/FullScreenLoading': { FullScreenLoading: 'FullScreenLoading' },
     '@/lib/api/bffFetch': { bffPostJson: async (url, body) => { calls.push({url,body}); return {data:{...body,requestId:17,tagId:4,status:body.status ?? 'APPROVED'}}; } },
     '@/lib/api/endpoints': { bffEndpoints: { admin: {tagApprove:'/approve',tagPending:'/pending',tagReject:'/reject',aiLogs:'/logs'} } },
     '@/lib/api/error': { isRecord: value => value != null && typeof value === 'object', isHttpError: value => typeof value?.status === 'number' },
@@ -37,6 +38,32 @@ function nodes(tree, type) {
 const settle = () => new Promise(setImmediate);
 const tag = {requestId:17,tagId:4,status:'PENDING',rejectMessage:''};
 
+test('all three status controls show full-screen loading until requests succeed or fail', async () => {
+ for (const [file, item, next] of [
+  ['TagStatusControl', tag, 'APPROVED'],
+  ['ReportStatusControl', {reportId:105,status:'CONFIRMED'}, 'DELETED'],
+  ['AiReviewControl', {aiRequestId:189,adminReviewStatus:'PENDING'}, 'KEPT'],
+ ]) {
+  for (const fails of [false, true]) {
+   let finish;
+   const pending = new Promise((resolve, reject) => { finish = () => fails ? reject({status:409,message:'실패'}) : resolve({data:null}); });
+   const f = fixture(`app/admin/${file}.tsx`, {
+    '@/lib/api/bffFetch': {bffPostJson: () => pending},
+    './reportStatusActions': {
+     ACTION_URL:{DELETED:'/delete'}, actionOptions:()=>[],
+     mergeReport:(current,raw,status)=>({...current,status}), actionError:()=> '실패',
+    },
+   });
+   assert.equal(nodes(f.render({item}), 'FullScreenLoading')[0].props.open, false);
+   nodes(f.render({item}), 'select')[0].props.onChange({target:{value:next}});
+   assert.equal(nodes(f.render({item}), 'FullScreenLoading')[0].props.open, true);
+   finish();
+   await settle();
+   assert.equal(nodes(f.render({item}), 'FullScreenLoading')[0].props.open, false);
+  }
+ }
+});
+
 test('list tag approval uses request ID, guards duplicate submissions and refreshes menu counts', async()=>{
  const f=fixture('app/admin/TagStatusControl.tsx'); const select=nodes(f.render({item:tag}),'select')[0];
  select.props.onChange({target:{value:'APPROVED'}});select.props.onChange({target:{value:'APPROVED'}});await settle();
@@ -55,11 +82,14 @@ test('choosing rejection waits for a reason and submission; choosing pending cal
  const p=fixture('app/admin/TagStatusControl.tsx');nodes(p.render({item:{...tag,status:'REJECTED'}}),'select')[0].props.onChange({target:{value:'PENDING'}});await settle();
  assert.equal(p.calls[0].url,'/pending');
 });
-test('AI review updates the row; completed deletion is disabled',async()=>{
+test('AI review updates the row and allows changing a completed deletion',async()=>{
  const f=fixture('app/admin/AiReviewControl.tsx');
  nodes(f.render({item:{aiRequestId:189,adminReviewStatus:'PENDING'}}),'select')[0].props.onChange({target:{value:'KEPT'}});await settle();
  assert.equal(f.calls[0].url,'/logs/189/review');assert.equal(f.calls[0].body.status,'KEPT');assert.equal(f.changed[0].status,'KEPT');
- assert.equal(nodes(f.render({item:{aiRequestId:189,adminReviewStatus:'DELETED'}}),'select')[0].props.disabled,true);
+ const deleted = nodes(f.render({item:{aiRequestId:189,adminReviewStatus:'DELETED'}}),'select')[0];
+ assert.equal(deleted.props.disabled,false);
+ deleted.props.onChange({target:{value:'PENDING'}}); await settle();
+ assert.equal(f.calls[1].body.status,'PENDING');
 });
 test('report list uses the selected action and report identity',async()=>{
  const f=fixture('app/admin/ReportStatusControl.tsx',{'./reportStatusActions':{

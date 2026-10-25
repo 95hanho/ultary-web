@@ -12,6 +12,7 @@ import { formatWhen, TARGET_TYPE } from './adminData';
 import { AI_FEATURE, AI_STATUS, AI_ACTION, aiDuration, type AiLog } from './aiLogData';
 import styles from './admin.module.scss';
 import AiReviewControl from './AiReviewControl';
+import ReportFeedPreview from './ReportFeedPreview';
 
 export default function AiLogDetailClient({ aiRequestId }: { aiRequestId: number }) {
   const [refresh, setRefresh] = useState(0);
@@ -24,6 +25,8 @@ export default function AiLogDetailClient({ aiRequestId }: { aiRequestId: number
   } | null>(null);
   const pending = loaded?.id !== aiRequestId || loaded?.refresh !== refresh;
   const item = pending ? null : loaded?.item;
+  const firstCreatedAt = item?.attempts?.[0]?.createdAt ?? item?.createdAt;
+  const hasPreview = item?.targetId != null && ['FEED', 'COMMENT', 'REPLY'].includes(item.targetType ?? '');
 
   useEffect(() => {
     let cancelled = false;
@@ -62,68 +65,96 @@ export default function AiLogDetailClient({ aiRequestId }: { aiRequestId: number
         {!pending && loaded?.error ? <PageLoadError status={loaded?.status} /> : null}
         {item ? (
           <>
-            <p className={styles.detailMeta}>
-              {AI_FEATURE[item.featureType] ?? item.featureType} ·{' '}
-              {item.createdAt ? formatWhen(item.createdAt) : '시간 기록 없음'}
-            </p>
-            <Field label="호출 결과" value={AI_STATUS[item.status] ?? item.status} />
-            <Field label="오류 코드" value={item.errorCode} />
-            <Field label="오류 원인" value={item.errorMessage} />
-            <Field label="소요 시간" value={aiDuration(item.latencyMs)} />
-            <Field label="HTTP 상태" value={item.httpStatus} />
-            <Field label="Gemini 모델" value={item.modelName} />
-            <Field label="회원 번호" value={item.userNo} />
-            <Field
-              label="검사 대상"
-              value={
-                item.targetType
-                  ? `${TARGET_TYPE[item.targetType] ?? item.targetType} #${item.targetId}`
-                  : null
-              }
-            />
-            <Field label="게시글 ID" value={item.targetFeedId} />
-            <Field label="검사 당시 내용" value={item.inspectionContent} />
-            {item.moderationJobId != null && item.status === 'FAILED' ? (
-              <>
-                <Field
-                  label="관리자 처리"
-                  value={
-                    { PENDING: '확인 대기', KEPT: '유지', DELETED: '삭제조치' }[
-                      item.adminReviewStatus ?? 'PENDING'
-                    ]
-                  }
-                />
-                <Field
-                  label="관리자 처리일"
-                  value={item.adminReviewedAt ? formatWhen(item.adminReviewedAt) : null}
-                />
-              </>
-            ) : null}
+            <div className={hasPreview ? styles.reportDetailColumns : undefined}>
+              <div className={styles.aiDetailTableWrap}>
+                <table className={styles.aiSummaryTable}>
+                  <caption>요청 정보</caption>
+                  <tbody>
+                    <Field label="기능" value={AI_FEATURE[item.featureType] ?? item.featureType} />
+                    <Field label="최초 호출날짜" value={firstCreatedAt ? formatWhen(firstCreatedAt) : null} />
+                    <Field label="회원" value={item.userNo != null ? `${item.userNickname ?? '알 수 없는 사용자'}(${item.userNo})` : null} />
+                    <Field label="휴대폰 번호" value={item.userPhone} />
+                    <Field label="이메일" value={item.userEmail} />
+                    <Field
+                      label="검사 대상"
+                      value={
+                        item.targetType
+                          ? `${TARGET_TYPE[item.targetType] ?? item.targetType} #${item.targetId}`
+                          : null
+                      }
+                    />
+                    <Field label="검사 당시 내용" value={item.inspectionContent} />
+                    {item.moderationJobId != null && item.status === 'FAILED' ? (
+                      <>
+                        <Field
+                          label="관리자 처리"
+                          value={
+                            { PENDING: '확인 대기', KEPT: '유지', DELETED: '삭제조치' }[
+                              item.adminReviewStatus ?? 'PENDING'
+                            ]
+                          }
+                        />
+                        <Field
+                          label="관리자 처리일"
+                          value={item.adminReviewedAt ? formatWhen(item.adminReviewedAt) : null}
+                        />
+                      </>
+                    ) : null}
+                    <Field label="작업 ID" value={item.moderationJobId} />
+                    <Field label="본문 버전" value={item.contentVersion} />
+                    <Field
+                      label="현재 작업 상태"
+                      value={item.jobStatus ? (AI_STATUS[item.jobStatus] ?? item.jobStatus) : null}
+                    />
+                    <Field label="전체 시도 횟수" value={item.attemptCount} />
+                    <Field
+                      label="조치 결과"
+                      value={item.resultAction ? (AI_ACTION[item.resultAction] ?? item.resultAction) : null}
+                    />
+                    <Field
+                      label="다음 검사 예정"
+                      value={
+                        item.jobStatus === 'PENDING' && item.nextAttemptAt
+                          ? formatWhen(item.nextAttemptAt)
+                          : null
+                      }
+                    />
+                  </tbody>
+                </table>
+              </div>
+              {hasPreview ? (
+                <aside className={styles.reportPreviewColumn} aria-label="AI 검사 대상 피드 미리보기">
+                  <div className={styles.reportFeedPreview}>
+                    <ReportFeedPreview key={`${item.aiRequestId}:${refresh}:${item.adminReviewStatus}:${item.adminReviewedAt}`}
+                      aiRequestId={item.aiRequestId}
+                      commentId={item.targetType === 'COMMENT' ? item.targetId : null}
+                      replyId={item.targetType === 'REPLY' ? item.targetId : null} />
+                  </div>
+                </aside>
+              ) : null}
+            </div>
             <hr className={styles.detailRule} />
-            <Field label="작업 ID" value={item.moderationJobId} />
-            <Field label="본문 버전" value={item.contentVersion} />
-            <Field label="이 호출의 시도 번호" value={item.attemptNo} />
-            <Field
-              label="현재 작업 상태"
-              value={item.jobStatus ? (AI_STATUS[item.jobStatus] ?? item.jobStatus) : null}
-            />
-            <Field label="현재 작업의 누적 시도 횟수" value={item.jobAttemptCount} />
-            <Field
-              label="조치 결과"
-              value={item.resultAction ? (AI_ACTION[item.resultAction] ?? item.resultAction) : null}
-            />
-            <Field
-              label="다음 검사 예정"
-              value={
-                item.jobStatus === 'PENDING' && item.nextAttemptAt
-                  ? formatWhen(item.nextAttemptAt)
-                  : null
-              }
-            />
-            <p className={styles.aiDetailHint}>
-              호출 결과는 당시 기록이며 작업 상태는 조회 시점의 상태입니다. 이전 로그나 태그
-              추천에는 작업 정보가 없을 수 있습니다.
-            </p>
+            <div className={styles.aiDetailTableWrap}>
+              <table className={styles.dataTable + ' ' + styles.aiAttemptsTable}>
+                <caption>전체 시도 내역</caption>
+                <thead><tr>
+                  <th scope="col">시도</th><th scope="col">호출결과</th><th scope="col">오류 코드</th>
+                  <th scope="col">오류 원인</th><th scope="col">HTTP 상태</th><th scope="col">소요 시간</th>
+                  <th scope="col">모델</th><th scope="col">호출날짜</th>
+                </tr></thead>
+                <tbody>{(item.attempts ?? [item]).map((attempt, index) => (
+                  <tr key={attempt.aiRequestId}>
+                    <td>{attempt.attemptNo ?? index + 1}회</td>
+                    <td><span className={styles.badge + ' ' + (attempt.status === 'FAILED' ? styles.toneNo : styles.toneOk)}>
+                      {AI_STATUS[attempt.status] ?? attempt.status}
+                    </span></td>
+                    <td>{attempt.errorCode ?? '–'}</td><td>{attempt.errorMessage ?? '–'}</td>
+                    <td>{attempt.httpStatus ?? '–'}</td><td>{aiDuration(attempt.latencyMs)}</td>
+                    <td>{attempt.modelName ?? '–'}</td><td>{attempt.createdAt ? formatWhen(attempt.createdAt) : '–'}</td>
+                  </tr>
+                ))}</tbody>
+              </table>
+            </div>
           </>
         ) : null}
       </div>
@@ -154,11 +185,11 @@ export default function AiLogDetailClient({ aiRequestId }: { aiRequestId: number
 
 function Field({ label, value }: { label: string; value: string | number | null | undefined }) {
   return (
-    <div className={styles.field}>
-      <span className={styles.fieldLabel}>{label}</span>
-      <p className={value == null || value === '' ? styles.fieldEmpty : styles.fieldValue}>
+    <tr>
+      <th scope="row">{label}</th>
+      <td>
         {value == null || value === '' ? '기록 없음' : value}
-      </p>
-    </div>
+      </td>
+    </tr>
   );
 }

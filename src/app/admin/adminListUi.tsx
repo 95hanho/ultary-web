@@ -55,12 +55,13 @@ export function useFitCount(ref: RefObject<HTMLDivElement | null>, itemCount: nu
     const el = ref.current;
     if (!el) return;
     const update = () => {
-      const sample = el.querySelector('li');
+      const sample = el.querySelector('tbody tr, li');
       if (sample) {
         const height = sample.getBoundingClientRect().height;
         if (height > 0) rowHeight.current = height;
       }
-      const next = Math.max(1, Math.min(API_LIMIT, Math.floor(el.clientHeight / rowHeight.current)));
+      const headerHeight = el.querySelector('thead')?.getBoundingClientRect().height ?? 0;
+      const next = Math.max(1, Math.min(API_LIMIT, Math.floor((el.clientHeight - headerHeight) / rowHeight.current)));
       setCount((prev) => (prev === next ? prev : next));
     };
     update();

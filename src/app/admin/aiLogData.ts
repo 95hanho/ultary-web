@@ -1,6 +1,11 @@
 export type AiLog = {
   aiRequestId: number;
   userNo: number | null;
+  userNickname: string | null;
+  userPhone: string | null;
+  userEmail: string | null;
+  attemptCount: number;
+  attempts?: AiLog[];
   featureType: string;
   targetFeedId: number | null;
   targetType: string | null;

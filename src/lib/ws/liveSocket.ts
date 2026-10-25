@@ -9,7 +9,6 @@ import {
 } from '@/lib/notification/unreadBadge';
 import { applyDmSocketRoom, fetchDmUnread } from '@/lib/dm/unreadBadge';
 import type { BffEnvelope } from '@/types/api';
-import { useModalStore } from '@/stores/modal.store';
 
 export type ContentModeratedEvent = {
   jobId: string;
@@ -123,11 +122,6 @@ function handleFrame(data: unknown) {
     if (raw.action !== 'HIDDEN' && raw.action !== 'RESTORED') return;
     const event: ContentModeratedEvent = { feedId, targetId, jobId, targetType: raw.targetType, action: raw.action };
     moderationListeners.forEach((listener) => listener(event));
-    return;
-  }
-  if (raw.type === 'MODERATION_RESULT' && typeof raw.message === 'string') {
-    useModalStore.getState().open({ variant: 'alert', title: '콘텐츠 확인 결과', content: raw.message,
-      showCloseButton: true, okButton: { label: '확인', tone: 'primary' }, cancelButton: { hidden: true } });
     return;
   }
   if (raw.type === 'AUTH_OK') {

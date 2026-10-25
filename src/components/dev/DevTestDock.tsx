@@ -12,7 +12,7 @@ import { toLoginRequest } from '@/lib/auth/return-url';
 import type { BffEnvelope } from '@/types/api';
 import clsx from 'clsx';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import styles from './DevTestDock.module.scss';
@@ -91,7 +91,6 @@ function formatClock(ms: number) {
  * 액세스 토큰 예상 만료는 항상 보이고, 페이지 버튼은 그 아래에 붙는다.
  */
 export function DevTestDock({ groups }: Props) {
-  const router = useRouter();
   const pathname = usePathname();
   const onLoginPage = pathname === '/login' || pathname.startsWith('/login/');
   const [collapsed, setCollapsed] = useState(true);
@@ -317,8 +316,8 @@ export function DevTestDock({ groups }: Props) {
                             bffEndpoints.auth.login,
                             toLoginRequest(account.phone, TEST_LOGIN_PASSWORD),
                           );
-                          router.replace('/');
-                          router.refresh();
+                          // 일반 로그인과 동일하게 이전 계정의 모듈 캐시와 소켓을 초기화한다.
+                          window.location.replace('/');
                           return `${account.nickname} 로그인`;
                         },
                       });
@@ -348,8 +347,7 @@ export function DevTestDock({ groups }: Props) {
                       } catch (err) {
                         console.error('[DevTestDock] logout', err);
                       }
-                      router.replace('/login');
-                      router.refresh();
+                      window.location.replace('/login');
                       return '로그아웃했습니다';
                     },
                   })

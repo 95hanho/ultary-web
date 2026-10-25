@@ -853,22 +853,6 @@ export default function MyUltaryClient({ nickname, guestData }: MyUltaryClientPr
             <li className={styles.statItem}>
               {!guest && profile?.userNo != null && !postsLocked ? (
                 <Link
-                  href={`${myUltaryPath(profile.nickname)}/residents?userNo=${profile.userNo}`}
-                  className={styles.statLink}
-                >
-                  <strong>팔로우</strong>
-                  {followCount}
-                </Link>
-              ) : (
-                <>
-                  <strong>팔로우</strong>
-                  {followCount}
-                </>
-              )}
-            </li>
-            <li className={styles.statItem}>
-              {!guest && profile?.userNo != null && !postsLocked ? (
-                <Link
                   href={`${myUltaryPath(profile.nickname)}/neighbors?userNo=${profile.userNo}`}
                   className={styles.statLink}
                 >
@@ -879,6 +863,22 @@ export default function MyUltaryClient({ nickname, guestData }: MyUltaryClientPr
                 <>
                   <strong>팔로워</strong>
                   {followerCount}
+                </>
+              )}
+            </li>
+            <li className={styles.statItem}>
+              {!guest && profile?.userNo != null && !postsLocked ? (
+                <Link
+                  href={`${myUltaryPath(profile.nickname)}/residents?userNo=${profile.userNo}`}
+                  className={styles.statLink}
+                >
+                  <strong>팔로우</strong>
+                  {followCount}
+                </Link>
+              ) : (
+                <>
+                  <strong>팔로우</strong>
+                  {followCount}
                 </>
               )}
             </li>

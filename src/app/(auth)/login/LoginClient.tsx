@@ -7,7 +7,6 @@ import { toLoginRequest } from '@/lib/auth/return-url';
 import type { BffEnvelope } from '@/types/api';
 import Image from 'next/image';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { useState, useTransition, type FormEvent } from 'react';
 import styles from './login.module.scss';
 
@@ -31,6 +30,7 @@ const KAKAO_BTN_SRC = '/images/img/kakao_login_large_wide.png';
 
 type Props = {
   initialError?: string;
+  signupComplete?: boolean;
 };
 
 function pickLoginError(err: unknown): string {
@@ -49,16 +49,21 @@ function pickLoginError(err: unknown): string {
   return '로그인에 실패했습니다. 다시 시도해 주세요.';
 }
 
-export default function LoginClient({ initialError }: Props) {
-  const router = useRouter();
+export default function LoginClient({ initialError, signupComplete = false }: Props) {
   const [pending, startTransition] = useTransition();
   const [loginId, setLoginId] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(socialErrorMessage(initialError));
+  const [showSignupComplete, setShowSignupComplete] = useState(signupComplete);
+
+  const clearNotices = () => {
+    setError(null);
+    setShowSignupComplete(false);
+  };
 
   const onSubmit = (e: FormEvent) => {
     e.preventDefault();
-    setError(null);
+    clearNotices();
 
     if (!loginId.trim() || !password) {
       setError('휴대폰번호(또는 이메일)와 비밀번호를 입력해 주세요.');
@@ -71,8 +76,8 @@ export default function LoginClient({ initialError }: Props) {
           bffEndpoints.auth.login,
           toLoginRequest(loginId, password),
         );
-        router.replace('/');
-        router.refresh();
+        // 계정 전환 시 프로필·사용자 번호·소켓 등 이전 세션의 메모리 캐시도 초기화한다.
+        window.location.replace('/');
       } catch (err) {
         setError(pickLoginError(err));
       }
@@ -93,6 +98,11 @@ export default function LoginClient({ initialError }: Props) {
       </div>
 
       <div className={styles.content}>
+        {showSignupComplete && !error && !pending ? (
+          <p className={styles.successBanner} role="status">
+            회원가입이 완료되었습니다. 로그인해 주세요.
+          </p>
+        ) : null}
         {error ? <p className={styles.errorBanner}>{error}</p> : null}
 
         <form onSubmit={onSubmit} className={styles.form} noValidate>
@@ -101,7 +111,10 @@ export default function LoginClient({ initialError }: Props) {
               type="text"
               name="loginId"
               value={loginId}
-              onChange={(e) => setLoginId(e.target.value)}
+              onChange={(e) => {
+                setLoginId(e.target.value);
+                clearNotices();
+              }}
               placeholder="휴대폰번호 또는 이메일을 입력해주세요."
               autoComplete="off"
               className={styles.input}
@@ -111,7 +124,10 @@ export default function LoginClient({ initialError }: Props) {
               type="password"
               name="password"
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              onChange={(e) => {
+                setPassword(e.target.value);
+                clearNotices();
+              }}
               placeholder="비밀번호를 입력해주세요."
               autoComplete="off"
               className={styles.input}

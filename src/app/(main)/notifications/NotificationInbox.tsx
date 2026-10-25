@@ -8,6 +8,7 @@ import { resolveFileDisplayUrl } from '@/lib/api/fileUrl';
 import { isHttpError, isRecord } from '@/lib/api/error';
 import { myUltaryPath } from '@/lib/mock/ultary-accounts';
 import { openFeedComment, postPagePath } from '@/lib/notification/openTarget';
+import { moderationNoticeParts } from '@/lib/notification/moderationNotice';
 import { fetchUnreadCount, publishUnreadBadge, subscribeUnreadBadge } from '@/lib/notification/unreadBadge';
 import { showFooterNotice } from '@/lib/ui/footerNotice';
 import { NO_PROFILE_SRC } from '@/lib/profileImage';
@@ -224,7 +225,9 @@ function NotificationMessage({ item }: { item: NotificationItem }) {
   let action: ReactNode;
   switch (item.kind) {
     case 'moderation':
-      action = item.message ?? '콘텐츠 확인 결과가 있습니다.';
+      action = moderationNoticeParts(item.message ?? '콘텐츠 확인 결과가 있습니다.', item).map((part, index) =>
+        part.href ? <Link key={index} href={part.href} className={styles.keyword}>{part.text}</Link> : part.text,
+      );
       break;
     case 'neighbor':
       action =

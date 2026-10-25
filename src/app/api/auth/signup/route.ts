@@ -3,8 +3,7 @@ import { handleBffError } from '@/lib/api/bffRoute';
 import { springEndpoints } from '@/lib/api/endpoints';
 import { springPostJson } from '@/lib/api/springFetch';
 import { validateNickname } from '@/lib/auth/signup-rules';
-import { setAuthCookies } from '@/lib/auth/cookies';
-import type { SignupRequest, TokenResponse } from '@/types/api';
+import type { SignupRequest } from '@/types/api';
 
 /** BFF /api/auth/signup — POST */
 export async function POST(request: NextRequest) {
@@ -48,17 +47,15 @@ export async function POST(request: NextRequest) {
       regionSigungu: body.regionSigungu?.trim() || undefined,
     };
 
-    const tokens = await springPostJson<TokenResponse, SignupRequest>(
+    await springPostJson<null, SignupRequest>(
       springEndpoints.auth.signup,
       payload,
     );
 
-    const response = NextResponse.json(
+    return NextResponse.json(
       { success: true, message: 'SIGNUP_SUCCESS' },
       { status: 200 },
     );
-    setAuthCookies(response, tokens);
-    return response;
   } catch (err) {
     return handleBffError(err);
   }

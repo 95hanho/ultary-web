@@ -9,6 +9,7 @@ import { RevealTime } from '@/components/common/RevealTime';
 import { FooterMenu } from '@/components/common/FooterMenu';
 import { MediaImage } from '@/components/common/MediaImage';
 import { PageHeader } from '@/components/common/PageHeader';
+import { Profile, type StoryStatus } from '@/components/my-ultary/Profile';
 import { bffGet, bffPostJson } from '@/lib/api/bffFetch';
 import { bffEndpoints } from '@/lib/api/endpoints';
 import { isHttpError, isRecord } from '@/lib/api/error';
@@ -55,6 +56,7 @@ type DmShareCard = {
   fileUrl: string | null;
   authorNickname: string;
   authorProfileUrl: string;
+  authorStory: StoryStatus;
   content: string;
   feedId: string | null;
   storyId: string | null;
@@ -222,6 +224,8 @@ function mapShare(raw: unknown, message: Record<string, unknown>): DmShareCard |
     fileUrl: available ? (resolveFileDisplayUrl(asFile(raw.file)) ?? null) : null,
     authorNickname: (typeof raw.authorNickname === 'string' && raw.authorNickname.trim()) || '',
     authorProfileUrl: resolveFileDisplayUrl(asFile(raw.authorProfileFile)) ?? NO_PROFILE_SRC,
+    authorStory: raw.authorHasStory === true
+      ? (raw.authorHasUnviewed === false ? 'read' : 'unread') : 'none',
     content: available && typeof raw.content === 'string' ? raw.content.trim() : '',
     feedId: idString(raw.feedId) ?? idString(message.feedId),
     storyId: idString(raw.storyId) ?? idString(message.storyId),
@@ -267,56 +271,29 @@ function mapMessage(raw: unknown): DmMessage | null {
   };
 }
 
-function ShareCard({
-  share,
-  storyUserNo,
-  storyNickname,
-}: {
-  share: DmShareCard;
-  storyUserNo?: string | null;
-  storyNickname?: string | null;
-}) {
-  if (!share.available || share.type === 'STORY') {
-    if (!share.fileUrl) return null;
-    const image = (
-      <MediaImage
-        src={share.fileUrl}
-        alt=""
-        width={180}
-        height={180}
-        className={styles.shareImage}
-      />
-    );
-    if (share.storyId) {
-      const q = new URLSearchParams();
-      const userNo = share.ownerUserNo || storyUserNo;
-      if (userNo) q.set('userNo', userNo);
-      if (storyNickname) q.set('nickname', storyNickname);
-      const query = q.toString();
-      return (
-        <Link
-          href={query ? `/stories/${share.storyId}?${query}` : `/stories/${share.storyId}`}
-          className={styles.shareStory}
-        >
-          {image}
-        </Link>
-      );
-    }
-    return <div className={styles.shareStory}>{image}</div>;
-  }
-
-  const body = (
-    <div className={styles.shareFeed}>
-      <span className={styles.shareAuthor}>
-        <MediaImage
-          src={share.authorProfileUrl}
-          alt=""
-          width={22}
-          height={22}
-          className={styles.shareAvatar}
-        />
-        <span>{share.authorNickname}</span>
-      </span>
+function ShareCard({ share }: { share: DmShareCard }) {
+  if (!share.available || !share.fileUrl) return null;
+  const storyParams = new URLSearchParams();
+  if (share.ownerUserNo) storyParams.set('userNo', share.ownerUserNo);
+  if (share.authorNickname) storyParams.set('nickname', share.authorNickname);
+  const ownerStoryHref = `/stories?${new URLSearchParams({
+    ...Object.fromEntries(storyParams), single: '1',
+  }).toString()}`;
+  const params = new URLSearchParams();
+  if (share.mediaIndex != null && share.mediaIndex > 0) {
+    params.set('mediaIndex', String(share.mediaIndex));
+  } else if (share.feedMediaId) params.set('feedMediaId', share.feedMediaId);
+  const query = params.toString();
+  const contentHref = share.type === 'STORY'
+    ? (share.storyId ? `/stories/${share.storyId}?${storyParams.toString()}` : null)
+    : (share.feedId ? `/posts/${share.feedId}${query ? `?${query}` : ''}` : null);
+  const avatar = (
+    <Profile imageUrl={share.authorProfileUrl} size={28} story={share.authorStory}
+      className={styles.shareAvatar}
+      onError={(event) => { event.currentTarget.src = NO_PROFILE_SRC; }} />
+  );
+  const content = (
+    <>
       {share.fileUrl ? (
         <MediaImage
           src={share.fileUrl}
@@ -326,24 +303,27 @@ function ShareCard({
           className={styles.shareImage}
         />
       ) : null}
-      {share.content ? <p className={styles.shareContent}>{share.content}</p> : null}
+      {share.type === 'FEED' && share.content ? <p className={styles.shareContent}>{share.content}</p> : null}
+    </>
+  );
+  return (
+    <div className={share.type === 'STORY' ? styles.shareStory : styles.shareFeed}>
+      {share.type === 'FEED' ? (
+      <span className={styles.shareAuthor}>
+        {share.authorStory !== 'none' && share.ownerUserNo ? (
+          <Link href={ownerStoryHref} className={styles.shareAuthorAvatar}
+            aria-label={`${share.authorNickname} 스토리 보기`}>{avatar}</Link>
+        ) : <span className={styles.shareAuthorAvatar}>{avatar}</span>}
+        {share.authorNickname ? (
+          <Link href={myUltaryPath(share.authorNickname)} className={styles.shareAuthorName}>
+            {share.authorNickname}
+          </Link>
+        ) : null}
+      </span>
+      ) : null}
+      {contentHref ? <Link href={contentHref} className={styles.shareContentLink}>{content}</Link> : content}
     </div>
   );
-  if (share.feedId) {
-    const params = new URLSearchParams();
-    if (share.mediaIndex != null && share.mediaIndex > 0) {
-      params.set('mediaIndex', String(share.mediaIndex));
-    } else if (share.feedMediaId) {
-      params.set('feedMediaId', share.feedMediaId);
-    }
-    const query = params.toString();
-    return (
-      <Link href={query ? `/posts/${share.feedId}?${query}` : `/posts/${share.feedId}`}>
-        {body}
-      </Link>
-    );
-  }
-  return body;
 }
 
 /** 메시지(DM) — 방 목록 + 스레드 */
@@ -369,6 +349,12 @@ export default function DmClient({ roomId, feedId, feedMediaId, storyId }: DmCli
     initialShare({ feedId, feedMediaId, storyId }),
   );
   const [threadLink, setThreadLink] = useState<FollowLink | null>(null);
+  const [peerProfile, setPeerProfile] = useState<{
+    userNo: string;
+    nickname: string;
+    imageUrl: string;
+    story: StoryStatus;
+  } | null>(null);
   const threadEndRef = useRef<HTMLDivElement>(null);
   const threadReqRef = useRef(0);
   const socketEpochRef = useRef(0);
@@ -392,6 +378,32 @@ export default function DmClient({ roomId, feedId, feedMediaId, storyId }: DmCli
         profileUrl: pendingPeer.imageUrl, lastMessage: '', timeLabel: '', absoluteLabel: '', unread: 0,
         link: { following: pendingPeer.following, followedBy: pendingPeer.followedBy },
       } : null;
+
+  const activePeerUserNo = active?.peerUserNo;
+  useEffect(() => {
+    if (!activePeerUserNo) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await bffGet<BffEnvelope<unknown>>(bffEndpoints.users.ultary, {
+          userNo: activePeerUserNo,
+        });
+        if (cancelled || !isRecord(res.data)) return;
+        const data = res.data;
+        const story: StoryStatus = data.hasStory === true
+          ? (data.hasUnviewed === false ? 'read' : 'unread') : 'none';
+        setPeerProfile({
+          userNo: activePeerUserNo,
+          nickname: typeof data.nickname === 'string' ? data.nickname : '',
+          imageUrl: resolveFileDisplayUrl(data.profileFile as FileSummary | null) ?? NO_PROFILE_SRC,
+          story,
+        });
+      } catch (err) {
+        if (!cancelled) console.error('[dm] peer profile failed', err);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [activePeerUserNo]);
 
   useEffect(() => {
     let cancelled = false;
@@ -703,12 +715,64 @@ export default function DmClient({ roomId, feedId, feedMediaId, storyId }: DmCli
     }
   }
 
+  const removeRoom = (deletedId: string) => {
+    removedRoomsRef.current.add(deletedId);
+    socketEpochRef.current += 1;
+    setRooms((previous) => previous.filter((item) => item.id !== deletedId));
+    clearDmRoomUnread(deletedId);
+    if (deletedId === roomId) {
+      threadReqRef.current += 1;
+      setMessages([]);
+      setPendingPeer(null);
+      setPendingShare(null);
+      setDraft('');
+      setThreadStatus('');
+      router.replace('/dm');
+    }
+  };
+
   if (active) {
     const canSend = draft.trim().length > 0 || pendingShare != null;
+    const headerProfile = peerProfile?.userNo === active.peerUserNo ? peerProfile : null;
+    const peerNickname = headerProfile?.nickname || active.nickname;
+    const peerStory = headerProfile?.story ?? 'none';
+    const avatar = (
+      <Profile
+        imageUrl={headerProfile?.imageUrl ?? active.profileUrl}
+        size={38}
+        story={peerStory}
+        onError={(event) => { event.currentTarget.src = NO_PROFILE_SRC; }}
+      />
+    );
+    const lastReadOwnMessageId = messages.reduce<string | null>(
+      (lastId, message) =>
+        !message.fromMe
+          ? null
+          : peerHasRead(peerReadMessageId, message.id) ? message.id : lastId,
+      null,
+    );
     return (
       <div className={styles.shell}>
         <PageHeader
-          title={active.nickname || '메시지'}
+          titleAlign="start"
+          title={
+            <span className={styles.threadPeer}>
+              {peerStory !== 'none' && active.peerUserNo ? (
+                <Link
+                  href={`/stories?${new URLSearchParams({ userNo: active.peerUserNo, nickname: peerNickname, single: '1' }).toString()}`}
+                  className={styles.threadPeerAvatar}
+                  aria-label={`${peerNickname} 스토리 보기`}
+                >
+                  {avatar}
+                </Link>
+              ) : <span className={styles.threadPeerAvatar}>{avatar}</span>}
+              {peerNickname ? (
+                <Link href={myUltaryPath(peerNickname)} className={styles.threadPeerName}>
+                  {peerNickname}
+                </Link>
+              ) : <span className={styles.threadPeerName}>메시지</span>}
+            </span>
+          }
           onBack={() => {
             if (sendBusyRef.current) return;
             setPendingPeer(null);
@@ -717,10 +781,13 @@ export default function DmClient({ roomId, feedId, feedMediaId, storyId }: DmCli
             if (roomId) router.replace(`/dm${shareSearch(pendingShare)}`);
           }}
           right={
-            active.peerUserNo ? (
-              <Link href={myUltaryPath(active.nickname)} className={styles.profileLink}>
-                울타리
-              </Link>
+            active.id ? (
+              <DmRoomActions
+                roomId={active.id}
+                nickname={peerNickname}
+                onDeleted={removeRoom}
+                disabled={sending}
+              />
             ) : null
           }
         />
@@ -736,10 +803,7 @@ export default function DmClient({ roomId, feedId, feedMediaId, storyId }: DmCli
             ) : null}
             {threadStatus ? <p className={styles.status}>{threadStatus}</p> : null}
             {messages.map((message, index) => {
-              const showRead =
-                message.fromMe &&
-                index === messages.length - 1 &&
-                peerHasRead(peerReadMessageId, message.id);
+              const showRead = message.id === lastReadOwnMessageId;
               const next = messages[index + 1];
               const showTime =
                 Boolean(message.timeLabel) &&
@@ -752,14 +816,7 @@ export default function DmClient({ roomId, feedId, feedMediaId, storyId }: DmCli
                   <div className={styles.bubbleCol}>
                     <div className={clsx(styles.bubble, message.fromMe && styles.bubbleMe)}>
                       {message.share ? (
-                        <ShareCard
-                          share={message.share}
-                          storyUserNo={message.fromMe ? active.peerUserNo : null}
-                          storyNickname={
-                            message.share.authorNickname ||
-                            (message.fromMe ? active.nickname : '')
-                          }
-                        />
+                        <ShareCard share={message.share} />
                       ) : null}
                       {message.body ? <p className={styles.bubbleText}>{message.body}</p> : null}
                       {message.share ? (
@@ -820,6 +877,9 @@ export default function DmClient({ roomId, feedId, feedMediaId, storyId }: DmCli
               <Image src={SendIcon} alt="" width={30} height={30} />
             </button>
           </form>
+        </div>
+        <div className={styles.threadFooter}>
+          <FooterMenu />
         </div>
       </div>
     );
@@ -906,12 +966,7 @@ export default function DmClient({ roomId, feedId, feedMediaId, storyId }: DmCli
                     </span>
                   </span>
                 </button>
-                <DmRoomActions roomId={room.id} nickname={room.nickname} onDeleted={(deletedId) => {
-                  removedRoomsRef.current.add(deletedId);
-                  socketEpochRef.current += 1;
-                  setRooms((previous) => previous.filter((item) => item.id !== deletedId));
-                  clearDmRoomUnread(deletedId);
-                }} />
+                <DmRoomActions roomId={room.id} nickname={room.nickname} onDeleted={removeRoom} />
                 </div>
                 {unlinked(room.link) ? (
                   <p className={styles.relationNote}>* 팔로우 관계가 아닙니다.</p>

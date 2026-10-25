@@ -263,6 +263,7 @@ export const bffEndpoints = {
     reportPreview: '/api/admin/reports/:reportId/preview',
     aiLogs: '/api/admin/ai/logs',
     aiLog: '/api/admin/ai/logs/:aiRequestId',
+    aiLogPreview: '/api/admin/ai/logs/:aiRequestId/preview',
     /** POST 신고된 글·댓글·답글 삭제 */
     reportDeleteContent: '/api/admin/reports/:reportId/delete-content',
     /** POST 신고된 회원 정지 */
@@ -546,6 +547,7 @@ export const springEndpoints = {
     reportPreview: '/api/v1/admin/reports/:reportId/preview',
     aiLogs: '/api/v1/admin/ai/logs',
     aiLog: '/api/v1/admin/ai/logs/:aiRequestId',
+    aiLogPreview: '/api/v1/admin/ai/logs/:aiRequestId/preview',
     /** POST */
     reportDeleteContent: '/api/v1/admin/reports/:reportId/delete-content',
     /** POST */

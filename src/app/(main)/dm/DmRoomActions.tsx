@@ -12,10 +12,12 @@ export function DmRoomActions({
   roomId,
   nickname,
   onDeleted,
+  disabled = false,
 }: {
   roomId: string;
   nickname: string;
   onDeleted: (roomId: string) => void;
+  disabled?: boolean;
 }) {
   const openModal = useModalStore((state) => state.open);
   const [place, setPlace] = useState<{ top: number; left: number } | null>(null);
@@ -101,7 +103,7 @@ export function DmRoomActions({
         aria-label={`${nickname} 채팅방 더보기`}
         aria-haspopup="menu"
         aria-expanded={place != null}
-        disabled={deleting}
+        disabled={deleting || disabled}
         onClick={() => {
           if (place) {
             setPlace(null);

@@ -325,6 +325,137 @@
   padding: 0 8px;
 }
 
+.tableWrap {
+  overflow: auto;
+}
+
+.dataTable {
+  width: 100%;
+  min-width: 980px;
+  border-collapse: separate;
+  border-spacing: 0;
+  table-layout: fixed;
+  color: var(--brand-black-700);
+  font-size: 13px;
+  line-height: 1.4;
+
+  th,
+  td {
+    padding: 10px 12px;
+    border-right: 1px solid var(--brand-gray-100);
+    border-bottom: 1px solid var(--brand-gray-200);
+    vertical-align: middle;
+    text-align: left;
+    overflow-wrap: anywhere;
+  }
+
+  th:first-child,
+  td:first-child {
+    border-left: 1px solid var(--brand-gray-100);
+  }
+
+  th {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    border-top: 1px solid var(--brand-gray-200);
+    background: var(--brand-gray-100);
+    font-weight: 700;
+    white-space: nowrap;
+  }
+
+  tbody tr {
+    height: 78px;
+
+    &:hover {
+      background: var(--brand-grass-100);
+    }
+  }
+}
+
+.tableCaption {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.numberColumn { width: 64px; }
+.imageColumn { width: 80px; }
+.linkColumn { width: 140px; }
+.dateColumn { width: 130px; }
+.actionColumn { width: 150px; }
+.memberColumn { width: 90px; }
+.attemptColumn { width: 100px; }
+.resultColumn { width: 110px; }
+.reportTargetColumn { width: 300px; }
+.reportMemberColumn { width: 150px; }
+.reportTable { min-width: 1320px; }
+.aiTable { min-width: 1200px; }
+
+.dataTable .tableNumber {
+  color: var(--brand-gray-500);
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.tableThumb {
+  display: block;
+  width: 48px;
+  height: 48px;
+  overflow: hidden;
+  border-radius: 6px;
+  background: var(--brand-gray-100);
+}
+
+.tableLink {
+  color: inherit;
+  font-weight: 600;
+  text-decoration: none;
+
+  &:hover { text-decoration: underline; }
+}
+
+.externalLink {
+  color: var(--brand-blue-500);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.tableText {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tablePreview {
+  display: block;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.tableMuted {
+  display: block;
+  margin-top: 3px;
+  color: var(--brand-gray-500);
+  font-size: 12px;
+}
+
+.tableDate {
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.tableActions .listStatusControl { align-items: stretch; }
+
+.rowClickable .tableActions { cursor: default; }
+
+
 .list {
   margin: 0;
   padding: 0;
@@ -357,6 +488,14 @@
 
 .rowBlocked {
   cursor: not-allowed;
+}
+
+.dataTable tbody tr.rowBlocked {
+  &,
+  &:hover,
+  &:active {
+    background: var(--brand-red-50);
+  }
 }
 
 .settled {
@@ -494,6 +633,10 @@
 
 .toneStop {
   color: #8e1b1b;
+}
+
+.suspendedMember {
+  color: var(--brand-red-500);
 }
 
 .pager {
@@ -903,6 +1046,43 @@
 }
 
 .aiDetailHint { margin-top: 20px; padding: 0; }
+.aiListToolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 24px 12px;
+
+  .aiHint { padding: 0; }
+}
+
+.aiDetailTableWrap { overflow-x: auto; }
+.aiSummaryTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  line-height: 1.6;
+
+  th, td {
+    border: 1px solid var(--brand-gray-200);
+    padding: 10px 12px;
+    text-align: left;
+    vertical-align: top;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
+
+  th { width: 160px; background: var(--brand-gray-50); }
+}
+
+.aiSummaryTable caption, .aiAttemptsTable caption {
+  padding-bottom: 12px;
+  text-align: left;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.aiAttemptsTable { min-width: 1100px; }
 .aiCode { overflow-wrap: anywhere; }
 
 @media (max-width: 640px) {

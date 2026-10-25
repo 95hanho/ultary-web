@@ -1,5 +1,6 @@
 'use client';
 import { useRef, useState } from 'react';
+import { FullScreenLoading } from '@/components/common/FullScreenLoading';
 import { bffPostJson } from '@/lib/api/bffFetch';
 import { bffEndpoints } from '@/lib/api/endpoints';
 import { isHttpError, isRecord } from '@/lib/api/error';
@@ -122,6 +123,7 @@ export default function TagStatusControl({
 
   return (
     <div className={styles.listStatusControl}>
+      <FullScreenLoading open={submitting} label="태그 요청 상태를 변경하고 있습니다. 잠시만 기다려 주세요." />
       {canAct ? (
         <select
           className={styles.statusSelect}

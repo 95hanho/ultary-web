@@ -1,5 +1,6 @@
 'use client';
 import { useRef, useState } from 'react';
+import { FullScreenLoading } from '@/components/common/FullScreenLoading';
 import { bffPostJson } from '@/lib/api/bffFetch';
 import { useModalStore } from '@/stores/modal.store';
 import type { BffEnvelope } from '@/types/api';
@@ -40,6 +41,8 @@ export default function ReportStatusControl({
     }
   };
   return (
+    <>
+    <FullScreenLoading open={saving} label="신고 상태를 변경하고 있습니다. 잠시만 기다려 주세요." />
     <select
       className={styles.statusSelect}
       aria-label="신고 처리"
@@ -53,5 +56,6 @@ export default function ReportStatusControl({
         </option>
       ))}
     </select>
+    </>
   );
 }

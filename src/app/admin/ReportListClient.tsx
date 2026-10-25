@@ -3,14 +3,15 @@
 import { PageLoadError } from '@/components/common/PageLoadError';
 import { httpErrorStatus } from '@/lib/api/error';
 
-import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
-import { formatWhen, loadReportPage, type ReportItem, type ReportOrigin } from './adminData';
+import { formatWhen, loadReportPage, REPORT_REASON, TARGET_TYPE, type ReportItem, type ReportOrigin } from './adminData';
 import { Pager, badgeClass, useFitCount } from './adminListUi';
 import styles from './admin.module.scss';
 import ReportStatusControl from './ReportStatusControl';
 
 export default function ReportListClient() {
+  const router = useRouter();
   const listRef = useRef<HTMLDivElement>(null);
   const [reports, setReports] = useState<ReportItem[]>([]);
   const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading');
@@ -73,72 +74,76 @@ export default function ReportListClient() {
       {state === 'ready' && reports.length === 0 ? (
         <p className={styles.empty}>신고가 없습니다.</p>
       ) : null}
-      <div ref={listRef} className={styles.listWrap}>
-        <ul className={styles.list}>
-          {reports.map((item) => {
-            const blocked = item.targetSuspended && item.targetType !== 'USER';
-            const rowClass = [
-              styles.row,
-              blocked || (item.status !== 'REQUESTED' && item.status !== 'CONFIRMED')
-                ? styles.settled
-                : '',
-              blocked ? styles.rowBlocked : '',
-            ]
-              .filter(Boolean)
-              .join(' ');
-            const body = (
-              <span className={styles.rowMain}>
-                <Link
-                  href={`/admin/reports/${item.reportId}`}
-                  className={`${styles.rowLead} ${styles.rowLink}`}
-                  aria-disabled={blocked}
+      <div ref={listRef} className={styles.listWrap + ' ' + styles.tableWrap}>
+        <table className={styles.dataTable + ' ' + styles.reportTable}>
+          <caption className={styles.tableCaption}>신고 목록</caption>
+          <colgroup>
+            <col className={styles.numberColumn} /><col /><col /><col className={styles.reportTargetColumn} />
+            <col className={styles.reportMemberColumn} /><col className={styles.reportMemberColumn} />
+            <col className={styles.dateColumn} /><col className={styles.dateColumn} />
+            <col className={styles.actionColumn} />
+          </colgroup>
+          <thead><tr>
+            <th scope="col">번호</th><th scope="col">신고종류</th><th scope="col">신고유형</th>
+            <th scope="col">내용</th><th scope="col">대상 회원</th><th scope="col">신고 회원</th><th scope="col">신고날짜</th>
+            <th scope="col">처리날짜</th><th scope="col">상태변경</th>
+          </tr></thead>
+          <tbody>
+            {reports.map((item, index) => {
+              const blocked = item.targetSuspended && item.targetType !== 'USER';
+              const target = item.targetType === 'USER'
+                ? '–'
+                : item.targetContent || item.detail || '내용 없음';
+              return (
+                <tr key={item.reportId} className={[
+                  !blocked ? styles.rowClickable : '',
+                  blocked || (item.status !== 'REQUESTED' && item.status !== 'CONFIRMED') ? styles.settled : '',
+                  blocked ? styles.rowBlocked : '',
+                ].filter(Boolean).join(' ')}
                   onClick={(event) => {
-                    if (blocked) event.preventDefault();
+                    if (blocked || event.defaultPrevented || (event.target instanceof Element && event.target.closest('a'))) return;
+                    router.push('/admin/reports/' + item.reportId);
                   }}
                 >
-                  <span className={styles.rowId}>{item.reportId}</span>
-                  <span className={styles.rowBody}>
-                    <span className={styles.rowMeta}>{item.headline}</span>
-                    {item.detail ? <span className={styles.rowName}>{item.detail}</span> : null}
-                    {item.targetSuspended ? (
-                      <span className={styles.rowSuspended}>* 정지된 회원입니다</span>
-                    ) : null}
-                  </span>
-                </Link>
-                <span className={styles.rowSide}>
-                  {blocked ? (
-                    <span className={`${badgeClass('SUSPENDED')} ${styles.badgeReport}`}>
-                      정지된 회원
+                  <td className={styles.tableNumber}>{total != null ? total - page * pageSize - index : '–'}</td>
+                  <td>{TARGET_TYPE[item.targetType] ?? item.targetType}</td>
+                  <td>{REPORT_REASON[item.reason] ?? item.reason}</td>
+                  <td>
+                    <span className={styles.tablePreview} title={target}>
+                      {Array.from(target).slice(0, 30).join('') + (Array.from(target).length > 30 ? '...' : '')}
                     </span>
-                  ) : (
-                    <ReportStatusControl
-                      item={item}
-                      onChange={(next) =>
-                        setReports((values) =>
-                          values.map((value) => {
-                            if (value.reportId === next.reportId) return next;
-                            return value.targetUserNo === next.targetUserNo
-                              ? { ...value, targetSuspended: next.targetSuspended }
-                              : value;
-                          }),
-                        )
-                      }
-                    />
-                  )}
-
-                  {item.createdAt ? (
-                    <span className={styles.rowWhen}>{formatWhen(item.createdAt)}</span>
-                  ) : null}
-                </span>
-              </span>
-            );
-            return (
-              <li key={item.reportId}>
-                <div className={rowClass}>{body}</div>
-              </li>
-            );
-          })}
-        </ul>
+                    {item.targetSuspended ? <span className={styles.tableMuted + ' ' + styles.suspendedMember}>정지된 회원</span> : null}
+                  </td>
+                  <td>
+                    <span className={styles.tableText} title={item.targetNickname}>
+                      {item.targetUserNo != null ? (item.targetNickname || '알 수 없는 사용자') + '(' + item.targetUserNo + ')' : '–'}
+                    </span>
+                  </td>
+                  <td>
+                    <span className={styles.tableText} title={item.reporterNickname}>
+                      {item.reporterUserNo != null ? (item.reporterNickname || '알 수 없는 사용자') + '(' + item.reporterUserNo + ')' : '–'}
+                    </span>
+                  </td>
+                  <td className={styles.tableDate}>{item.createdAt ? formatWhen(item.createdAt) : '–'}</td>
+                  <td className={styles.tableDate}>{item.processedAt ? formatWhen(item.processedAt) : '–'}</td>
+                  <td className={styles.tableActions} onClick={(event) => event.stopPropagation()}>
+                    {blocked ? (
+                      <span className={badgeClass('SUSPENDED') + ' ' + styles.suspendedMember}>정지된 회원</span>
+                    ) : (
+                      <ReportStatusControl item={item} onChange={(next) =>
+                        setReports((values) => values.map((value) => {
+                          if (value.reportId === next.reportId) return next;
+                          return value.targetUserNo === next.targetUserNo
+                            ? { ...value, targetSuspended: next.targetSuspended } : value;
+                        }))
+                      } />
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
       </div>
       <Pager
         page={page}
