@@ -14,7 +14,15 @@ import { useStoryDraftStore, type StoryTextBox } from '@/stores/story-draft.stor
 import clsx from 'clsx';
 import { ALargeSmall, X } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { useEffect, useRef, useState, type MouseEvent, type PointerEvent } from 'react';
+import {
+  useEffect,
+  useRef,
+  useState,
+  type MouseEvent,
+  type PointerEvent,
+  useLayoutEffect,
+  useCallback,
+} from 'react';
 import styles from './story-up.module.scss';
 
 type EditorMode = 'text' | 'tag';
@@ -87,9 +95,11 @@ export default function StoryUpClient() {
   const suppressStageClick = useRef(false);
 
   const activeText = texts.find((t) => t.id === activeTextId) ?? null;
-  activeTextIdRef.current = activeTextId;
+  useLayoutEffect(() => {
+    activeTextIdRef.current = activeTextId;
+  });
 
-  const deactivateTextEditing = () => {
+  const deactivateTextEditing = useCallback(() => {
     const id = activeTextIdRef.current;
     if (!id) return;
     const current = useStoryDraftStore.getState().texts.find((t) => t.id === id);
@@ -99,7 +109,7 @@ export default function StoryUpClient() {
     setActiveTextId(null);
     setColorOpen(false);
     setSizeOpen(false);
-  };
+  }, [removeText]);
 
   useEffect(() => {
     if (!useStoryDraftStore.getState().sourceUrl) {
@@ -137,7 +147,7 @@ export default function StoryUpClient() {
       document.removeEventListener('pointerdown', onPointerDownCapture, true);
     };
     // deactivateTextEditing는 최신 removeText를 쓰도록 의존에 포함
-  }, [activeTextId, mode, removeText]);
+  }, [activeTextId, mode, deactivateTextEditing]);
 
   useEffect(() => {
     const onMove = (e: globalThis.PointerEvent) => {
@@ -194,10 +204,12 @@ export default function StoryUpClient() {
       const mediaRes = await fetch(displayUrl);
       const blob = await mediaRes.blob();
       const mediaType = kind === 'video' ? 'VIDEO' : 'IMAGE';
-      const uploadName =
-        fileName.trim() || (mediaType === 'VIDEO' ? 'story.mp4' : 'story.png');
+      const uploadName = fileName.trim() || (mediaType === 'VIDEO' ? 'story.mp4' : 'story.png');
       const form = new FormData();
-      form.append('file', new File([blob], uploadName, { type: blob.type || 'application/octet-stream' }));
+      form.append(
+        'file',
+        new File([blob], uploadName, { type: blob.type || 'application/octet-stream' }),
+      );
       const uploadRes = await fetch(bffEndpoints.files.root, {
         method: 'POST',
         body: form,
@@ -489,7 +501,7 @@ export default function StoryUpClient() {
                           className={clsx(styles.sizeOption, active && styles.sizeOptionActive)}
                           style={{ fontSize: size }}
                           aria-label={`${size}px`}
-                          aria-selected={active}
+                          aria-pressed={active}
                           onClick={() => {
                             patchActive({ fontSize: size });
                             setSizeOpen(false);
@@ -512,7 +524,7 @@ export default function StoryUpClient() {
                           className={clsx(styles.colorSwatch, active && styles.colorSwatchActive)}
                           style={{ background: color }}
                           aria-label={color}
-                          aria-selected={active}
+                          aria-pressed={active}
                           onClick={() => {
                             patchActive({ color });
                             setColorOpen(false);

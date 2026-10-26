@@ -31,13 +31,15 @@ export function HashtagResultList({
       aria-label="해시태그 검색 결과"
     >
       {items.map((item) => (
-        <li key={item.tagId ?? item.tag} className={styles.item} role="option">
+        <li
+          key={item.tagId ?? item.tag}
+          className={styles.item}
+          role="option"
+          aria-selected={false}
+        >
           <button
             type="button"
-            className={clsx(
-              styles.btn,
-              variant === 'preview' ? styles.btnPreview : styles.btnPage,
-            )}
+            className={clsx(styles.btn, variant === 'preview' ? styles.btnPreview : styles.btnPage)}
             onClick={() => onSelect(item.tag)}
             onMouseDown={(e) => e.preventDefault()}
           >

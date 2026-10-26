@@ -1,4 +1,5 @@
 'use client';
+import { useResettableState } from '@/lib/react/useResettableState';
 
 import { FooterMenu } from '@/components/common/FooterMenu';
 import { ImageCropper, type CropResult } from '@/components/common/ImageCropper';
@@ -22,7 +23,7 @@ export default function StoryCropClient() {
   const setCrop = useStoryDraftStore((s) => s.setCrop);
   const clear = useStoryDraftStore((s) => s.clear);
 
-  const [ready, setReady] = useState(false);
+  const [ready, setReady] = useResettableState(kind === 'video', [kind, sourceUrl]);
   const [busy, setBusy] = useState(false);
   const cropperRef = useRef<{ getResult: () => Promise<CropResult | null> } | null>(null);
 
@@ -34,7 +35,6 @@ export default function StoryCropClient() {
   }, []);
 
   useEffect(() => {
-    setReady(kind === 'video');
     cropperRef.current = null;
   }, [kind, sourceUrl]);
 

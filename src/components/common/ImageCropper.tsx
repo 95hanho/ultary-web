@@ -1,4 +1,5 @@
 'use client';
+import { useResettableState } from '@/lib/react/useResettableState';
 
 import type { NormalizedCrop } from '@/lib/write/crop-rect';
 import {
@@ -8,6 +9,7 @@ import {
   useState,
   type MutableRefObject,
   type PointerEvent as ReactPointerEvent,
+  useLayoutEffect,
 } from 'react';
 import styles from './ImageCropper.module.scss';
 
@@ -137,13 +139,21 @@ export function ImageCropper({
   const userAdjusted = useRef(false);
   const aspectRef = useRef(aspect);
   const initialCropRef = useRef(initialCrop);
-  aspectRef.current = aspect;
-  initialCropRef.current = initialCrop;
+  useLayoutEffect(() => {
+    aspectRef.current = aspect;
+  });
+  useLayoutEffect(() => {
+    initialCropRef.current = initialCrop;
+  });
 
   const [displaySize, setDisplaySize] = useState({ width: 0, height: 0 });
   const [natural, setNatural] = useState({ width: 0, height: 0 });
-  const [crop, setCrop] = useState<CropRect>({ x: 0, y: 0, width: 0, height: 0 });
-  const [ready, setReady] = useState(false);
+  const [crop, setCrop] = useResettableState<CropRect>({ x: 0, y: 0, width: 0, height: 0 }, [
+    src,
+    aspect,
+    onReadyChange,
+  ]);
+  const [ready, setReady] = useResettableState(false, [src, aspect, onReadyChange]);
 
   const applyMeasure = useCallback(
     (resetCrop: boolean) => {
@@ -183,7 +193,11 @@ export function ImageCropper({
       } else {
         setCrop((prev) => {
           if (aspectRef.current === 'square') {
-            const size = clamp(Math.min(prev.width, prev.height), MIN_CROP, Math.min(width, height));
+            const size = clamp(
+              Math.min(prev.width, prev.height),
+              MIN_CROP,
+              Math.min(width, height),
+            );
             return clampCrop({ x: prev.x, y: prev.y, width: size, height: size }, width, height);
           }
           return clampFreeCrop(prev, width, height);
@@ -194,14 +208,12 @@ export function ImageCropper({
       onReadyChange?.(true);
       return true;
     },
-    [onReadyChange],
+    [onReadyChange, setCrop, setReady],
   );
 
   useEffect(() => {
     didInitCrop.current = false;
     userAdjusted.current = false;
-    setReady(false);
-    setCrop({ x: 0, y: 0, width: 0, height: 0 });
     onReadyChange?.(false);
 
     const img = imgRef.current;
@@ -300,7 +312,7 @@ export function ImageCropper({
     };
   }, [cropperRef, getResult]);
 
-  const onPointerDown = (mode: DragMode) => (e: ReactPointerEvent) => {
+  const onPointerDown = (mode: DragMode, e: ReactPointerEvent) => {
     e.preventDefault();
     e.stopPropagation();
     userAdjusted.current = true;
@@ -378,9 +390,7 @@ export function ImageCropper({
         if (nextY + nextSize > maxH) nextSize = maxH - nextY;
 
         nextSize = Math.max(MIN_CROP, nextSize);
-        setCrop(
-          clampCrop({ x: nextX, y: nextY, width: nextSize, height: nextSize }, maxW, maxH),
-        );
+        setCrop(clampCrop({ x: nextX, y: nextY, width: nextSize, height: nextSize }, maxW, maxH));
         return;
       }
 
@@ -464,23 +474,23 @@ export function ImageCropper({
               width: crop.width,
               height: crop.height,
             }}
-            onPointerDown={onPointerDown('move')}
+            onPointerDown={(event) => onPointerDown('move', event)}
           >
             <span
               className={`${styles.handle} ${styles.handleNw}`}
-              onPointerDown={onPointerDown('resize-nw')}
+              onPointerDown={(event) => onPointerDown('resize-nw', event)}
             />
             <span
               className={`${styles.handle} ${styles.handleNe}`}
-              onPointerDown={onPointerDown('resize-ne')}
+              onPointerDown={(event) => onPointerDown('resize-ne', event)}
             />
             <span
               className={`${styles.handle} ${styles.handleSw}`}
-              onPointerDown={onPointerDown('resize-sw')}
+              onPointerDown={(event) => onPointerDown('resize-sw', event)}
             />
             <span
               className={`${styles.handle} ${styles.handleSe}`}
-              onPointerDown={onPointerDown('resize-se')}
+              onPointerDown={(event) => onPointerDown('resize-se', event)}
             />
           </div>
         </div>

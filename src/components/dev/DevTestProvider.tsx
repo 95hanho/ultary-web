@@ -1,10 +1,6 @@
 'use client';
 
-import {
-  DevTestDock,
-  type DevTestAction,
-  type DevTestGroup,
-} from '@/components/dev/DevTestDock';
+import { DevTestDock, type DevTestAction, type DevTestGroup } from '@/components/dev/DevTestDock';
 import {
   createContext,
   useCallback,
@@ -14,6 +10,7 @@ import {
   useRef,
   useState,
   type ReactNode,
+  useLayoutEffect,
 } from 'react';
 
 type DevTestApi = {
@@ -50,7 +47,9 @@ export function DevTestProvider({ children }: { children: ReactNode }) {
 export function useDevTestActions(id: string, title: string, actions: DevTestAction[]) {
   const ctx = useContext(DevTestContext);
   const actionsRef = useRef(actions);
-  actionsRef.current = actions;
+  useLayoutEffect(() => {
+    actionsRef.current = actions;
+  });
   const signature = actions
     .map((action) => `${action.id}\0${action.label}\0${action.disabled ? 1 : 0}`)
     .join('\n');

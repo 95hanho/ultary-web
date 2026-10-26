@@ -9,13 +9,7 @@
 import { isHttpError, isRecord, type HttpError } from '@/lib/api/error';
 
 export type Primitive = string | number | boolean | null;
-export type ParamValue =
-  | Primitive
-  | Blob
-  | File
-  | FileList
-  | Primitive[]
-  | undefined;
+export type ParamValue = Primitive | Blob | File | FileList | Primitive[] | undefined;
 export type Params = Record<string, ParamValue>;
 
 type AuthorizationHeader = `Bearer ${string}`;
@@ -33,10 +27,7 @@ export const cloneParams = (params?: Params): Params | undefined =>
   params ? { ...params } : undefined;
 
 /** `:id` path param 치환 (원본 불변) */
-export const applyPathParams = (
-  url: string,
-  params?: Params,
-): [string, Params | undefined] => {
+export const applyPathParams = (url: string, params?: Params): [string, Params | undefined] => {
   if (!params) return [url, params];
 
   const rest: Params = { ...params };
@@ -67,11 +58,7 @@ export const applyPathParamsFromBody = <T extends BodyLike | undefined>(
 
       if (Array.isArray(v)) return String(v[0] ?? '');
       if (v === null) return 'null';
-      if (
-        typeof v === 'string' ||
-        typeof v === 'number' ||
-        typeof v === 'boolean'
-      ) {
+      if (typeof v === 'string' || typeof v === 'number' || typeof v === 'boolean') {
         return String(v);
       }
     }
@@ -114,11 +101,7 @@ export const toUrlEncodedBody = (params?: Params): string => {
       v.forEach((i) => sp.append(k, String(i)));
       return;
     }
-    if (
-      typeof v === 'string' ||
-      typeof v === 'number' ||
-      typeof v === 'boolean'
-    ) {
+    if (typeof v === 'string' || typeof v === 'number' || typeof v === 'boolean') {
       sp.append(k, String(v));
     }
   });
@@ -175,7 +158,8 @@ export type HttpInit = RequestInit & {
 /** 공통 fetch: ok 체크 + JSON/텍스트/Blob 파싱 */
 export async function http<T>(url: string, init?: HttpInit): Promise<T> {
   const fullUrl = (init?.baseUrl ?? '') + url;
-  const { timeoutMs = 20000, baseUrl: _baseUrl, ...rest } = init ?? {};
+  const { timeoutMs = 20000, ...rest } = init ?? {};
+  delete rest.baseUrl;
   const timer = withTimeout(timeoutMs);
 
   try {

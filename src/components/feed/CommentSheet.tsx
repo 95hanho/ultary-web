@@ -1,4 +1,6 @@
 'use client';
+import { useResettableState } from '@/lib/react/useResettableState';
+import { useHydrated } from '@/lib/react/useHydrated';
 
 import { Profile } from '@/components/my-ultary/Profile';
 import { PageLoadError } from '@/components/common/PageLoadError';
@@ -16,12 +18,14 @@ import {
   updateFeedComment,
   updateFeedReply,
 } from '@/lib/feed/toComments';
-import {
-  type MockComment,
-  type MockCommentReply,
-} from '@/lib/mock/comments';
+import { type MockComment, type MockCommentReply } from '@/lib/mock/comments';
 import { myUltaryPath } from '@/lib/mock/ultary-accounts';
-import { openReportModal, cancelReport, canCancelReport, type MyReport } from '@/lib/report/openReport';
+import {
+  openReportModal,
+  cancelReport,
+  canCancelReport,
+  type MyReport,
+} from '@/lib/report/openReport';
 import { useModalStore } from '@/stores/modal.store';
 import clsx from 'clsx';
 import { Ellipsis, Flag, Heart, Siren, Pencil, Trash2, X } from 'lucide-react';
@@ -60,9 +64,7 @@ function stripCommentQuery(feedId: string) {
   url.searchParams.delete('comment');
   url.searchParams.delete('reply');
   const prev =
-    history.state && typeof history.state === 'object'
-      ? { ...(history.state as object) }
-      : {};
+    history.state && typeof history.state === 'object' ? { ...(history.state as object) } : {};
   history.replaceState(
     { ...prev, [COMMENT_HISTORY_KEY]: null },
     '',
@@ -101,11 +103,7 @@ type ThreadTarget = {
   parentCommentId: string;
 };
 
-function patchThreadReport(
-  items: MockComment[],
-  target: ThreadTarget,
-  report: MyReport | null,
-) {
+function patchThreadReport(items: MockComment[], target: ThreadTarget, report: MyReport | null) {
   return items.map((comment) => {
     if (target.kind === 'comment') {
       return comment.id === target.id ? { ...comment, myReport: report } : comment;
@@ -128,11 +126,7 @@ function renderContent(content: string, readOnly = false) {
     }
     const nickname = part.slice(1);
     return (
-      <Link
-        key={i}
-        href={myUltaryPath(nickname)}
-        className={styles.mention}
-      >
+      <Link key={i} href={myUltaryPath(nickname)} className={styles.mention}>
         {part}
       </Link>
     );
@@ -184,32 +178,34 @@ function CommentBody({
       className={clsx(styles.item, compact && styles.itemReply, focused && styles.itemFocus)}
     >
       {!readOnly && item.story && item.story !== 'none' && item.userNo != null ? (
-        <Link href={`/stories?${new URLSearchParams({ userNo: String(item.userNo), nickname: item.nickname, single: '1' }).toString()}`}
-          className={clsx(styles.avatarWrap, compact && styles.avatarWrapSm)} aria-label={`${item.nickname} 스토리`}>
+        <Link
+          href={`/stories?${new URLSearchParams({ userNo: String(item.userNo), nickname: item.nickname, single: '1' }).toString()}`}
+          className={clsx(styles.avatarWrap, compact && styles.avatarWrapSm)}
+          aria-label={`${item.nickname} 스토리`}
+        >
           <Profile imageUrl={item.profileUrl} size={compact ? 32 : 40} story={item.story} />
         </Link>
-      ) : <span className={clsx(styles.avatarWrap, compact && styles.avatarWrapSm)}>
-        <Profile imageUrl={item.profileUrl} size={compact ? 32 : 40} story="none" />
-      </span>}
+      ) : (
+        <span className={clsx(styles.avatarWrap, compact && styles.avatarWrapSm)}>
+          <Profile imageUrl={item.profileUrl} size={compact ? 32 : 40} story="none" />
+        </span>
+      )}
 
       <div className={styles.body}>
         <div className={styles.textWrap}>
-          <p
-            ref={textRef}
-            className={clsx(styles.text, !expanded && styles.textClamped)}
-          >
-            {readOnly ? <span className={styles.nick}>{item.nickname}</span> : <Link href={myUltaryPath(item.nickname)} className={styles.nick}>
-              {item.nickname}
-            </Link>}{' '}
+          <p ref={textRef} className={clsx(styles.text, !expanded && styles.textClamped)}>
+            {readOnly ? (
+              <span className={styles.nick}>{item.nickname}</span>
+            ) : (
+              <Link href={myUltaryPath(item.nickname)} className={styles.nick}>
+                {item.nickname}
+              </Link>
+            )}{' '}
             {renderContent(item.content, readOnly)}
           </p>
           {!expanded && needsMore ? (
             <span className={styles.moreFade}>
-              <button
-                type="button"
-                className={styles.more}
-                onClick={() => setExpanded(true)}
-              >
+              <button type="button" className={styles.more} onClick={() => setExpanded(true)}>
                 ...더보기
               </button>
             </span>
@@ -217,55 +213,61 @@ function CommentBody({
         </div>
         <div className={styles.meta}>
           <span className={styles.time}>{item.timeLabel}</span>
-          {!readOnly ? <><button
-            type="button"
-            className={styles.replyBtn}
-            onClick={() => onReply(item, parentCommentId)}
-          >
-            답글 달기
-          </button>
-          <button
-            type="button"
-            className={styles.itemMoreBtn}
-            aria-label={compact ? '답글 더보기' : '댓글 더보기'}
-            aria-expanded={menuOpen}
-            onClick={(event) => onToggleMenu(event.currentTarget)}
-          >
-            <Ellipsis size={14} strokeWidth={2} aria-hidden />
-          </button>
-          {item.myReport ? (
-            <button
-              type="button"
-              className={clsx(styles.itemMoreBtn, styles.reportIndicator)}
-              aria-label={compact ? '신고한 답글 추가 메뉴' : '신고한 댓글 추가 메뉴'}
-              aria-expanded={menuOpen}
-              onClick={(event) => onToggleMenu(event.currentTarget)}
-            >
-              <Siren size={14} strokeWidth={2} aria-hidden />
-            </button>
-          ) : null}</> : null}
+          {!readOnly ? (
+            <>
+              <button
+                type="button"
+                className={styles.replyBtn}
+                onClick={() => onReply(item, parentCommentId)}
+              >
+                답글 달기
+              </button>
+              <button
+                type="button"
+                className={styles.itemMoreBtn}
+                aria-label={compact ? '답글 더보기' : '댓글 더보기'}
+                aria-expanded={menuOpen}
+                onClick={(event) => onToggleMenu(event.currentTarget)}
+              >
+                <Ellipsis size={14} strokeWidth={2} aria-hidden />
+              </button>
+              {item.myReport ? (
+                <button
+                  type="button"
+                  className={clsx(styles.itemMoreBtn, styles.reportIndicator)}
+                  aria-label={compact ? '신고한 답글 추가 메뉴' : '신고한 댓글 추가 메뉴'}
+                  aria-expanded={menuOpen}
+                  onClick={(event) => onToggleMenu(event.currentTarget)}
+                >
+                  <Siren size={14} strokeWidth={2} aria-hidden />
+                </button>
+              ) : null}
+            </>
+          ) : null}
         </div>
       </div>
 
-      {!readOnly ? <button
-        type="button"
-        className={clsx(styles.likeBtn, liked && styles.likeBtnOn)}
-        aria-label={`좋아요 ${likeCount}`}
-        aria-pressed={liked}
-        onClick={() => {
-          setLiked((v) => !v);
-          setLikeCount((c) => (liked ? Math.max(0, c - 1) : c + 1));
-        }}
-      >
-        <Heart
-          className={styles.likeIcon}
-          size={18}
-          strokeWidth={1.75}
-          fill={liked ? 'currentColor' : 'none'}
-          aria-hidden
-        />
-        <span className={styles.likeCount}>{likeCount}</span>
-      </button> : null}
+      {!readOnly ? (
+        <button
+          type="button"
+          className={clsx(styles.likeBtn, liked && styles.likeBtnOn)}
+          aria-label={`좋아요 ${likeCount}`}
+          aria-pressed={liked}
+          onClick={() => {
+            setLiked((v) => !v);
+            setLikeCount((c) => (liked ? Math.max(0, c - 1) : c + 1));
+          }}
+        >
+          <Heart
+            className={styles.likeIcon}
+            size={18}
+            strokeWidth={1.75}
+            fill={liked ? 'currentColor' : 'none'}
+            aria-hidden
+          />
+          <span className={styles.likeCount}>{likeCount}</span>
+        </button>
+      ) : null}
     </div>
   );
 }
@@ -283,14 +285,14 @@ export function CommentSheet({
   onCommentCreated,
   onCommentDeleted,
 }: CommentSheetProps) {
-  const [hydrated, setHydrated] = useState(false);
+  const hydrated = useHydrated();
   /** 포털 유지 (닫힘 애니 끝날 때까지) */
-  const [present, setPresent] = useState(false);
+  const [present, setPresent] = useResettableState(open, [open], open);
   /** 열린 위치(드래그 오프셋 포함) vs 화면 밖 */
-  const [shown, setShown] = useState(false);
-  const [dragY, setDragY] = useState(0);
+  const [shown, setShown] = useResettableState(false, [open], open);
+  const [dragY, setDragY] = useResettableState(0, [open], open);
   /** 닫힐 때 목표 Y (현재 드래그 위치 → 시트 높이, px) */
-  const [exitY, setExitY] = useState<number | null>(null);
+  const [exitY, setExitY] = useResettableState<number | null>(null, [open], open);
   const [dragging, setDragging] = useState(false);
   const startYRef = useRef(0);
   const dragYRef = useRef(0);
@@ -298,71 +300,87 @@ export function CommentSheet({
   const closingRef = useRef(false);
   const presentRef = useRef(false);
   const openRef = useRef(open);
-  openRef.current = open;
+  useLayoutEffect(() => {
+    openRef.current = open;
+  });
   const historyPushedRef = useRef(false);
   const closedByPopRef = useRef(false);
   const ignorePopRef = useRef(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
-  const [focusDomId, setFocusDomId] = useState('');
-
-  const [items, setItems] = useState<MockComment[]>(comments ?? []);
-  const [listError, setListError] = useState<unknown>(null);
-  const [listStatus, setListStatus] = useState<'idle' | 'loading' | 'ready' | 'error'>(
-    'idle',
+  const [focusDomId, setFocusDomId] = useResettableState(
+    focusReplyId ? 'reply-' + focusReplyId : focusCommentId ? 'comment-' + focusCommentId : '',
+    [open, comments, feedId, focusCommentId, focusReplyId, readOnly],
+    open,
   );
-  const [draft, setDraft] = useState('');
+
+  const [items, setItems] = useResettableState<MockComment[]>(
+    comments ?? [],
+    [open, comments, feedId, focusCommentId, focusReplyId, readOnly],
+    open,
+  );
+  const [listError, setListError] = useState<unknown>(null);
+  const [listStatus, setListStatus] = useResettableState<'idle' | 'loading' | 'ready' | 'error'>(
+    comments ? 'ready' : 'loading',
+    [open, comments, feedId, focusCommentId, focusReplyId, readOnly],
+    open,
+  );
+  const [draft, setDraft] = useResettableState(
+    '',
+    [open, comments, feedId, focusCommentId, focusReplyId, readOnly],
+    open,
+  );
   const [sending, setSending] = useState(false);
   const [moderationRefresh, setModerationRefresh] = useState(0);
 
-  useEffect(() => readOnly ? undefined : subscribeContentModerated((event) => {
-    if (event.feedId === feedId) setModerationRefresh((value) => value + 1);
-  }), [feedId, readOnly]);
+  useEffect(
+    () =>
+      readOnly
+        ? undefined
+        : subscribeContentModerated((event) => {
+            if (event.feedId === feedId) setModerationRefresh((value) => value + 1);
+          }),
+    [feedId, readOnly],
+  );
 
   useEffect(() => {
     if (!open || !moderationRefresh || sending || comments) return;
     let cancelled = false;
-    void loadFeedComments(feedId).then((list) => {
-      if (!cancelled) setItems(list);
-    }).catch((err) => console.error('[comments] moderation refresh failed', err));
-    return () => { cancelled = true; };
-  }, [feedId, open, moderationRefresh, sending, comments]);
+    void loadFeedComments(feedId)
+      .then((list) => {
+        if (!cancelled) setItems(list);
+      })
+      .catch((err) => console.error('[comments] moderation refresh failed', err));
+    return () => {
+      cancelled = true;
+    };
+  }, [feedId, open, moderationRefresh, sending, comments, setItems]);
   const [myUserNo, setMyUserNo] = useState<number | null>(null);
   const openModal = useModalStore((s) => s.open);
-  const [menu, setMenu] = useState<
+  const [menu, setMenu] = useResettableState<
     (ThreadTarget & { mine: boolean; anchor: DOMRect }) | null
-  >(null);
+  >(null, [open, comments, feedId, focusCommentId, focusReplyId, readOnly], open);
   const [menuPlace, setMenuPlace] = useState<{ top: number; left: number } | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
-  const [editing, setEditing] = useState<ThreadTarget | null>(null);
-  const [replyTo, setReplyTo] = useState<{
+  const [editing, setEditing] = useResettableState<ThreadTarget | null>(
+    null,
+    [open, comments, feedId, focusCommentId, focusReplyId, readOnly],
+    open,
+  );
+  const [replyTo, setReplyTo] = useResettableState<{
     parentCommentId: string;
     nickname: string;
     userNo?: number;
-  } | null>(null);
+  } | null>(null, [open, comments, feedId, focusCommentId, focusReplyId, readOnly], open);
   const replyingToOwnComment = myUserNo != null && replyTo?.userNo === myUserNo;
 
   useEffect(() => {
-    setHydrated(true);
-  }, []);
-
-  useEffect(() => {
     if (!open) return;
-    setDraft('');
-    setReplyTo(null);
-    setEditing(null);
-    setMenu(null);
-    setFocusDomId(focusReplyId ? `reply-${focusReplyId}` : focusCommentId ? `comment-${focusCommentId}` : readOnly ? '' : commentFocusDomId());
 
-    if (comments) {
-      setItems(comments);
-      setListStatus('ready');
-      return;
-    }
+    if (comments) return;
 
     let cancelled = false;
-    setItems([]);
-    setListStatus('loading');
+    if (!focusReplyId && !focusCommentId && !readOnly) setFocusDomId(commentFocusDomId());
     loadFeedComments(feedId)
       .then((list) => {
         if (cancelled) return;
@@ -380,7 +398,17 @@ export function CommentSheet({
     return () => {
       cancelled = true;
     };
-  }, [open, comments, feedId, focusCommentId, focusReplyId, readOnly]);
+  }, [
+    open,
+    comments,
+    feedId,
+    focusCommentId,
+    focusReplyId,
+    readOnly,
+    setFocusDomId,
+    setItems,
+    setListStatus,
+  ]);
 
   useEffect(() => {
     let cancelled = false;
@@ -393,33 +421,37 @@ export function CommentSheet({
     };
   }, [readOnly]);
 
-  const startReply = useCallback(async (target: MockCommentReply, parentCommentId: string) => {
-    const parent = items.find((comment) => comment.id === parentCommentId);
-    if (!parent) return;
-    const currentUserNo = myUserNo ?? await loadMyUserNo();
-    if (!openRef.current) return;
-    if (currentUserNo != null) setMyUserNo(currentUserNo);
-    setEditing(null);
-    setMenu(null);
-    // 안내는 원댓글 작성자, 자동 멘션은 실제 누른 댓글/답글 작성자를 기준으로 한다.
-    setReplyTo({ parentCommentId, nickname: parent.nickname, userNo: parent.userNo });
-    setDraft((prev) => {
-      const mention = currentUserNo != null && target.userNo === currentUserNo ? '' : `@${target.nickname} `;
-      if (mention && prev.startsWith(mention)) return clampFeedContent(prev);
-      return clampFeedContent(mention);
-    });
-    requestAnimationFrame(() => inputRef.current?.focus());
-  }, [items, myUserNo]);
+  const startReply = useCallback(
+    async (target: MockCommentReply, parentCommentId: string) => {
+      const parent = items.find((comment) => comment.id === parentCommentId);
+      if (!parent) return;
+      const currentUserNo = myUserNo ?? (await loadMyUserNo());
+      if (!openRef.current) return;
+      if (currentUserNo != null) setMyUserNo(currentUserNo);
+      setEditing(null);
+      setMenu(null);
+      // 안내는 원댓글 작성자, 자동 멘션은 실제 누른 댓글/답글 작성자를 기준으로 한다.
+      setReplyTo({ parentCommentId, nickname: parent.nickname, userNo: parent.userNo });
+      setDraft((prev) => {
+        const mention =
+          currentUserNo != null && target.userNo === currentUserNo ? '' : `@${target.nickname} `;
+        if (mention && prev.startsWith(mention)) return clampFeedContent(prev);
+        return clampFeedContent(mention);
+      });
+      requestAnimationFrame(() => inputRef.current?.focus());
+    },
+    [items, myUserNo, setDraft, setEditing, setMenu, setReplyTo],
+  );
 
   const clearReply = useCallback(() => {
     setReplyTo(null);
     setDraft('');
-  }, []);
+  }, [setDraft, setReplyTo]);
 
   const clearEdit = useCallback(() => {
     setEditing(null);
     setDraft('');
-  }, []);
+  }, [setDraft, setEditing]);
 
   async function submitComment(e?: FormEvent) {
     e?.preventDefault();
@@ -496,7 +528,7 @@ export function CommentSheet({
       });
       setMenuPlace(null);
     },
-    [],
+    [setMenu],
   );
 
   const beginEdit = useCallback(
@@ -514,7 +546,7 @@ export function CommentSheet({
       setDraft(clampFeedContent(source.content));
       requestAnimationFrame(() => inputRef.current?.focus());
     },
-    [items],
+    [items, setDraft, setEditing, setMenu, setReplyTo],
   );
 
   const removeTarget = useCallback(
@@ -549,11 +581,7 @@ export function CommentSheet({
                   setItems((prev) => prev.filter((item) => item.id !== target.id));
                   onCommentDeleted?.();
                 }
-                if (
-                  editing &&
-                  editing.kind === target.kind &&
-                  editing.id === target.id
-                ) {
+                if (editing && editing.kind === target.kind && editing.id === target.id) {
                   setEditing(null);
                   setDraft('');
                 }
@@ -571,23 +599,26 @@ export function CommentSheet({
         },
       });
     },
-    [editing, feedId, onCommentDeleted, openModal],
+    [editing, feedId, onCommentDeleted, openModal, setDraft, setEditing, setItems, setMenu],
   );
 
-  const reportTarget = useCallback((target: ThreadTarget) => {
-    const targetId = Number(target.id);
-    if (!Number.isFinite(targetId)) return;
-    setMenu(null);
-    openReportModal(
-      {
-        targetType: target.kind === 'reply' ? 'REPLY' : 'COMMENT',
-        targetId,
-      },
-      (report) => {
-        setItems((prev) => patchThreadReport(prev, target, report));
-      },
-    );
-  }, []);
+  const reportTarget = useCallback(
+    (target: ThreadTarget) => {
+      const targetId = Number(target.id);
+      if (!Number.isFinite(targetId)) return;
+      setMenu(null);
+      openReportModal(
+        {
+          targetType: target.kind === 'reply' ? 'REPLY' : 'COMMENT',
+          targetId,
+        },
+        (report) => {
+          setItems((prev) => patchThreadReport(prev, target, report));
+        },
+      );
+    },
+    [setItems, setMenu],
+  );
 
   const cancelTarget = useCallback(
     (target: ThreadTarget) => {
@@ -604,7 +635,7 @@ export function CommentSheet({
         .then(() => setItems((prev) => patchThreadReport(prev, target, null)))
         .catch(() => undefined);
     },
-    [items],
+    [items, setItems, setMenu],
   );
 
   useLayoutEffect(() => {
@@ -640,7 +671,7 @@ export function CommentSheet({
       window.removeEventListener('resize', close);
       document.removeEventListener('keydown', onKey);
     };
-  }, [menu]);
+  }, [menu, setMenu]);
 
   useLayoutEffect(() => {
     if (!open || listStatus !== 'ready' || !focusDomId) return;
@@ -656,7 +687,7 @@ export function CommentSheet({
     // 손 놓은 위치에서 이어서 아래로
     setExitY(Math.max(dragYRef.current, height));
     setShown(false);
-  }, []);
+  }, [setExitY, setShown]);
 
   /** 모바일 뒤로가기 = 시트만 닫히도록 history 엔트리 추가 */
   useEffect(() => {
@@ -665,9 +696,7 @@ export function CommentSheet({
     const url = new URL(window.location.href);
     const alreadyOpen = url.searchParams.get(COMMENT_QUERY) === feedId;
     const state =
-      history.state && typeof history.state === 'object'
-        ? { ...(history.state as object) }
-        : {};
+      history.state && typeof history.state === 'object' ? { ...(history.state as object) } : {};
 
     if (!alreadyOpen) {
       history.pushState(
@@ -678,9 +707,8 @@ export function CommentSheet({
       historyPushedRef.current = true;
     } else {
       historyPushedRef.current =
-        (history.state as { [COMMENT_HISTORY_KEY]?: string } | null)?.[
-          COMMENT_HISTORY_KEY
-        ] === feedId;
+        (history.state as { [COMMENT_HISTORY_KEY]?: string } | null)?.[COMMENT_HISTORY_KEY] ===
+        feedId;
     }
 
     const onPopState = () => {
@@ -702,10 +730,6 @@ export function CommentSheet({
 
     closingRef.current = false;
     presentRef.current = true;
-    setExitY(null);
-    setPresent(true);
-    setShown(false);
-    setDragY(0);
     dragYRef.current = 0;
     const id = requestAnimationFrame(() => {
       requestAnimationFrame(() => setShown(true));
@@ -717,7 +741,7 @@ export function CommentSheet({
       cancelAnimationFrame(id);
       document.body.style.overflow = prev;
     };
-  }, [open, animateClose, readOnly]);
+  }, [open, animateClose, readOnly, setShown]);
 
   function finishClose() {
     presentRef.current = false;
@@ -760,7 +784,7 @@ export function CommentSheet({
     }
     setDragY(0);
     dragYRef.current = 0;
-  }, [animateClose]);
+  }, [animateClose, setDragY]);
 
   function onHandlePointerDown(e: ReactPointerEvent<HTMLDivElement>) {
     if (closingRef.current) return;
@@ -789,11 +813,7 @@ export function CommentSheet({
 
   if (!hydrated || !present) return null;
 
-  const translateY = shown
-    ? `${dragY}px`
-    : exitY != null
-      ? `${exitY}px`
-      : '100%';
+  const translateY = shown ? `${dragY}px` : exitY != null ? `${exitY}px` : '100%';
 
   const menuSource = !menu
     ? null
@@ -806,225 +826,237 @@ export function CommentSheet({
 
   return (
     <>
-    {createPortal(
-    <div className={clsx(styles.root, portalTarget && styles.contained)} role="presentation" data-comment-sheet>
-      <button
-        type="button"
-        className={clsx(styles.dim, shown && styles.dimShow)}
-        aria-label="댓글 닫기"
-        onClick={animateClose}
-      />
-      <div
-        ref={sheetRef}
-        className={styles.sheet}
-        role="dialog"
-        aria-modal="true"
-        aria-label="댓글"
-        style={{
-          transform: `translate(-50%, ${translateY})`,
-          transition: dragging ? 'none' : undefined,
-        }}
-        data-feed-id={feedId}
-        onTransitionEnd={onSheetTransitionEnd}
-      >
+      {createPortal(
         <div
-          className={clsx(styles.drag, dragging && styles.dragging)}
-          onPointerDown={onHandlePointerDown}
-          onPointerMove={onHandlePointerMove}
-          onPointerUp={onHandlePointerUp}
-          onPointerCancel={onHandlePointerUp}
+          className={clsx(styles.root, portalTarget && styles.contained)}
+          role="presentation"
+          data-comment-sheet
         >
-          <span className={styles.bar} aria-hidden />
-        </div>
-
-        <div ref={listRef} className={styles.list}>
-          {listStatus === 'loading' ? (
-            <p className={styles.status}>댓글을 불러오는 중</p>
-          ) : null}
-          {listStatus === 'error' ? (
-            <PageLoadError error={listError} />
-          ) : null}
-          {listStatus === 'ready' && items.length === 0 ? (
-            <p className={styles.status}>댓글이 없습니다.</p>
-          ) : null}
-          {items.map((comment) => (
-            <div key={comment.id} className={styles.thread}>
-              <CommentBody
-                item={comment}
-                readOnly={readOnly}
-                parentCommentId={comment.id}
-                onReply={startReply}
-                focused={focusDomId === `comment-${comment.id}`}
-                menuOpen={menu?.kind === 'comment' && menu.id === comment.id}
-                onToggleMenu={(anchor) =>
-                  toggleItemMenu(
-                    { kind: 'comment', id: comment.id, parentCommentId: comment.id },
-                    myUserNo != null && comment.userNo === myUserNo,
-                    anchor,
-                  )
-                }
-              />
-              {comment.replies.length > 0 ? (
-                <div className={styles.replies}>
-                  {comment.replies.map((reply) => (
-                    <CommentBody
-                      key={reply.id}
-                      item={reply}
-                      readOnly={readOnly}
-                      compact
-                      parentCommentId={comment.id}
-                      onReply={startReply}
-                      focused={focusDomId === `reply-${reply.id}`}
-                      menuOpen={menu?.kind === 'reply' && menu.id === reply.id}
-                      onToggleMenu={(anchor) =>
-                        toggleItemMenu(
-                          { kind: 'reply', id: reply.id, parentCommentId: comment.id },
-                          myUserNo != null && reply.userNo === myUserNo,
-                          anchor,
-                        )
-                      }
-                    />
-                  ))}
-                </div>
-              ) : null}
-            </div>
-          ))}
-        </div>
-
-        {!readOnly ? <form className={styles.composer} onSubmit={submitComment}>
-          {editing ? (
-            <div className={styles.replyBar}>
-              <span className={styles.replyHint}>
-                {editing.kind === 'reply' ? '답글' : '댓글'} 수정 중
-              </span>
-              <button
-                type="button"
-                className={styles.replyCancel}
-                aria-label="수정 취소"
-                onClick={clearEdit}
-              >
-                <X size={16} strokeWidth={2} aria-hidden />
-              </button>
-            </div>
-          ) : null}
-          {replyTo && !editing ? (
-            <div className={styles.replyBar}>
-              <span className={styles.replyHint}>
-                {replyingToOwnComment ? '내 댓글에 답글 남기는 중' : <><strong>@{replyTo.nickname}</strong>님의 댓글에 답글 남기는 중</>}
-              </span>
-              <button
-                type="button"
-                className={styles.replyCancel}
-                aria-label="답글 취소"
-                onClick={clearReply}
-              >
-                <X size={16} strokeWidth={2} aria-hidden />
-              </button>
-            </div>
-          ) : null}
-          <div className={styles.composerRow}>
-            <span className={styles.composerAvatar}>
-              <MediaImage
-                src={MY_PROFILE}
-                alt=""
-                width={32}
-                height={32}
-                className={styles.avatar}
-              />
-            </span>
-            <input
-              ref={inputRef}
-              className={styles.composerInput}
-              value={draft}
-              maxLength={FEED_CONTENT_MAX_LENGTH}
-              onChange={(e) => setDraft(clampFeedContent(e.target.value))}
-              placeholder={
-                editing
-                  ? '내용을 수정하세요…'
-                  : replyTo
-                    ? replyingToOwnComment ? '내 댓글에 답글 남기기…' : `@${replyTo.nickname}님의 댓글에 답글 남기기…`
-                    : '댓글을 입력하세요…'
-              }
-              aria-label={replyTo ? '답글 입력' : '댓글 입력'}
-            />
-            <button
-              type="submit"
-              className={styles.composerSend}
-              disabled={!draft.trim() || sending}
-              aria-label="전송"
-            >
-              <SendStateIcon sending={sending} />
-            </button>
-          </div>
-        </form> : null}
-      </div>
-    </div>,
-    portalTarget ?? document.body,
-  )}
-    {menu
-      ? createPortal(
-          <>
-            <button
-              type="button"
-              className={styles.menuBackdrop}
-              aria-label="메뉴 닫기"
-              onClick={() => setMenu(null)}
-            />
+          <button
+            type="button"
+            className={clsx(styles.dim, shown && styles.dimShow)}
+            aria-label="댓글 닫기"
+            onClick={animateClose}
+          />
+          <div
+            ref={sheetRef}
+            className={styles.sheet}
+            role="dialog"
+            aria-modal="true"
+            aria-label="댓글"
+            style={{
+              transform: `translate(-50%, ${translateY})`,
+              transition: dragging ? 'none' : undefined,
+            }}
+            data-feed-id={feedId}
+            onTransitionEnd={onSheetTransitionEnd}
+          >
             <div
-              ref={menuRef}
-              className={styles.itemMenu}
-              role="menu"
-              style={
-                menuPlace
-                  ? { top: menuPlace.top, left: menuPlace.left }
-                  : { visibility: 'hidden' }
-              }
+              className={clsx(styles.drag, dragging && styles.dragging)}
+              onPointerDown={onHandlePointerDown}
+              onPointerMove={onHandlePointerMove}
+              onPointerUp={onHandlePointerUp}
+              onPointerCancel={onHandlePointerUp}
             >
-              {menu.mine ? (
-                <>
-                  <button
-                    type="button"
-                    className={styles.itemMenuBtn}
-                    role="menuitem"
-                    onClick={() => beginEdit(menu)}
-                  >
-                    <span className={styles.itemMenuIcon}>
-                      <Pencil size={22} strokeWidth={1.75} />
-                    </span>
-                    <span className={styles.itemMenuLabel}>수정</span>
-                  </button>
-                  <button
-                    type="button"
-                    className={styles.itemMenuBtn}
-                    role="menuitem"
-                    onClick={() => removeTarget(menu)}
-                  >
-                    <span className={styles.itemMenuIcon}>
-                      <Trash2 size={22} strokeWidth={1.75} />
-                    </span>
-                    <span className={styles.itemMenuLabel}>삭제하기</span>
-                  </button>
-                </>
-              ) : (
-                <button
-                  type="button"
-                  className={styles.itemMenuBtn}
-                  role="menuitem"
-                  onClick={() => (reportCancel ? cancelTarget(menu) : reportTarget(menu))}
-                >
-                  <span className={styles.itemMenuIcon}>
-                    <Flag size={22} strokeWidth={1.75} />
-                  </span>
-                  <span className={styles.itemMenuLabel}>
-                    {reportCancel ? '신고취소' : '신고하기'}
-                  </span>
-                </button>
-              )}
+              <span className={styles.bar} aria-hidden />
             </div>
-          </>,
-          document.body,
-        )
-      : null}
+
+            <div ref={listRef} className={styles.list}>
+              {listStatus === 'loading' ? (
+                <p className={styles.status}>댓글을 불러오는 중</p>
+              ) : null}
+              {listStatus === 'error' ? <PageLoadError error={listError} /> : null}
+              {listStatus === 'ready' && items.length === 0 ? (
+                <p className={styles.status}>댓글이 없습니다.</p>
+              ) : null}
+              {items.map((comment) => (
+                <div key={comment.id} className={styles.thread}>
+                  <CommentBody
+                    item={comment}
+                    readOnly={readOnly}
+                    parentCommentId={comment.id}
+                    onReply={startReply}
+                    focused={focusDomId === `comment-${comment.id}`}
+                    menuOpen={menu?.kind === 'comment' && menu.id === comment.id}
+                    onToggleMenu={(anchor) =>
+                      toggleItemMenu(
+                        { kind: 'comment', id: comment.id, parentCommentId: comment.id },
+                        myUserNo != null && comment.userNo === myUserNo,
+                        anchor,
+                      )
+                    }
+                  />
+                  {comment.replies.length > 0 ? (
+                    <div className={styles.replies}>
+                      {comment.replies.map((reply) => (
+                        <CommentBody
+                          key={reply.id}
+                          item={reply}
+                          readOnly={readOnly}
+                          compact
+                          parentCommentId={comment.id}
+                          onReply={startReply}
+                          focused={focusDomId === `reply-${reply.id}`}
+                          menuOpen={menu?.kind === 'reply' && menu.id === reply.id}
+                          onToggleMenu={(anchor) =>
+                            toggleItemMenu(
+                              { kind: 'reply', id: reply.id, parentCommentId: comment.id },
+                              myUserNo != null && reply.userNo === myUserNo,
+                              anchor,
+                            )
+                          }
+                        />
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
+              ))}
+            </div>
+
+            {!readOnly ? (
+              <form className={styles.composer} onSubmit={submitComment}>
+                {editing ? (
+                  <div className={styles.replyBar}>
+                    <span className={styles.replyHint}>
+                      {editing.kind === 'reply' ? '답글' : '댓글'} 수정 중
+                    </span>
+                    <button
+                      type="button"
+                      className={styles.replyCancel}
+                      aria-label="수정 취소"
+                      onClick={clearEdit}
+                    >
+                      <X size={16} strokeWidth={2} aria-hidden />
+                    </button>
+                  </div>
+                ) : null}
+                {replyTo && !editing ? (
+                  <div className={styles.replyBar}>
+                    <span className={styles.replyHint}>
+                      {replyingToOwnComment ? (
+                        '내 댓글에 답글 남기는 중'
+                      ) : (
+                        <>
+                          <strong>@{replyTo.nickname}</strong>님의 댓글에 답글 남기는 중
+                        </>
+                      )}
+                    </span>
+                    <button
+                      type="button"
+                      className={styles.replyCancel}
+                      aria-label="답글 취소"
+                      onClick={clearReply}
+                    >
+                      <X size={16} strokeWidth={2} aria-hidden />
+                    </button>
+                  </div>
+                ) : null}
+                <div className={styles.composerRow}>
+                  <span className={styles.composerAvatar}>
+                    <MediaImage
+                      src={MY_PROFILE}
+                      alt=""
+                      width={32}
+                      height={32}
+                      className={styles.avatar}
+                    />
+                  </span>
+                  <input
+                    ref={inputRef}
+                    className={styles.composerInput}
+                    value={draft}
+                    maxLength={FEED_CONTENT_MAX_LENGTH}
+                    onChange={(e) => setDraft(clampFeedContent(e.target.value))}
+                    placeholder={
+                      editing
+                        ? '내용을 수정하세요…'
+                        : replyTo
+                          ? replyingToOwnComment
+                            ? '내 댓글에 답글 남기기…'
+                            : `@${replyTo.nickname}님의 댓글에 답글 남기기…`
+                          : '댓글을 입력하세요…'
+                    }
+                    aria-label={replyTo ? '답글 입력' : '댓글 입력'}
+                  />
+                  <button
+                    type="submit"
+                    className={styles.composerSend}
+                    disabled={!draft.trim() || sending}
+                    aria-label="전송"
+                  >
+                    <SendStateIcon sending={sending} />
+                  </button>
+                </div>
+              </form>
+            ) : null}
+          </div>
+        </div>,
+        portalTarget ?? document.body,
+      )}
+      {menu
+        ? createPortal(
+            <>
+              <button
+                type="button"
+                className={styles.menuBackdrop}
+                aria-label="메뉴 닫기"
+                onClick={() => setMenu(null)}
+              />
+              <div
+                ref={menuRef}
+                className={styles.itemMenu}
+                role="menu"
+                style={
+                  menuPlace
+                    ? { top: menuPlace.top, left: menuPlace.left }
+                    : { visibility: 'hidden' }
+                }
+              >
+                {menu.mine ? (
+                  <>
+                    <button
+                      type="button"
+                      className={styles.itemMenuBtn}
+                      role="menuitem"
+                      onClick={() => beginEdit(menu)}
+                    >
+                      <span className={styles.itemMenuIcon}>
+                        <Pencil size={22} strokeWidth={1.75} />
+                      </span>
+                      <span className={styles.itemMenuLabel}>수정</span>
+                    </button>
+                    <button
+                      type="button"
+                      className={styles.itemMenuBtn}
+                      role="menuitem"
+                      onClick={() => removeTarget(menu)}
+                    >
+                      <span className={styles.itemMenuIcon}>
+                        <Trash2 size={22} strokeWidth={1.75} />
+                      </span>
+                      <span className={styles.itemMenuLabel}>삭제하기</span>
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    type="button"
+                    className={styles.itemMenuBtn}
+                    role="menuitem"
+                    onClick={() => (reportCancel ? cancelTarget(menu) : reportTarget(menu))}
+                  >
+                    <span className={styles.itemMenuIcon}>
+                      <Flag size={22} strokeWidth={1.75} />
+                    </span>
+                    <span className={styles.itemMenuLabel}>
+                      {reportCancel ? '신고취소' : '신고하기'}
+                    </span>
+                  </button>
+                )}
+              </div>
+            </>,
+            document.body,
+          )
+        : null}
     </>
   );
 }

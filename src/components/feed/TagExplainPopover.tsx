@@ -1,4 +1,5 @@
 'use client';
+import { useResettableState } from '@/lib/react/useResettableState';
 
 import { MediaImage } from '@/components/common/MediaImage';
 import type { TagExplain } from '@/lib/mock/tags';
@@ -80,10 +81,11 @@ export function TagExplainPopover({
 }: TagExplainPopoverProps) {
   const router = useRouter();
   const rootRef = useRef<HTMLDivElement>(null);
-  const ignoreCloseUntilRef = useRef(Date.now() + CLOSE_GUARD_MS);
+  const ignoreCloseUntilRef = useRef(0);
   const [coords, setCoords] = useState<Coords | null>(null);
-  const [exiting, setExiting] = useState(false);
-  const [show, setShow] = useState(false);
+  const [exitRequested, setExiting] = useResettableState(false, [data.tag]);
+  const exiting = closeRequested || exitRequested;
+  const [show, setShow] = useResettableState(false, [data.tag]);
 
   useLayoutEffect(() => {
     const el = rootRef.current;
@@ -99,17 +101,10 @@ export function TagExplainPopover({
 
   // 마운트/태그 변경 시에만 페이드 인 (mode 변경 시 깜빡임 방지)
   useLayoutEffect(() => {
-    setShow(false);
-    setExiting(false);
     ignoreCloseUntilRef.current = Date.now() + CLOSE_GUARD_MS;
     const raf = window.requestAnimationFrame(() => setShow(true));
     return () => window.cancelAnimationFrame(raf);
-  }, [data.tag]);
-
-  useEffect(() => {
-    if (!closeRequested || exiting) return;
-    setExiting(true);
-  }, [closeRequested, exiting]);
+  }, [data.tag, setShow]);
 
   useEffect(() => {
     if (!exiting) return;
@@ -154,7 +149,7 @@ export function TagExplainPopover({
       window.removeEventListener('scroll', onScroll, true);
       document.removeEventListener('keydown', onKey);
     };
-  }, [mode]);
+  }, [mode, setExiting]);
 
   const hash = data.tag.startsWith('#') ? data.tag : `#${data.tag}`;
   const opacity = exiting || !show || !coords ? 0 : mode === 'preview' ? 0.55 : 1;

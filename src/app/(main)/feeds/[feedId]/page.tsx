@@ -1,9 +1,12 @@
+import type { Metadata } from 'next';
+import { loadPublicFeed } from '@/lib/seo/publicFeed';
+import { publicPageMetadata, NO_INDEX } from '@/lib/seo/metadata';
+import { SEO_ORIGIN } from '@/lib/seo/site';
+import { resolveFileDisplayUrl } from '@/lib/api/fileUrl';
 import type { FeedData } from '@/components/feed/Feed';
 import { GuestFeedView } from '@/components/auth/GuestFeedView';
 import { PageLoadError } from '@/components/common/PageLoadError';
-import { springEndpoints } from '@/lib/api/endpoints';
-import { springGet } from '@/lib/api/springFetch';
-import { isRecord } from '@/lib/api/error';
+
 import { getAccessToken, getRefreshToken } from '@/lib/auth/cookies';
 import PostClient from '../../posts/[id]/PostClient';
 import { toFeedData } from '@/lib/feed/toFeedData';
@@ -14,6 +17,32 @@ type PageProps = {
   params: Promise<{ feedId: string }>;
   searchParams: Promise<{ mediaIndex?: string | string[] }>;
 };
+
+export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+  const [access, refresh] = await Promise.all([getAccessToken(), getRefreshToken()]);
+  // Never bypass a member's incoming block or private access through public metadata.
+  if (access || refresh) return { title: 'Ultary', robots: NO_INDEX };
+  const { feedId } = await params;
+  if (!/^[1-9]\d*$/.test(feedId) || !Number.isSafeInteger(Number(feedId)))
+    return { title: 'Ultary', robots: NO_INDEX };
+  try {
+    const feed = await loadPublicFeed(feedId);
+    const owner = feed.authorNickname || feed.nickname || '울타리';
+    const media = [...(feed.media ?? [])].sort(
+      (a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0),
+    )[0];
+    const file = media?.mediaType === 'VIDEO' ? media.thumbnailFile : media?.file;
+    return publicPageMetadata({
+      origin: SEO_ORIGIN,
+      path: '/feeds/' + feedId,
+      title: owner + '님의 게시글 - Ultary',
+      description: feed.content || owner + '님의 반려동물과 일상을 만나보세요.',
+      image: resolveFileDisplayUrl(file),
+    });
+  } catch {
+    return { title: 'Ultary', robots: NO_INDEX };
+  }
+}
 
 /** 비로그인 공유 피드. 권한 부족·삭제·조회 실패에도 목업을 표시하지 않는다. */
 export default async function SharedFeedPage({ params, searchParams }: PageProps) {
@@ -31,14 +60,7 @@ export default async function SharedFeedPage({ params, searchParams }: PageProps
   let feed: FeedData | null = null;
   let loadError: unknown;
   try {
-    const raw = await springGet(
-      springEndpoints.feeds.detail,
-      { feedId },
-      undefined,
-      // Server Component에서는 쿠키를 수정할 수 없다.
-      { recoverExpiredAccess: false },
-    );
-    if (isRecord(raw) && raw.feedId != null) feed = toFeedData(raw, feedId);
+    feed = toFeedData(await loadPublicFeed(feedId), feedId);
   } catch (error) {
     if (isUnavailablePageError(error)) notFound();
     loadError = error;

@@ -1,4 +1,6 @@
 'use client';
+import { useSearchParams } from 'next/navigation';
+import { useResettableState } from '@/lib/react/useResettableState';
 
 import { formatFeedTime } from '@/lib/feed/formatFeedTime';
 import { RevealTime } from '@/components/common/RevealTime';
@@ -15,7 +17,12 @@ import { splitCaptionTags, type TagExplain } from '@/lib/mock/tags';
 import { loadTagExplain, tagHasExplainPopup } from '@/lib/tag/explain';
 import { myUltaryPath } from '@/lib/mock/ultary-accounts';
 import { showFooterNotice } from '@/lib/ui/footerNotice';
-import { openReportModal, cancelReport, canCancelReport, type MyReport } from '@/lib/report/openReport';
+import {
+  openReportModal,
+  cancelReport,
+  canCancelReport,
+  type MyReport,
+} from '@/lib/report/openReport';
 import { NO_PROFILE_SRC } from '@/lib/profileImage';
 import { useModalStore } from '@/stores/modal.store';
 import { useWriteDraftStore } from '@/stores/write-draft.store';
@@ -143,6 +150,7 @@ export function Feed({
   focusCommentId,
   focusReplyId,
 }: FeedProps) {
+  const searchParams = useSearchParams();
   const [previewRoot, setPreviewRoot] = useState<HTMLElement | null>(null);
   const openModal = useModalStore((s) => s.open);
   const slideCount = Math.max(images.length, 1);
@@ -150,19 +158,29 @@ export function Feed({
   const [index, setIndex] = useState(startIndex);
   const [expanded, setExpanded] = useState(false);
   const [needsMore, setNeedsMore] = useState(false);
-  const [liked, setLiked] = useState(isFavorite);
-  const [likes, setLikes] = useState(likeCount);
-  const [comments, setComments] = useState(commentCount);
+  const [liked, setLiked] = useResettableState(isFavorite, [id, isFavorite, likeCount]);
+  const [likes, setLikes] = useResettableState(likeCount, [id, isFavorite, likeCount]);
+  const [comments, setComments] = useResettableState(commentCount, [id, commentCount]);
   const [likePending, setLikePending] = useState(false);
-  const [pinned, setPinned] = useState(isPinned);
+  const [pinned, setPinned] = useResettableState(isPinned, [id, isPinned]);
   const [pinPending, setPinPending] = useState(false);
-  const [saved, setSaved] = useState(isSaved);
+  const [saved, setSaved] = useResettableState(isSaved, [id, isSaved]);
   const [savePending, setSavePending] = useState(false);
   const [deletePending, setDeletePending] = useState(false);
-  const [myReport, setMyReport] = useState<MyReport | null>(myReportFromServer);
+  const [myReport, setMyReport] = useResettableState<MyReport | null>(myReportFromServer, [
+    id,
+    myReportFromServer,
+  ]);
   const [removed, setRemoved] = useState(false);
-  const [captionOverride, setCaptionOverride] = useState<{ feedId: string; source: string; content: string } | null>(null);
-  const visibleCaption = captionOverride?.feedId === id && captionOverride.source === caption ? captionOverride.content : caption;
+  const [captionOverride, setCaptionOverride] = useState<{
+    feedId: string;
+    source: string;
+    content: string;
+  } | null>(null);
+  const visibleCaption =
+    captionOverride?.feedId === id && captionOverride.source === caption
+      ? captionOverride.content
+      : caption;
   useEffect(() => {
     if (readOnly) return;
     let active = true;
@@ -172,16 +190,25 @@ export function Feed({
         setRemoved(true);
         return;
       }
-      void bffGet<BffEnvelope<unknown>>(bffEndpoints.feeds.detail, { feedId: id }).then((res) => {
-        if (!active || !isRecord(res.data)) return;
-        setCaptionOverride({ feedId: id, source: caption, content: typeof res.data.content === 'string' ? res.data.content : '' });
-        if (typeof res.data.commentCount === 'number') setComments(res.data.commentCount);
-      }).catch((err) => {
-        if (active && isHttpError(err) && err.status === 404) setRemoved(true);
-      });
+      void bffGet<BffEnvelope<unknown>>(bffEndpoints.feeds.detail, { feedId: id })
+        .then((res) => {
+          if (!active || !isRecord(res.data)) return;
+          setCaptionOverride({
+            feedId: id,
+            source: caption,
+            content: typeof res.data.content === 'string' ? res.data.content : '',
+          });
+          if (typeof res.data.commentCount === 'number') setComments(res.data.commentCount);
+        })
+        .catch((err) => {
+          if (active && isHttpError(err) && err.status === 404) setRemoved(true);
+        });
     });
-    return () => { active = false; unsubscribe(); };
-  }, [id, caption, readOnly]);
+    return () => {
+      active = false;
+      unsubscribe();
+    };
+  }, [id, caption, readOnly, setComments]);
   const [myUserNo, setMyUserNo] = useState<number | null>(null);
   const [moreOpen, setMoreOpen] = useState(false);
   const [morePlace, setMorePlace] = useState<{ top: number; left: number } | null>(null);
@@ -205,36 +232,20 @@ export function Feed({
     closeRequested?: boolean;
   } | null>(null);
   const tagOpenRef = useRef(tagOpen);
-  tagOpenRef.current = tagOpen;
+  useLayoutEffect(() => {
+    tagOpenRef.current = tagOpen;
+  });
   const tagReqRef = useRef(0);
   const hoverTagRef = useRef<string | null>(null);
-  const [commentsOpen, setCommentsOpen] = useState(Boolean(readOnly && (focusCommentId || focusReplyId)));
+  const [commentsOpen, setCommentsOpen] = useResettableState(
+    Boolean((readOnly && (focusCommentId || focusReplyId)) || searchParams.get('comments') === id),
+    [id, searchParams.get('comments')],
+  );
   const [shareOpen, setShareOpen] = useState(false);
   const [shareMediaId, setShareMediaId] = useState<number | null>(null);
-  const [tagsOpen, setTagsOpen] = useState(false);
-  const [tagListOpen, setTagListOpen] = useState(false);
+  const [tagsOpen, setTagsOpen] = useResettableState(false, [id, index]);
+  const [tagListOpen, setTagListOpen] = useResettableState(false, [id, index]);
   const [petLabels, setPetLabels] = useState<Record<number, FeedPetLabel>>({});
-
-  useEffect(() => {
-    setLiked(isFavorite);
-    setLikes(likeCount);
-  }, [id, isFavorite, likeCount]);
-
-  useEffect(() => {
-    setComments(commentCount);
-  }, [id, commentCount]);
-
-  useEffect(() => {
-    setPinned(isPinned);
-  }, [id, isPinned]);
-
-  useEffect(() => {
-    setSaved(isSaved);
-  }, [id, isSaved]);
-
-  useEffect(() => {
-    setMyReport(myReportFromServer);
-  }, [id, myReportFromServer]);
 
   useEffect(() => {
     let cancelled = false;
@@ -249,21 +260,6 @@ export function Feed({
 
   const isMine = myUserNo != null && userNo === myUserNo;
   const canReport = myUserNo != null && userNo != null && userNo !== myUserNo;
-
-  useEffect(() => {
-    try {
-      if (new URLSearchParams(window.location.search).get('comments') === id) {
-        setCommentsOpen(true);
-      }
-    } catch {
-      /* ignore */
-    }
-  }, [id]);
-
-  useEffect(() => {
-    setTagsOpen(false);
-    setTagListOpen(false);
-  }, [id, index]);
 
   useEffect(() => {
     const ids = [...new Set((photoTags ?? []).flat().map((tag) => tag.petId))];
@@ -386,7 +382,7 @@ export function Feed({
     };
     document.addEventListener('pointerdown', onPointerDown);
     return () => document.removeEventListener('pointerdown', onPointerDown);
-  }, [tagListOpen, tagsOpen]);
+  }, [setTagListOpen, setTagsOpen, tagListOpen, tagsOpen]);
 
   const toggleLike = useCallback(async () => {
     if (likePending) return;
@@ -410,7 +406,7 @@ export function Feed({
     } finally {
       setLikePending(false);
     }
-  }, [id, likePending, liked]);
+  }, [id, likePending, liked, setLiked, setLikes]);
 
   const togglePin = useCallback(async () => {
     if (pinPending) return;
@@ -424,16 +420,14 @@ export function Feed({
       const flag = readFlag(res, 'pinnedByMe');
       const applied = flag ?? next;
       if (flag != null) setPinned(flag);
-      showFooterNotice(
-        applied ? '울타리 고정이 완료되었습니다.' : '울타리 고정이 취소되었습니다.',
-      );
+      showFooterNotice(applied ? '울타리 고정이 완료되었습니다.' : '울타리 고정이 취소되었습니다.');
     } catch (err) {
       console.error('[feed] pin failed', err);
       setPinned(!next);
     } finally {
       setPinPending(false);
     }
-  }, [id, pinPending, pinned]);
+  }, [id, pinPending, pinned, setPinned]);
 
   const toggleSave = useCallback(async () => {
     if (savePending) return;
@@ -447,16 +441,14 @@ export function Feed({
       const flag = readFlag(res, 'savedByMe');
       const applied = flag ?? next;
       if (flag != null) setSaved(flag);
-      showFooterNotice(
-        applied ? '게시글 저장이 완료되었습니다.' : '게시글 저장이 취소되었습니다.',
-      );
+      showFooterNotice(applied ? '게시글 저장이 완료되었습니다.' : '게시글 저장이 취소되었습니다.');
     } catch (err) {
       console.error('[feed] save failed', err);
       setSaved(!next);
     } finally {
       setSavePending(false);
     }
-  }, [id, savePending, saved]);
+  }, [id, savePending, saved, setSaved]);
 
   const askDelete = useCallback(() => {
     if (deletePending) return;
@@ -503,7 +495,7 @@ export function Feed({
       return;
     }
     openReportModal({ targetType: 'FEED', targetId }, setMyReport);
-  }, [id, myReport]);
+  }, [id, myReport, setMyReport]);
 
   useEffect(() => {
     const onPointerDown = (e: PointerEvent) => {
@@ -522,7 +514,6 @@ export function Feed({
 
   const safeImages = images.length > 0 ? images : ['/images/mock/post.jpg'];
   const slideTags = photoTags ?? [];
-  const currentTags = slideTags[index] ?? [];
   const hasMultiple = safeImages.length > 1;
   const showPrev = hasMultiple && index > 0;
   const showNext = hasMultiple && index < safeImages.length - 1;
@@ -563,7 +554,9 @@ export function Feed({
     const rect = el.getBoundingClientRect();
     const token = ++tagReqRef.current;
 
-    const known = tagExplanations?.find(tag => tag.tag.replace(/^#/, '').toLowerCase() === key.toLowerCase());
+    const known = tagExplanations?.find(
+      (tag) => tag.tag.replace(/^#/, '').toLowerCase() === key.toLowerCase(),
+    );
     const explanation = readOnly ? Promise.resolve(known ?? null) : loadTagExplain(key, tagIds);
     void explanation.then((data) => {
       if (!data) return;
@@ -614,8 +607,8 @@ export function Feed({
   };
 
   /** 프리뷰만 leave로 닫음. active(클릭 선명)는 X/바깥 클릭으로만 닫음 */
-  const scheduleCloseIfPreview = () => {
-    if (Date.now() < ignoreLeaveUntilRef.current) return;
+  const scheduleCloseIfPreview = (now: number) => {
+    if (now < ignoreLeaveUntilRef.current) return;
     clearLeaveTimer();
     leaveTimerRef.current = window.setTimeout(() => {
       setTagOpen((prev) => {
@@ -646,7 +639,11 @@ export function Feed({
   if (removed) return null;
 
   return (
-    <article ref={readOnly ? setPreviewRoot : undefined} id={`feed-${id}`} className={clsx(styles.feed, readOnly && styles.readOnlyPreview)}>
+    <article
+      ref={readOnly ? setPreviewRoot : undefined}
+      id={`feed-${id}`}
+      className={clsx(styles.feed, readOnly && styles.readOnlyPreview)}
+    >
       {showAuthor ? (
         <header className={styles.header}>
           {storyHref ? (
@@ -656,9 +653,13 @@ export function Feed({
           ) : (
             <Profile imageUrl={profileUrl} size={36} story={readOnly ? 'none' : storyRing} />
           )}
-          {readOnly ? <span className={styles.nickname}>{nickname}</span> : <Link href={myUltaryPath(nickname)} className={styles.nickname}>
-            {nickname}
-          </Link>}
+          {readOnly ? (
+            <span className={styles.nickname}>{nickname}</span>
+          ) : (
+            <Link href={myUltaryPath(nickname)} className={styles.nickname}>
+              {nickname}
+            </Link>
+          )}
         </header>
       ) : null}
       <div className={styles.content}>
@@ -711,7 +712,8 @@ export function Feed({
                     {tagsOpen && i === index
                       ? tags.map((tag) => {
                           const href = tagOwnerHref(tag, petLabels);
-                          const label = petLabels[tag.petId]?.label ?? tag.mentionId ?? tag.petName ?? '태그';
+                          const label =
+                            petLabels[tag.petId]?.label ?? tag.mentionId ?? tag.petName ?? '태그';
                           const style = { left: `${tag.x * 100}%`, top: `${tag.y * 100}%` };
                           if (!href || readOnly) {
                             return (
@@ -795,7 +797,7 @@ export function Feed({
                               setIndex(dotIndex);
                               swiperRef.current?.slideTo(dotIndex);
                             }}
-                            aria-label={(dotIndex + 1) + '번째 사진'}
+                            aria-label={dotIndex + 1 + '번째 사진'}
                             aria-current={dotIndex === index ? 'true' : undefined}
                           />
                         ))}
@@ -826,29 +828,42 @@ export function Feed({
               <Image src={ArrowRightIcon} alt="" width={16} height={16} />
             </button>
           ) : null}
-
         </div>
 
         <div className={styles.actions}>
           <div className={styles.actionsLeft}>
-            {!readOnly ? <button
-              type="button"
-              className={clsx(styles.actionBtn, styles.actionPressable, styles.iconOnlyPress)}
-              aria-label={`좋아요 ${likes}`}
-              aria-pressed={liked}
-              disabled={likePending}
-              onClick={() => {
-                void toggleLike();
-              }}
-            >
-              <span className={styles.toggleIcon}>
-                <Heart className={styles.restIcon} size={25} strokeWidth={2} fill={liked ? 'currentColor' : 'none'} aria-hidden />
-                <Heart className={styles.pressedIcon} size={25} strokeWidth={2} fill={liked ? 'none' : 'currentColor'} aria-hidden />
-              </span>
-              <span className={clsx(styles.actionCount, liked && styles.actionCountOn)}>
-                {likes}
-              </span>
-            </button> : null}
+            {!readOnly ? (
+              <button
+                type="button"
+                className={clsx(styles.actionBtn, styles.actionPressable, styles.iconOnlyPress)}
+                aria-label={`좋아요 ${likes}`}
+                aria-pressed={liked}
+                disabled={likePending}
+                onClick={() => {
+                  void toggleLike();
+                }}
+              >
+                <span className={styles.toggleIcon}>
+                  <Heart
+                    className={styles.restIcon}
+                    size={25}
+                    strokeWidth={2}
+                    fill={liked ? 'currentColor' : 'none'}
+                    aria-hidden
+                  />
+                  <Heart
+                    className={styles.pressedIcon}
+                    size={25}
+                    strokeWidth={2}
+                    fill={liked ? 'none' : 'currentColor'}
+                    aria-hidden
+                  />
+                </span>
+                <span className={clsx(styles.actionCount, liked && styles.actionCountOn)}>
+                  {likes}
+                </span>
+              </button>
+            ) : null}
             <button
               type="button"
               className={clsx(styles.actionBtn, styles.actionPressable, styles.iconOnlyPress)}
@@ -859,149 +874,176 @@ export function Feed({
               <span className={styles.actionCount}>{comments}</span>
             </button>
           </div>
-          {!readOnly ? <div className={styles.actionsRight}>
-            {!isMine ? (
+          {!readOnly ? (
+            <div className={styles.actionsRight}>
+              {!isMine ? (
+                <button
+                  type="button"
+                  className={clsx(styles.actionBtn, styles.actionPressable)}
+                  aria-label={pinned ? '울타리 고정 해제' : '울타리 고정'}
+                  aria-pressed={pinned}
+                  disabled={pinPending}
+                  onClick={() => void togglePin()}
+                >
+                  <span className={styles.toggleIcon}>
+                    <Image
+                      className={styles.restIcon}
+                      src={pinned ? PinFillIcon : PinIcon}
+                      alt=""
+                      width={25}
+                      height={25}
+                    />
+                    <Image
+                      className={styles.pressedIcon}
+                      src={pinned ? PinIcon : PinFillIcon}
+                      alt=""
+                      width={25}
+                      height={25}
+                    />
+                  </span>
+                </button>
+              ) : null}
               <button
                 type="button"
                 className={clsx(styles.actionBtn, styles.actionPressable)}
-                aria-label={pinned ? '울타리 고정 해제' : '울타리 고정'}
-                aria-pressed={pinned}
-                disabled={pinPending}
-                onClick={() => void togglePin()}
-              >
-                <span className={styles.toggleIcon}>
-                  <Image className={styles.restIcon} src={pinned ? PinFillIcon : PinIcon} alt="" width={25} height={25} />
-                  <Image className={styles.pressedIcon} src={pinned ? PinIcon : PinFillIcon} alt="" width={25} height={25} />
-                </span>
-              </button>
-            ) : null}
-            <button
-              type="button"
-              className={clsx(styles.actionBtn, styles.actionPressable)}
-              aria-label="공유"
-              onClick={() => {
-                openModal({
-                  variant: 'action',
-                  title: '공유',
-                  items: [
-                    {
-                      label: '링크 복사',
-                      onClick: () => {
-                        const url = new URL(`/feeds/${id}`, window.location.origin);
-                        url.searchParams.set('mediaIndex', String(index));
-                        void navigator.clipboard?.writeText(url.toString()).catch(() => {
-                          /* ignore */
-                        });
-                      },
-                    },
-                    {
-                      label: '메시지로 보내기',
-                      onClick: () => {
-                        const mediaId = mediaIds?.[index];
-                        setShareMediaId(mediaId != null ? mediaId : null);
-                        setShareOpen(true);
-                      },
-                    },
-                  ],
-                });
-              }}
-            >
-              <Image src={ShareIcon} alt="" width={27} height={10} />
-            </button>
-            <div className={styles.moreWrap} ref={moreWrapRef}>
-              <button
-                type="button"
-                className={styles.actionBtn}
-                aria-label="더보기"
-                aria-expanded={moreOpen}
+                aria-label="공유"
                 onClick={() => {
-                  setMorePlace(null);
-                  setMoreOpen((open) => !open);
+                  openModal({
+                    variant: 'action',
+                    title: '공유',
+                    items: [
+                      {
+                        label: '링크 복사',
+                        onClick: () => {
+                          const url = new URL(`/feeds/${id}`, window.location.origin);
+                          url.searchParams.set('mediaIndex', String(index));
+                          void navigator.clipboard?.writeText(url.toString()).catch(() => {
+                            /* ignore */
+                          });
+                        },
+                      },
+                      {
+                        label: '메시지로 보내기',
+                        onClick: () => {
+                          const mediaId = mediaIds?.[index];
+                          setShareMediaId(mediaId != null ? mediaId : null);
+                          setShareOpen(true);
+                        },
+                      },
+                    ],
+                  });
                 }}
               >
-                <Ellipsis size={25} strokeWidth={2} />
+                <Image src={ShareIcon} alt="" width={27} height={10} />
               </button>
-              {myReport ? (
+              <div className={styles.moreWrap} ref={moreWrapRef}>
                 <button
                   type="button"
-                  className={clsx(styles.actionBtn, styles.reportIndicator)}
-                  aria-label="신고한 게시글 추가 메뉴"
+                  className={styles.actionBtn}
+                  aria-label="더보기"
                   aria-expanded={moreOpen}
                   onClick={() => {
                     setMorePlace(null);
                     setMoreOpen((open) => !open);
                   }}
                 >
-                  <Siren size={25} strokeWidth={2} aria-hidden />
+                  <Ellipsis size={25} strokeWidth={2} />
                 </button>
-              ) : null}
-              {moreOpen ? (
-                <div
-                  ref={moreMenuRef}
-                  className={styles.moreMenu}
-                  role="menu"
-                  style={
-                    morePlace
-                      ? { top: morePlace.top, left: morePlace.left }
-                      : { visibility: 'hidden' }
-                  }
-                >
-                  {!isMine ? (
+                {myReport ? (
                   <button
                     type="button"
-                    className={styles.moreItem}
-                    role="menuitem"
-                    disabled={savePending}
+                    className={clsx(styles.actionBtn, styles.reportIndicator)}
+                    aria-label="신고한 게시글 추가 메뉴"
+                    aria-expanded={moreOpen}
                     onClick={() => {
-                      setMoreOpen(false);
-                      void toggleSave();
+                      setMorePlace(null);
+                      setMoreOpen((open) => !open);
                     }}
                   >
-                    <span className={styles.moreIcon}>
-                      <Bookmark size={22} strokeWidth={1.75} fill={saved ? 'currentColor' : 'none'} />
-                    </span>
-                    <span className={styles.moreLabel}>게시글 저장</span>
+                    <Siren size={25} strokeWidth={2} aria-hidden />
                   </button>
-                  ) : (
-                    <Link href={`${myUltaryPath(nickname)}/write/compose?editFeedId=${encodeURIComponent(id)}`} className={styles.moreItem} role="menuitem"
-                      onClick={() => { setMoreOpen(false); useWriteDraftStore.getState().clear(); }}>
-                      <span className={styles.moreIcon}><Pencil size={22} strokeWidth={1.75} /></span>
-                      <span className={styles.moreLabel}>게시글 수정</span>
-                    </Link>
-                  )}
-                  {isMine ? (
-                    <button
-                      type="button"
-                      className={styles.moreItem}
-                      role="menuitem"
-                      disabled={deletePending}
-                      onClick={askDelete}
-                    >
-                      <span className={styles.moreIcon}>
-                        <Trash2 size={22} strokeWidth={1.75} />
-                      </span>
-                      <span className={styles.moreLabel}>삭제</span>
-                    </button>
-                  ) : null}
-                  {canReport ? (
-                    <button
-                      type="button"
-                      className={styles.moreItem}
-                      role="menuitem"
-                      onClick={askReport}
-                    >
-                      <span className={styles.moreIcon}>
-                        <Flag size={22} strokeWidth={1.75} />
-                      </span>
-                      <span className={styles.moreLabel}>
-                        {canCancelReport(myReport) ? '신고취소' : '신고하기'}
-                      </span>
-                    </button>
-                  ) : null}
-                </div>
-              ) : null}
+                ) : null}
+                {moreOpen ? (
+                  <div
+                    ref={moreMenuRef}
+                    className={styles.moreMenu}
+                    role="menu"
+                    style={
+                      morePlace
+                        ? { top: morePlace.top, left: morePlace.left }
+                        : { visibility: 'hidden' }
+                    }
+                  >
+                    {!isMine ? (
+                      <button
+                        type="button"
+                        className={styles.moreItem}
+                        role="menuitem"
+                        disabled={savePending}
+                        onClick={() => {
+                          setMoreOpen(false);
+                          void toggleSave();
+                        }}
+                      >
+                        <span className={styles.moreIcon}>
+                          <Bookmark
+                            size={22}
+                            strokeWidth={1.75}
+                            fill={saved ? 'currentColor' : 'none'}
+                          />
+                        </span>
+                        <span className={styles.moreLabel}>게시글 저장</span>
+                      </button>
+                    ) : (
+                      <Link
+                        href={`${myUltaryPath(nickname)}/write/compose?editFeedId=${encodeURIComponent(id)}`}
+                        className={styles.moreItem}
+                        role="menuitem"
+                        onClick={() => {
+                          setMoreOpen(false);
+                          useWriteDraftStore.getState().clear();
+                        }}
+                      >
+                        <span className={styles.moreIcon}>
+                          <Pencil size={22} strokeWidth={1.75} />
+                        </span>
+                        <span className={styles.moreLabel}>게시글 수정</span>
+                      </Link>
+                    )}
+                    {isMine ? (
+                      <button
+                        type="button"
+                        className={styles.moreItem}
+                        role="menuitem"
+                        disabled={deletePending}
+                        onClick={askDelete}
+                      >
+                        <span className={styles.moreIcon}>
+                          <Trash2 size={22} strokeWidth={1.75} />
+                        </span>
+                        <span className={styles.moreLabel}>삭제</span>
+                      </button>
+                    ) : null}
+                    {canReport ? (
+                      <button
+                        type="button"
+                        className={styles.moreItem}
+                        role="menuitem"
+                        onClick={askReport}
+                      >
+                        <span className={styles.moreIcon}>
+                          <Flag size={22} strokeWidth={1.75} />
+                        </span>
+                        <span className={styles.moreLabel}>
+                          {canCancelReport(myReport) ? '신고취소' : '신고하기'}
+                        </span>
+                      </button>
+                    ) : null}
+                  </div>
+                ) : null}
+              </div>
             </div>
-          </div> : null}
+          ) : null}
         </div>
 
         <div className={styles.captionWrap}>
@@ -1037,7 +1079,7 @@ export function Feed({
                     if (lastPointerTypeRef.current !== 'mouse') return;
                     hoverTagRef.current = null;
                     clearHoverOpenTimer();
-                    scheduleCloseIfPreview();
+                    scheduleCloseIfPreview(Date.now());
                   }}
                 >
                   {part.value}
@@ -1054,10 +1096,7 @@ export function Feed({
           ) : null}
         </div>
         {createdAt ? (
-          <RevealTime
-            {...formatFeedTime(createdAt)}
-            className={styles.postedAt}
-          />
+          <RevealTime {...formatFeedTime(createdAt)} className={styles.postedAt} />
         ) : null}
       </div>
 
@@ -1075,7 +1114,7 @@ export function Feed({
           onPopoverEnter={clearLeaveTimer}
           onPopoverLeave={() => {
             // active(클릭으로 연 상태)는 태그/모달 leave로 닫지 않음
-            scheduleCloseIfPreview();
+            scheduleCloseIfPreview(Date.now());
           }}
         />
       ) : null}
@@ -1092,12 +1131,14 @@ export function Feed({
         onCommentCreated={() => setComments((count) => count + 1)}
         onCommentDeleted={() => setComments((count) => Math.max(0, count - 1))}
       />
-      {!readOnly ? <ShareMessageSheet
-        open={shareOpen}
-        onClose={() => setShareOpen(false)}
-        feedId={id}
-        feedMediaId={shareMediaId}
-      /> : null}
+      {!readOnly ? (
+        <ShareMessageSheet
+          open={shareOpen}
+          onClose={() => setShareOpen(false)}
+          feedId={id}
+          feedMediaId={shareMediaId}
+        />
+      ) : null}
     </article>
   );
 }

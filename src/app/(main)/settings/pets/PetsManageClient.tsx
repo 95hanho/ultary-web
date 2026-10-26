@@ -1,4 +1,5 @@
 'use client';
+import { useHydrated } from '@/lib/react/useHydrated';
 
 import { PageLoadError } from '@/components/common/PageLoadError';
 
@@ -29,6 +30,7 @@ import {
   type ChangeEvent,
   type FormEvent,
   type PointerEvent as ReactPointerEvent,
+  useLayoutEffect,
 } from 'react';
 import { createPortal } from 'react-dom';
 import styles from './pets.module.scss';
@@ -150,7 +152,7 @@ export default function PetsManageClient() {
   const [formMode, setFormMode] = useState<FormMode>('create');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<PetFormState>(emptyForm);
-  const [mounted, setMounted] = useState(false);
+  const mounted = useHydrated();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const itemRefs = useRef<Map<string, HTMLDivElement>>(new Map());
@@ -158,8 +160,12 @@ export default function PetsManageClient() {
   const dragRef = useRef<DragSession | null>(null);
   const suppressClickRef = useRef(false);
 
-  petsRef.current = pets;
-  dragRef.current = drag;
+  useLayoutEffect(() => {
+    petsRef.current = pets;
+  });
+  useLayoutEffect(() => {
+    dragRef.current = drag;
+  });
 
   const loadPets = useCallback(async () => {
     const res = await bffGet<BffEnvelope<Pet[]>>(bffEndpoints.pets.root);
@@ -171,10 +177,6 @@ export default function PetsManageClient() {
   }, []);
 
   useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
@@ -182,7 +184,7 @@ export default function PetsManageClient() {
       } catch (err) {
         if (!cancelled) {
           setListError(pickErrorMessage(err, '반려동물 목록을 불러오지 못했습니다.'));
-        setLoadFailed({ error: err });
+          setLoadFailed({ error: err });
         }
       } finally {
         if (!cancelled) setLoading(false);
@@ -689,11 +691,7 @@ export default function PetsManageClient() {
                     {formMode === 'edit' ? (
                       <div className={styles.fieldRow}>
                         <span className={styles.fieldLabel}>기타</span>
-                        <button
-                          type="button"
-                          className={styles.deleteBtn}
-                          onClick={handleDelete}
-                        >
+                        <button type="button" className={styles.deleteBtn} onClick={handleDelete}>
                           삭제
                         </button>
                       </div>

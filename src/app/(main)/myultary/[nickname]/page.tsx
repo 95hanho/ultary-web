@@ -10,6 +10,9 @@ import { PageLoadError } from '@/components/common/PageLoadError';
 import reloadStyles from '@/components/common/PageLoadError.module.scss';
 import { notFound } from 'next/navigation';
 import { isUnavailablePageError } from '@/lib/api/page-load-error';
+import { publicPageMetadata } from '@/lib/seo/metadata';
+import { SEO_ORIGIN } from '@/lib/seo/site';
+import { NO_PROFILE_SRC } from '@/lib/profileImage';
 
 type PageProps = { params: Promise<{ nickname: string }> };
 
@@ -21,11 +24,20 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   try {
     const nickname = decodeURIComponent(encodedNickname);
     const data = await loadPublicUltary(nickname);
-    const title = ultaryTitle(data.profile.nickname, data.pets.map(pet => pet.handle));
-    return { title, description: data.profile.bio || `${data.profile.nickname}님의 반려동물과 일상을 만나보세요.`,
-      alternates: { canonical: myUltaryPath(data.profile.nickname) },
-      openGraph: { title, type: 'profile', url: myUltaryPath(data.profile.nickname) },
-      robots: { index: true, follow: true } };
+    const title = ultaryTitle(
+      data.profile.nickname,
+      data.pets.map((pet) => pet.handle),
+    );
+    const image =
+      data.pets.find((pet) => pet.imageUrl && pet.imageUrl !== NO_PROFILE_SRC)?.imageUrl ??
+      data.feeds?.find((feed) => feed.imageUrl)?.imageUrl;
+    return publicPageMetadata({
+      origin: SEO_ORIGIN,
+      path: myUltaryPath(data.profile.nickname),
+      title,
+      description: data.profile.bio || data.profile.nickname + '님의 반려동물과 일상을 만나보세요.',
+      image,
+    });
   } catch {
     return { title: 'Ultary', robots: { index: false, follow: false } };
   }
@@ -42,14 +54,23 @@ export default async function MyUltaryNicknamePage({ params }: PageProps) {
   const [access, refresh] = await Promise.all([getAccessToken(), getRefreshToken()]);
   if (access || refresh) return <MyUltaryClient key={`${nickname}:member`} nickname={nickname} />;
   const { data: guestData, error: loadError } = await loadPublicUltary(nickname)
-    .then(data => ({ data, error: undefined }))
+    .then((data) => ({ data, error: undefined }))
     .catch((error: unknown) => {
       if (isUnavailablePageError(error)) notFound();
       return { data: null, error };
     });
-  if (guestData) return <MyUltaryClient key={`${nickname}:guest`} nickname={nickname} guestData={guestData} />;
-  return <div style={{ width: '100%', maxWidth: 430, marginInline: 'auto' }}>
-      <LogoHeader actions={<Link href="/login" className={reloadStyles.reload} style={{ marginTop: 0 }}>로그인</Link>} />
+  if (guestData)
+    return <MyUltaryClient key={`${nickname}:guest`} nickname={nickname} guestData={guestData} />;
+  return (
+    <div style={{ width: '100%', maxWidth: 430, marginInline: 'auto' }}>
+      <LogoHeader
+        actions={
+          <Link href="/login" className={reloadStyles.reload} style={{ marginTop: 0 }}>
+            로그인
+          </Link>
+        }
+      />
       <PageLoadError error={loadError} />
-    </div>;
+    </div>
+  );
 }

@@ -1,4 +1,5 @@
 'use client';
+import { useResettableState } from '@/lib/react/useResettableState';
 
 import { PageLoadError } from '@/components/common/PageLoadError';
 
@@ -11,7 +12,7 @@ import { isRecord } from '@/lib/api/error';
 import { mapFeedGrid } from '@/lib/myultary/fromApi';
 import type { BffEnvelope } from '@/types/api';
 import { useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import styles from '../../search.module.scss';
 
 function hashtagLabel(raw: unknown) {
@@ -22,21 +23,20 @@ function hashtagLabel(raw: unknown) {
 
 /** 태그 검색 그리드. 주소는 /search/tags/{tagId} */
 export default function TagGridClient({ tagId }: { tagId: string }) {
-  const [loadFailed, setLoadFailed] = useState<{ error: unknown } | null>(null);
+  const validId = Number.isInteger(Number(tagId)) && Number(tagId) > 0;
+  const [loadFailed, setLoadFailed] = useResettableState<{ error: unknown } | null>(null, [tagId]);
   const router = useRouter();
-  const [title, setTitle] = useState('');
-  const [posts, setPosts] = useState<FeedGridItem[]>([]);
-  const [state, setState] = useState<'loading' | 'ready'>('loading');
+  const [title, setTitle] = useResettableState('', [tagId]);
+  const [posts, setPosts] = useResettableState<FeedGridItem[]>([], [tagId]);
+  const [state, setState] = useResettableState<'loading' | 'ready'>(validId ? 'loading' : 'ready', [
+    tagId,
+  ]);
 
   useEffect(() => {
     const id = Number(tagId);
-    if (!Number.isInteger(id) || id <= 0) {
-      setState('ready');
-      return;
-    }
+    if (!Number.isInteger(id) || id <= 0) return;
 
     let cancelled = false;
-    setState('loading');
 
     void bffPostJson(bffEndpoints.main.searchRecent, { tagId: id }).catch((err) => {
       console.error('[search] recent tag save failed', err);
@@ -60,9 +60,7 @@ export default function TagGridClient({ tagId }: { tagId: string }) {
           limit: 30,
         });
         if (cancelled) return;
-        setPosts(
-          mapFeedGrid(res.data ?? res, (feedId) => `/posts/${feedId}`),
-        );
+        setPosts(mapFeedGrid(res.data ?? res, (feedId) => `/posts/${feedId}`));
         setState('ready');
       } catch (err) {
         console.error('[search] tag grid failed', err);
@@ -74,7 +72,7 @@ export default function TagGridClient({ tagId }: { tagId: string }) {
     return () => {
       cancelled = true;
     };
-  }, [tagId]);
+  }, [setLoadFailed, setPosts, setState, setTitle, tagId]);
 
   if (loadFailed) return <PageLoadError error={loadFailed.error} />;
 

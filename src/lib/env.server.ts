@@ -7,7 +7,7 @@ export const BFF_INTERNAL_KEY = process.env.BFF_INTERNAL_KEY ?? '';
 
 /** 앱 오리진 (OAuth redirect용) */
 export const APP_URL =
-  process.env.APP_URL ?? process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';
+  process.env.APP_URL?.trim() || process.env.NEXT_PUBLIC_APP_URL?.trim() || 'http://localhost:3000';
 
 export const isProd = process.env.NODE_ENV === 'production';
 

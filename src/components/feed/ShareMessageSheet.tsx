@@ -1,4 +1,6 @@
 'use client';
+import { useResettableState } from '@/lib/react/useResettableState';
+import { useHydrated } from '@/lib/react/useHydrated';
 
 import { AccountSearchList } from '@/components/common/AccountSearchList';
 import { MediaImage } from '@/components/common/MediaImage';
@@ -19,6 +21,7 @@ import {
   type FormEvent,
   type PointerEvent as ReactPointerEvent,
   type TransitionEvent as ReactTransitionEvent,
+  useLayoutEffect,
 } from 'react';
 import { createPortal } from 'react-dom';
 import styles from './ShareMessageSheet.module.scss';
@@ -57,11 +60,11 @@ export function ShareMessageSheet({
   feedMediaId,
   priorityOrder,
 }: ShareMessageSheetProps) {
-  const [hydrated, setHydrated] = useState(false);
-  const [present, setPresent] = useState(false);
-  const [shown, setShown] = useState(false);
-  const [dragY, setDragY] = useState(0);
-  const [exitY, setExitY] = useState<number | null>(null);
+  const hydrated = useHydrated();
+  const [present, setPresent] = useResettableState(open, [open], open);
+  const [shown, setShown] = useResettableState(false, [open], open);
+  const [dragY, setDragY] = useResettableState(0, [open], open);
+  const [exitY, setExitY] = useResettableState<number | null>(null, [open], open);
   const [dragging, setDragging] = useState(false);
   const startYRef = useRef(0);
   const dragYRef = useRef(0);
@@ -69,28 +72,21 @@ export function ShareMessageSheet({
   const closingRef = useRef(false);
   const presentRef = useRef(false);
   const openRef = useRef(open);
-  openRef.current = open;
+  useLayoutEffect(() => {
+    openRef.current = open;
+  });
 
-  const [rows, setRows] = useState<ShareTarget[]>([]);
-  const [listStatus, setListStatus] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle');
-  const [selectedUserNo, setSelectedUserNo] = useState<number | null>(null);
-  const [draft, setDraft] = useState('');
-  const [query, setQuery] = useState('');
+  const [rows, setRows] = useResettableState<ShareTarget[]>([], [open], open);
+  const [listStatus, setListStatus] = useResettableState<'idle' | 'loading' | 'ready' | 'error'>(
+    'loading',
+    [open],
+    open,
+  );
+  const [selectedUserNo, setSelectedUserNo] = useResettableState<number | null>(null, [open], open);
+  const [draft, setDraft] = useResettableState('', [open], open);
+  const [query, setQuery] = useResettableState('', [open], open);
   const priorityKey = priorityOrder?.join(',') ?? '';
   const [sending, setSending] = useState(false);
-
-  useEffect(() => {
-    setHydrated(true);
-  }, []);
-
-  useEffect(() => {
-    if (!open) return;
-    setDraft('');
-    setSelectedUserNo(null);
-    setQuery('');
-    setRows([]);
-    setListStatus('loading');
-  }, [open]);
 
   useEffect(() => {
     if (!open) return;
@@ -122,7 +118,7 @@ export function ShareMessageSheet({
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [open, query, priorityKey]);
+  }, [open, query, priorityKey, setRows, setListStatus]);
 
   const animateClose = useCallback(() => {
     if (closingRef.current || !presentRef.current) return;
@@ -131,7 +127,7 @@ export function ShareMessageSheet({
     const height = sheetRef.current?.offsetHeight ?? window.innerHeight;
     setExitY(Math.max(dragYRef.current, height));
     setShown(false);
-  }, []);
+  }, [setExitY, setShown]);
 
   useEffect(() => {
     if (!open) {
@@ -140,10 +136,6 @@ export function ShareMessageSheet({
     }
     closingRef.current = false;
     presentRef.current = true;
-    setExitY(null);
-    setPresent(true);
-    setShown(false);
-    setDragY(0);
     dragYRef.current = 0;
     const id = requestAnimationFrame(() => {
       requestAnimationFrame(() => setShown(true));
@@ -154,7 +146,7 @@ export function ShareMessageSheet({
       cancelAnimationFrame(id);
       document.body.style.overflow = prev;
     };
-  }, [open, animateClose]);
+  }, [open, animateClose, setShown]);
 
   function finishClose() {
     presentRef.current = false;
@@ -181,7 +173,7 @@ export function ShareMessageSheet({
     }
     setDragY(0);
     dragYRef.current = 0;
-  }, [animateClose]);
+  }, [animateClose, setDragY]);
 
   function onHandlePointerDown(event: ReactPointerEvent<HTMLDivElement>) {
     if (closingRef.current) return;

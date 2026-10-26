@@ -1,15 +1,16 @@
 'use client';
+import { useHydrated } from '@/lib/react/useHydrated';
 
 import { useModalStore } from '@/stores/modal.store';
 import clsx from 'clsx';
 import { X } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import styles from './Modal.module.scss';
 
 /** Zustand 공통 모달 호스트 — Providers에 한 번만 마운트 */
 export function ModalHost() {
-  const [mounted, setMounted] = useState(false);
+  const mounted = useHydrated();
   const isOpen = useModalStore((s) => s.isOpen);
   const variant = useModalStore((s) => s.variant);
   const title = useModalStore((s) => s.title);
@@ -22,10 +23,6 @@ export function ModalHost() {
   const close = useModalStore((s) => s.close);
   const confirmOk = useModalStore((s) => s.confirmOk);
   const confirmCancel = useModalStore((s) => s.confirmCancel);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -45,8 +42,7 @@ export function ModalHost() {
 
   const isDialog = variant === 'alert' || variant === 'confirm';
   const showHeader = Boolean(title) || showCloseButton;
-  const showFooter =
-    variant === 'confirm' && (!okButton.hidden || !cancelButton.hidden);
+  const showFooter = variant === 'confirm' && (!okButton.hidden || !cancelButton.hidden);
 
   return createPortal(
     <div
@@ -57,10 +53,7 @@ export function ModalHost() {
       }}
     >
       <div
-        className={clsx(
-          styles.panel,
-          isDialog ? styles.panelDialog : styles.panelAction,
-        )}
+        className={clsx(styles.panel, isDialog ? styles.panelDialog : styles.panelAction)}
         role="dialog"
         aria-modal="true"
         aria-label={title || '모달'}
@@ -68,17 +61,11 @@ export function ModalHost() {
       >
         {showHeader ? (
           <div
-            className={clsx(
-              styles.header,
-              isDialog ? styles.headerDialog : styles.headerAction,
-            )}
+            className={clsx(styles.header, isDialog ? styles.headerDialog : styles.headerAction)}
           >
             {title ? (
               <h2
-                className={clsx(
-                  styles.title,
-                  isDialog ? styles.titleDialog : styles.titleAction,
-                )}
+                className={clsx(styles.title, isDialog ? styles.titleDialog : styles.titleAction)}
               >
                 {title}
               </h2>
@@ -86,12 +73,7 @@ export function ModalHost() {
               <span />
             )}
             {showCloseButton ? (
-              <button
-                type="button"
-                className={styles.closeBtn}
-                aria-label="닫기"
-                onClick={close}
-              >
+              <button type="button" className={styles.closeBtn} aria-label="닫기" onClick={close}>
                 <X size={24} strokeWidth={1.75} />
               </button>
             ) : null}

@@ -1,4 +1,6 @@
 'use client';
+import { useResettableState } from '@/lib/react/useResettableState';
+import { useHydrated } from '@/lib/react/useHydrated';
 
 import type { PublicUltaryView } from '@/types/public-ultary';
 import { ultaryTitle } from '@/lib/myultary/title';
@@ -33,7 +35,12 @@ import {
   readUltaryGridScroll,
   saveUltaryGridScroll,
 } from '@/lib/myultary/gridScroll';
-import { cancelReport, canCancelReport, openReportModal, type MyReport } from '@/lib/report/openReport';
+import {
+  cancelReport,
+  canCancelReport,
+  openReportModal,
+  type MyReport,
+} from '@/lib/report/openReport';
 import { useWriteDraftStore } from '@/stores/write-draft.store';
 import { useStoryDraftStore } from '@/stores/story-draft.store';
 import { useModalStore } from '@/stores/modal.store';
@@ -43,7 +50,16 @@ import { MediaImage } from '@/components/common/MediaImage';
 import Image from 'next/image';
 import Link from 'next/link';
 import { notFound, useRouter } from 'next/navigation';
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ChangeEvent, type MouseEvent } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ChangeEvent,
+  type MouseEvent,
+} from 'react';
 import { createPortal } from 'react-dom';
 import type { Swiper as SwiperType } from 'swiper';
 import 'swiper/css';
@@ -173,31 +189,75 @@ export default function MyUltaryClient({ nickname, guestData }: MyUltaryClientPr
   const [canPetNext, setCanPetNext] = useState(false);
   const [petViewMode, setPetViewMode] = useState<'carousel' | 'detail'>('carousel');
   const [selectedPetId, setSelectedPetId] = useState('');
-  const [contentTab, setContentTab] = useState<ContentTab>('feed');
+  const hydrated = useHydrated();
+  const [restoredScroll] = useResettableState(
+    () => (hydrated ? readUltaryGridScroll(nickname) : null),
+    [nickname, hydrated],
+  );
+  const [contentTab, setContentTab] = useResettableState<ContentTab>(
+    restoredScroll?.tab ?? 'feed',
+    [nickname, hydrated],
+  );
   const pendingGridScrollY = useRef<number | null>(null);
   const [photoTargetPetId, setPhotoTargetPetId] = useState<string | null>(null);
+  const [profileReload, setProfileReload] = useState(0);
   const [profile, setProfile] = useState<MyUltaryProfile | null>(guestData?.profile ?? null);
   const [viewingOwn, setViewingOwn] = useState(!guest && mockAccount?.isOwnAccount === true);
-  const [profileReady, setProfileReady] = useState(guest || !expectsOwn);
+  const [profileReady, setProfileReady] = useResettableState(
+    guest || !expectsOwn,
+    [basePath, expectsOwn, nickname, guest, profileReload],
+    !guest && expectsOwn,
+  );
   const [unknownAccount, setUnknownAccount] = useState(false);
   const [apiPets, setApiPets] = useState<Pet[]>(guestData?.pets ?? []);
   const [apiFeedPosts, setApiFeedPosts] = useState<FeedGridItem[]>(guestData?.feeds ?? []);
-  const [pinnedPosts, setPinnedPosts] = useState<FeedGridItem[]>(guestData?.pinned ?? []);
-  const [taggedPosts, setTaggedPosts] = useState<FeedGridItem[]>(guestData?.tagged ?? []);
-  const [feedsReady, setFeedsReady] = useState(guest || !expectsOwn);
-  const [pinnedReady, setPinnedReady] = useState(guest || !expectsOwn);
-  const [taggedReady, setTaggedReady] = useState(guest || !expectsOwn);
-  const [bio, setBio] = useState(() => (guestData?.profile.bio ?? (expectsOwn ? '' : (mockAccount?.bio ?? ''))));
-  const [savedBio, setSavedBio] = useState(() => (guestData?.profile.bio ?? (expectsOwn ? '' : (mockAccount?.bio ?? ''))));
+  const [pinnedPosts, setPinnedPosts] = useResettableState<FeedGridItem[]>(
+    guestData?.pinned ?? [],
+    [basePath, expectsOwn, nickname, guest, profileReload],
+    !guest && expectsOwn,
+  );
+  const [taggedPosts, setTaggedPosts] = useResettableState<FeedGridItem[]>(
+    guestData?.tagged ?? [],
+    [basePath, expectsOwn, nickname, guest, profileReload],
+    !guest && expectsOwn,
+  );
+  const [feedsReady, setFeedsReady] = useResettableState(
+    guest || !expectsOwn,
+    [basePath, expectsOwn, nickname, guest, profileReload],
+    !guest && expectsOwn,
+  );
+  const [pinnedReady, setPinnedReady] = useResettableState(
+    guest || !expectsOwn,
+    [basePath, expectsOwn, nickname, guest, profileReload],
+    !guest && expectsOwn,
+  );
+  const [taggedReady, setTaggedReady] = useResettableState(
+    guest || !expectsOwn,
+    [basePath, expectsOwn, nickname, guest, profileReload],
+    !guest && expectsOwn,
+  );
+  const [bio, setBio] = useState(
+    () => guestData?.profile.bio ?? (expectsOwn ? '' : (mockAccount?.bio ?? '')),
+  );
+  const [savedBio, setSavedBio] = useState(
+    () => guestData?.profile.bio ?? (expectsOwn ? '' : (mockAccount?.bio ?? '')),
+  );
   const [editingBio, setEditingBio] = useState(false);
   const bioInputRef = useRef<HTMLInputElement>(null);
 
   const openModal = useModalStore((s) => s.open);
-  const [petMenu, setPetMenu] = useState<DOMRect | null>(null);
+  const [petMenu, setPetMenu] = useResettableState<DOMRect | null>(
+    null,
+    [viewingOwn, unknownAccount],
+    viewingOwn && !unknownAccount,
+  );
   const [petMenuPlace, setPetMenuPlace] = useState<{ top: number; left: number } | null>(null);
-  const [accountReport, setAccountReport] = useState<MyReport | null>(null);
+  const [accountReport, setAccountReport] = useResettableState<MyReport | null>(
+    profile?.myReport ?? null,
+    [profile?.userNo, profile?.myReport],
+  );
   const [blockingAccount, setBlockingAccount] = useState(false);
-  const [profileReload, setProfileReload] = useState(0);
+
   const [relationBusy, setRelationBusy] = useState(false);
   const petMenuRef = useRef<HTMLDivElement>(null);
   const setWriteItems = useWriteDraftStore((s) => s.setItems);
@@ -221,16 +281,17 @@ export default function MyUltaryClient({ nickname, guestData }: MyUltaryClientPr
     ? (profile?.nickname ?? nickname)
     : (mockAccount?.nickname ?? nickname);
   const postCount = expectsOwn ? (profile?.feedCount ?? 0) : (mockAccount?.postCount ?? 0);
-  const followCount = expectsOwn
-    ? (profile?.followCount ?? 0)
-    : (mockAccount?.followCount ?? 0);
+  const followCount = expectsOwn ? (profile?.followCount ?? 0) : (mockAccount?.followCount ?? 0);
   const followerCount = expectsOwn
     ? (profile?.followerCount ?? 0)
     : (mockAccount?.followerCount ?? 0);
 
   useEffect(() => {
     if (!profileReady) return;
-    document.title = ultaryTitle(displayNickname, pets.map(pet => pet.handle));
+    document.title = ultaryTitle(
+      displayNickname,
+      pets.map((pet) => pet.handle),
+    );
   }, [profileReady, displayNickname, pets]);
 
   useEffect(() => {
@@ -249,10 +310,9 @@ export default function MyUltaryClient({ nickname, guestData }: MyUltaryClientPr
     if (!expectsOwn || next === savedBio) return;
     void (async () => {
       try {
-        await bffPatchJson<BffEnvelope<unknown>, { bio: string }>(
-          bffEndpoints.myUltary.bio,
-          { bio: next },
-        );
+        await bffPatchJson<BffEnvelope<unknown>, { bio: string }>(bffEndpoints.myUltary.bio, {
+          bio: next,
+        });
         setSavedBio(next);
         setProfile((prev) => (prev ? { ...prev, bio: next } : prev));
       } catch (err) {
@@ -265,20 +325,14 @@ export default function MyUltaryClient({ nickname, guestData }: MyUltaryClientPr
   useEffect(() => {
     if (guest || !expectsOwn) return;
     let cancelled = false;
-    setProfileReady(false);
-    setFeedsReady(false);
-    setPinnedReady(false);
-    setTaggedReady(false);
-    setPinnedPosts([]);
-    setTaggedPosts([]);
+
     (async () => {
       try {
         const res = await bffGet<BffEnvelope<unknown>>(bffEndpoints.myUltary.profile);
         const nextProfile = mapMyUltaryProfile(res.data);
         if (cancelled) return;
         const isMine =
-          nickname === MY_NICKNAME ||
-          (nextProfile != null && nickname === nextProfile.nickname);
+          nickname === MY_NICKNAME || (nextProfile != null && nickname === nextProfile.nickname);
         if (isMine && nextProfile) {
           setViewingOwn(true);
           setProfile(nextProfile);
@@ -296,9 +350,7 @@ export default function MyUltaryClient({ nickname, guestData }: MyUltaryClientPr
           setSelectedPetId((current) =>
             nextPets.some((pet) => pet.id === current) ? current : (nextPets[0]?.id ?? ''),
           );
-          setApiFeedPosts(
-            mapFeedGrid(feedsRes.data, (id) => `${basePath}/posts/${id}`),
-          );
+          setApiFeedPosts(mapFeedGrid(feedsRes.data, (id) => `${basePath}/posts/${id}`));
           setFeedsReady(true);
           return;
         }
@@ -318,7 +370,9 @@ export default function MyUltaryClient({ nickname, guestData }: MyUltaryClientPr
           return;
         }
         const otherUserNo = matched.userNo;
-        const otherRes = await bffGet<BffEnvelope<unknown>>(bffEndpoints.users.ultary, { userNo: otherUserNo });
+        const otherRes = await bffGet<BffEnvelope<unknown>>(bffEndpoints.users.ultary, {
+          userNo: otherUserNo,
+        });
         const otherProfile = mapMyUltaryProfile(otherRes.data);
         if (cancelled) return;
         if (otherProfile?.relationStatus === 'BLOCKED') {
@@ -355,9 +409,7 @@ export default function MyUltaryClient({ nickname, guestData }: MyUltaryClientPr
         setSelectedPetId((current) =>
           nextPets.some((pet) => pet.id === current) ? current : (nextPets[0]?.id ?? ''),
         );
-        setApiFeedPosts(
-          mapFeedGrid(feedsRes.data, (id) => `${basePath}/posts/${id}`),
-        );
+        setApiFeedPosts(mapFeedGrid(feedsRes.data, (id) => `${basePath}/posts/${id}`));
         setProfileReady(true);
         setFeedsReady(true);
       } catch (err) {
@@ -372,10 +424,17 @@ export default function MyUltaryClient({ nickname, guestData }: MyUltaryClientPr
     return () => {
       cancelled = true;
     };
-  }, [basePath, expectsOwn, nickname, guest, profileReload]);
+  }, [basePath, expectsOwn, nickname, guest, profileReload, setProfileReady, setFeedsReady]);
 
   useEffect(() => {
-    if (guest || profile?.relationStatus === 'BLOCKED' || !profileReady || contentTab !== 'pinned' || pinnedReady) return;
+    if (
+      guest ||
+      profile?.relationStatus === 'BLOCKED' ||
+      !profileReady ||
+      contentTab !== 'pinned' ||
+      pinnedReady
+    )
+      return;
     const ownerUserNo = profile?.userNo;
     if (!viewingOwn && ownerUserNo == null) return;
     let cancelled = false;
@@ -402,10 +461,28 @@ export default function MyUltaryClient({ nickname, guestData }: MyUltaryClientPr
     return () => {
       cancelled = true;
     };
-  }, [basePath, contentTab, pinnedReady, profile?.userNo, profile?.relationStatus, profileReady, viewingOwn, guest]);
+  }, [
+    basePath,
+    contentTab,
+    pinnedReady,
+    profile?.userNo,
+    profile?.relationStatus,
+    profileReady,
+    viewingOwn,
+    guest,
+    setPinnedPosts,
+    setPinnedReady,
+  ]);
 
   useEffect(() => {
-    if (guest || profile?.relationStatus === 'BLOCKED' || !profileReady || contentTab !== 'tagged' || taggedReady) return;
+    if (
+      guest ||
+      profile?.relationStatus === 'BLOCKED' ||
+      !profileReady ||
+      contentTab !== 'tagged' ||
+      taggedReady
+    )
+      return;
     const ownerUserNo = profile?.userNo;
     if (!viewingOwn && ownerUserNo == null) return;
     let cancelled = false;
@@ -432,7 +509,18 @@ export default function MyUltaryClient({ nickname, guestData }: MyUltaryClientPr
     return () => {
       cancelled = true;
     };
-  }, [basePath, contentTab, profile?.userNo, profile?.relationStatus, profileReady, taggedReady, viewingOwn, guest]);
+  }, [
+    basePath,
+    contentTab,
+    profile?.userNo,
+    profile?.relationStatus,
+    profileReady,
+    taggedReady,
+    viewingOwn,
+    guest,
+    setTaggedPosts,
+    setTaggedReady,
+  ]);
 
   const openCreateMenu = () => {
     openModal({
@@ -464,9 +552,7 @@ export default function MyUltaryClient({ nickname, guestData }: MyUltaryClientPr
       const items = await Promise.all(
         files.map(async (file, i) => {
           const isVideo = file.type.startsWith('video/');
-          const sourceUrl = isVideo
-            ? URL.createObjectURL(file)
-            : await readFileAsDataUrl(file);
+          const sourceUrl = isVideo ? URL.createObjectURL(file) : await readFileAsDataUrl(file);
           return {
             id: `media-${Date.now()}-${i}`,
             kind: (isVideo ? 'video' : 'image') as 'image' | 'video',
@@ -504,14 +590,14 @@ export default function MyUltaryClient({ nickname, guestData }: MyUltaryClientPr
   };
 
   useLayoutEffect(() => {
-    const saved = readUltaryGridScroll(nickname);
+    const saved = restoredScroll;
     if (!saved) return;
     pendingGridScrollY.current = saved.scrollY;
-    setContentTab(saved.tab);
-  }, [nickname]);
+  }, [restoredScroll]);
 
   const blockedByMe = !guest && !isOwnAccount && profile?.relationStatus === 'BLOCKED';
-  const showRelationActions = !guest && !blockedByMe && profileReady && !isOwnAccount && profile?.userNo != null;
+  const showRelationActions =
+    !guest && !blockedByMe && profileReady && !isOwnAccount && profile?.userNo != null;
 
   const toggleFollow = async () => {
     if (!profile?.userNo || relationBusy || isOwnAccount) return;
@@ -648,14 +734,6 @@ export default function MyUltaryClient({ nickname, guestData }: MyUltaryClientPr
     };
   }, [gridReady, nickname, profileReady, posts.length]);
 
-  useEffect(() => {
-    if (isOwnAccount) setPetMenu(null);
-  }, [isOwnAccount]);
-
-  useEffect(() => {
-    setAccountReport(profile?.myReport ?? null);
-  }, [profile?.userNo, profile?.myReport]);
-
   useLayoutEffect(() => {
     if (!petMenu) return;
     const el = petMenuRef.current;
@@ -689,7 +767,7 @@ export default function MyUltaryClient({ nickname, guestData }: MyUltaryClientPr
       window.removeEventListener('resize', close);
       document.removeEventListener('keydown', onKey);
     };
-  }, [petMenu]);
+  }, [petMenu, setPetMenu]);
 
   const askReportAccount = useCallback(() => {
     const userNo = profile?.userNo;
@@ -710,16 +788,26 @@ export default function MyUltaryClient({ nickname, guestData }: MyUltaryClientPr
       return;
     }
     openReportModal({ targetType: 'USER', targetId: userNo }, setAccountReport);
-  }, [accountReport, openModal, profile?.userNo]);
+  }, [accountReport, openModal, profile?.userNo, setAccountReport, setPetMenu]);
 
   const toggleAccountBlock = async () => {
     const userNo = profile?.userNo;
     if (guest || isOwnAccount || userNo == null || blockingAccount) return;
     setBlockingAccount(true);
     const showBlockedProfile = () => {
-      setProfile(current => current ? { ...current, relationStatus: 'BLOCKED', following: false, followedBy: false,
-        neighborId: null, followerCount: Math.max(0, current.followerCount - (current.following ? 1 : 0)),
-        followCount: Math.max(0, current.followCount - (current.followedBy ? 1 : 0)) } : current);
+      setProfile((current) =>
+        current
+          ? {
+              ...current,
+              relationStatus: 'BLOCKED',
+              following: false,
+              followedBy: false,
+              neighborId: null,
+              followerCount: Math.max(0, current.followerCount - (current.following ? 1 : 0)),
+              followCount: Math.max(0, current.followCount - (current.followedBy ? 1 : 0)),
+            }
+          : current,
+      );
       setApiPets([]);
       setApiFeedPosts([]);
       setPinnedPosts([]);
@@ -730,7 +818,7 @@ export default function MyUltaryClient({ nickname, guestData }: MyUltaryClientPr
       if (blockedByMe) {
         await bffDelete<BffEnvelope<unknown>>(bffEndpoints.users.unblock, { userNo });
         setPetMenu(null);
-        setProfileReload(value => value + 1);
+        setProfileReload((value) => value + 1);
         return;
       }
       await bffPostJson<BffEnvelope<unknown>>(bffEndpoints.users.block, { userNo });
@@ -739,11 +827,22 @@ export default function MyUltaryClient({ nickname, guestData }: MyUltaryClientPr
       setPetMenu(null);
       const code = isHttpError(error) && isRecord(error.data) ? error.data.code : '';
       if (blockedByMe && code === 'USER_NOT_BLOCKED') {
-        setProfileReload(value => value + 1);
+        setProfileReload((value) => value + 1);
       } else if (!blockedByMe && code === 'USER_ALREADY_BLOCKED') {
         showBlockedProfile();
       } else {
-        openModal({ variant: 'alert', title: '알림창', content: relationErrorMessage(error, false, blockedByMe ? '차단을 해제하지 못했습니다. 잠시 후 다시 시도해 주세요.' : '사용자를 차단하지 못했습니다. 잠시 후 다시 시도해 주세요.'), showCloseButton: true });
+        openModal({
+          variant: 'alert',
+          title: '알림창',
+          content: relationErrorMessage(
+            error,
+            false,
+            blockedByMe
+              ? '차단을 해제하지 못했습니다. 잠시 후 다시 시도해 주세요.'
+              : '사용자를 차단하지 못했습니다. 잠시 후 다시 시도해 주세요.',
+          ),
+          showCloseButton: true,
+        });
       }
     } finally {
       setBlockingAccount(false);
@@ -804,7 +903,11 @@ export default function MyUltaryClient({ nickname, guestData }: MyUltaryClientPr
       <LogoHeader
         hideOnDesktop={!guest && !isOwnAccount}
         actions={
-          guest ? <Link href="/login" className={clsx(reloadStyles.reload, styles.guestLogin)}>로그인</Link> : isOwnAccount ? (
+          guest ? (
+            <Link href="/login" className={clsx(reloadStyles.reload, styles.guestLogin)}>
+              로그인
+            </Link>
+          ) : isOwnAccount ? (
             <>
               <button
                 type="button"
@@ -814,7 +917,11 @@ export default function MyUltaryClient({ nickname, guestData }: MyUltaryClientPr
               >
                 <Image src={AddIcon} alt="" width={28} height={28} />
               </button>
-              <Link href="/settings" className={clsx(styles.iconBtn, styles.headerIconBtn)} aria-label="설정">
+              <Link
+                href="/settings"
+                className={clsx(styles.iconBtn, styles.headerIconBtn)}
+                aria-label="설정"
+              >
                 <Settings size={28} strokeWidth={1.75} aria-hidden />
               </Link>
             </>
@@ -845,7 +952,12 @@ export default function MyUltaryClient({ nickname, guestData }: MyUltaryClientPr
 
           <ul className={styles.stats}>
             <li className={styles.statItem}>
-              <button type="button" className={styles.statBtn} disabled={blockedByMe} onClick={() => setContentTab('feed')}>
+              <button
+                type="button"
+                className={styles.statBtn}
+                disabled={blockedByMe}
+                onClick={() => setContentTab('feed')}
+              >
                 <strong>게시물</strong>
                 {postCount}
               </button>
@@ -926,246 +1038,257 @@ export default function MyUltaryClient({ nickname, guestData }: MyUltaryClientPr
             )}
           </div>
 
-          {!blockedByMe ? <>
-          {birthdayPet ? (
-            <p className={styles.birthdayRow}>
-              <span>🎂오늘 생일을 맞이한 {birthdayPet.name}를 축하해주세요.</span>
-            </p>
-          ) : null}
-
-          <div className={clsx(styles.petArea, activePetView === 'detail' && styles.petAreaDetail)}>
-            {pets.length === 0 ? (
-              profileReady ? (
-              <div className={styles.petEmpty} role="status">
-                <p className={styles.petEmptyText}>등록된 펫이 없습니다.</p>
-              </div>
-              ) : null
-            ) : (
+          {!blockedByMe ? (
             <>
-            {singlePet ? null : (
-            <div className={styles.petCarouselWrap}>
-              <Swiper
-                modules={[FreeMode]}
-                slidesPerView="auto"
-                spaceBetween={10}
-                freeMode
-                className={styles.petSwiper}
-                onSwiper={(swiper) => {
-                  petSwiperRef.current = swiper;
-                  syncPetNav(swiper, setCanPetPrev, setCanPetNext);
-                }}
-                onProgress={(swiper) => {
-                  syncPetNav(swiper, setCanPetPrev, setCanPetNext);
-                }}
-                onReachBeginning={(swiper) => {
-                  syncPetNav(swiper, setCanPetPrev, setCanPetNext);
-                }}
-                onReachEnd={(swiper) => {
-                  syncPetNav(swiper, setCanPetPrev, setCanPetNext);
-                }}
-                onFromEdge={(swiper) => {
-                  syncPetNav(swiper, setCanPetPrev, setCanPetNext);
-                }}
-                onTransitionEnd={(swiper) => {
-                  syncPetNav(swiper, setCanPetPrev, setCanPetNext);
-                }}
+              {birthdayPet ? (
+                <p className={styles.birthdayRow}>
+                  <span>🎂오늘 생일을 맞이한 {birthdayPet.name}를 축하해주세요.</span>
+                </p>
+              ) : null}
+
+              <div
+                className={clsx(styles.petArea, activePetView === 'detail' && styles.petAreaDetail)}
               >
-                {pets.map((pet) => (
-                  <SwiperSlide key={pet.id} className={styles.petSlide}>
-                    <button
-                      type="button"
-                      className={clsx(
-                        styles.petCardBtn,
-                        petViewMode === 'detail' &&
-                          pet.id === selectedPetId &&
-                          styles.petCardBtnSelected,
-                      )}
-                      onClick={() => handlePetSelect(pet.id)}
-                      aria-label={`${pet.name} 상세 보기`}
-                    >
-                      <span className={styles.petCardPhoto}>
-                        <MediaImage
-                          src={pet.imageUrl}
-                          alt=""
-                          width={80}
-                          height={80}
-                          className={styles.petCardImg}
-                        />
-                        {pet.isBirthday ? (
-                          <span className={styles.petBirthdayBadge} aria-hidden>
-                            <Image src={CakeIcon} alt="" width={30} height={30} />
-                          </span>
+                {pets.length === 0 ? (
+                  profileReady ? (
+                    <div className={styles.petEmpty} role="status">
+                      <p className={styles.petEmptyText}>등록된 펫이 없습니다.</p>
+                    </div>
+                  ) : null
+                ) : (
+                  <>
+                    {singlePet ? null : (
+                      <div className={styles.petCarouselWrap}>
+                        <Swiper
+                          modules={[FreeMode]}
+                          slidesPerView="auto"
+                          spaceBetween={10}
+                          freeMode
+                          className={styles.petSwiper}
+                          onSwiper={(swiper) => {
+                            petSwiperRef.current = swiper;
+                            syncPetNav(swiper, setCanPetPrev, setCanPetNext);
+                          }}
+                          onProgress={(swiper) => {
+                            syncPetNav(swiper, setCanPetPrev, setCanPetNext);
+                          }}
+                          onReachBeginning={(swiper) => {
+                            syncPetNav(swiper, setCanPetPrev, setCanPetNext);
+                          }}
+                          onReachEnd={(swiper) => {
+                            syncPetNav(swiper, setCanPetPrev, setCanPetNext);
+                          }}
+                          onFromEdge={(swiper) => {
+                            syncPetNav(swiper, setCanPetPrev, setCanPetNext);
+                          }}
+                          onTransitionEnd={(swiper) => {
+                            syncPetNav(swiper, setCanPetPrev, setCanPetNext);
+                          }}
+                        >
+                          {pets.map((pet) => (
+                            <SwiperSlide key={pet.id} className={styles.petSlide}>
+                              <button
+                                type="button"
+                                className={clsx(
+                                  styles.petCardBtn,
+                                  petViewMode === 'detail' &&
+                                    pet.id === selectedPetId &&
+                                    styles.petCardBtnSelected,
+                                )}
+                                onClick={() => handlePetSelect(pet.id)}
+                                aria-label={`${pet.name} 상세 보기`}
+                              >
+                                <span className={styles.petCardPhoto}>
+                                  <MediaImage
+                                    src={pet.imageUrl}
+                                    alt=""
+                                    width={80}
+                                    height={80}
+                                    className={styles.petCardImg}
+                                  />
+                                  {pet.isBirthday ? (
+                                    <span className={styles.petBirthdayBadge} aria-hidden>
+                                      <Image src={CakeIcon} alt="" width={30} height={30} />
+                                    </span>
+                                  ) : null}
+                                </span>
+                                <span className={styles.petCardName}>{pet.name}</span>
+                              </button>
+                            </SwiperSlide>
+                          ))}
+                        </Swiper>
+
+                        {petViewMode === 'carousel' && showPetNav && canPetPrev ? (
+                          <button
+                            type="button"
+                            className={clsx(styles.petNavBtn, styles.petNavPrev)}
+                            onClick={() => {
+                              const swiper = petSwiperRef.current;
+                              if (swiper) slidePetsByHalf(swiper, 'prev');
+                            }}
+                            aria-label="이전 펫"
+                          >
+                            <Image src={ArrowLeftIcon} alt="" width={14} height={14} />
+                          </button>
                         ) : null}
-                      </span>
-                      <span className={styles.petCardName}>{pet.name}</span>
-                    </button>
-                  </SwiperSlide>
-                ))}
-              </Swiper>
+                        {petViewMode === 'carousel' && showPetNav && canPetNext ? (
+                          <button
+                            type="button"
+                            className={clsx(styles.petNavBtn, styles.petNavNext)}
+                            onClick={() => {
+                              const swiper = petSwiperRef.current;
+                              if (swiper) slidePetsByHalf(swiper, 'next');
+                            }}
+                            aria-label="다음 펫"
+                          >
+                            <Image src={ArrowRightIcon} alt="" width={14} height={14} />
+                          </button>
+                        ) : null}
+                      </div>
+                    )}
 
-              {petViewMode === 'carousel' && showPetNav && canPetPrev ? (
-                <button
-                  type="button"
-                  className={clsx(styles.petNavBtn, styles.petNavPrev)}
-                  onClick={() => {
-                    const swiper = petSwiperRef.current;
-                    if (swiper) slidePetsByHalf(swiper, 'prev');
-                  }}
-                  aria-label="이전 펫"
-                >
-                  <Image src={ArrowLeftIcon} alt="" width={14} height={14} />
-                </button>
-              ) : null}
-              {petViewMode === 'carousel' && showPetNav && canPetNext ? (
-                <button
-                  type="button"
-                  className={clsx(styles.petNavBtn, styles.petNavNext)}
-                  onClick={() => {
-                    const swiper = petSwiperRef.current;
-                    if (swiper) slidePetsByHalf(swiper, 'next');
-                  }}
-                  aria-label="다음 펫"
-                >
-                  <Image src={ArrowRightIcon} alt="" width={14} height={14} />
-                </button>
-              ) : null}
-            </div>
-            )}
-
-            {selectedPet ? (
-              <div className={styles.petDetailCard} aria-hidden={activePetView !== 'detail'}>
-                <div className={styles.petDetailPhotoWrap}>
-                  <Profile imageUrl={selectedPet.imageUrl} size={88} />
-                  {isOwnAccount ? (
+                    {selectedPet ? (
+                      <div
+                        className={styles.petDetailCard}
+                        aria-hidden={activePetView !== 'detail'}
+                      >
+                        <div className={styles.petDetailPhotoWrap}>
+                          <Profile imageUrl={selectedPet.imageUrl} size={88} />
+                          {isOwnAccount ? (
+                            <button
+                              type="button"
+                              className={styles.petSettingBtn}
+                              aria-label={`${selectedPet.name} 프로필 사진 설정`}
+                              tabIndex={activePetView === 'detail' ? 0 : -1}
+                              onClick={() => openPetPhotoPicker(selectedPet.id)}
+                            >
+                              <Image src={SettingFillIcon} alt="" width={30} height={30} />
+                            </button>
+                          ) : null}
+                          {selectedPet.isBirthday ? (
+                            <span className={styles.petBirthdayBadge} aria-hidden>
+                              <Image src={CakeIcon} alt="" width={30} height={30} />
+                            </span>
+                          ) : null}
+                        </div>
+                        <div className={styles.petDetailInfo}>
+                          <p className={styles.petName}>
+                            {selectedPet.name}
+                            {selectedPet.gender ? `(${selectedPet.gender})` : ''}
+                          </p>
+                          <p className={styles.petHandle}>{selectedPet.handle}</p>
+                          <p className={styles.petBio}>{selectedPet.bio}</p>
+                        </div>
+                      </div>
+                    ) : null}
+                  </>
+                )}
+                {showRelationActions ? (
+                  <div className={styles.relationActions}>
                     <button
                       type="button"
-                      className={styles.petSettingBtn}
-                      aria-label={`${selectedPet.name} 프로필 사진 설정`}
-                      tabIndex={activePetView === 'detail' ? 0 : -1}
-                      onClick={() => openPetPhotoPicker(selectedPet.id)}
+                      className={styles.relationBtn}
+                      disabled={relationBusy}
+                      onClick={() => void toggleFollow()}
                     >
-                      <Image src={SettingFillIcon} alt="" width={30} height={30} />
+                      {profile ? followButtonLabel(profile) : '팔로우'}
                     </button>
-                  ) : null}
-                  {selectedPet.isBirthday ? (
-                    <span className={styles.petBirthdayBadge} aria-hidden>
-                      <Image src={CakeIcon} alt="" width={30} height={30} />
-                    </span>
-                  ) : null}
-                </div>
-                <div className={styles.petDetailInfo}>
-                  <p className={styles.petName}>
-                    {selectedPet.name}
-                    {selectedPet.gender ? `(${selectedPet.gender})` : ''}
-                  </p>
-                  <p className={styles.petHandle}>{selectedPet.handle}</p>
-                  <p className={styles.petBio}>{selectedPet.bio}</p>
-                </div>
+                    <button
+                      type="button"
+                      className={styles.relationBtn}
+                      disabled={relationBusy}
+                      onClick={() => void openMessage()}
+                    >
+                      메시지 보내기
+                    </button>
+                  </div>
+                ) : null}
               </div>
-            ) : null}
             </>
-            )}
-            {showRelationActions ? (
-              <div className={styles.relationActions}>
-                <button
-                  type="button"
-                  className={styles.relationBtn}
-                  disabled={relationBusy}
-                  onClick={() => void toggleFollow()}
-                >
-                  {profile ? followButtonLabel(profile) : '팔로우'}
-                </button>
-                <button
-                  type="button"
-                  className={styles.relationBtn}
-                  disabled={relationBusy}
-                  onClick={() => void openMessage()}
-                >
-                  메시지 보내기
-                </button>
-              </div>
-            ) : null}
-          </div>
-          </> : <p className={styles.feedEmpty} role="status">차단한 유저입니다.</p>}
+          ) : (
+            <p className={styles.feedEmpty} role="status">
+              차단한 유저입니다.
+            </p>
+          )}
         </div>
 
         {postsLocked ? null : (
-        <nav className={styles.sideTabs} aria-label="콘텐츠 메뉴">
-          {profile?.userNo != null && storyStatus !== 'none' ? (
-            <Link
-              href={`/stories?${new URLSearchParams({
-                userNo: String(profile.userNo),
-                nickname: profile.nickname,
-                single: '1',
-              }).toString()}`}
-              className={clsx(styles.sideTabBtn, getStoryTabClass(storyStatus))}
-              aria-label="스토리"
+          <nav className={styles.sideTabs} aria-label="콘텐츠 메뉴">
+            {profile?.userNo != null && storyStatus !== 'none' ? (
+              <Link
+                href={`/stories?${new URLSearchParams({
+                  userNo: String(profile.userNo),
+                  nickname: profile.nickname,
+                  single: '1',
+                }).toString()}`}
+                className={clsx(styles.sideTabBtn, getStoryTabClass(storyStatus))}
+                aria-label="스토리"
+              >
+                <Image src={getStoryIcon(storyStatus)} alt="" width={20} height={20} />
+              </Link>
+            ) : (
+              <span
+                className={clsx(styles.sideTabBtn, getStoryTabClass(storyStatus))}
+                aria-label="스토리"
+              >
+                <Image src={getStoryIcon(storyStatus)} alt="" width={20} height={20} />
+              </span>
+            )}
+
+            <button
+              type="button"
+              className={clsx(
+                styles.sideTabBtn,
+                contentTab === 'feed' ? styles.sideTabActive : undefined,
+              )}
+              onClick={() => setContentTab('feed')}
+              aria-label="피드"
+              aria-pressed={contentTab === 'feed'}
             >
-              <Image src={getStoryIcon(storyStatus)} alt="" width={20} height={20} />
-            </Link>
-          ) : (
-            <span
-              className={clsx(styles.sideTabBtn, getStoryTabClass(storyStatus))}
-              aria-label="스토리"
+              <Image
+                src={contentTab === 'feed' ? FeedOnIcon : FeedOffIcon}
+                alt=""
+                width={20}
+                height={20}
+              />
+            </button>
+
+            <button
+              type="button"
+              className={clsx(
+                styles.sideTabBtn,
+                contentTab === 'pinned' ? styles.sideTabActive : undefined,
+              )}
+              onClick={() => setContentTab('pinned')}
+              aria-label="고정"
+              aria-pressed={contentTab === 'pinned'}
             >
-              <Image src={getStoryIcon(storyStatus)} alt="" width={20} height={20} />
-            </span>
-          )}
+              <Image
+                src={contentTab === 'pinned' ? SavedOnIcon : SavedOffIcon}
+                alt=""
+                width={20}
+                height={20}
+              />
+            </button>
 
-          <button
-            type="button"
-            className={clsx(
-              styles.sideTabBtn,
-              contentTab === 'feed' ? styles.sideTabActive : undefined,
-            )}
-            onClick={() => setContentTab('feed')}
-            aria-label="피드"
-            aria-pressed={contentTab === 'feed'}
-          >
-            <Image
-              src={contentTab === 'feed' ? FeedOnIcon : FeedOffIcon}
-              alt=""
-              width={20}
-              height={20}
-            />
-          </button>
-
-          <button
-            type="button"
-            className={clsx(
-              styles.sideTabBtn,
-              contentTab === 'pinned' ? styles.sideTabActive : undefined,
-            )}
-            onClick={() => setContentTab('pinned')}
-            aria-label="고정"
-            aria-pressed={contentTab === 'pinned'}
-          >
-            <Image
-              src={contentTab === 'pinned' ? SavedOnIcon : SavedOffIcon}
-              alt=""
-              width={20}
-              height={20}
-            />
-          </button>
-
-          <button
-            type="button"
-            className={clsx(
-              styles.sideTabBtn,
-              contentTab === 'tagged' ? styles.sideTabActive : undefined,
-            )}
-            onClick={() => setContentTab('tagged')}
-            aria-label="태그됨"
-            aria-pressed={contentTab === 'tagged'}
-          >
-            <Image
-              src={contentTab === 'tagged' ? GroupOnIcon : GroupOffIcon}
-              alt=""
-              width={20}
-              height={20}
-            />
-          </button>
-        </nav>
+            <button
+              type="button"
+              className={clsx(
+                styles.sideTabBtn,
+                contentTab === 'tagged' ? styles.sideTabActive : undefined,
+              )}
+              onClick={() => setContentTab('tagged')}
+              aria-label="태그됨"
+              aria-pressed={contentTab === 'tagged'}
+            >
+              <Image
+                src={contentTab === 'tagged' ? GroupOnIcon : GroupOffIcon}
+                alt=""
+                width={20}
+                height={20}
+              />
+            </button>
+          </nav>
         )}
       </section>
 
@@ -1196,24 +1319,25 @@ export default function MyUltaryClient({ nickname, guestData }: MyUltaryClientPr
           onChange={handlePetPhotoChange}
         />
       ) : null}
-      {!guest ? <>
-      <input
-        ref={writeFileInputRef}
-        type="file"
-        accept="image/*,video/*"
-        multiple
-        className={styles.hiddenFileInput}
-        onChange={(e) => void handleWriteFilesChange(e)}
-      />
-      <input
-        ref={storyFileInputRef}
-        type="file"
-        accept="image/*,video/*"
-        className={styles.hiddenFileInput}
-        onChange={(e) => void handleStoryFileChange(e)}
-      />
-
-      </> : null}
+      {!guest ? (
+        <>
+          <input
+            ref={writeFileInputRef}
+            type="file"
+            accept="image/*,video/*"
+            multiple
+            className={styles.hiddenFileInput}
+            onChange={(e) => void handleWriteFilesChange(e)}
+          />
+          <input
+            ref={storyFileInputRef}
+            type="file"
+            accept="image/*,video/*"
+            className={styles.hiddenFileInput}
+            onChange={(e) => void handleStoryFileChange(e)}
+          />
+        </>
+      ) : null}
       {!guest ? <FooterMenu /> : null}
       {petMenu
         ? createPortal(
@@ -1247,16 +1371,28 @@ export default function MyUltaryClient({ nickname, guestData }: MyUltaryClientPr
                     {canCancelReport(accountReport) ? '신고취소' : '신고하기'}
                   </span>
                 </button>
-                {!guest && !isOwnAccount ? <button
-                  type="button"
-                  className={styles.petMenuBtn}
-                  role="menuitem"
-                  onClick={() => void toggleAccountBlock()}
-                  disabled={blockingAccount || profile?.userNo == null}
-                >
-                  <span className={styles.petMenuIcon}><Ban size={22} strokeWidth={1.75} /></span>
-                  <span className={styles.petMenuLabel}>{blockingAccount ? (blockedByMe ? '해제 중...' : '차단 중...') : (blockedByMe ? '차단해제' : '차단하기')}</span>
-                </button> : null}
+                {!guest && !isOwnAccount ? (
+                  <button
+                    type="button"
+                    className={styles.petMenuBtn}
+                    role="menuitem"
+                    onClick={() => void toggleAccountBlock()}
+                    disabled={blockingAccount || profile?.userNo == null}
+                  >
+                    <span className={styles.petMenuIcon}>
+                      <Ban size={22} strokeWidth={1.75} />
+                    </span>
+                    <span className={styles.petMenuLabel}>
+                      {blockingAccount
+                        ? blockedByMe
+                          ? '해제 중...'
+                          : '차단 중...'
+                        : blockedByMe
+                          ? '차단해제'
+                          : '차단하기'}
+                    </span>
+                  </button>
+                ) : null}
               </div>
             </>,
             document.body,
@@ -1269,7 +1405,11 @@ export default function MyUltaryClient({ nickname, guestData }: MyUltaryClientPr
 function followButtonLabel(profile: MyUltaryProfile) {
   if (profile.following) return '팔로우 끊기';
   if (profile.relationStatus === 'PENDING_SENT') return '팔로우 요청취소';
-  if (profile.privateAccount && !profile.followedBy && profile.relationStatus !== 'PENDING_RECEIVED') {
+  if (
+    profile.privateAccount &&
+    !profile.followedBy &&
+    profile.relationStatus !== 'PENDING_RECEIVED'
+  ) {
     return '팔로우 요청';
   }
   return '팔로우';
@@ -1290,13 +1430,21 @@ function readFollowResult(raw: unknown) {
 }
 
 function relationErrorMessage(err: unknown, following: boolean, fallback?: string) {
-  const code = isHttpError(err) && isRecord(err.data) && typeof err.data.code === 'string' ? err.data.code : '';
+  const code =
+    isHttpError(err) && isRecord(err.data) && typeof err.data.code === 'string'
+      ? err.data.code
+      : '';
   if (code === 'NEIGHBOR_ALREADY_EXISTS' || code === 'NEIGHBOR_ALREADY_REQUESTED') {
     return '이미 연결된 사이입니다.';
   }
   if (code === 'NEIGHBOR_PENDING_RECEIVED') return '상대의 요청을 먼저 수락해 주세요.';
   if (code === 'NEIGHBOR_REQUEST_CLOSED') return '팔로우 신청을 받지 않는 계정입니다.';
-  if (isHttpError(err) && isRecord(err.data) && typeof err.data.message === 'string' && err.data.message.trim()) {
+  if (
+    isHttpError(err) &&
+    isRecord(err.data) &&
+    typeof err.data.message === 'string' &&
+    err.data.message.trim()
+  ) {
     return err.data.message;
   }
   if (fallback) return fallback;

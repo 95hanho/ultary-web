@@ -1,9 +1,11 @@
 'use client';
+import { useResettableState } from '@/lib/react/useResettableState';
+import { useHydrated } from '@/lib/react/useHydrated';
 
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useEffect, useState, type ReactNode } from 'react';
+import { type ReactNode } from 'react';
 import AdminLogoutButton from './AdminLogoutButton';
 import styles from './admin.module.scss';
 import { useMenuCounts, withCount } from './useMenuCounts';
@@ -16,12 +18,12 @@ const LINKS = [
 
 export default function AdminShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
-  const [open, setOpen] = useState(true);
+  const hydrated = useHydrated();
+  const [open, setOpen] = useResettableState(
+    () => !hydrated || sessionStorage.getItem('ultary-admin-sidebar') !== '0',
+    [hydrated],
+  );
   const counts = useMenuCounts(pathname);
-
-  useEffect(() => {
-    if (sessionStorage.getItem('ultary-admin-sidebar') === '0') setOpen(false);
-  }, []);
 
   const toggle = () => {
     setOpen((prev) => {
@@ -41,7 +43,11 @@ export default function AdminShell({ children }: { children: ReactNode }) {
           aria-label={open ? '메뉴 접기' : '메뉴 열기'}
           onClick={toggle}
         >
-          {open ? <ChevronLeft size={16} strokeWidth={2.5} /> : <ChevronRight size={16} strokeWidth={2.5} />}
+          {open ? (
+            <ChevronLeft size={16} strokeWidth={2.5} />
+          ) : (
+            <ChevronRight size={16} strokeWidth={2.5} />
+          )}
         </button>
         {open ? (
           <>
@@ -54,13 +60,18 @@ export default function AdminShell({ children }: { children: ReactNode }) {
                     <Link
                       key={link.href}
                       href={link.href}
-                      className={active ? `${styles.sideLink} ${styles.sideLinkActive}` : styles.sideLink}
+                      className={
+                        active ? `${styles.sideLink} ${styles.sideLinkActive}` : styles.sideLink
+                      }
                       aria-current={active ? 'page' : undefined}
                     >
                       {withCount(
                         link.label,
-                        link.href === '/admin/tags' ? counts?.pendingTagRequestCount
-                          : link.href === '/admin/reports' ? counts?.requestedReportCount : counts?.failedAiRequestCount,
+                        link.href === '/admin/tags'
+                          ? counts?.pendingTagRequestCount
+                          : link.href === '/admin/reports'
+                            ? counts?.requestedReportCount
+                            : counts?.failedAiRequestCount,
                       )}
                     </Link>
                   );

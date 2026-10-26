@@ -1,4 +1,6 @@
 'use client';
+import { useResettableState } from '@/lib/react/useResettableState';
+import { useHydrated } from '@/lib/react/useHydrated';
 
 import { bffDelete, bffPostJson } from '@/lib/api/bffFetch';
 import { bffEndpoints } from '@/lib/api/endpoints';
@@ -93,11 +95,17 @@ function formatClock(ms: number) {
 export function DevTestDock({ groups }: Props) {
   const pathname = usePathname();
   const onLoginPage = pathname === '/login' || pathname.startsWith('/login/');
-  const [collapsed, setCollapsed] = useState(true);
+  const mounted = useHydrated();
+  const [collapsed, setCollapsed] = useResettableState(() => {
+    try {
+      return !mounted || window.localStorage.getItem(COLLAPSED_STORAGE_KEY) !== 'false';
+    } catch {
+      return true;
+    }
+  }, [mounted]);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [messageOk, setMessageOk] = useState(false);
-  const [mounted, setMounted] = useState(false);
   const [now, setNow] = useState(() => Date.now());
   const [expiresAt, setExpiresAt] = useState<number | null>(null);
   const [issuedAt, setIssuedAt] = useState<number | null>(null);
@@ -108,16 +116,6 @@ export function DevTestDock({ groups }: Props) {
   const seenIssuedRef = useRef<number | null>(null);
   /** r토큰을 지운 뒤, 다음 재발급이 오면 그 알림을 지운다 */
   const refreshClearedRef = useRef(false);
-
-  useEffect(() => {
-    try {
-      const saved = window.localStorage.getItem(COLLAPSED_STORAGE_KEY);
-      if (saved === 'true' || saved === 'false') setCollapsed(saved === 'true');
-    } catch {
-      // 스토리지 접근이 제한되어도 패널은 사용할 수 있다.
-    }
-    setMounted(true);
-  }, []);
 
   useEffect(() => {
     if (!mounted) return;
@@ -192,10 +190,7 @@ export function DevTestDock({ groups }: Props) {
   };
 
   return createPortal(
-    <div
-      className={clsx(styles.dock, collapsed && styles.collapsed)}
-      data-dev-test-dock
-    >
+    <div className={clsx(styles.dock, collapsed && styles.collapsed)} data-dev-test-dock>
       {collapsed ? (
         <button
           type="button"
@@ -220,7 +215,9 @@ export function DevTestDock({ groups }: Props) {
             </button>
           </div>
           <div className={styles.status}>
-            <span className={clsx(styles.timer, remain != null && remain <= 0 && styles.timerExpired)}>
+            <span
+              className={clsx(styles.timer, remain != null && remain <= 0 && styles.timerExpired)}
+            >
               {remain == null ? 'a토큰 없음' : `a토큰 ${formatRemain(remain)}`}
             </span>
             {expiresAt != null ? (

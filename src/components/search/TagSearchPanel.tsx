@@ -1,9 +1,11 @@
 'use client';
+import { useResettableState } from '@/lib/react/useResettableState';
+import { useHydrated } from '@/lib/react/useHydrated';
 
 import { FooterMenu } from '@/components/common/FooterMenu';
 import { filterMockHashtags } from '@/lib/mock/search';
 import Image from 'next/image';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { HashtagResultList } from './HashtagResultList';
 import styles from './TagSearchPanel.module.scss';
@@ -26,21 +28,15 @@ export function TagSearchPanel({
   onClose,
 }: TagSearchPanelProps) {
   const inputRef = useRef<HTMLInputElement>(null);
-  const [mounted, setMounted] = useState(false);
-  const [query, setQuery] = useState(initialQuery);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  const mounted = useHydrated();
+  const [query, setQuery] = useResettableState(
+    initialQuery.startsWith('#') ? initialQuery : initialQuery ? '#' + initialQuery : '#',
+    [open, initialQuery],
+    open,
+  );
 
   useEffect(() => {
     if (!open) return;
-    const normalized = initialQuery.startsWith('#')
-      ? initialQuery
-      : initialQuery
-        ? `#${initialQuery}`
-        : '#';
-    setQuery(normalized);
     const id = window.setTimeout(() => inputRef.current?.focus(), 0);
     const prev = document.body.style.overflow;
     document.body.style.overflow = 'hidden';

@@ -17,12 +17,6 @@ function loadsInBrowser(src: ImageProps['src']): boolean {
   );
 }
 
-export function MediaImage({ src, unoptimized, ...rest }: ImageProps) {
-  return (
-    <Image
-      src={src}
-      unoptimized={unoptimized ?? loadsInBrowser(src)}
-      {...rest}
-    />
-  );
+export function MediaImage({ src, alt, unoptimized, ...rest }: ImageProps) {
+  return <Image src={src} alt={alt} unoptimized={unoptimized ?? loadsInBrowser(src)} {...rest} />;
 }

@@ -1,4 +1,5 @@
 'use client';
+import { useHydrated } from '@/lib/react/useHydrated';
 
 import { AccountSearchList } from '@/components/common/AccountSearchList';
 import { PageHeader } from '@/components/common/PageHeader';
@@ -16,10 +17,8 @@ type Props = {
 };
 
 export function PhotoTagAccountSearch({ open, ...props }: Props) {
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  const mounted = useHydrated();
+
   if (!mounted || !open) return null;
   return createPortal(<PhotoTagSearchContents {...props} />, document.body);
 }

@@ -1,4 +1,5 @@
 'use client';
+import { useHydrated } from '@/lib/react/useHydrated';
 
 import { HashtagResultList } from '@/components/search/HashtagResultList';
 import { filterMockHashtags, type MockHashtag } from '@/lib/mock/search';
@@ -34,19 +35,14 @@ export function TagSuggestPreview({
   onOpenSearch,
   onClose,
 }: TagSuggestPreviewProps) {
-  const [mounted, setMounted] = useState(false);
+  const mounted = useHydrated();
   const wrapRef = useRef<HTMLDivElement>(null);
   const [coords, setCoords] = useState<{ top: number; left: number } | null>(null);
 
   const items: MockHashtag[] = useMemo(() => filterMockHashtags(term), [term]);
 
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
   useLayoutEffect(() => {
     if (!open || !anchor) {
-      setCoords(null);
       return;
     }
 
@@ -57,7 +53,7 @@ export function TagSuggestPreview({
 
     const measured = wrapRef.current?.offsetHeight ?? ESTIMATED_HEIGHT;
     let top = placeAbove ? anchor.top - measured - PREVIEW_GAP : anchor.bottom + PREVIEW_GAP;
-    let left = Math.min(Math.max(8, anchor.left), vw - PREVIEW_WIDTH - 8);
+    const left = Math.min(Math.max(8, anchor.left), vw - PREVIEW_WIDTH - 8);
 
     if (top < 8) top = 8;
     if (top + measured > vh - 8) top = Math.max(8, vh - measured - 8);

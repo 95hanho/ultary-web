@@ -36,10 +36,7 @@ export function normalizeHashtagBody(tag: string): string {
  * DB에 있는(기존) 태그만 본문에서 제거. 신규 `#새태그`는 남긴다.
  * `existingBodies`: `#` 없는 소문자 본문 Set/배열
  */
-export function stripExistingHashtags(
-  caption: string,
-  existingBodies: Iterable<string>,
-): string {
+export function stripExistingHashtags(caption: string, existingBodies: Iterable<string>): string {
   const existing = new Set(
     [...existingBodies].map((body) => normalizeHashtagBody(body)).filter(Boolean),
   );
@@ -109,7 +106,6 @@ export function getActiveHashtag(value: string, caret: number): ActiveHashtag | 
     end += 1;
   }
 
-  const raw = value.slice(start, end);
   return {
     start,
     end,

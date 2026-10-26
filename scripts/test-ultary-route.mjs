@@ -4,6 +4,11 @@ import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 import ts from 'typescript';
 
+const seoExports = {};
+vm.runInNewContext(ts.transpileModule(readFileSync(new URL('../src/lib/seo/metadata.ts', import.meta.url), 'utf8'), {
+ compilerOptions: {module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022},
+}).outputText, {exports: seoExports, URL});
+
 function fixture(member) {
   const calls = [];
   const client = () => null;
@@ -14,6 +19,9 @@ function fixture(member) {
   const jsx = (type, props, key) => ({ type, props, key });
   const mocks = {
     'react/jsx-runtime': { jsx, jsxs: jsx },
+    '@/lib/seo/metadata': seoExports,
+    '@/lib/seo/site': {SEO_ORIGIN: 'https://ultary.example.test'},
+    '@/lib/profileImage': {NO_PROFILE_SRC: '/no-profile.svg'},
     'next/link': { default: 'link' },
     '../MyUltaryClient': { default: client },
     '@/lib/auth/cookies': { getAccessToken: async () => member === 'access' ? 'access' : null, getRefreshToken: async () => member === 'refresh' ? 'refresh' : null },

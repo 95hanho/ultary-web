@@ -2,11 +2,32 @@ import { APP_URL } from '@/lib/env.server';
 import { Providers } from '@/providers/Providers';
 import '@/styles';
 import type { Metadata } from 'next';
+import { NO_INDEX, SITE_DESCRIPTION } from '@/lib/seo/metadata';
 
 export const metadata: Metadata = {
   title: 'Ultary',
+  robots: NO_INDEX,
   metadataBase: new URL(APP_URL),
-  description: '반려동물과 함께하는 일상을 나누는 공간, 울타리.',
+  description: SITE_DESCRIPTION,
+  icons: {
+    icon: [{ url: '/images/favicon.png', type: 'image/png' }],
+    shortcut: '/images/favicon.png',
+    apple: '/images/favicon.png',
+  },
+  openGraph: {
+    title: 'Ultary',
+    description: SITE_DESCRIPTION,
+    siteName: 'Ultary',
+    type: 'website',
+    locale: 'ko_KR',
+    images: [{ url: '/images/og-image.png', alt: 'Ultary' }],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Ultary',
+    description: SITE_DESCRIPTION,
+    images: ['/images/og-image.png'],
+  },
 };
 
 export default function RootLayout({

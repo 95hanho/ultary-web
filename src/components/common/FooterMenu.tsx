@@ -1,4 +1,6 @@
 'use client';
+import { useResettableState } from '@/lib/react/useResettableState';
+import { useHydrated } from '@/lib/react/useHydrated';
 
 import { MediaImage } from '@/components/common/MediaImage';
 import { bffGet, bffPostJson } from '@/lib/api/bffFetch';
@@ -139,7 +141,10 @@ export function FooterMenu() {
   const [nickname, setNickname] = useState(cachedNickname ?? MY_NICKNAME);
   const [unreadCount, setUnreadCount] = useState(getUnreadBadge);
   const [dmUnreadCount, setDmUnreadCount] = useState(getDmUnreadBadge);
-  const [noticeOpen, setNoticeOpen] = useState(false);
+  const hydrated = useHydrated();
+  const [noticeOpen, setNoticeOpen] = useResettableState(hydrated && openNoticeAfterNav, [
+    hydrated,
+  ]);
   const [moreOpen, setMoreOpen] = useState(false);
   const [morePlace, setMorePlace] = useState<{ left: number; bottom: number } | null>(null);
   const moreRef = useRef<HTMLButtonElement>(null);
@@ -165,13 +170,12 @@ export function FooterMenu() {
   };
 
   useEffect(() => {
-    if (!openNoticeAfterNav) return;
-    setNoticeOpen(true);
+    if (!hydrated || !openNoticeAfterNav) return;
     const id = window.setTimeout(() => {
       openNoticeAfterNav = false;
     }, 0);
     return () => window.clearTimeout(id);
-  }, []);
+  }, [hydrated]);
 
   useEffect(() => {
     const desktop = window.matchMedia('(min-width: 768px)');
@@ -194,7 +198,7 @@ export function FooterMenu() {
     };
     mq.addEventListener('change', closeOnMobile);
     return () => mq.removeEventListener('change', closeOnMobile);
-  }, []);
+  }, [setNoticeOpen]);
 
   useEffect(() => {
     let cancelled = false;

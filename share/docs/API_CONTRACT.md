@@ -136,3 +136,8 @@ Spring API(게스트 단건 GET·쓰기 401): [`spring-auth-api.md`](./spring-au
 ## 비동기 콘텐츠 모더레이션 (v32)
 
 [async-moderation.md](./async-moderation.md) 참조. 새 FE 검사 API는 없으며, 작성/수정 응답 형태는 유지한다. 소켓 CONTENT_MODERATED는 본문을 포함하지 않는 무효화 이벤트다. 결과 모달은 표시하지 않으며 알림 목록은 type=AI_MODERATION, message=서비스 안내문과 대상 이동용 feedId/feedCommentId/feedReplyId를 반환한다.
+
+
+## 공개 SEO 목록
+
+GET /api/v1/public/seo/sitemap: BFF 키 필수, 사용자 JWT 불필요. type=PROFILE|FEED, cursorId>=0, limit=1~1000(기본 200). 응답 items([{id,nickname?}]), nextCursorId. 활성 공개 계정과 그 계정의 삭제되지 않은 PUBLIC 피드만 반환하며 개인 연락처/본문은 포함하지 않는다. no-store. 상세는 [seo.md](./seo.md).

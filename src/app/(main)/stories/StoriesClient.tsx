@@ -1,4 +1,5 @@
 'use client';
+import { useResettableState } from '@/lib/react/useResettableState';
 
 import { PageLoadError } from '@/components/common/PageLoadError';
 
@@ -13,13 +14,7 @@ import { NO_PROFILE_SRC } from '@/lib/profileImage';
 import { STORY_IMAGE_DURATION_MS } from '@/lib/mock/stories';
 import { resolveFeedPetLabels, type FeedPetLabel } from '@/lib/feed/petLabels';
 import type { BffEnvelope, MeResponse } from '@/types/api';
-import type {
-  Story,
-  StoryLikeResponse,
-  StoryMention,
-  StoryOwner,
-  StoryText,
-} from '@/types/story';
+import type { Story, StoryLikeResponse, StoryMention, StoryOwner, StoryText } from '@/types/story';
 import { Heart, Pause, Play, Send, User, X } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -31,6 +26,7 @@ import {
   type FormEvent,
   type MouseEvent,
   type RefObject,
+  useLayoutEffect,
 } from 'react';
 import styles from './stories.module.scss';
 
@@ -96,11 +92,7 @@ function toSlide(story: Story): StorySlide {
   };
 }
 
-function ownerStoriesHref(
-  owner: StoryOwner,
-  start: StartMode,
-  chain?: { fromUserNo: string },
-) {
+function ownerStoriesHref(owner: StoryOwner, start: StartMode, chain?: { fromUserNo: string }) {
   const q = new URLSearchParams({
     userNo: String(owner.userNo),
     nickname: owner.nickname,
@@ -162,13 +154,21 @@ export default function StoriesClient({
   const [profileUrl, setProfileUrl] = useState(FALLBACK_PROFILE);
   const [index, setIndex] = useState(0);
   const [playId, setPlayId] = useState(0);
-  const [progress, setProgress] = useState(0);
-  const [paused, setPaused] = useState(false);
+  const [progress, setProgress] = useResettableState(0, [
+    items[index]?.storyId,
+    items[index]?.kind,
+    index,
+    playId,
+  ]);
+  const [paused, setPaused] = useResettableState(false, [
+    items[index]?.storyId,
+    items[index]?.kind,
+  ]);
   const [likePressed, setLikePressed] = useState(false);
   const playbackPaused = paused || likePressed;
   const [meUserNo, setMeUserNo] = useState<number | null>(null);
-  const [reply, setReply] = useState('');
-  const [replyError, setReplyError] = useState('');
+  const [reply, setReply] = useResettableState('', [items[index]?.storyId]);
+  const [replyError, setReplyError] = useResettableState('', [items[index]?.storyId]);
   const [sendingReply, setSendingReply] = useState(false);
   const [sentNotice, setSentNotice] = useState(0);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -183,9 +183,15 @@ export default function StoriesClient({
   const likeTouchedRef = useRef<Set<number>>(new Set());
   const holdForReplyRef = useRef(false);
   const shellRef = useRef<HTMLDivElement>(null);
-  indexRef.current = index;
-  pausedRef.current = playbackPaused;
-  ownersRef.current = owners;
+  useLayoutEffect(() => {
+    indexRef.current = index;
+  });
+  useLayoutEffect(() => {
+    pausedRef.current = playbackPaused;
+  });
+  useLayoutEffect(() => {
+    ownersRef.current = owners;
+  });
 
   const current = items[index] ?? null;
   const currentStoryId = current?.storyId;
@@ -207,11 +213,7 @@ export default function StoriesClient({
   const goToOwner = useCallback(
     (owner: StoryOwner, nextStart: StartMode) => {
       router.replace(
-        ownerStoriesHref(
-          owner,
-          nextStart,
-          chainFrom ? { fromUserNo: chainFrom } : undefined,
-        ),
+        ownerStoriesHref(owner, nextStart, chainFrom ? { fromUserNo: chainFrom } : undefined),
       );
     },
     [chainFrom, router],
@@ -241,30 +243,27 @@ export default function StoriesClient({
           ? loaded.filter((story) => String(story.storyId) === onlyStoryId)
           : loaded;
         if (onlyStoryId && list.length === 0) {
-          setLoadFailed({ error: { status: 404, message: 'STORY_NOT_FOUND', data: { code: 'STORY_NOT_FOUND' }, url: bffEndpoints.main.stories } });
+          setLoadFailed({
+            error: {
+              status: 404,
+              message: 'STORY_NOT_FOUND',
+              data: { code: 'STORY_NOT_FOUND' },
+              url: bffEndpoints.main.stories,
+            },
+          });
           return;
         }
-        const ownerList = ownersRes
-          ? unwrapList<StoryOwner>(ownersRes.data ?? ownersRes)
-          : [];
+        const ownerList = ownersRes ? unwrapList<StoryOwner>(ownersRes.data ?? ownersRes) : [];
         const slides = list.map(toSlide);
         setItems(slides);
         setOwners(ownerList);
 
         const first = list[0];
         const nick = onlyStoryId
-          ? first?.nickname?.trim() ||
-            first?.authorNickname?.trim() ||
-            nicknameHint ||
-            'ULTARY'
-          : nicknameHint ||
-            first?.nickname?.trim() ||
-            first?.authorNickname?.trim() ||
-            'ULTARY';
+          ? first?.nickname?.trim() || first?.authorNickname?.trim() || nicknameHint || 'ULTARY'
+          : nicknameHint || first?.nickname?.trim() || first?.authorNickname?.trim() || 'ULTARY';
         setNickname(nick);
-        setProfileUrl(
-          resolveFileDisplayUrl(first?.authorProfileFile) ?? FALLBACK_PROFILE,
-        );
+        setProfileUrl(resolveFileDisplayUrl(first?.authorProfileFile) ?? FALLBACK_PROFILE);
 
         if (slides.length === 0) {
           setIndex(0);
@@ -343,15 +342,8 @@ export default function StoriesClient({
         markedViewRef.current.delete(storyId);
       });
 
-    setItems((prev) =>
-      prev.map((s) => (s.storyId === storyId ? { ...s, viewedByMe: true } : s)),
-    );
+    setItems((prev) => prev.map((s) => (s.storyId === storyId ? { ...s, viewedByMe: true } : s)));
   }, [current]);
-
-  useEffect(() => {
-    setReply('');
-    setReplyError('');
-  }, [current?.storyId]);
 
   const clearTick = () => {
     if (rafRef.current != null) {
@@ -393,7 +385,7 @@ export default function StoriesClient({
       return;
     }
     close();
-  }, [chainFrom, close, goToOwner, items.length, oneStory, userNo]);
+  }, [chainFrom, close, goToOwner, items.length, oneStory, setPaused, userNo]);
 
   const handlePrevTap = useCallback(() => {
     setPaused(false);
@@ -434,11 +426,10 @@ export default function StoriesClient({
       return;
     }
     close();
-  }, [chainFrom, close, fromUserNo, goToOwner, oneStory, userNo]);
+  }, [chainFrom, close, fromUserNo, goToOwner, oneStory, setPaused, userNo]);
 
   useEffect(() => {
     clearTick();
-    setProgress(0);
     setPaused(false);
     elapsedRef.current = 0;
     startRef.current = performance.now();
@@ -452,10 +443,7 @@ export default function StoriesClient({
           rafRef.current = requestAnimationFrame(tick);
           return;
         }
-        const p = Math.min(
-          1,
-          (elapsedRef.current + (now - startRef.current)) / duration,
-        );
+        const p = Math.min(1, (elapsedRef.current + (now - startRef.current)) / duration);
         setProgress(p);
         if (p >= 1) {
           finishOrNext();
@@ -500,7 +488,7 @@ export default function StoriesClient({
       video.removeEventListener('timeupdate', onTime);
       video.removeEventListener('ended', onEnded);
     };
-  }, [currentStoryId, currentKind, finishOrNext, index, playId]);
+  }, [currentStoryId, currentKind, finishOrNext, index, playId, setPaused, setProgress]);
 
   useEffect(() => {
     if (currentStoryId == null) return;
@@ -523,9 +511,9 @@ export default function StoriesClient({
     }
   }, [playbackPaused, currentStoryId, currentKind]);
 
-  const togglePaused = () => {
+  const togglePaused = useCallback(() => {
     setPaused((p) => !p);
-  };
+  }, [setPaused]);
 
   const onReplyFocus = () => {
     if (!pausedRef.current) {
@@ -541,9 +529,7 @@ export default function StoriesClient({
   };
 
   const setStoryLiked = (storyId: number, liked: boolean) => {
-    setItems((prev) =>
-      prev.map((s) => (s.storyId === storyId ? { ...s, likedByMe: liked } : s)),
-    );
+    setItems((prev) => prev.map((s) => (s.storyId === storyId ? { ...s, likedByMe: liked } : s)));
   };
 
   const toggleLike = async () => {
@@ -606,9 +592,7 @@ export default function StoriesClient({
       const target = e.target as HTMLElement | null;
       if (
         target &&
-        (target.tagName === 'INPUT' ||
-          target.tagName === 'TEXTAREA' ||
-          target.isContentEditable)
+        (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)
       ) {
         return;
       }
@@ -643,7 +627,7 @@ export default function StoriesClient({
 
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
-  }, [close, finishOrNext, handlePrevTap]);
+  }, [close, finishOrNext, handlePrevTap, togglePaused]);
 
   const handleNextTap = () => {
     finishOrNext();
@@ -655,9 +639,9 @@ export default function StoriesClient({
     return progress;
   };
 
-if (loadFailed) return <PageLoadError error={loadFailed.error} />;
+  if (loadFailed) return <PageLoadError error={loadFailed.error} />;
 
-    if (loading) {
+  if (loading) {
     return (
       <div
         ref={shellRef}
@@ -856,10 +840,18 @@ if (loadFailed) return <PageLoadError error={loadFailed.error} />;
                 }}
               >
                 <span className={styles.heartPreview}>
-                  <Heart className={styles.heartRest} size={28} strokeWidth={2}
-                    fill={current.likedByMe ? 'currentColor' : 'none'} />
-                  <Heart className={styles.heartPressed} size={28} strokeWidth={2}
-                    fill={current.likedByMe ? 'none' : 'currentColor'} />
+                  <Heart
+                    className={styles.heartRest}
+                    size={28}
+                    strokeWidth={2}
+                    fill={current.likedByMe ? 'currentColor' : 'none'}
+                  />
+                  <Heart
+                    className={styles.heartPressed}
+                    size={28}
+                    strokeWidth={2}
+                    fill={current.likedByMe ? 'none' : 'currentColor'}
+                  />
                 </span>
               </button>
               <button
@@ -915,7 +907,10 @@ function ReplySentNotice() {
     phase === 'in' ? styles.sentNoticeIn : phase === 'out' ? styles.sentNoticeOut : '';
 
   return (
-    <p className={phaseClass ? `${styles.sentNotice} ${phaseClass}` : styles.sentNotice} role="status">
+    <p
+      className={phaseClass ? `${styles.sentNotice} ${phaseClass}` : styles.sentNotice}
+      role="status"
+    >
       메시지를 보냈습니다.
     </p>
   );
@@ -929,11 +924,16 @@ function mentionLabel(mention: StoryMention): string {
 }
 
 function storyMentionHref(mention: StoryMention, labels: Record<number, FeedPetLabel>) {
-  const ownerNickname = labels[mention.petId]?.ownerNickname?.trim() || mention.ownerNickname?.trim();
+  const ownerNickname =
+    labels[mention.petId]?.ownerNickname?.trim() || mention.ownerNickname?.trim();
   return ownerNickname ? myUltaryPath(ownerNickname) : null;
 }
 
-function StoryOverlay({ texts, mentions, labels }: {
+function StoryOverlay({
+  texts,
+  mentions,
+  labels,
+}: {
   texts: StoryText[];
   mentions: StoryMention[];
   labels: Record<number, FeedPetLabel>;
@@ -946,12 +946,19 @@ function StoryOverlay({ texts, mentions, labels }: {
         const label = labels[mention.petId]?.label ?? mentionLabel(mention);
         const style = { left: `${mention.posX}%`, top: `${mention.posY}%` };
         return href ? (
-          <Link key={`${mention.petId}-${index}`} href={href} className={styles.mention} style={style}
-            onClick={(event) => event.stopPropagation()}>
+          <Link
+            key={`${mention.petId}-${index}`}
+            href={href}
+            className={styles.mention}
+            style={style}
+            onClick={(event) => event.stopPropagation()}
+          >
             {label}
           </Link>
         ) : (
-          <span key={`${mention.petId}-${index}`} className={styles.mention} style={style}>{label}</span>
+          <span key={`${mention.petId}-${index}`} className={styles.mention} style={style}>
+            {label}
+          </span>
         );
       })}
       {texts.map((text, index) => (
@@ -964,12 +971,10 @@ function StoryOverlay({ texts, mentions, labels }: {
             color: text.color,
             fontSize: text.fontSize || 16,
             fontWeight: text.bold ? 700 : 400,
-            textDecoration: [
-              text.underline ? 'underline' : null,
-              text.strikethrough ? 'line-through' : null,
-            ]
-              .filter(Boolean)
-              .join(' ') || 'none',
+            textDecoration:
+              [text.underline ? 'underline' : null, text.strikethrough ? 'line-through' : null]
+                .filter(Boolean)
+                .join(' ') || 'none',
           }}
         >
           {text.content}
@@ -1010,7 +1015,9 @@ function StoryMedia({
     void resolveFeedPetLabels(ids, item.userNo, nickname, hints).then((found) => {
       if (!cancelled) setLabels(found);
     });
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [item.mentions, item.userNo, nickname]);
 
   return (
@@ -1027,23 +1034,21 @@ function StoryMedia({
         />
       ) : (
         // eslint-disable-next-line @next/next/no-img-element
-        <img
-          key={item.storyId}
-          src={item.src}
-          alt=""
-          className={styles.media}
-          draggable={false}
-        />
+        <img key={item.storyId} src={item.src} alt="" className={styles.media} draggable={false} />
       )}
       <StoryOverlay texts={item.texts} mentions={paused ? item.mentions : []} labels={labels} />
       {item.mentions.length > 0 ? (
-        <button type="button" className={styles.tagPeopleBtn} aria-label="태그된 펫"
+        <button
+          type="button"
+          className={styles.tagPeopleBtn}
+          aria-label="태그된 펫"
           aria-expanded={showList}
           onClick={(event) => {
             event.stopPropagation();
             setTagListFor(showList ? null : item.storyId);
             onShowTags();
-          }}>
+          }}
+        >
           <User size={16} strokeWidth={2.25} aria-hidden />
         </button>
       ) : null}
@@ -1052,14 +1057,33 @@ function StoryMedia({
           {item.mentions.map((mention, index) => {
             const info = labels[mention.petId];
             const href = storyMentionHref(mention, labels);
-            const body = <>
-              <MediaImage src={info?.imageUrl ?? NO_PROFILE_SRC} alt="" width={28} height={28} className={styles.tagListAvatar} />
-              <span>{info?.label ?? mentionLabel(mention)}</span>
-            </>;
-            return <li key={`${mention.petId}-${index}`} className={styles.tagListItem}>
-              {href ? <Link href={href} className={styles.tagListLink}
-                onClick={(event) => event.stopPropagation()}>{body}</Link> : body}
-            </li>;
+            const body = (
+              <>
+                <MediaImage
+                  src={info?.imageUrl ?? NO_PROFILE_SRC}
+                  alt=""
+                  width={28}
+                  height={28}
+                  className={styles.tagListAvatar}
+                />
+                <span>{info?.label ?? mentionLabel(mention)}</span>
+              </>
+            );
+            return (
+              <li key={`${mention.petId}-${index}`} className={styles.tagListItem}>
+                {href ? (
+                  <Link
+                    href={href}
+                    className={styles.tagListLink}
+                    onClick={(event) => event.stopPropagation()}
+                  >
+                    {body}
+                  </Link>
+                ) : (
+                  body
+                )}
+              </li>
+            );
           })}
         </ul>
       ) : null}

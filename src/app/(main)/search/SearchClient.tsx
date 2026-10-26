@@ -1,4 +1,5 @@
 'use client';
+import { useResettableState } from '@/lib/react/useResettableState';
 
 import { PageLoadError } from '@/components/common/PageLoadError';
 
@@ -25,8 +26,8 @@ import clsx from 'clsx';
 import { Profile, type StoryStatus } from '@/components/my-ultary/Profile';
 import Image from 'next/image';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, type FocusEvent } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { useEffect, useMemo, useRef, useState, type FocusEvent } from 'react';
 import { EmptyState } from '@/components/common/EmptyState';
 import styles from './search.module.scss';
 
@@ -68,9 +69,7 @@ function replaceSearchUrl(next: string) {
   const current = `${window.location.pathname}${window.location.search}`;
   if (current === next) return;
   const state =
-    window.history.state && typeof window.history.state === 'object'
-      ? window.history.state
-      : {};
+    window.history.state && typeof window.history.state === 'object' ? window.history.state : {};
   window.history.replaceState(state, '', next);
 }
 
@@ -80,13 +79,7 @@ function searchType(mode: 'plain' | 'pet' | 'hashtag'): 'USER' | 'MENTION' | 'TA
   return 'USER';
 }
 
-function RemoveRecentButton({
-  label,
-  onRemove,
-}: {
-  label: string;
-  onRemove: () => void;
-}) {
+function RemoveRecentButton({ label, onRemove }: { label: string; onRemove: () => void }) {
   return (
     <button
       type="button"
@@ -122,11 +115,19 @@ function AccountRow({
   onRemove?: () => void;
 }) {
   const tags = sortPetTagsByMatch(account.petTags, petQuery || highlightQuery);
-  const story: StoryStatus = account.hasStory ? account.hasUnviewed ? 'unread' : 'read' : 'none';
-  const storyHref = story !== 'none' && account.userNo != null
-    ? `/stories?${new URLSearchParams({ userNo: String(account.userNo), nickname: account.nickname, single: '1' }).toString()}`
-    : null;
-  const profile = <Profile imageUrl={account.imageUrl} size={45} story={story} className={styles.accountProfile} />;
+  const story: StoryStatus = account.hasStory ? (account.hasUnviewed ? 'unread' : 'read') : 'none';
+  const storyHref =
+    story !== 'none' && account.userNo != null
+      ? `/stories?${new URLSearchParams({ userNo: String(account.userNo), nickname: account.nickname, single: '1' }).toString()}`
+      : null;
+  const profile = (
+    <Profile
+      imageUrl={account.imageUrl}
+      size={45}
+      story={story}
+      className={styles.accountProfile}
+    />
+  );
 
   return (
     <li className={styles.accountItem}>
@@ -138,12 +139,18 @@ function AccountRow({
               className={styles.accountImageWrap}
               aria-label={`${account.nickname} 스토리 보기`}
               onMouseDown={(event) => event.preventDefault()}
-              onClick={(event) => { event.preventDefault(); onEnter(account, storyHref); }}
+              onClick={(event) => {
+                event.preventDefault();
+                onEnter(account, storyHref);
+              }}
             >
               {profile}
             </Link>
           ) : (
-            <span className={styles.accountImageWrap} onMouseDown={(event) => event.preventDefault()}>
+            <span
+              className={styles.accountImageWrap}
+              onMouseDown={(event) => event.preventDefault()}
+            >
               {profile}
             </span>
           )}
@@ -208,8 +215,12 @@ export default function SearchClient() {
   const openModal = useModalStore((s) => s.open);
   const shellRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const [phase, setPhase] = useState<SearchPhase>('idle');
-  const [query, setQuery] = useState('');
+  const searchParams = useSearchParams();
+  const [phase, setPhase] = useState<SearchPhase>(searchParams.get('q') ? 'active' : 'idle');
+  const [query, setQuery] = useState(searchParams.get('q') ?? '');
+  const parsed = useMemo(() => parseQuery(query), [query]);
+  const [committed, setCommitted] = useState(searchParams.get('commit') === '1');
+  const [submitTick, setSubmitTick] = useState(0);
   const [recentItems, setRecentItems] = useState<RecentSearchItem[]>([]);
   const [recentTotal, setRecentTotal] = useState(0);
   const [recentCursor, setRecentCursor] = useState<number | null>(null);
@@ -221,29 +232,43 @@ export default function SearchClient() {
   const recentLoadedRef = useRef(false);
   const recentMutationRef = useRef(false);
   const [recentMutating, setRecentMutating] = useState(false);
-  const [userResults, setUserResults] = useState<SearchAccount[]>([]);
-  const [tagResults, setTagResults] = useState<MockHashtag[]>([]);
-  const [resultState, setResultState] = useState<'idle' | 'pending' | 'ready'>('idle');
-  const [searching, setSearching] = useState(false);
-  /** 엔터로 확정하면 20건. 글자가 바뀌면 미리보기 5건으로 돌아간다 */
-  const [committed, setCommitted] = useState(false);
-  const [submitTick, setSubmitTick] = useState(0);
-  /** 같은 검색이면 목록을 다시 받지 않는다 */
-  const loadedSearchKeyRef = useRef('');
-
-  const [isInputFocused, setIsInputFocused] = useState(false);
-  const [recommendedPosts, setRecommendedPosts] = useState<FeedGridItem[]>(
-    RECOMMENDED_PLACEHOLDERS,
+  const [userResults, setUserResults] = useResettableState<SearchAccount[]>(
+    [],
+    [phase, parsed.mode, parsed.term, committed, submitTick],
   );
+  const [tagResults, setTagResults] = useResettableState<MockHashtag[]>(
+    [],
+    [phase, parsed.mode, parsed.term, committed, submitTick],
+  );
+  const [resultState, setResultState] = useResettableState<'idle' | 'pending' | 'ready'>(
+    phase === 'active' && parsed.term.trim().length >= 2 ? 'pending' : 'idle',
+    [phase, parsed.mode, parsed.term, committed, submitTick],
+  );
+  const [searching, setSearching] = useResettableState(false, [
+    phase,
+    parsed.mode,
+    parsed.term,
+    committed,
+    submitTick,
+  ]);
+  /** 엔터로 확정하면 20건. 글자가 바뀌면 미리보기 5건으로 돌아간다 */
+  /** 같은 검색이면 목록을 다시 받지 않는다 */
+
+  const [isInputFocused, setIsInputFocused] = useResettableState(
+    false,
+    [phase],
+    phase !== 'active',
+  );
+  const [recommendedPosts, setRecommendedPosts] =
+    useState<FeedGridItem[]>(RECOMMENDED_PLACEHOLDERS);
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
-        const res = await bffGet<BffEnvelope<unknown>>(
-          bffEndpoints.main.searchRecommended,
-          { limit: 10 },
-        );
+        const res = await bffGet<BffEnvelope<unknown>>(bffEndpoints.main.searchRecommended, {
+          limit: 10,
+        });
         const grid: FeedGridItem[] = toFeedDataList(res.data ?? res)
           .filter((feed) => Boolean(feed.images[0]))
           .map((feed) => ({
@@ -265,17 +290,6 @@ export default function SearchClient() {
     };
   }, []);
 
-  const parsed = useMemo(() => parseQuery(query), [query]);
-
-  useLayoutEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const q = params.get('q') ?? '';
-    if (!q) return;
-    setQuery(q);
-    setPhase('active');
-    setCommitted(params.get('commit') === '1');
-  }, []);
-
   useEffect(() => {
     replaceSearchUrl(searchListPath(phase === 'active', query, committed));
   }, [phase, query, committed]);
@@ -283,38 +297,18 @@ export default function SearchClient() {
   useEffect(() => {
     if (phase === 'active') {
       inputRef.current?.focus();
-    } else {
-      setIsInputFocused(false);
     }
   }, [phase]);
 
   useEffect(() => {
-    if (phase !== 'active') {
-      setSearching(false);
-      return;
-    }
+    if (phase !== 'active') return;
     const term = parsed.term.trim();
-    if (term.length < 2) {
-      loadedSearchKeyRef.current = '';
-      setUserResults([]);
-      setTagResults([]);
-      setResultState('idle');
-      setSearching(false);
-      return;
-    }
+    if (term.length < 2) return;
 
     const limit = committed ? COMMIT_LIMIT : PREVIEW_LIMIT;
     const type = searchType(parsed.mode);
-    const requestKey = `${type}:${limit}:${term}:${submitTick}`;
-    if (loadedSearchKeyRef.current === requestKey) {
-      setSearching(false);
-      return;
-    }
 
     let cancelled = false;
-    setUserResults([]);
-    setTagResults([]);
-    setResultState('pending');
     const delay = committed ? 0 : PREVIEW_DELAY_MS;
     const timer = window.setTimeout(() => {
       setSearching(true);
@@ -324,14 +318,13 @@ export default function SearchClient() {
           const data = res.data ?? res;
           if (type === 'TAG') setTagResults(mapSearchTags(data));
           else setUserResults(mapSearchUsers(data));
-          loadedSearchKeyRef.current = requestKey;
           setResultState('ready');
         })
         .catch((err) => {
           console.error('[search] preview failed', err);
           if (cancelled) return;
           setUserResults([]);
-        setLoadFailed({ error: err });
+          setLoadFailed({ error: err });
           setTagResults([]);
           setResultState('ready');
         })
@@ -344,7 +337,17 @@ export default function SearchClient() {
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [phase, parsed.mode, parsed.term, committed, submitTick]);
+  }, [
+    phase,
+    parsed.mode,
+    parsed.term,
+    committed,
+    submitTick,
+    setSearching,
+    setTagResults,
+    setUserResults,
+    setResultState,
+  ]);
 
   const showRecent = phase === 'active' && query.trim() === '';
   const termLength = parsed.term.trim().length;
@@ -367,12 +370,16 @@ export default function SearchClient() {
       const data = res.data ?? res;
       setRecentItems(mapRecentItems(data));
       setRecentTotal(isRecord(data) && typeof data.totalCount === 'number' ? data.totalCount : 0);
-      setRecentCursor(isRecord(data) && typeof data.nextCursorHistoryId === 'number' ? data.nextCursorHistoryId : null);
+      setRecentCursor(
+        isRecord(data) && typeof data.nextCursorHistoryId === 'number'
+          ? data.nextCursorHistoryId
+          : null,
+      );
       recentLoadedRef.current = true;
     } catch (err) {
       if (request !== recentRequestRef.current) return;
       console.error('[search] recent failed', err);
-        setLoadFailed({ error: err });
+      setLoadFailed({ error: err });
       recentLoadedRef.current = false;
       setRecentItems([]);
       setRecentTotal(0);
@@ -386,7 +393,13 @@ export default function SearchClient() {
   }
 
   async function loadMoreRecent() {
-    if (recentBusyRef.current || recentMutationRef.current || recentCursor == null || recentItems.length >= recentTotal) return;
+    if (
+      recentBusyRef.current ||
+      recentMutationRef.current ||
+      recentCursor == null ||
+      recentItems.length >= recentTotal
+    )
+      return;
     const request = ++recentRequestRef.current;
     recentBusyRef.current = true;
     setRecentLoading(true);
@@ -403,7 +416,11 @@ export default function SearchClient() {
         return [...previous, ...nextItems.filter((item) => !seen.has(item.historyId))];
       });
       setRecentTotal(isRecord(data) && typeof data.totalCount === 'number' ? data.totalCount : 0);
-      setRecentCursor(isRecord(data) && typeof data.nextCursorHistoryId === 'number' ? data.nextCursorHistoryId : null);
+      setRecentCursor(
+        isRecord(data) && typeof data.nextCursorHistoryId === 'number'
+          ? data.nextCursorHistoryId
+          : null,
+      );
     } catch (err) {
       if (request === recentRequestRef.current) {
         console.error('[search] recent more failed', err);
@@ -449,7 +466,6 @@ export default function SearchClient() {
   };
 
   const restoreRecommended = () => {
-    loadedSearchKeyRef.current = '';
     setPhase('idle');
     setQuery('');
     setCommitted(false);
@@ -562,11 +578,7 @@ export default function SearchClient() {
 
   const nickHighlight = parsed.mode === 'plain' ? parsed.term : '';
   const petHighlight =
-    parsed.mode === 'pet'
-      ? `@${parsed.term}`
-      : parsed.mode === 'plain'
-        ? parsed.term
-        : '';
+    parsed.mode === 'pet' ? `@${parsed.term}` : parsed.mode === 'plain' ? parsed.term : '';
 
   if (loadFailed) return <PageLoadError error={loadFailed.error} />;
 
@@ -580,9 +592,7 @@ export default function SearchClient() {
           </button>
         ) : (
           <>
-            <label
-              className={clsx(styles.searchBar, isInputFocused && styles.searchBarFocus)}
-            >
+            <label className={clsx(styles.searchBar, isInputFocused && styles.searchBarFocus)}>
               <Image src={SearchIcon} alt="" width={20} height={20} className={styles.searchIcon} />
               <input
                 ref={inputRef}
@@ -673,13 +683,20 @@ export default function SearchClient() {
                 ),
               )}
             </ul>
-            {recentError ? <p className={styles.recentError} role="alert">{recentError}</p> : null}
+            {recentError ? (
+              <p className={styles.recentError} role="alert">
+                {recentError}
+              </p>
+            ) : null}
             {recentCursor != null && recentItems.length < recentTotal ? (
               <div className={styles.recentMoreRow}>
-                <button type="button" className={styles.recentMoreBtn}
+                <button
+                  type="button"
+                  className={styles.recentMoreBtn}
                   disabled={recentLoading || recentMutating}
                   onMouseDown={(event) => event.preventDefault()}
-                  onClick={() => void loadMoreRecent()}>
+                  onClick={() => void loadMoreRecent()}
+                >
                   {recentLoading ? '불러오는 중…' : '더보기'}
                 </button>
               </div>
@@ -713,10 +730,7 @@ export default function SearchClient() {
         {showHashtagList && resultState === 'ready' ? (
           <div className={styles.searchPanel}>
             {tagResults.length === 0 ? (
-              <EmptyState
-                title="해시태그가 없어요"
-                description="다른 키워드로 검색해 보세요."
-              />
+              <EmptyState title="해시태그가 없어요" description="다른 키워드로 검색해 보세요." />
             ) : (
               <HashtagResultList
                 items={tagResults}

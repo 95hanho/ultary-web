@@ -605,3 +605,8 @@ HTTP: `requests/test.http`
 - BFF `GET /api/admin/ai/logs`, `GET /api/admin/ai/logs/{aiRequestId}`.
 - 관리자 JWT 전용. 기본 FAILED, cursorAiRequestId 페이지 조회. 오류 코드·휴대폰 번호(phone, 하이픈 제외 일치)·이메일(email, 일치) 검색과 대상(전체/HASHTAG/FEED/COMMENT/REPLY) 필터를 제공한다. 같은 moderationJobId는 한 행으로 묶고 필터에 맞는 최신 로그를 대표로 사용한다. 작업 ID 없는 로그는 각각 유지한다. totalCount·메뉴 건수도 작업 단위다. 상세의 attempts에는 같은 작업의 모든 호출(성공 포함)을 오래된 순으로 반환한다.
 - 응답 필드·오류·알림 문구: [async-moderation.md](async-moderation.md#관리자-ai-로그-조회).
+
+
+## SEO (2026-10-26)
+
+로그인·공개 울타리·공유 피드만 색인 예외를 제공한다. GET /api/v1/public/seo/sitemap은 Next sitemap 서버 전용 공개 ID/닉네임 커서 목록이며 BFF 키로 보호한다. 상세 정책/메타정보/검증은 [seo.md](./seo.md). DB migration 없음.

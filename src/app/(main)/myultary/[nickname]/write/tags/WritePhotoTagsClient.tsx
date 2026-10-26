@@ -37,9 +37,7 @@ export default function WritePhotoTagsClient() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  useEffect(() => {
-    if (index >= total && total > 0) setIndex(total - 1);
-  }, [index, total]);
+  if (index >= total && total > 0) setIndex(total - 1);
 
   const handleBack = () => {
     if (index > 0) {
