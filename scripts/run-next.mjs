@@ -14,11 +14,23 @@ const environmentFile = command === 'dev' ? '.env.local' : '.env.production';
 // Next에 포함된 로더를 사용해 Node 20.11에서도 환경 파일을 읽는다.
 // 우선순위: 서버 환경변수 > 환경별 파일 > 공통 파일.
 nextEnv.processEnv(
-  [environmentFile, '.env'].map((name) => ({
-    path: name,
-    contents: readFileSync(new URL(name, new URL('../', import.meta.url)), 'utf8'),
-    env: {},
-  })),
+  [environmentFile, '.env'].flatMap((name) => {
+    let contents;
+    try {
+      contents = readFileSync(new URL(name, new URL('../', import.meta.url)), 'utf8');
+    } catch (error) {
+      // Hosting providers inject env directly; local env files are optional.
+      if (error.code === 'ENOENT') return [];
+      throw error;
+    }
+    return [
+      {
+        path: name,
+        contents,
+        env: {},
+      },
+    ];
+  }),
   root,
 );
 
