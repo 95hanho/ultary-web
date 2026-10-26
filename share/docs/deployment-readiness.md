@@ -21,12 +21,12 @@
 | FE 운영 빌드 | npm run build 성공 |
 | FE 운영 실행 | npm start -- --port 3001로 확인 후 서버 종료 |
 | HTTP 점검 | /login·/signup 200, 비로그인 /dm·/settings 307→/login, /api/auth/me 401 |
-| BE WAR | bootWar 성공, ROOT.war 내부 구성 검사 완료 |
+| BE WAR | bootWar 성공, ultary.war 내부 구성 검사 완료 |
 
-- Gemini 실제 호출·로그인된 브라우저 흐름·실서버 배포는 이번 점검에 포함하지 않았다. 도메인이 미정이므로 로컬 실행 검증이며 운영 도메인 동작 확인이 아니다.
-- 실제 FE .env.production의 APP_URL/NEXT_PUBLIC_APP_URL은 아직 비어 있다. 서버 env 처리에서 빈 문자열도 미설정으로 간주하도록 수정해 로컬 빌드를 허용했다. 최종 배포에는 실제 주소가 필수다.
-- WAR SHA-256: e5efe1013302a0fb2bc34093f37e5bd7682079ec8bd3cec826637b864cf32994
-- WAR 크기: 36059726 bytes. 빌드 산출물은 Git 제외다.
+- Gemini 실제 호출·로그인된 브라우저 흐름·실서버 배포는 이번 점검에 포함하지 않았다. 배포된 FE와 운영 BE 간 연동은 아직 확인하지 않았다.
+- FE 운영 origin은 https://ultary-web.vercel.app으로 확정했다. 로컬 .env.production 및 예제에 반영했고 기존 OAuth 키를 운영 파일에 복사했다. Vercel 환경변수는 별도 등록·재배포가 필요하다.
+- WAR SHA-256: d9cad6e56d26f2f63f2cb3620d0ff31875e85fb517ae7ea6bbff849d387fb43a
+- WAR 크기: 36060436 bytes. 빌드 산출물은 Git 제외다.
 
 ## 배포 WAR의 설정 방식 (변경됨)
 
@@ -48,9 +48,39 @@
 2. 노출 정책은 결정 완료: 로그인·공개 울타리·공유 피드만 노출. 메인 / 는 비로그인 시 로그인으로 이동하는 동작을 유지한다.
 3. 전체 lint 정리 완료. props 변경 시 상태 초기화·이벤트에서 사용하는 ref·hydration 처리를 수정했다. 137개 회귀와 운영 빌드 통과, 브라우저에서 댓글 닫기/재열기·사진 변경 후 크롭 저장 확인.
 4. FE 호스팅/실제 HTTPS 도메인 확정 후 APP_URL·NEXT_PUBLIC_APP_URL·SPRING_BASE_URL·NEXT_PUBLIC_SPRING_WS_URL, OAuth 공급자의 callback/허용 도메인을 맞추고 다시 빌드한다. NEXT_PUBLIC_*는 빌드 시 반영된다.
-5. BE 실제 서버 Java 17·Jakarta 호환 Tomcat, ROOT.war 컨텍스트와 현재 /ultary URL/프록시 매핑, 환경변수·HTTPS/WSS·영속 업로드 경로/권한을 확인한다. 운영 DB는 테스트 DB와 구분해 연결을 재확인한다.
+5. BE 실제 서버 Java 17·Jakarta 호환 Tomcat, ultary.war의 /ultary 컨텍스트와 외부 URL/프록시 매핑, 환경변수·HTTPS/WSS·영속 업로드 경로/권한을 확인한다. 사용자 결정상 기존 DB를 유지한다. 정리 전 백업과 실제 서버 연결을 재확인한다.
 6. 이전 배포본·운영 DB·업로드 백업과 되돌리기 경로를 확보한 다음 명시적 배포 요청을 받아 교체한다. 기존 DB에 init/seed를 실행하지 않는다. v38 적용 DB에 migration을 중복 실행하지 않는다. 과거 일회성 데이터 복구는 재실행하지 않는다.
 7. 배포 후 짧은 핵심 흐름 점검(로그인/계정 전환/업로드/실제 Gemini/DM 실시간/관리자 삭제·복구/작성자 알림 링크)과 PC·모바일·HTTPS/WSS 확인.
 8. 오래된 타입/목업 fallback/문서 일괄 정리는 마지막 단계다. 사용 중인 mock 유틸은 무조건 삭제하지 않는다. SMS 실발송/스토리 만료 복원은 현재 데모 정책상 보류다.
 
-실제 서버에는 아직 배포하지 않았다. 운영 도메인·운영 DB·환경변수가 확정되기 전이므로 이 산출물을 즉시 배포 완료 상태로 간주하지 않는다.
+Vercel FE 최초 배포는 Ready 확인(사용자 화면). 운영 FE 주소는 https://ultary-web.vercel.app. BE 배포·HTTPS/WSS·환경변수·업로드 제한 대응 및 통합 연결 확인은 남아 있다.
+
+## 운영 주소 확정 (2026-10-26)
+
+- FE: https://ultary-web.vercel.app. 배포별 임시 URL은 canonical/OAuth 기준으로 사용하지 않는다.
+- BE 예정: https://95hanho.pe.kr/ultary, WS 예정: wss://95hanho.pe.kr/ultary/api/v1/ws. 실제 HTTPS 포트/컨텍스트는 Cafe24에서 확인 필요.
+- Google callback: https://ultary-web.vercel.app/api/auth/social/google/callback
+- Kakao callback: https://ultary-web.vercel.app/api/auth/social/kakao/callback
+- BE prod 실제 파일/패키징 템플릿의 WS_ALLOWED_ORIGINS 기본값에 FE origin을 반영했다. 서버 환경변수로 재정의 가능하다.
+- 로컬 비밀 env/yml은 Git/WAR에 포함하지 않는다. Cafe24에서는 prod 템플릿의 DB/JWT/BFF/Gemini/UPLOAD_DIR 환경변수와 PHONE_AUTH_DEMO_MODE=true를 따로 설정해야 한다.
+- Vercel 업로드는 현재 BFF 경유이므로 4.5MB 요청 제한 대응이 필요하다. FE 배포 성공만으로 파일 업로드/DM/OAuth 연동 완료를 의미하지 않는다.
+
+- 주소 반영 후 FE 운영 빌드·SEO/env 회귀 15개 통과. 로컬 운영 실행의 /login에서 production canonical·OG 이미지 절대 주소·index 확인, /robots.txt에서 production sitemap origin 확인. BE ultary.war 재생성 및 prod Origin/환경변수 템플릿·local YAML 제외 확인. 운영 BE가 연결되기 전이므로 실제 공개 콘텐츠 sitemap 응답/검색 엔진 색인 완료는 미검증이다.
+
+## WAR YAML 인코딩 오류 수정 (2026-10-26)
+
+- Cafe24 13:45 배포에서 YAML MalformedInputException으로 Spring 시작 실패. 원본 UTF-8은 정상이지만 Windows WAR CopySpec 필터가 기본 charset으로 설정을 변환한 것을 재현했다.
+- bootWar.filteringCharset=UTF-8을 명시하고 생성 후 두 YAML의 엄격 UTF-8 검증을 추가했다. clean bootWar 및 재검증 통과. 새 WAR의 설정/한글 주석이 원본과 일치하고 prod 기본값/local 설정 제외를 확인했다.
+- 기존 /bapi/nextjs_shop 및 과거 잘못된 Host 헤더 요청 로그와 구분한다. Cafe24에서 새 ultary.war 재배포 후 실제 Started 로그 및 환경변수·HTTPS/BFF/DB 점검이 필요하다.
+
+## Cafe24 HTTPS 프록시 진단 (2026-10-26)
+
+- 시작 오류가 UPLOAD_DIR 누락으로 변경돼 로컬 기존 DB/JWT/BFF/Gemini 값을 채운 비공개 build/deploy/setenv.sh를 생성했다. Git 제외/LF/셸 문법 확인. UPLOAD_DIR 기본 준비값은 $HOME/files/ultary이며 기존 파일 위치가 있으면 맞춰야 한다.
+- 이후 health/db가 Spring JSON HTTPS_REQUIRED를 반환했다. Cafe24는 앞단 nginx에서 TLS를 종료하는 구조다. 실제 연결 peer와 X-Forwarded-Proto 전달/덮어쓰기 정책 확인 후 BFF_TRUSTED_PROXIES를 한정해야 한다. 임의 IP 추측·전체 인터넷 신뢰·HTTPS 검사 해제는 적용하지 않았다.
+- health/db HTTPS 거절 시 시작당 한 번 remoteAddr/scheme/secure, forwardedProto 개수/https 일치 여부, 신뢰 프록시 개수만 진단 로그에 기록한다. 키/토큰/원문 헤더는 기록하지 않는다. BFF 필터 13개 테스트 및 WAR 빌드 통과. 서버 재배포 후 진단 로그 확인 필요.
+
+## 현재 Cafe24 HTTPS 정책 — 앞선 프록시 진단보다 우선 (2026-10-26)
+
+- 사용자 승인으로 prod 템플릿과 로컬 prod의 security.bff.require-https를 false로 설정했다. Cafe24 nginx의 HTTPS 처리를 사용하고 BE의 원본 프로토콜 검사만 생략한다. BFF 키 검증·FE 운영 HTTPS URL 제한·브라우저 WSS 요구는 유지한다.
+- 진단값: remoteAddr=203.245.44.21, scheme=http, secure=false, X-Forwarded-Proto 없음. BFF_TRUSTED_PROXIES 추가나 호스팅 문의는 현재 배포의 선행 조건이 아니다.
+- BFF 필터 13개 테스트와 bootWar 통과, WAR의 false 설정/키 환경변수 바인딩 유지 확인. 서버 새 WAR 배포 후 health/db 및 FE 연동 확인 필요.

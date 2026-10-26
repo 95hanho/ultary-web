@@ -1,5 +1,26 @@
 # ULTARY 작업 이력
 
+## 2026-10-26 Cafe24 HTTPS 정책 확정
+
+- 사용자 결정으로 BE prod의 원본 HTTPS 검사만 해제(require-https=false). BFF 키 인증, FE 운영 HTTPS 요청, 브라우저 WSS 요구는 유지한다.
+- 앞단 TLS 종료/프로토콜 헤더 미전달에 맞춘 설정이며, 이전 프록시 신뢰 설정 TODO보다 우선한다. BFF 필터 13개·WAR 빌드 검증 완료.
+
+## 2026-10-26 WAR YAML 인코딩 수정
+
+- Windows WAR 필터 기본 charset으로 인한 YAML 손상/배포 시작 실패를 재현하고 UTF-8로 고정했다.
+- bootWar 후 설정 UTF-8 자동 검증 추가. 새 ultary.war의 한글/설정 원본 일치·prod 기본값·local 설정 제외 확인. 서버 재배포 확인은 별도다.
+
+## 2026-10-26 Cafe24 WAR 이름 확정
+
+- bootWar 결과를 ultary.war로 변경했다. Cafe24 /tomcat/webapps에 배포하여 /ultary 컨텍스트를 사용한다.
+- clean bootWar로 생성 확인. 기존 ROOT 애플리케이션은 이 작업에서 변경하지 않았다.
+
+## 2026-10-26 운영 FE 주소 확정
+
+- https://ultary-web.vercel.app을 SEO/canonical/OAuth 기준 origin으로 운영 env와 예제에 반영했다. 로컬 개발 주소는 유지한다.
+- 기존 OAuth 값을 실제 운영 env에 복사하고 BE prod 웹소켓 origin 기본값을 반영했다. 비밀 파일은 Git/WAR에서 제외한다.
+- Vercel 변수 등록·재배포, 공급자 callback 등록 및 Cafe24 BE 실행 환경 주입은 별도 작업이다.
+
 ## 2026-10-26 BE 전체 테스트 정리
 
 - 구 비동기 게시글 수정 복구 테스트를 동기 검사 거절 시 원문/태그 보존·승인 후 저장 검증으로 교체했다. 실제 AI 호출은 mock으로 격리했다.

@@ -31,8 +31,8 @@ FE 환경 파일은 `.env`, `.env.local`, `.env.production` 및 각각의 `.exam
 프로덕션 키는 로컬 비공개 설정에 준비했으며 실제 운영 서버에 배포/업로드하지 않았다. 배포할 때 다음 값은 운영 환경에 맞게 설정한다.
 
 1. `.env.production`의 `NEXT_PUBLIC_APP_URL`, `APP_URL`, `SPRING_BASE_URL`은 **실제 HTTPS URL**, `NEXT_PUBLIC_SPRING_WS_URL`은 실제 WSS URL로 채운다. 현재 운영 주소 항목은 빈칸이며 `.env.production.example`에 형식 예시가 있다. HTTP Spring 주소는 실제 요청 전에 거부된다.
-2. Spring 프로필 `prod`: `security.bff.require-https=true`. HTTP는 리다이렉트 대신 `403 HTTPS_REQUIRED`로 거부한다. Next도 HTTP로 키를 보내기 전에 차단한다.
-3. BE가 직접 TLS를 처리하면 `request.isSecure()`로 확인한다. 프록시가 TLS를 종료하는 경우 `BFF_TRUSTED_PROXIES`에 **실제 연결 peer 프록시 IP/CIDR만** 지정한다. 기본은 비어 있어 전달 헤더를 신뢰하지 않는다.
+2. 현재 Cafe24 운영 설정은 `security.bff.require-https=false`다(2026-10-26 사용자 결정). 앞단 nginx가 TLS를 종료하고 원본 프로토콜 헤더 없이 Tomcat에 HTTP로 전달하므로 BE의 별도 원본 HTTPS 검사는 적용하지 않는다. BFF 키 검증은 유지하고 Next 운영 요청은 계속 HTTPS만 허용한다. BE는 유효한 키가 있는 HTTP 요청도 허용한다.
+3. 다른 호스팅에서 `require-https=true`로 설정할 경우: BE가 직접 TLS를 처리하면 `request.isSecure()`로 확인한다. 프록시가 TLS를 종료하는 경우 `BFF_TRUSTED_PROXIES`에 **실제 연결 peer 프록시 IP/CIDR만** 지정한다. 기본은 비어 있어 전달 헤더를 신뢰하지 않는다.
 4. 프록시는 외부의 `X-Forwarded-Proto`를 덮어쓰고 실제 원본 프로토콜 한 개만 전달해야 한다. 지정한 프록시의 단일 `https` 값만 인정하며, 임의 외부 peer의 `Forwarded`/`X-Forwarded-Proto`는 인정하지 않는다. 신뢰 범위를 전체 인터넷으로 설정하지 않는다.
 5. prod sample/실제 yml의 `server.forward-headers-strategy=none`은 애플리케이션이 검증 전 전달 헤더로 보안 연결을 오인하지 않게 한다. 외장 Tomcat의 별도 RemoteIpValve 등은 호스팅 관리 설정에서도 신뢰 프록시가 올바른지 확인해야 한다.
 

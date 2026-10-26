@@ -20,7 +20,7 @@
 
 ## robots와 sitemap
 
-- APP_URL(또는 NEXT_PUBLIC_APP_URL)에 HTTPS 운영 origin이 설정되어야 색인을 연다. 현재 도메인 미정 상태와 localhost/HTTP에서는 metadata noindex, robots 전체 차단, 빈 sitemap으로 응답한다. 검증용 origin은 파일에 저장하지 않았다.
+- APP_URL(또는 NEXT_PUBLIC_APP_URL)에 HTTPS 운영 origin이 설정되어야 색인을 연다. 운영 origin이 없거나 localhost/HTTP이면 metadata noindex, robots 전체 차단, 빈 sitemap으로 응답한다. 확정 FE origin은 https://ultary-web.vercel.app이며 실제 .env.production과 예제에 반영했다.
 - 운영 robots.txt는 페이지별 noindex를 읽을 수 있도록 페이지 접근을 허용한다. API는 크롤링을 막되 공개 이미지 프록시 /api/files/는 예외다. robots 차단만으로 noindex를 대신하지 않는다.
 - sitemap.xml은 /login과 BE의 공개 계정/피드 목록만 포함한다. 삭제·회원 비공개·정지·탈퇴·PRIVATE/NEIGHBORS 게시글은 제외한다. 연결 피드 수가 없는 공개 계정도 공개 울타리가 있으므로 포함한다.
 - 서버 전용 GET /api/v1/public/seo/sitemap?type=PROFILE|FEED&cursorId=0&limit=200은 사용자 JWT 없이 기존 BFF 키로 접근한다. 응답은 items([{id,nickname?}]), nextCursorId다. ID 오름차순 커서, limit 1~1000, 다음 페이지 없으면 null. 연락처/본문/비공개 데이터는 응답하지 않는다. Cache-Control:no-store.
@@ -33,7 +33,7 @@
 - BE SeoIntegrationTest 6개 + 기존 FeedBlockIntegrationTest 4개 통과. 실제 MariaDB fixture는 롤백하며 worker를 비활성화했다.
 - 운영 실행 HTTP 확인: 도메인 미설정 /login·signup·password noindex, robots 전체 차단/빈 sitemap. 검증용 HTTPS origin에서는 /login?signup=complete만 index/canonical=/login, signup/password는 noindex. 기본 OG 이미지를 사용자 제공 파일로 교체했다.
 - 실제 공개 피드/울타리의 운영 크롤러 요청은 도메인과 서버 배포 후 확인해야 한다. 단위 테스트의 mock 응답과 실제 검색 엔진 색인 완료를 구분한다.
-- 도메인 확정 후 APP_URL/NEXT_PUBLIC_APP_URL을 맞춰 FE를 다시 빌드하고, robots.txt/sitemap.xml/공개 페이지 원문/비공개 전환을 운영 주소에서 확인한다.
+- 운영 주소 확정 후 로컬 APP_URL/NEXT_PUBLIC_APP_URL을 반영했다. Vercel Production에도 같은 값을 등록·재배포하고, robots.txt/sitemap.xml/공개 페이지 원문/비공개 전환을 운영 주소에서 확인한다.
 - 이후 Google Search Console·네이버 서치어드바이저에서 소유권 확인과 sitemap 제출을 진행한다. 실제 검색 결과 반영 시점은 검색 엔진이 결정한다.
 - 전체 lint도 후속 정리를 완료했다. 0 errors/0 warnings(--max-warnings=0), FE 회귀 137개 및 운영 빌드 통과.
 
