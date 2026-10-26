@@ -1,6 +1,7 @@
 'use client';
 import { useResettableState } from '@/lib/react/useResettableState';
 import { useHydrated } from '@/lib/react/useHydrated';
+import { ENABLE_DEV_TOOLS } from '@/lib/env.client';
 
 import { bffDelete, bffPostJson } from '@/lib/api/bffFetch';
 import { bffEndpoints } from '@/lib/api/endpoints';
@@ -88,7 +89,7 @@ function formatClock(ms: number) {
 }
 
 /**
- * development 전용 테스트 도크.
+ * NEXT_PUBLIC_ENABLE_DEV_TOOLS로 표시를 제어하는 테스트 도크.
  * 우하단 fixed · 숨기기면 우측으로 접히고 ◀ 로 다시 펼침.
  * 액세스 토큰 예상 만료는 항상 보이고, 페이지 버튼은 그 아래에 붙는다.
  */
@@ -118,7 +119,7 @@ export function DevTestDock({ groups }: Props) {
   const refreshClearedRef = useRef(false);
 
   useEffect(() => {
-    if (!mounted) return;
+    if (!mounted || !ENABLE_DEV_TOOLS) return;
     const tick = () => {
       const expires = Number(readCookie(DEV_ACCESS_EXPIRES_AT_COOKIE));
       const issued = Number(readCookie(DEV_ACCESS_ISSUED_AT_COOKIE));
@@ -154,7 +155,7 @@ export function DevTestDock({ groups }: Props) {
     return () => window.clearTimeout(id);
   }, [refreshFresh]);
 
-  if (process.env.NODE_ENV !== 'development') return null;
+  if (!ENABLE_DEV_TOOLS) return null;
   if (!mounted) return null;
   if (pathname === '/admin' || pathname.startsWith('/admin/')) return null;
 

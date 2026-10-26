@@ -1,6 +1,7 @@
 'use client';
 
 import { DevTestDock, type DevTestAction, type DevTestGroup } from '@/components/dev/DevTestDock';
+import { ENABLE_DEV_TOOLS } from '@/lib/env.client';
 import {
   createContext,
   useCallback,
@@ -38,12 +39,12 @@ export function DevTestProvider({ children }: { children: ReactNode }) {
   return (
     <DevTestContext.Provider value={api}>
       {children}
-      {process.env.NODE_ENV === 'development' ? <DevTestDock groups={list} /> : null}
+      {ENABLE_DEV_TOOLS ? <DevTestDock groups={list} /> : null}
     </DevTestContext.Provider>
   );
 }
 
-/** 현재 페이지의 개발 버튼을 공통 패널에 붙인다. production 에서는 아무것도 하지 않는다. */
+/** DEV 도구 설정이 켜진 경우에만 현재 페이지의 개발 버튼을 공통 패널에 붙인다. */
 export function useDevTestActions(id: string, title: string, actions: DevTestAction[]) {
   const ctx = useContext(DevTestContext);
   const actionsRef = useRef(actions);
@@ -55,7 +56,7 @@ export function useDevTestActions(id: string, title: string, actions: DevTestAct
     .join('\n');
 
   useEffect(() => {
-    if (!ctx || process.env.NODE_ENV !== 'development') return;
+    if (!ctx || !ENABLE_DEV_TOOLS) return;
     ctx.setGroup(id, {
       title,
       actions: actionsRef.current.map((action) => ({

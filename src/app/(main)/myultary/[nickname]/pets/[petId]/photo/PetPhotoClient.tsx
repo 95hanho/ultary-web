@@ -6,6 +6,7 @@ import { PageHeader } from '@/components/common/PageHeader';
 import { bffPatchJson } from '@/lib/api/bffFetch';
 import { bffEndpoints } from '@/lib/api/endpoints';
 import { isRecord } from '@/lib/api/error';
+import { ENABLE_DEV_TOOLS } from '@/lib/env.client';
 import { myUltaryPath } from '@/lib/mock/ultary-accounts';
 import type { BffEnvelope } from '@/types/api';
 import {
@@ -123,7 +124,7 @@ export default function PetPhotoClient() {
           cropperRef={cropperRef}
           onReadyChange={setReady}
         />
-        {process.env.NODE_ENV === 'development' ? (
+        {ENABLE_DEV_TOOLS ? (
           <div className={styles.devActions}>
             <button
               type="button"
