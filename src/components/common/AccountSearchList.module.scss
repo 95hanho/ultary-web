@@ -131,6 +131,9 @@
   font-size: 13px;
   font-weight: 700;
 }
+.hit {
+  color: var(--brand-grass-600);
+}
 .tags {
   color: var(--brand-black-700);
   font-size: 12px;
@@ -175,6 +178,12 @@
 .petRow {
   display: flex;
   align-items: center;
+  &:hover:not(:has(button:disabled)) {
+    background: var(--brand-grass-100);
+  }
+  &:active:not(:has(button:disabled)) {
+    background: var(--brand-grass-150);
+  }
 }
 .petAvatar {
   display: flex;

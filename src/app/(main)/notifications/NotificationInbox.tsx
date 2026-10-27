@@ -9,7 +9,11 @@ import { isHttpError, isRecord } from '@/lib/api/error';
 import { myUltaryPath } from '@/lib/mock/ultary-accounts';
 import { openFeedComment, postPagePath } from '@/lib/notification/openTarget';
 import { moderationNoticeParts } from '@/lib/notification/moderationNotice';
-import { fetchUnreadCount, publishUnreadBadge, subscribeUnreadBadge } from '@/lib/notification/unreadBadge';
+import {
+  fetchUnreadCount,
+  publishUnreadBadge,
+  subscribeUnreadBadge,
+} from '@/lib/notification/unreadBadge';
 import { showFooterNotice } from '@/lib/ui/footerNotice';
 import { NO_PROFILE_SRC } from '@/lib/profileImage';
 import type { BffEnvelope } from '@/types/api';
@@ -177,13 +181,7 @@ function linkifyMessage(
   });
 }
 
-function ActorPhrase({
-  nickname,
-  othersCount,
-}: {
-  nickname: string;
-  othersCount?: number;
-}) {
+function ActorPhrase({ nickname, othersCount }: { nickname: string; othersCount?: number }) {
   const nick = (
     <Link href={myUltaryPath(nickname)} className={styles.nickname}>
       {nickname}
@@ -201,21 +199,42 @@ function ActorPhrase({
 
 function NotificationMessage({ item }: { item: NotificationItem }) {
   const router = useRouter();
-  const snippet = item.kind !== 'moderation' && item.preview
-    ? item.message
-      ? item.preview
-      : toPreviewSnippet(item.preview, 6, shouldPreserveMentions(item.kind))
-    : null;
+  const snippet =
+    item.kind !== 'moderation' && item.preview
+      ? item.message
+        ? item.preview
+        : toPreviewSnippet(item.preview, 6, shouldPreserveMentions(item.kind))
+      : null;
   const previewNode =
-    snippet != null ? <span className={styles.preview}>&quot;{snippet}&quot;</span> : null;
+    snippet != null ? (
+      item.kind === 'mentionComment' || item.kind === 'mentionReply' ? (
+        <button
+          type="button"
+          className={styles.keyword}
+          onClick={() =>
+            item.kind === 'mentionReply' ? goReply(item, router) : goComment(item, router)
+          }
+        >
+          &quot;{snippet}&quot;
+        </button>
+      ) : (
+        <span className={styles.preview}>&quot;{snippet}&quot;</span>
+      )
+    ) : null;
   const time = <span className={styles.time}>{item.timeLabel}</span>;
   if (item.kind === 'tagApproved' || item.kind === 'tagRejected') {
     const rejected = item.kind === 'tagRejected';
-    return <p className={styles.message}><Link href="/settings/hashtags" className={styles.keyword}>#{item.preview}</Link> 의 태그 요청이 {rejected ? <span className={styles.tagRejected}>거절</span> : '수락'}되었습니다. {time}</p>;
+    return (
+      <p className={styles.message}>
+        <Link href="/settings/hashtags" className={styles.keyword}>
+          #{item.preview}
+        </Link>{' '}
+        의 태그 요청이 {rejected ? <span className={styles.tagRejected}>거절</span> : '수락'}
+        되었습니다. {time}
+      </p>
+    );
   }
-  const actor = (
-    <ActorPhrase nickname={item.actorNickname} othersCount={item.othersCount} />
-  );
+  const actor = <ActorPhrase nickname={item.actorNickname} othersCount={item.othersCount} />;
   const nickOnly = (
     <Link href={myUltaryPath(item.actorNickname)} className={styles.nickname}>
       {item.actorNickname}
@@ -225,8 +244,15 @@ function NotificationMessage({ item }: { item: NotificationItem }) {
   let action: ReactNode;
   switch (item.kind) {
     case 'moderation':
-      action = moderationNoticeParts(item.message ?? '콘텐츠 확인 결과가 있습니다.', item).map((part, index) =>
-        part.href ? <Link key={index} href={part.href} className={styles.keyword}>{part.text}</Link> : part.text,
+      action = moderationNoticeParts(item.message ?? '콘텐츠 확인 결과가 있습니다.', item).map(
+        (part, index) =>
+          part.href ? (
+            <Link key={index} href={part.href} className={styles.keyword}>
+              {part.text}
+            </Link>
+          ) : (
+            part.text
+          ),
       );
       break;
     case 'neighbor':
@@ -240,24 +266,24 @@ function NotificationMessage({ item }: { item: NotificationItem }) {
     case 'likePost':
       action = (
         <>
-          {actor} <KeywordButton label="게시글" onClick={() => goPost(item, router)} />에
-          좋아요를 눌렀습니다.
+          {actor} <KeywordButton label="게시글" onClick={() => goPost(item, router)} />에 좋아요를
+          눌렀습니다.
         </>
       );
       break;
     case 'likeComment':
       action = (
         <>
-          {actor} <KeywordButton label="댓글" onClick={() => goComment(item, router)} />에
-          좋아요를 눌렀습니다.
+          {actor} <KeywordButton label="댓글" onClick={() => goComment(item, router)} />에 좋아요를
+          눌렀습니다.
         </>
       );
       break;
     case 'likeReply':
       action = (
         <>
-          {actor} <KeywordButton label="답글" onClick={() => goReply(item, router)} />에
-          좋아요를 눌렀습니다.
+          {actor} <KeywordButton label="답글" onClick={() => goReply(item, router)} />에 좋아요를
+          눌렀습니다.
         </>
       );
       break;
@@ -280,40 +306,40 @@ function NotificationMessage({ item }: { item: NotificationItem }) {
     case 'mentionComment':
       action = (
         <>
-          {actor} <KeywordButton label="댓글" onClick={() => goComment(item, router)} />에서
-          회원님을 언급했습니다.
+          {actor} <KeywordButton label="댓글" onClick={() => goComment(item, router)} />
+          에서 회원님을 언급했습니다.
         </>
       );
       break;
     case 'mentionReply':
       action = (
         <>
-          {actor} <KeywordButton label="답글" onClick={() => goReply(item, router)} />에서
-          회원님을 언급했습니다.
+          {actor} <KeywordButton label="답글" onClick={() => goReply(item, router)} />
+          에서 회원님을 언급했습니다.
         </>
       );
       break;
     case 'tagPost':
       action = (
         <>
-          {actor} <KeywordButton label="게시글" onClick={() => goPost(item, router)} />에서
-          회원님을 태그했습니다.
+          {actor} <KeywordButton label="게시글" onClick={() => goPost(item, router)} />
+          에서 회원님을 태그했습니다.
         </>
       );
       break;
     case 'tagStory':
       action = (
         <>
-          {actor} <KeywordButton label="스토리" onClick={() => goStory(item, router)} />에서
-          회원님을 태그했습니다.
+          {actor} <KeywordButton label="스토리" onClick={() => goStory(item, router)} />
+          에서 회원님을 태그했습니다.
         </>
       );
       break;
     case 'storyReact':
       action = (
         <>
-          {actor} <KeywordButton label="스토리" onClick={() => goStory(item, router)} />에
-          공감을 표시했습니다.
+          {actor} <KeywordButton label="스토리" onClick={() => goStory(item, router)} />에 공감을
+          표시했습니다.
         </>
       );
       break;
@@ -321,7 +347,9 @@ function NotificationMessage({ item }: { item: NotificationItem }) {
 
   return (
     <p className={styles.message}>
-      {item.message && item.kind !== 'moderation' ? linkifyMessage(item.message, item, router) : action}
+      {item.message && item.kind !== 'moderation'
+        ? linkifyMessage(item.message, item, router)
+        : action}
       {previewNode ? <> {previewNode}</> : null} {time}
     </p>
   );
@@ -335,10 +363,7 @@ function formatNotifTime(iso: string) {
   return `${d.getMonth() + 1}월${d.getDate()}일 ${hh}:${mm}`;
 }
 
-function mapNotificationType(
-  type: string,
-  replyId: number | null,
-): NotificationKind | null {
+function mapNotificationType(type: string, replyId: number | null): NotificationKind | null {
   switch (type) {
     case 'AI_MODERATION':
       return 'moderation';
@@ -497,9 +522,7 @@ export function NotificationInbox({ variant = 'page' }: { variant?: 'page' | 'po
           limit: 30,
         });
         const list = unwrapNotificationList(res.data);
-        const mapped = list
-          .map(mapApiNotification)
-          .filter((v): v is NotificationItem => v != null);
+        const mapped = list.map(mapApiNotification).filter((v): v is NotificationItem => v != null);
         if (cancelled || gen !== generation) return;
         seen = true;
         setItems(mapped);
@@ -527,7 +550,7 @@ export function NotificationInbox({ variant = 'page' }: { variant?: 'page' | 'po
         if (!cancelled && gen === generation && !seen) {
           setItems([]);
           setStatus('알림을 불러오지 못했습니다.');
-        setLoadFailed({ error: err });
+          setLoadFailed({ error: err });
         }
       }
     }
@@ -557,9 +580,7 @@ export function NotificationInbox({ variant = 'page' }: { variant?: 'page' | 'po
         });
         setItems((prev) =>
           prev.map((row) =>
-            row.id === item.id
-              ? { ...row, following: true, neighborStatus: 'ACCEPTED' }
-              : row,
+            row.id === item.id ? { ...row, following: true, neighborStatus: 'ACCEPTED' } : row,
           ),
         );
       } else if (item.neighborStatus === 'ACCEPTED') {
@@ -616,55 +637,55 @@ export function NotificationInbox({ variant = 'page' }: { variant?: 'page' | 'po
 
   return (
     <>
-        {status ? <p className={styles.status}>{status}</p> : null}
-        <ul className={clsx(styles.list, variant === 'popup' && styles.listPc)}>
-          {items.map((item) => {
-            const ultaryHref = myUltaryPath(item.actorNickname);
-            const neighborAction = neighborControl(item);
+      {status ? <p className={styles.status}>{status}</p> : null}
+      <ul className={clsx(styles.list, variant === 'popup' && styles.listPc)}>
+        {items.map((item) => {
+          const ultaryHref = myUltaryPath(item.actorNickname);
+          const neighborAction = neighborControl(item);
 
-            return (
-              <li key={item.id} className={styles.item}>
-                <div className={styles.itemBody}>
-                  <Link
-                    href={ultaryHref}
-                    className={styles.imageWrap}
-                    aria-label={`${item.actorNickname} 울타리`}
-                  >
-                    <MediaImage
-                      src={item.profileUrl}
-                      alt=""
-                      width={39}
-                      height={39}
-                      className={styles.image}
-                    />
-                  </Link>
-                  <div className={styles.info}>
-                    <NotificationMessage item={item} />
-                  </div>
-                  {neighborAction ? (
-                    <div className={styles.actionWrap}>
-                      <button
-                        type="button"
-                        className={clsx(
-                          styles.actionBtn,
-                          neighborAction === 'follow' ? styles.actionAccept : styles.actionCancel,
-                        )}
-                        disabled={actingId === item.id}
-                        onClick={() =>
-                          void (neighborAction === 'follow'
-                            ? followNeighbor(item)
-                            : cancelNeighbor(item))
-                        }
-                      >
-                        {neighborAction === 'follow' ? '팔로우' : '취소'}
-                      </button>
-                    </div>
-                  ) : null}
+          return (
+            <li key={item.id} className={styles.item}>
+              <div className={styles.itemBody}>
+                <Link
+                  href={ultaryHref}
+                  className={styles.imageWrap}
+                  aria-label={`${item.actorNickname} 울타리`}
+                >
+                  <MediaImage
+                    src={item.profileUrl}
+                    alt=""
+                    width={39}
+                    height={39}
+                    className={styles.image}
+                  />
+                </Link>
+                <div className={styles.info}>
+                  <NotificationMessage item={item} />
                 </div>
-              </li>
-            );
-          })}
-        </ul>
+                {neighborAction ? (
+                  <div className={styles.actionWrap}>
+                    <button
+                      type="button"
+                      className={clsx(
+                        styles.actionBtn,
+                        neighborAction === 'follow' ? styles.actionAccept : styles.actionCancel,
+                      )}
+                      disabled={actingId === item.id}
+                      onClick={() =>
+                        void (neighborAction === 'follow'
+                          ? followNeighbor(item)
+                          : cancelNeighbor(item))
+                      }
+                    >
+                      {neighborAction === 'follow' ? '팔로우' : '취소'}
+                    </button>
+                  </div>
+                ) : null}
+              </div>
+            </li>
+          );
+        })}
+      </ul>
     </>
   );
 }

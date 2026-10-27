@@ -376,13 +376,20 @@ export function FooterMenu() {
       aria-label="하단 메뉴"
     >
       <FooterNotice />
-      <Link href="/" className={styles.brand} aria-label="울타리" onClick={guardNav('/')}>
+      <Link
+        prefetch={false}
+        href="/"
+        className={styles.brand}
+        aria-label="울타리"
+        onClick={guardNav('/')}
+      >
         <Fence className={styles.brandIcon} size={28} strokeWidth={1.75} />
         <Image src={LogoImage} alt="" width={140} height={42} className={styles.brandLogo} />
       </Link>
 
       <div className={styles.group}>
         <Link
+          prefetch={false}
           href="/"
           className={clsx(styles.item, isHome && styles.itemCurrent)}
           aria-label="홈"
@@ -400,6 +407,7 @@ export function FooterMenu() {
         </Link>
 
         <Link
+          prefetch={false}
           href="/search"
           className={clsx(styles.item, isSearch && styles.itemCurrent)}
           aria-label="검색"
@@ -411,6 +419,7 @@ export function FooterMenu() {
         </Link>
 
         <Link
+          prefetch={false}
           href="/notifications"
           className={clsx(styles.item, (isNotifications || noticeOpen) && styles.itemCurrent)}
           aria-label={
@@ -439,6 +448,7 @@ export function FooterMenu() {
         </Link>
 
         <Link
+          prefetch={false}
           href="/dm"
           className={clsx(styles.item, isDm && styles.itemCurrent)}
           aria-label={
@@ -466,6 +476,7 @@ export function FooterMenu() {
         </button>
 
         <Link
+          prefetch={false}
           href={myPath}
           className={clsx(styles.item, isMyUltary && styles.itemCurrent)}
           aria-label="울타리"
@@ -507,11 +518,17 @@ export function FooterMenu() {
             className={styles.moreMenu}
             style={{ left: morePlace.left, bottom: morePlace.bottom }}
           >
-            <Link href="/settings" className={styles.moreItem} onClick={guardNav('/settings')}>
+            <Link
+              prefetch={false}
+              href="/settings"
+              className={styles.moreItem}
+              onClick={guardNav('/settings')}
+            >
               <Settings size={22} strokeWidth={1.75} />
               설정
             </Link>
             <Link
+              prefetch={false}
               href="/settings/activity"
               className={styles.moreItem}
               onClick={guardNav('/settings/activity')}
@@ -519,6 +536,7 @@ export function FooterMenu() {
               <List size={22} strokeWidth={1.75} />내 활동
             </Link>
             <Link
+              prefetch={false}
               href="/settings/saved"
               className={styles.moreItem}
               onClick={guardNav('/settings/saved')}

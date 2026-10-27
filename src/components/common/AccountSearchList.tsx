@@ -4,6 +4,7 @@ import { PageLoadError } from '@/components/common/PageLoadError';
 
 import { MediaImage } from '@/components/common/MediaImage';
 import { NO_PROFILE_SRC } from '@/lib/profileImage';
+import { highlightMatch } from '@/lib/search/highlight';
 import clsx from 'clsx';
 import { useId } from 'react';
 import Image from 'next/image';
@@ -31,6 +32,8 @@ type Props<T extends AccountSearchItem> = {
   getNote?: (item: T) => string | undefined;
   disabled?: boolean;
   autoFocus?: boolean;
+  showSearch?: boolean;
+  emptyMessage?: string;
 };
 
 /** Search + account list. Callers own data loading, ranking and selection behavior. */
@@ -48,6 +51,8 @@ export function AccountSearchList<T extends AccountSearchItem>({
   getNote,
   disabled = false,
   autoFocus = false,
+  showSearch = true,
+  emptyMessage,
 }: Props<T>) {
   const selectionName = useId();
   const term = query.trim().replace(/^@+/, '').toLowerCase();
@@ -62,52 +67,54 @@ export function AccountSearchList<T extends AccountSearchItem>({
 
   return (
     <div className={styles.root}>
-      <div className={styles.searchRow}>
-        <label className={styles.searchBar}>
-          <Image src="/images/icon/Search.svg" alt="" width={20} height={20} />
-          <input
-            type="search"
-            autoFocus={autoFocus}
-            className={styles.searchInput}
-            placeholder="검색"
-            aria-label="닉네임 또는 펫태그 검색"
-            value={query}
-            disabled={disabled}
-            onChange={(event) => onQueryChange(event.target.value)}
-          />
-          {query ? (
-            <button
-              type="button"
-              className={styles.clearQuery}
-              aria-label="검색어 지우기"
+      {showSearch ? (
+        <div className={styles.searchRow}>
+          <label className={styles.searchBar}>
+            <Image src="/images/icon/Search.svg" alt="" width={20} height={20} />
+            <input
+              type="search"
+              autoFocus={autoFocus}
+              className={styles.searchInput}
+              placeholder="검색"
+              aria-label="닉네임 또는 펫태그 검색"
+              value={query}
               disabled={disabled}
-              onMouseDown={(event) => event.preventDefault()}
-              onClick={() => onQueryChange('')}
-            >
-              <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
-                <path
-                  d="M3 3l8 8M11 3L3 11"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.6"
-                  strokeLinecap="round"
-                />
-              </svg>
-            </button>
-          ) : null}
-        </label>
-      </div>
+              onChange={(event) => onQueryChange(event.target.value)}
+            />
+            {query ? (
+              <button
+                type="button"
+                className={styles.clearQuery}
+                aria-label="검색어 지우기"
+                disabled={disabled}
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={() => onQueryChange('')}
+              >
+                <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
+                  <path
+                    d="M3 3l8 8M11 3L3 11"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.6"
+                    strokeLinecap="round"
+                  />
+                </svg>
+              </button>
+            ) : null}
+          </label>
+        </div>
+      ) : null}
       <div className={styles.results} aria-busy={status === 'loading'}>
         {status === 'loading' ? (
           <p className={styles.status} role="status">
             불러오는 중
           </p>
         ) : null}
-        {status === 'error' ? (
-          <PageLoadError />
-        ) : null}
+        {status === 'error' ? <PageLoadError /> : null}
         {status === 'ready' && !visible.length ? (
-          <p className={styles.status}>{term ? '검색 결과가 없어요' : '목록이 비어 있어요'}</p>
+          <p className={styles.status}>
+            {emptyMessage ?? (term ? '검색 결과가 없어요' : '목록이 비어 있어요')}
+          </p>
         ) : null}
         {status === 'ready' ? (
           <ul className={styles.list}>
@@ -139,7 +146,7 @@ export function AccountSearchList<T extends AccountSearchItem>({
                         disabled={blocked}
                         onClick={() => onSelect(item)}
                       >
-                        {item.nickname}
+                        {highlightMatch(item.nickname, term, styles.hit)}
                       </button>
                       <span className={styles.petTags}>
                         {item.petTags.map((tag) => (
@@ -150,7 +157,7 @@ export function AccountSearchList<T extends AccountSearchItem>({
                             disabled={blocked}
                             onClick={() => onSelectPetTag(item, tag)}
                           >
-                            {tag}
+                            {highlightMatch(tag, term, styles.hit)}
                           </button>
                         ))}
                       </span>
@@ -171,9 +178,13 @@ export function AccountSearchList<T extends AccountSearchItem>({
                     />
                   </span>
                   <span className={styles.text}>
-                    <span className={styles.nick}>{item.nickname}</span>
+                    <span className={styles.nick}>
+                      {highlightMatch(item.nickname, term, styles.hit)}
+                    </span>
                     {item.petTags.length ? (
-                      <span className={styles.tags}>{item.petTags.join(' ')}</span>
+                      <span className={styles.tags}>
+                        {highlightMatch(item.petTags.join(' '), term, styles.hit)}
+                      </span>
                     ) : null}
                     {note ? <span className={styles.note}>{note}</span> : null}
                   </span>

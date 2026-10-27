@@ -4,6 +4,17 @@ import { useHydrated } from '@/lib/react/useHydrated';
 
 import { Profile } from '@/components/my-ultary/Profile';
 import { PageLoadError } from '@/components/common/PageLoadError';
+import { AccountSearchList } from '@/components/common/AccountSearchList';
+import { MentionInput } from '@/components/common/MentionInput';
+import { useRankedAccounts, type RankedAccount } from '@/lib/search/useRankedAccounts';
+import {
+  replaceMention,
+  selectedMentionTokens,
+  retainMentionUsers,
+  mentionPayload,
+  type MentionUser,
+  type ActiveMention,
+} from '@/lib/search/mention-input';
 
 import { notifyAiContentBlocked } from '@/lib/ai/content-blocked';
 import { subscribeContentModerated } from '@/lib/ws/liveSocket';
@@ -118,19 +129,29 @@ function patchThreadReport(items: MockComment[], target: ThreadTarget, report: M
   });
 }
 
-function renderContent(content: string, readOnly = false) {
-  const parts = content.split(/(@[A-Za-z0-9_]+)/g);
-  return parts.map((part, i) => {
-    if (!part.startsWith('@') || readOnly) {
-      return <span key={i}>{part}</span>;
-    }
-    const nickname = part.slice(1);
-    return (
-      <Link key={i} href={myUltaryPath(nickname)} className={styles.mention}>
-        {part}
-      </Link>
+function renderContent(content: string, readOnly = false, mentionedUsers: MentionUser[] = []) {
+  const parts = [];
+  let cursor = 0;
+  for (const token of selectedMentionTokens(content, mentionedUsers)) {
+    parts.push(<span key={'text' + cursor}>{content.slice(cursor, token.start)}</span>);
+    const person = mentionedUsers.find((user) => user.nickname === token.text.slice(1))!;
+    parts.push(
+      readOnly ? (
+        <span key={token.start}>{token.text}</span>
+      ) : (
+        <Link
+          key={token.start}
+          href={myUltaryPath(person.nickname) + '?userNo=' + person.userNo}
+          className={styles.mention}
+        >
+          {token.text}
+        </Link>
+      ),
     );
-  });
+    cursor = token.end;
+  }
+  parts.push(<span key={'text' + cursor}>{content.slice(cursor)}</span>);
+  return parts;
 }
 
 function CommentBody({
@@ -201,7 +222,7 @@ function CommentBody({
                 {item.nickname}
               </Link>
             )}{' '}
-            {renderContent(item.content, readOnly)}
+            {renderContent(item.content, readOnly, item.mentionedUsers)}
           </p>
           {!expanded && needsMore ? (
             <span className={styles.moreFade}>
@@ -306,7 +327,7 @@ export function CommentSheet({
   const historyPushedRef = useRef(false);
   const closedByPopRef = useRef(false);
   const ignorePopRef = useRef(false);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const [focusDomId, setFocusDomId] = useResettableState(
     focusReplyId ? 'reply-' + focusReplyId : focusCommentId ? 'comment-' + focusCommentId : '',
@@ -331,6 +352,46 @@ export function CommentSheet({
     open,
   );
   const [sending, setSending] = useState(false);
+  const [mention, setMention] = useResettableState<ActiveMention | null>(
+    null,
+    [open, feedId],
+    open,
+  );
+  const mentionAccounts = useRankedAccounts(
+    'COMMENT_MENTION',
+    open && !readOnly && mention !== null,
+    '',
+    feedId,
+  );
+  const mentionTerm = mention?.term.trim().replace(/^@+/, '').toLowerCase() ?? '';
+  const hasMentionMatch = mentionAccounts.items.some(
+    (account) =>
+      account.nickname.toLowerCase().includes(mentionTerm) ||
+      account.petTags.some((tag) => tag.replace(/^@+/, '').toLowerCase().includes(mentionTerm)),
+  );
+  const [draftMentions, setDraftMentions] = useResettableState<MentionUser[]>(
+    [],
+    [open, feedId],
+    open,
+  );
+  const commitMention = (active: ActiveMention, account: MentionUser, value = draft) => {
+    const next = replaceMention(value, active, account.nickname, draftMentions);
+    if (next.value.length > FEED_CONTENT_MAX_LENGTH) return;
+    if (account)
+      setDraftMentions((previous) => [
+        ...previous.filter((person) => person.userNo !== account.userNo),
+        account,
+      ]);
+    setDraft(next.value);
+    setMention(null);
+    requestAnimationFrame(() => {
+      inputRef.current?.focus();
+      inputRef.current?.setSelectionRange(next.caret, next.caret);
+    });
+  };
+  const pickMention = (account: RankedAccount) => {
+    if (mention) commitMention(mention, account);
+  };
   const [moderationRefresh, setModerationRefresh] = useState(0);
 
   useEffect(
@@ -430,6 +491,8 @@ export function CommentSheet({
       if (currentUserNo != null) setMyUserNo(currentUserNo);
       setEditing(null);
       setMenu(null);
+      setMention(null);
+      setDraftMentions([]);
       // 안내는 원댓글 작성자, 자동 멘션은 실제 누른 댓글/답글 작성자를 기준으로 한다.
       setReplyTo({ parentCommentId, nickname: parent.nickname, userNo: parent.userNo });
       setDraft((prev) => {
@@ -440,55 +503,74 @@ export function CommentSheet({
       });
       requestAnimationFrame(() => inputRef.current?.focus());
     },
-    [items, myUserNo, setDraft, setEditing, setMenu, setReplyTo],
+    [items, myUserNo, setDraft, setEditing, setMenu, setReplyTo, setMention, setDraftMentions],
   );
 
   const clearReply = useCallback(() => {
+    setMention(null);
     setReplyTo(null);
     setDraft('');
-  }, [setDraft, setReplyTo]);
+    setDraftMentions([]);
+  }, [setDraft, setReplyTo, setMention, setDraftMentions]);
 
   const clearEdit = useCallback(() => {
+    setMention(null);
     setEditing(null);
     setDraft('');
-  }, [setDraft, setEditing]);
+    setDraftMentions([]);
+  }, [setDraft, setEditing, setMention, setDraftMentions]);
 
   async function submitComment(e?: FormEvent) {
     e?.preventDefault();
+    setMention(null);
     const text = draft.trim();
     if (!text || sending) return;
 
+    const mentions = mentionPayload(text, draftMentions);
     const parentId = replyTo?.parentCommentId;
     const editingTarget = editing;
     setSending(true);
     try {
       if (editingTarget) {
         if (editingTarget.kind === 'reply') {
-          await updateFeedReply(feedId, editingTarget.parentCommentId, editingTarget.id, text);
+          await updateFeedReply(
+            feedId,
+            editingTarget.parentCommentId,
+            editingTarget.id,
+            text,
+            mentions,
+          );
           setItems((prev) =>
             prev.map((item) =>
               item.id === editingTarget.parentCommentId
                 ? {
                     ...item,
                     replies: item.replies.map((reply) =>
-                      reply.id === editingTarget.id ? { ...reply, content: text } : reply,
+                      reply.id === editingTarget.id
+                        ? { ...reply, content: text, mentionedUsers: draftMentions }
+                        : reply,
                     ),
                   }
                 : item,
             ),
           );
         } else {
-          await updateFeedComment(feedId, editingTarget.id, text);
+          await updateFeedComment(feedId, editingTarget.id, text, mentions);
           setItems((prev) =>
-            prev.map((item) => (item.id === editingTarget.id ? { ...item, content: text } : item)),
+            prev.map((item) =>
+              item.id === editingTarget.id
+                ? { ...item, content: text, mentionedUsers: draftMentions }
+                : item,
+            ),
           );
         }
         setDraft('');
+        setDraftMentions([]);
         setEditing(null);
         return;
       }
       if (parentId) {
-        const reply = await createFeedReply(feedId, parentId, text);
+        const reply = await createFeedReply(feedId, parentId, text, mentions);
         if (!reply) throw new Error('empty reply');
         setItems((prev) =>
           prev.map((item) =>
@@ -496,12 +578,13 @@ export function CommentSheet({
           ),
         );
       } else {
-        const comment = await createFeedComment(feedId, text);
+        const comment = await createFeedComment(feedId, text, mentions);
         if (!comment) throw new Error('empty comment');
         setItems((prev) => [...prev, comment]);
         onCommentCreated?.();
       }
       setDraft('');
+      setDraftMentions([]);
       setReplyTo(null);
       requestAnimationFrame(() => {
         listRef.current?.scrollTo({
@@ -543,10 +626,11 @@ export function CommentSheet({
       setMenu(null);
       setReplyTo(null);
       setEditing(target);
+      setDraftMentions(source.mentionedUsers ?? []);
       setDraft(clampFeedContent(source.content));
       requestAnimationFrame(() => inputRef.current?.focus());
     },
-    [items, setDraft, setEditing, setMenu, setReplyTo],
+    [items, setDraft, setEditing, setMenu, setReplyTo, setDraftMentions],
   );
 
   const removeTarget = useCallback(
@@ -584,6 +668,7 @@ export function CommentSheet({
                 if (editing && editing.kind === target.kind && editing.id === target.id) {
                   setEditing(null);
                   setDraft('');
+                  setDraftMentions([]);
                 }
               } catch (err) {
                 console.error('[comments] delete failed', err);
@@ -599,7 +684,17 @@ export function CommentSheet({
         },
       });
     },
-    [editing, feedId, onCommentDeleted, openModal, setDraft, setEditing, setItems, setMenu],
+    [
+      editing,
+      feedId,
+      onCommentDeleted,
+      openModal,
+      setDraft,
+      setEditing,
+      setItems,
+      setMenu,
+      setDraftMentions,
+    ],
   );
 
   const reportTarget = useCallback(
@@ -861,56 +956,77 @@ export function CommentSheet({
               <span className={styles.bar} aria-hidden />
             </div>
 
-            <div ref={listRef} className={styles.list}>
-              {listStatus === 'loading' ? (
-                <p className={styles.status}>댓글을 불러오는 중</p>
-              ) : null}
-              {listStatus === 'error' ? <PageLoadError error={listError} /> : null}
-              {listStatus === 'ready' && items.length === 0 ? (
-                <p className={styles.status}>댓글이 없습니다.</p>
-              ) : null}
-              {items.map((comment) => (
-                <div key={comment.id} className={styles.thread}>
-                  <CommentBody
-                    item={comment}
-                    readOnly={readOnly}
-                    parentCommentId={comment.id}
-                    onReply={startReply}
-                    focused={focusDomId === `comment-${comment.id}`}
-                    menuOpen={menu?.kind === 'comment' && menu.id === comment.id}
-                    onToggleMenu={(anchor) =>
-                      toggleItemMenu(
-                        { kind: 'comment', id: comment.id, parentCommentId: comment.id },
-                        myUserNo != null && comment.userNo === myUserNo,
-                        anchor,
-                      )
-                    }
+            <div className={styles.commentArea}>
+              <div ref={listRef} className={styles.list} inert={mention ? true : undefined}>
+                {listStatus === 'loading' ? (
+                  <p className={styles.status}>댓글을 불러오는 중</p>
+                ) : null}
+                {listStatus === 'error' ? <PageLoadError error={listError} /> : null}
+                {listStatus === 'ready' && items.length === 0 ? (
+                  <p className={styles.status}>댓글이 없습니다.</p>
+                ) : null}
+                {items.map((comment) => (
+                  <div key={comment.id} className={styles.thread}>
+                    <CommentBody
+                      item={comment}
+                      readOnly={readOnly}
+                      parentCommentId={comment.id}
+                      onReply={startReply}
+                      focused={focusDomId === `comment-${comment.id}`}
+                      menuOpen={menu?.kind === 'comment' && menu.id === comment.id}
+                      onToggleMenu={(anchor) =>
+                        toggleItemMenu(
+                          { kind: 'comment', id: comment.id, parentCommentId: comment.id },
+                          myUserNo != null && comment.userNo === myUserNo,
+                          anchor,
+                        )
+                      }
+                    />
+                    {comment.replies.length > 0 ? (
+                      <div className={styles.replies}>
+                        {comment.replies.map((reply) => (
+                          <CommentBody
+                            key={reply.id}
+                            item={reply}
+                            readOnly={readOnly}
+                            compact
+                            parentCommentId={comment.id}
+                            onReply={startReply}
+                            focused={focusDomId === `reply-${reply.id}`}
+                            menuOpen={menu?.kind === 'reply' && menu.id === reply.id}
+                            onToggleMenu={(anchor) =>
+                              toggleItemMenu(
+                                { kind: 'reply', id: reply.id, parentCommentId: comment.id },
+                                myUserNo != null && reply.userNo === myUserNo,
+                                anchor,
+                              )
+                            }
+                          />
+                        ))}
+                      </div>
+                    ) : null}
+                  </div>
+                ))}
+              </div>
+              {mention ? (
+                <div
+                  className={styles.mentionSuggestions}
+                  data-mention-suggestions
+                  aria-label="언급 사용자 추천"
+                  onMouseDown={(event) => event.preventDefault()}
+                >
+                  <AccountSearchList
+                    items={mentionAccounts.items}
+                    query={mention.term}
+                    onQueryChange={() => undefined}
+                    onSelect={pickMention}
+                    status={mentionAccounts.status}
+                    emptyMessage="추천리스트 없음"
+                    showSearch={false}
+                    disabled={sending}
                   />
-                  {comment.replies.length > 0 ? (
-                    <div className={styles.replies}>
-                      {comment.replies.map((reply) => (
-                        <CommentBody
-                          key={reply.id}
-                          item={reply}
-                          readOnly={readOnly}
-                          compact
-                          parentCommentId={comment.id}
-                          onReply={startReply}
-                          focused={focusDomId === `reply-${reply.id}`}
-                          menuOpen={menu?.kind === 'reply' && menu.id === reply.id}
-                          onToggleMenu={(anchor) =>
-                            toggleItemMenu(
-                              { kind: 'reply', id: reply.id, parentCommentId: comment.id },
-                              myUserNo != null && reply.userNo === myUserNo,
-                              anchor,
-                            )
-                          }
-                        />
-                      ))}
-                    </div>
-                  ) : null}
                 </div>
-              ))}
+              ) : null}
             </div>
 
             {!readOnly ? (
@@ -961,12 +1077,35 @@ export function CommentSheet({
                       className={styles.avatar}
                     />
                   </span>
-                  <input
+                  <MentionInput
                     ref={inputRef}
-                    className={styles.composerInput}
                     value={draft}
                     maxLength={FEED_CONTENT_MAX_LENGTH}
-                    onChange={(e) => setDraft(clampFeedContent(e.target.value))}
+                    onValueChange={(value) => {
+                      const next = clampFeedContent(value);
+                      setDraftMentions((previous) => retainMentionUsers(draft, next, previous));
+                      setDraft(next);
+                    }}
+                    onMentionChange={setMention}
+                    active={hasMentionMatch ? mention : null}
+                    selectedUsers={draftMentions}
+                    onKeyDown={(event) => {
+                      if (event.key !== 'Enter' || !event.shiftKey) return;
+                      event.preventDefault();
+                      if (draft.trim() && !sending) event.currentTarget.form?.requestSubmit();
+                    }}
+                    onRemoveMention={(nickname) =>
+                      setDraftMentions((previous) =>
+                        previous.filter((person) => person.nickname !== nickname),
+                      )
+                    }
+                    onBlur={(event) => {
+                      if (
+                        !(event.relatedTarget instanceof Element) ||
+                        !event.relatedTarget.closest('[data-mention-suggestions]')
+                      )
+                        setMention(null);
+                    }}
                     placeholder={
                       editing
                         ? '내용을 수정하세요…'

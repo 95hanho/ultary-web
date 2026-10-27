@@ -84,3 +84,7 @@ Vercel FE 최초 배포는 Ready 확인(사용자 화면). 운영 FE 주소는 h
 - 사용자 승인으로 prod 템플릿과 로컬 prod의 security.bff.require-https를 false로 설정했다. Cafe24 nginx의 HTTPS 처리를 사용하고 BE의 원본 프로토콜 검사만 생략한다. BFF 키 검증·FE 운영 HTTPS URL 제한·브라우저 WSS 요구는 유지한다.
 - 진단값: remoteAddr=203.245.44.21, scheme=http, secure=false, X-Forwarded-Proto 없음. BFF_TRUSTED_PROXIES 추가나 호스팅 문의는 현재 배포의 선행 조건이 아니다.
 - BFF 필터 13개 테스트와 bootWar 통과, WAR의 false 설정/키 환경변수 바인딩 유지 확인. 서버 새 WAR 배포 후 health/db 및 FE 연동 확인 필요.
+
+## 현재 실시간 운영 정책 (2026-10-27)
+
+현재 Cafe24 JSP 배포에서는 웹소켓을 사용하지 않는다. FE 운영 기본 비활성화, 로컬 npm run dev 기본 활성화. 상세 제약·시연·환경변수는 [실시간 배포 문서](./realtime-deployment.md)를 따른다. 이전 WSS/Origin 확인 항목은 향후 웹소켓 지원 호스팅으로 이전할 때 적용한다.

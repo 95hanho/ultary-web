@@ -8,6 +8,8 @@ declare global {
       NEXT_PUBLIC_APP_URL?: string;
       /** 브라우저 웹소켓. 없으면 ws://localhost:9377/api/v1/ws */
       NEXT_PUBLIC_SPRING_WS_URL?: string;
+      /** 실시간 연결 사용 여부. 개발 기본 true, 운영 기본 false */
+      NEXT_PUBLIC_ENABLE_WEBSOCKET?: string;
       /** Next 서버 → Spring */
       SPRING_BASE_URL?: string;
       /** BFF→Spring 전용 공유 키. 브라우저 공개 금지 */

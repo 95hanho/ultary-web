@@ -21,6 +21,7 @@ import { subscribeDmMessage, subscribeDmRead, subscribeDmTyping } from '@/lib/ws
 import { clearDmRoomUnread } from '@/lib/dm/unreadBadge';
 import { loadDmOpeningMessages } from '@/lib/dm/openingMessages';
 import { useDmThreadScroll } from '@/lib/dm/useDmThreadScroll';
+import { ENABLE_WEBSOCKET } from '@/lib/env.client';
 import type { BffEnvelope } from '@/types/api';
 import type { FileSummary } from '@/types/file';
 import clsx from 'clsx';
@@ -643,7 +644,7 @@ export default function DmClient({ roomId, feedId, feedMediaId, storyId }: DmCli
   const composing = draft.trim().length > 0;
 
   useEffect(() => {
-    if (!roomId || !composing) return;
+    if (!ENABLE_WEBSOCKET || !roomId || !composing) return;
     let stopped = false;
     const send = (typing: boolean) => {
       void bffPostJson(bffEndpoints.dm.roomTyping, { roomId, typing }).catch(() => undefined);

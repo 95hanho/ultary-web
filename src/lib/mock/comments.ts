@@ -8,6 +8,7 @@ export type MockCommentReply = {
   profileUrl: string;
   story?: 'none' | 'read' | 'unread';
   content: string;
+  mentionedUsers?: {userNo: number; nickname: string}[];
   timeLabel: string;
   likeCount: number;
   isLiked?: boolean;

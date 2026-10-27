@@ -8,6 +8,15 @@ import { NO_PROFILE_SRC } from '@/lib/profileImage';
 import type { BffEnvelope } from '@/types/api';
 import type { FileSummary } from '@/types/file';
 
+function readMentionUsers(raw: Record<string, unknown>) {
+  return Array.isArray(raw.mentions)
+    ? raw.mentions.flatMap((item) =>
+        isRecord(item) && typeof item.userNo === 'number' && typeof item.nickname === 'string'
+          ? [{ userNo: item.userNo, nickname: item.nickname }]
+          : [],
+      )
+    : [];
+}
 const PAGE_SIZE = 20;
 const MAX_PAGES = 10;
 
@@ -16,9 +25,7 @@ type Page = {
   nextCursor: string | null;
 };
 
-function asFile(
-  value: unknown,
-): Pick<FileSummary, 'fileId' | 'filePath'> | null {
+function asFile(value: unknown): Pick<FileSummary, 'fileId' | 'filePath'> | null {
   if (!isRecord(value)) return null;
   if (typeof value.filePath !== 'string' || !value.filePath.trim()) return null;
   const fileId = value.fileId;
@@ -31,12 +38,7 @@ function asFile(
 function pickNickname(raw: Record<string, unknown>): string {
   const author = isRecord(raw.author) ? raw.author : null;
   const user = isRecord(raw.user) ? raw.user : null;
-  const candidates = [
-    raw.nickname,
-    raw.authorNickname,
-    author?.nickname,
-    user?.nickname,
-  ];
+  const candidates = [raw.nickname, raw.authorNickname, author?.nickname, user?.nickname];
   for (const value of candidates) {
     if (typeof value === 'string' && value.trim()) return value.trim();
   }
@@ -99,6 +101,7 @@ function mapReply(raw: unknown): MockCommentReply | null {
     isLiked: liked || undefined,
     userNo: typeof raw.userNo === 'number' ? raw.userNo : undefined,
     myReport: readMyReport(raw),
+    mentionedUsers: readMentionUsers(raw),
   };
 }
 
@@ -129,6 +132,7 @@ function mapComment(raw: unknown): { comment: MockComment; fetchReplies: boolean
       isLiked: liked || undefined,
       userNo: typeof raw.userNo === 'number' ? raw.userNo : undefined,
       myReport: readMyReport(raw),
+      mentionedUsers: readMentionUsers(raw),
       replies,
     },
   };
@@ -136,7 +140,7 @@ function mapComment(raw: unknown): { comment: MockComment; fetchReplies: boolean
 
 /** 관리자 원문 조회 응답: 답글이 포함된 목록이며 일반 사용자 API를 호출하지 않는다. */
 export function toFeedComments(rows: unknown[]): MockComment[] {
-  return rows.flatMap(row => {
+  return rows.flatMap((row) => {
     const mapped = mapComment(row);
     return mapped ? [mapped.comment] : [];
   });
@@ -204,9 +208,7 @@ export async function loadFeedComments(feedId: string): Promise<MockComment[]> {
         feedId,
         commentId: comment.id,
       });
-      comment.replies = replies
-        .map(mapReply)
-        .filter((v): v is MockCommentReply => v != null);
+      comment.replies = replies.map(mapReply).filter((v): v is MockCommentReply => v != null);
     }),
   );
 
@@ -217,19 +219,27 @@ export async function loadFeedComments(feedId: string): Promise<MockComment[]> {
 export async function createFeedComment(
   feedId: string,
   content: string,
+  mentions: { userNo: number }[] = [],
 ): Promise<MockComment | null> {
   const res = await bffPostJson<BffEnvelope<unknown>>(bffEndpoints.feeds.comments, {
     feedId,
     content,
+    mentions,
   });
   return mapComment(res.data ?? res)?.comment ?? null;
 }
 
-export async function updateFeedComment(feedId: string, commentId: string, content: string) {
+export async function updateFeedComment(
+  feedId: string,
+  commentId: string,
+  content: string,
+  mentions: { userNo: number }[] = [],
+) {
   await bffPatchJson<BffEnvelope<unknown>>(bffEndpoints.feeds.comment, {
     feedId,
     commentId,
     content,
+    mentions,
   });
 }
 
@@ -242,11 +252,13 @@ export async function createFeedReply(
   feedId: string,
   commentId: string,
   content: string,
+  mentions: { userNo: number }[] = [],
 ): Promise<MockCommentReply | null> {
   const res = await bffPostJson<BffEnvelope<unknown>>(bffEndpoints.feeds.replies, {
     feedId,
     commentId,
     content,
+    mentions,
   });
   return mapReply(res.data ?? res);
 }
@@ -256,12 +268,14 @@ export async function updateFeedReply(
   commentId: string,
   replyId: string,
   content: string,
+  mentions: { userNo: number }[] = [],
 ) {
   await bffPatchJson<BffEnvelope<unknown>>(bffEndpoints.feeds.reply, {
     feedId,
     commentId,
     replyId,
     content,
+    mentions,
   });
 }
 

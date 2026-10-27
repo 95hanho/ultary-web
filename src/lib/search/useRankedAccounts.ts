@@ -8,7 +8,7 @@ import { resolveFileDisplayUrl } from '@/lib/api/fileUrl';
 import { NO_PROFILE_SRC } from '@/lib/profileImage';
 import type { BffEnvelope } from '@/types/api';
 
-export type AccountListMode = 'DM' | 'STORY_TAG' | 'FEED_TAG';
+export type AccountListMode = 'DM' | 'STORY_TAG' | 'FEED_TAG' | 'COMMENT_MENTION';
 export type RankedAccount = {
   userNo: number;
   nickname: string;
@@ -55,8 +55,13 @@ function readAccounts(raw: unknown): RankedAccount[] {
 }
 
 /** Shared ranked source. The server searches before limiting; obsolete responses are ignored. */
-export function useRankedAccounts(mode: AccountListMode, enabled: boolean, query: string) {
-  const key = `${mode}:${query}`;
+export function useRankedAccounts(
+  mode: AccountListMode,
+  enabled: boolean,
+  query: string,
+  feedId?: string,
+) {
+  const key = `${mode}:${query}:${feedId ?? ''}`;
   const [result, setResult] = useState<{
     key: string;
     status: 'ready' | 'error';
@@ -72,6 +77,7 @@ export function useRankedAccounts(mode: AccountListMode, enabled: boolean, query
             mode,
             q: query,
             limit: 50,
+            ...(feedId ? { feedId } : {}),
           });
           if (!cancelled) setResult({ key, status: 'ready', items: readAccounts(response.data) });
         } catch {
@@ -84,6 +90,6 @@ export function useRankedAccounts(mode: AccountListMode, enabled: boolean, query
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [mode, enabled, query, key]);
+  }, [mode, enabled, query, key, feedId]);
   return result?.key === key ? result : { status: 'loading' as const, items: [] };
 }

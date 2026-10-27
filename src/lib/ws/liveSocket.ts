@@ -1,7 +1,7 @@
 import { bffPostJson } from '@/lib/api/bffFetch';
 import { bffEndpoints } from '@/lib/api/endpoints';
 import { isHttpError, isRecord } from '@/lib/api/error';
-import { SPRING_WS_URL } from '@/lib/env.client';
+import { ENABLE_WEBSOCKET, SPRING_WS_URL } from '@/lib/env.client';
 import {
   fetchUnreadCount,
   publishUnreadBadge,
@@ -83,6 +83,7 @@ export function subscribeDmTyping(listener: (event: DmTypingEvent) => void) {
 }
 
 export function ensureLiveSocket() {
+  if (!ENABLE_WEBSOCKET) return;
   if (typeof window === 'undefined') return;
   if (
     socket &&
@@ -94,6 +95,7 @@ export function ensureLiveSocket() {
 }
 
 function scheduleRetry() {
+  if (!ENABLE_WEBSOCKET) return;
   if (retryTimer != null) return;
   const wait = retryMs;
   retryMs = Math.min(retryMs * 2, 15000);

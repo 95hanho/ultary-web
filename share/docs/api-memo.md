@@ -328,9 +328,8 @@ FE는 OAuth code를 Spring에 보내지 않는다. BFF가 code를 교환해 `pro
 > 1:1. 같은 두 사람은 방 1개(`pair_key`). 팔로우 또는 팔로워(`ACCEPTED`)만 만들고 보낼 수 있다. 차단이면 `USER_BLOCKED`.
 > **대화 상대 고르기**는 울타리 목록과 같다. `GET /users/{내 userNo}/neighbors?type=FOLLOW`(팔로우), `type=FOLLOWER`(팔로워). 항목의 `userNo`로 `POST /dm/rooms` `{ targetUserNo }`.
 > **피드 공유 «메시지로 보내기»**는 `GET /dm/share-targets`. 한 사람은 가장 높은 우선순위에 한 번만. 기본 30, 최대 50, 쿼리 `limit`, `q`(닉네임·펫태그 부분 검색, 대소문자·앞 @ 무시). 검색 후 정렬·개수 제한. 탈퇴·양방향 차단·자기 자신 제외. 한 달은 지금으로부터 1개월.
-> `mode`는 SHARE(기본), DM, STORY_TAG, FEED_TAG. 스토리 모드는 앞 3개를 내 스토리 태그→DM→내 피드 태그, 피드 모드는 내 피드 태그→DM→내 스토리 태그로 적용한다. 태그 모드의 본인 펫은 목록 끝 group=10. `pets`(petId, mentionId)로 개별 펫 선택. 자세한 사용법은 [공유 대상](share-targets.md).
-> 기본 `group`: 1 최근 DM, 2 내 스토리 태그, 3 내 피드 태그, 4 나를 스토리 태그, 5 나를 피드 태그, 6 최근 팔로우, 7 최근 팔로워, 8 나머지 팔로우, 9 나머지 팔로워. 1~7은 최근 1개월, 그룹 안은 해당 시각 최신순. 최종 동률은 userNo 내림차순. 오래된 DM만 있는 상대는 제외.
-> 선택 쿼리 `priorityOrder=OWN_STORY_TAG,DM,OWN_FEED_TAG`: DM·OWN_STORY_TAG·OWN_FEED_TAG 세 항목 순열만 허용. 생략하면 위 기본값. 4~9는 고정. 응답 group은 실제 적용된 순위.
+> `mode`는 SHARE(기본), DM, STORY_TAG, FEED_TAG, COMMENT_MENTION. 팔로우 중인 사용자 우선이며 화면별 언급 이력 순위와 DM+언급 혼합 최신순은 [공유 대상 계약](share-targets.md)을 따른다. 사진·스토리 본인은 맨 마지막 group=99.
+
 > 항목: `userNo`, `nickname`, `petTags`(활성 펫 mentionId, @ 없음, priority 순), `profileFile`, `dmRoomId`, `following`, `followedBy`, `group`, `activeAt`. 태그 상대는 펫 보호자. 만료된 스토리 이력은 포함하되 삭제한 콘텐츠·펫은 제외. 보내기 권한은 기존 정책 유지. [상세](share-targets.md).
 > 목록 `items`(기본 30, 최대 50). 최신 메시지 순. `peerUserNo`, `peerNickname`, `profileFile`(대표 펫 사진, 없으면 null), `lastMessage`, `lastMessageAt`, `unreadCount`, `following`, `followedBy`. `following`은 내가 상대를 팔로우 중, `followedBy`는 상대가 나를 팔로우 중. `ACCEPTED`만 true. 신청 중·없으면 false. 둘 다 false면 팔로우 관계가 아니다. 방이 남아 있어도 관계가 끊기면 둘 다 false. 글이 있으면 그 글, 공유만 있으면 «게시글을 공유했습니다» / «스토리를 공유했습니다». 나간 방, 탈퇴·차단 상대는 빠진다.
 > 메시지 `items`는 오래된 순. `beforeMessageId`로 더 이전. `nextCursorMessageId`가 있으면 그 값으로 이어서 조회. `peerLastReadMessageId`는 상대가 읽은 마지막 메시지 번호이고, 아직 없으면 null. 응답 최상위에 그 방 상대 기준 `following`, `followedBy`. 조회하면 그 방의 최신 메시지까지 읽음. `fromMe`, `body`(없으면 null), `createdAt`. 화면의 «방금/어제»는 `createdAt`으로 그린다. 헤더 «울타리»는 `peerUserNo`. `following`과 `followedBy`가 둘 다 false면 «* 팔로우 관계가 아닙니다.»
