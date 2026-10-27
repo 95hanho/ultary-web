@@ -5,6 +5,10 @@ import { fileURLToPath } from 'url';
 const projectRoot = path.dirname(fileURLToPath(import.meta.url));
 
 const nextConfig: NextConfig = {
+  typescript: {
+    // Production checks source + production route types, not stale dev-generated files.
+    tsconfigPath: process.env.NODE_ENV === 'production' ? 'tsconfig.build.json' : 'tsconfig.json',
+  },
   compiler: {
     emotion: true,
   },

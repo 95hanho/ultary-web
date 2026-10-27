@@ -19,6 +19,8 @@ import { myUltaryPath } from '@/lib/mock/ultary-accounts';
 import { NO_PROFILE_SRC } from '@/lib/profileImage';
 import { subscribeDmMessage, subscribeDmRead, subscribeDmTyping } from '@/lib/ws/liveSocket';
 import { clearDmRoomUnread } from '@/lib/dm/unreadBadge';
+import { loadDmOpeningMessages } from '@/lib/dm/openingMessages';
+import { useDmThreadScroll } from '@/lib/dm/useDmThreadScroll';
 import type { BffEnvelope } from '@/types/api';
 import type { FileSummary } from '@/types/file';
 import clsx from 'clsx';
@@ -367,6 +369,9 @@ export default function DmClient({ roomId, feedId, feedMediaId, storyId }: DmCli
   const [peerTyping, setPeerTyping] = useResettableState(false, [roomId]);
   const [olderCursor, setOlderCursor] = useResettableState<string | null>(null, [roomId]);
   const [threadStatus, setThreadStatus] = useResettableState(roomId ? '불러오는 중' : '', [roomId]);
+  const [opening, setOpening] = useResettableState<{ firstUnread: string | null } | null>(null, [
+    roomId,
+  ]);
   const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);
   const [picking, setPicking] = useState(false);
@@ -385,7 +390,13 @@ export default function DmClient({ roomId, feedId, feedMediaId, storyId }: DmCli
     imageUrl: string;
     story: StoryStatus;
   } | null>(null);
-  const threadEndRef = useRef<HTMLDivElement>(null);
+  const messagesRef = useDmThreadScroll(
+    roomId ?? 'draft',
+    !roomId || opening !== null,
+    opening?.firstUnread ?? null,
+    messages,
+    peerTyping,
+  );
   const threadReqRef = useRef(0);
   const socketEpochRef = useRef(0);
   const sendBusyRef = useRef(false);
@@ -486,20 +497,22 @@ export default function DmClient({ roomId, feedId, feedMediaId, storyId }: DmCli
     };
   }, []);
 
-  useEffect(() => {
-    if (!active) return;
-    threadEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [active, messages.length, peerTyping]);
-
-  async function loadMessages(roomId: string, beforeMessageId?: string) {
-    const params: Record<string, string> = { roomId, limit: '30' };
+  async function loadMessages(roomId: string, beforeMessageId?: string, limit = 30) {
+    const params: Record<string, string> = { roomId, limit: String(limit) };
     if (beforeMessageId) params.beforeMessageId = beforeMessageId;
     const res = await bffGet<BffEnvelope<unknown>>(bffEndpoints.dm.messages, params);
     const list = unwrapItems(res.data)
       .map(mapMessage)
       .filter((item): item is DmMessage => item != null);
     const cursor = isRecord(res.data) ? idString(res.data.nextCursorMessageId) : null;
-    return { list, cursor, peerRead: readPeerReadId(res.data), link: readLink(res.data) };
+    const firstUnread = isRecord(res.data) ? idString(res.data.firstUnreadMessageId) : null;
+    return {
+      list,
+      cursor,
+      firstUnread,
+      peerRead: readPeerReadId(res.data),
+      link: readLink(res.data),
+    };
   }
 
   useEffect(() => {
@@ -509,8 +522,12 @@ export default function DmClient({ roomId, feedId, feedMediaId, storyId }: DmCli
     let cancelled = false;
     (async () => {
       try {
-        const { list, cursor, peerRead, link } = await loadMessages(roomId);
-        if (cancelled || threadReqRef.current !== req) return;
+        const page = await loadDmOpeningMessages(
+          (cursor) => loadMessages(roomId, cursor, cursor ? 50 : 30),
+          () => !cancelled && threadReqRef.current === req,
+        );
+        if (!page) return;
+        const { list, cursor, peerRead, link, firstUnread } = page;
         setPeerReadMessageId(peerRead);
         setThreadLink(link);
         if (link) {
@@ -522,6 +539,7 @@ export default function DmClient({ roomId, feedId, feedMediaId, storyId }: DmCli
           return extra.length > 0 ? [...list, ...extra] : list;
         });
         setOlderCursor(cursor);
+        setOpening({ firstUnread });
         setThreadStatus('');
         setRooms((prev) =>
           prev.map((item) => (item.id === roomId ? { ...item, unread: 0 } : item)),
@@ -536,7 +554,15 @@ export default function DmClient({ roomId, feedId, feedMediaId, storyId }: DmCli
     return () => {
       cancelled = true;
     };
-  }, [roomId, setMessages, setOlderCursor, setPeerReadMessageId, setThreadLink, setThreadStatus]);
+  }, [
+    roomId,
+    setMessages,
+    setOlderCursor,
+    setOpening,
+    setPeerReadMessageId,
+    setThreadLink,
+    setThreadStatus,
+  ]);
 
   function markOpenRoomRead(id: string) {
     clearDmRoomUnread(id);
@@ -555,7 +581,7 @@ export default function DmClient({ roomId, feedId, feedMediaId, storyId }: DmCli
       }
       if (!roomId || event.dmRoomId !== roomId) return;
       const message = mapMessage(event.message);
-      if (message && !message.fromMe) {
+      if (message && !message.fromMe && opening) {
         markOpenRoomRead(roomId);
       }
       if (!message) return;
@@ -563,7 +589,7 @@ export default function DmClient({ roomId, feedId, feedMediaId, storyId }: DmCli
         prev.some((item) => item.id === message.id) ? prev : [...prev, message],
       );
     });
-  }, [roomId, setMessages]);
+  }, [roomId, opening, setMessages]);
 
   useEffect(() => {
     return subscribeDmRead((event) => {
@@ -598,7 +624,7 @@ export default function DmClient({ roomId, feedId, feedMediaId, storyId }: DmCli
   }, [roomId, setPeerTyping]);
 
   useEffect(() => {
-    if (!roomId) return;
+    if (!roomId || !opening) return;
     let stopped = false;
     const send = (viewing: boolean) => {
       void bffPostJson(bffEndpoints.dm.roomViewing, { roomId, viewing }).catch(() => undefined);
@@ -612,7 +638,7 @@ export default function DmClient({ roomId, feedId, feedMediaId, storyId }: DmCli
       window.clearInterval(timer);
       send(false);
     };
-  }, [roomId]);
+  }, [roomId, opening]);
 
   const composing = draft.trim().length > 0;
 
@@ -843,7 +869,7 @@ export default function DmClient({ roomId, feedId, feedMediaId, storyId }: DmCli
           <p className={styles.relationBanner}>* 팔로우 관계가 아닙니다.</p>
         ) : null}
         <div className={styles.thread}>
-          <div className={styles.messages}>
+          <div className={styles.messages} ref={messagesRef}>
             {olderCursor ? (
               <button type="button" className={styles.older} onClick={() => void loadOlder()}>
                 이전 메시지
@@ -859,6 +885,7 @@ export default function DmClient({ roomId, feedId, feedMediaId, storyId }: DmCli
               return (
                 <div
                   key={message.id}
+                  data-dm-message-id={message.id}
                   className={clsx(styles.bubbleRow, message.fromMe && styles.bubbleRowMe)}
                 >
                   <div className={styles.bubbleCol}>
@@ -899,7 +926,6 @@ export default function DmClient({ roomId, feedId, feedMediaId, storyId }: DmCli
                 </span>
               </p>
             ) : null}
-            <div ref={threadEndRef} />
           </div>
           <form className={styles.composer} onSubmit={(event) => void sendMessage(event)}>
             {pendingShare ? (

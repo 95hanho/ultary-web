@@ -311,6 +311,8 @@ FE는 OAuth code를 Spring에 보내지 않는다. BFF가 code를 교환해 `pro
 
 ## 9. DM
 
+- 메시지 최초 조회 응답의 `firstUnreadMessageId`는 읽음 처리 전 첫 상대 메시지 ID다. 이전 페이지 조회 또는 안읽은 메시지가 없으면 `null`. 최신 페이지에 없으면 `nextCursorMessageId`로 이전 페이지를 추가 조회하여 진입 스크롤 위치를 잡는다.
+
 | 기능 | Method | BFF | Spring | 상태 |
 |------|--------|-----|--------|------|
 | 메시지(대화방) 리스트 | GET | `/api/dm/rooms` | `/api/v1/dm/rooms` | 구현 |

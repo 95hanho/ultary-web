@@ -1,6 +1,6 @@
 'use client';
-import { useResettableState } from '@/lib/react/useResettableState';
 import { useHydrated } from '@/lib/react/useHydrated';
+import { useResettableState } from '@/lib/react/useResettableState';
 
 import { MediaImage } from '@/components/common/MediaImage';
 import { bffGet, bffPostJson } from '@/lib/api/bffFetch';
@@ -348,7 +348,7 @@ export function FooterMenu() {
       const rect = moreRef.current?.getBoundingClientRect();
       if (rect) {
         setMorePlace({
-          left: 225,
+          left: 200,
           bottom: Math.max(12, window.innerHeight - rect.bottom),
         });
       }
