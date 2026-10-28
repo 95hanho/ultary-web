@@ -1,0 +1,41 @@
+.stack {
+  position: relative;
+  display: inline-block;
+  vertical-align: top;
+}
+.card {
+  position: absolute;
+  display: block;
+  border-radius: 7px;
+  background: var(--background);
+}
+.row {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 4px;
+  max-width: 100%;
+  padding: 3px;
+  border: 2px solid transparent;
+  border-radius: 7px;
+  box-sizing: border-box;
+  overflow-x: auto;
+}
+.storyRead {
+  border-color: var(--brand-gray-150);
+}
+.storyUnread {
+  background-image:
+    linear-gradient(var(--background), var(--background)),
+    linear-gradient(90deg, var(--brand-grass-400) 17%, var(--brand-grass-600) 71%);
+  background-origin: border-box;
+  background-clip: padding-box, border-box;
+}
+.photo {
+  display: block;
+  flex-shrink: 0;
+  width: var(--pet-size);
+  height: var(--pet-size);
+  border-radius: 5px;
+  object-fit: cover;
+}

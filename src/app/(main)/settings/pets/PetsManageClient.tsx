@@ -5,7 +5,6 @@ import { PageLoadError } from '@/components/common/PageLoadError';
 
 import { FooterMenu, refreshFooterProfile } from '@/components/common/FooterMenu';
 import { PageHeader } from '@/components/common/PageHeader';
-import { PetsManageDevTools } from '@/components/dev/PetsManageDevTools';
 import { bffDelete, bffGet, bffPatchJson, bffPostJson } from '@/lib/api/bffFetch';
 import { bffEndpoints } from '@/lib/api/endpoints';
 import { isHttpError } from '@/lib/api/error';
@@ -14,6 +13,7 @@ import { type ManagedPet } from '@/lib/mock/pets';
 import { myUltaryPath } from '@/lib/mock/ultary-accounts';
 import { readFileAsDataUrl, setPendingPetPhoto } from '@/lib/pending-pet-photo';
 import { NO_PROFILE_SRC } from '@/lib/profileImage';
+import { isValidPetName, petNameLength, PET_NAME_MESSAGE } from '@/lib/pet/name-rules';
 import { useModalStore } from '@/stores/modal.store';
 import type { BffEnvelope } from '@/types/api';
 import type { PetGender } from '@/types/enums';
@@ -50,7 +50,6 @@ const GENDER_OPTIONS: { value: PetGender; label: string }[] = [
 
 type PetFormState = {
   name: string;
-  tag: string;
   bio: string;
   gender: PetGender;
   birth: string;
@@ -70,7 +69,7 @@ type DragSession = {
 };
 
 function emptyForm(): PetFormState {
-  return { name: '', tag: '', bio: '', gender: 'UNKNOWN', birth: '' };
+  return { name: '', bio: '', gender: 'UNKNOWN', birth: '' };
 }
 
 function genderCode(mark: ManagedPet['gender']): PetGender {
@@ -82,7 +81,6 @@ function genderCode(mark: ManagedPet['gender']): PetGender {
 function formFromPet(pet: ManagedPet): PetFormState {
   return {
     name: pet.name,
-    tag: pet.tag,
     bio: pet.bio,
     gender: genderCode(pet.gender),
     birth: pet.birth,
@@ -127,7 +125,6 @@ function toManaged(pet: Pet): ManagedPet {
   return {
     id: String(pet.petId),
     name: pet.name,
-    tag: pet.mentionId,
     gender: genderMark(pet.gender),
     bio: pet.bio ?? '',
     birth: birthDate(pet.birthday),
@@ -301,6 +298,7 @@ export default function PetsManageClient() {
   }, [drag, persistOrder]);
 
   const openCreate = () => {
+    if (pets.length >= 3) return;
     setFormMode('create');
     setEditingId(null);
     setForm(emptyForm());
@@ -408,7 +406,6 @@ export default function PetsManageClient() {
     e.preventDefault();
     if (submitting) return;
     const name = form.name.trim();
-    const tag = form.tag.trim().replace(/^@/, '');
     const bio = form.bio.trim();
     const birth = form.birth.trim();
 
@@ -416,8 +413,8 @@ export default function PetsManageClient() {
       setFormError('이름을 입력해주세요.');
       return;
     }
-    if (!tag) {
-      setFormError('펫 태그를 입력해주세요.');
+    if (formMode === 'create' && !isValidPetName(name)) {
+      setFormError(PET_NAME_MESSAGE);
       return;
     }
 
@@ -428,7 +425,6 @@ export default function PetsManageClient() {
         if (formMode === 'create') {
           await bffPostJson<BffEnvelope<Pet>>(bffEndpoints.pets.root, {
             name,
-            mentionId: tag,
             gender: form.gender,
             ...(bio ? { bio } : {}),
             ...(toBirthdayPayload(birth) ? { birthday: toBirthdayPayload(birth) } : {}),
@@ -444,12 +440,6 @@ export default function PetsManageClient() {
               ? { birthday: toBirthdayPayload(birth) }
               : {}),
           });
-          if (current && tag !== current.tag) {
-            await bffPatchJson<BffEnvelope<Pet>>(bffEndpoints.pets.mentionId, {
-              petId: editingId,
-              mentionId: tag,
-            });
-          }
         }
         closeForm();
         await loadPets();
@@ -492,7 +482,6 @@ export default function PetsManageClient() {
           <p className={styles.nameLine}>
             <span className={styles.name}>{pet.name}</span>({pet.gender})
           </p>
-          <p className={styles.tag}>@{pet.tag}</p>
         </div>
         <div>
           <p className={styles.meta}>소개글 : {pet.bio}</p>
@@ -525,7 +514,7 @@ export default function PetsManageClient() {
 
       <main className={styles.main}>
         <div className={styles.toolbar}>
-          <button type="button" className={styles.addBtn} onClick={openCreate}>
+          <button type="button" className={styles.addBtn} onClick={openCreate} disabled={pets.length >= 3} title={pets.length >= 3 ? '계정당 최대 3마리까지 등록할 수 있습니다.' : undefined}>
             <Plus size={18} strokeWidth={2.6} aria-hidden />
             추가
           </button>
@@ -561,7 +550,6 @@ export default function PetsManageClient() {
       </main>
 
       <FooterMenu />
-      <PetsManageDevTools petId={formOpen && formMode === 'edit' ? editingId : null} />
 
       <input
         ref={fileInputRef}
@@ -637,23 +625,16 @@ export default function PetsManageClient() {
                           value={form.name}
                           onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
                           placeholder="이름을 입력해주세요."
+                          maxLength={30}
+                          aria-describedby="pet-name-hint"
                         />
                       )}
                     </div>
-                    <label className={styles.fieldRow}>
-                      <span className={styles.fieldLabel}>펫 태그</span>
-                      <input
-                        className={styles.fieldInput}
-                        value={form.tag}
-                        onChange={(e) =>
-                          setForm((f) => ({
-                            ...f,
-                            tag: e.target.value.replace(/^@/, ''),
-                          }))
-                        }
-                        placeholder="태그명을 입력해주세요."
-                      />
-                    </label>
+                    {formMode === 'create' ? (
+                      <p id="pet-name-hint" className={styles.nameHint}>
+                        영문·한글만 입력 가능 · 영문 1자, 한글 2자 ({petNameLength(form.name)}/30)
+                      </p>
+                    ) : null}
                     <label className={styles.fieldRow}>
                       <span className={styles.fieldLabel}>소개글</span>
                       <input

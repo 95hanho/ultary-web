@@ -1,3 +1,4 @@
+import { nicknameTag } from '@/lib/nickname-tag';
 import type { Metadata } from 'next';
 import { loadPublicFeed } from '@/lib/seo/publicFeed';
 import { publicPageMetadata, NO_INDEX } from '@/lib/seo/metadata';
@@ -27,7 +28,8 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     return { title: 'Ultary', robots: NO_INDEX };
   try {
     const feed = await loadPublicFeed(feedId);
-    const owner = feed.authorNickname || feed.nickname || '울타리';
+    const owner = feed.authorNickname || feed.nickname;
+    const ownerLabel = owner ? nicknameTag(owner) : '울타리';
     const media = [...(feed.media ?? [])].sort(
       (a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0),
     )[0];
@@ -35,8 +37,8 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     return publicPageMetadata({
       origin: SEO_ORIGIN,
       path: '/feeds/' + feedId,
-      title: owner + '님의 게시글 - Ultary',
-      description: feed.content || owner + '님의 반려동물과 일상을 만나보세요.',
+      title: ownerLabel + '님의 게시글 - Ultary',
+      description: feed.content || ownerLabel + '님의 반려동물과 일상을 만나보세요.',
       image: resolveFileDisplayUrl(file),
     });
   } catch {

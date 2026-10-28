@@ -21,7 +21,8 @@
   position: relative;
   display: flex;
   width: 100%;
-  max-width: 430px;
+  max-width: 550px;
+  min-width: 375px;
   height: 100%;
   flex-direction: column;
   overflow: hidden;
@@ -406,3 +407,8 @@
 .tapRight {
   right: 0;
 }
+
+.authorText { display: flex; min-width: 0; flex-direction: column; gap: 2px; }
+.authorText .nickname { color: var(--brand-gray-100); }
+.authorText:has(strong) .nickname { font-size: 11px; }
+.profileLeft > :first-child { max-width: 55%; }

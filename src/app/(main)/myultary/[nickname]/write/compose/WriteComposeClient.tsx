@@ -3,6 +3,7 @@ import { useResettableState } from '@/lib/react/useResettableState';
 
 import { PageLoadError } from '@/components/common/PageLoadError';
 
+import { SubjectPetPicker } from '@/components/common/SubjectPetPicker';
 import { VisibilityPicker } from '@/components/common/VisibilityPicker';
 import { FooterMenu } from '@/components/common/FooterMenu';
 import { FullScreenLoading } from '@/components/common/FullScreenLoading';
@@ -80,10 +81,13 @@ export default function WriteComposeClient({ editFeedId }: { editFeedId?: string
   const cropHref = `${basePath}/write/crop`;
   const tagsHref = `${basePath}/write/tags`;
 
+  const subjectPetIds = useWriteDraftStore((s) => s.subjectPetIds);
+  const setSubjectPetIds = useWriteDraftStore((s) => s.setSubjectPetIds);
   const items = useWriteDraftStore((s) => s.items);
   const visibility = useWriteDraftStore((s) => s.visibility);
   const setVisibility = useWriteDraftStore((s) => s.setVisibility);
   const [visibilityError, setVisibilityError] = useState<{ error: unknown } | null>(null);
+  const [defaultVisibility, setDefaultVisibility] = useState<FeedVisibility | null>(null);
   const caption = useWriteDraftStore((s) => s.caption);
   const setCaption = useWriteDraftStore((s) => s.setCaption);
   const clear = useWriteDraftStore((s) => s.clear);
@@ -105,7 +109,14 @@ export default function WriteComposeClient({ editFeedId }: { editFeedId?: string
     let cancelled = false;
     loadFeedEditDraft(editFeedId)
       .then((draft) => {
-        if (!cancelled) beginEditing(editFeedId, draft.items, draft.caption, draft.visibility);
+        if (!cancelled)
+          beginEditing(
+            editFeedId,
+            draft.items,
+            draft.caption,
+            draft.visibility,
+            draft.subjectPetIds,
+          );
       })
       .catch((error: unknown) => {
         if (!cancelled)
@@ -116,7 +127,7 @@ export default function WriteComposeClient({ editFeedId }: { editFeedId?: string
     };
   }, [editFeedId, beginEditing]);
   useEffect(() => {
-    if (isEditing || editingFeedId != null || visibility != null) return;
+    if (isEditing || editingFeedId != null) return;
     let cancelled = false;
     bffGet<BffEnvelope<{ feedVisibility: FeedVisibility }>>(bffEndpoints.settings.privacy)
       .then((response) => {
@@ -124,7 +135,7 @@ export default function WriteComposeClient({ editFeedId }: { editFeedId?: string
         if (next !== 'PUBLIC' && next !== 'NEIGHBORS' && next !== 'PRIVATE') {
           throw new Error('공개 범위를 불러오지 못했습니다.');
         }
-        if (!cancelled && useWriteDraftStore.getState().visibility == null) setVisibility(next);
+        if (!cancelled) setDefaultVisibility(next);
       })
       .catch((error: unknown) => {
         if (!cancelled) setVisibilityError({ error });
@@ -132,7 +143,7 @@ export default function WriteComposeClient({ editFeedId }: { editFeedId?: string
     return () => {
       cancelled = true;
     };
-  }, [isEditing, editingFeedId, visibility, setVisibility]);
+  }, [isEditing, editingFeedId]);
 
   const photoTagCount = items.reduce((sum, item) => sum + (item.petTags?.length ?? 0), 0);
   const backdropRef = useRef<HTMLDivElement>(null);
@@ -385,8 +396,9 @@ export default function WriteComposeClient({ editFeedId }: { editFeedId?: string
     if (submitting || items.length === 0 || visibility == null) return;
     setSubmitting(true);
     try {
-      if (editFeedId) await updateFeedFromDraft(editFeedId, caption, items, visibility);
-      else await createFeedFromDraft({ caption, items, visibility });
+      if (editFeedId)
+        await updateFeedFromDraft(editFeedId, caption, items, visibility, subjectPetIds);
+      else await createFeedFromDraft({ caption, items, visibility, subjectPetIds });
       clear();
       router.push(editFeedId ? `${basePath}/posts/${editFeedId}` : basePath);
       router.refresh();
@@ -497,19 +509,18 @@ export default function WriteComposeClient({ editFeedId }: { editFeedId?: string
           <ChevronRight size={20} className={styles.tagChevron} aria-hidden />
         </button>
 
+        <SubjectPetPicker value={subjectPetIds} onChange={setSubjectPetIds} disabled={submitting} />
         <section className={styles.visibilitySection}>
           <VisibilityPicker
             label="공개 범위"
             labelClassName={styles.visibilityLabel}
             value={visibility}
-            disabled={submitting || (visibility == null && !visibilityError)}
+            disabled={submitting}
             onChange={setVisibility}
           />
-          {visibility == null ? (
+          {!isEditing && (defaultVisibility === 'NEIGHBORS' || defaultVisibility === 'PRIVATE') ? (
             <p className={styles.visibilityStatus} role="status">
-              {visibilityError
-                ? '기본 공개 범위를 불러오지 못했습니다. 공개 범위를 직접 선택해 주세요.'
-                : '기본 공개 범위를 불러오는 중입니다.'}
+              {`* 게시글 기본 공개 범위가 ${defaultVisibility === 'NEIGHBORS' ? "'팔로우'로" : "'나만'으로"} 되어있습니다.`}
             </p>
           ) : null}
         </section>

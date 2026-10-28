@@ -39,12 +39,10 @@ function readPhotoTags(media: unknown): FeedPhotoTag[] {
       readText(item.ownerNickname) ??
       readText(item.nickname) ??
       readOwnerNick(item.owner) ??
-      (pet ? readText(pet.ownerNickname) ?? readOwnerNick(pet.owner) : undefined);
+      (pet ? (readText(pet.ownerNickname) ?? readOwnerNick(pet.owner)) : undefined);
     const mentionId = readText(item.mentionId) ?? (pet ? readText(pet.mentionId) : undefined);
     const petName =
-      readText(item.petName) ??
-      readText(item.name) ??
-      (pet ? readText(pet.name) : undefined);
+      readText(item.petName) ?? readText(item.name) ?? (pet ? readText(pet.name) : undefined);
     const userNo =
       typeof item.userNo === 'number'
         ? item.userNo
@@ -84,7 +82,8 @@ export function toFeedData(raw: unknown, fallbackId: string): FeedData {
 
   const profileUrl =
     resolveFileDisplayUrl(
-      detail.authorProfileFile ??
+      detail.subjectPets?.[0]?.profileFile ??
+        detail.authorProfileFile ??
         detail.profileFile ??
         detail.author?.profileFile,
     ) ?? NO_PROFILE_SRC;
@@ -94,8 +93,7 @@ export function toFeedData(raw: unknown, fallbackId: string): FeedData {
     .flatMap((media) => {
       const src = resolveFileDisplayUrl(media.file ?? media.thumbnailFile);
       if (!src) return [];
-      const feedMediaId =
-        typeof media.feedMediaId === 'number' ? media.feedMediaId : null;
+      const feedMediaId = typeof media.feedMediaId === 'number' ? media.feedMediaId : null;
       return [{ src, tags: readPhotoTags(media), feedMediaId }];
     });
 
@@ -103,9 +101,7 @@ export function toFeedData(raw: unknown, fallbackId: string): FeedData {
   const mediaIds = slides.map((slide) => slide.feedMediaId);
   const photoTags = slides.map((slide) => slide.tags);
 
-  const cover = resolveFileDisplayUrl(
-    detail.coverFile ?? detail.coverThumbnailFile,
-  );
+  const cover = resolveFileDisplayUrl(detail.coverFile ?? detail.coverThumbnailFile);
   if (cover && images.length === 0) {
     images.push(cover);
     mediaIds.push(null);
@@ -121,6 +117,8 @@ export function toFeedData(raw: unknown, fallbackId: string): FeedData {
     id: String(detail.feedId ?? fallbackId),
     userNo: typeof detail.userNo === 'number' ? detail.userNo : undefined,
     nickname,
+    subjectNames: (detail.subjectPets ?? []).map((pet) => pet.name),
+    subjectPets: detail.subjectPets ?? [],
     profileUrl,
     story: detail.authorHasStory ? (detail.authorHasUnviewedStory ? 'unread' : 'read') : 'none',
     images,

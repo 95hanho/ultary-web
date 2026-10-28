@@ -3,7 +3,8 @@
   z-index: 10;
   display: flex;
   width: 100%;
-  max-width: 430px;
+  max-width: 550px;
+  min-width: 375px;
   min-height: 100%;
   margin: 0 auto;
   flex-direction: column;
@@ -339,6 +340,6 @@
 
 .visibilityStatus {
   margin: 0 0 12px;
-  color: var(--brand-gray-500);
+  color: var(--brand-red-500);
   font-size: 12px;
 }

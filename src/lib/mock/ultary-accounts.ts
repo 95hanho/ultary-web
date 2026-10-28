@@ -13,11 +13,11 @@ export type UltaryAccount = {
   isOwnAccount: boolean;
 };
 
-/** 로그인 유저 닉네임 (푸터·리다이렉트용) */
-export const MY_NICKNAME = 'HAN_HOSEONGS';
+/** 로그인 유저 닉네임태그 (푸터·리다이렉트용) */
+export const MY_NICKNAME = 'ultary';
 
 /** 다른 사람 울타리 예시 */
-export const OTHER_NICKNAME = 'LEE_OKJU';
+export const OTHER_NICKNAME = 'walker';
 
 const ACCOUNTS: Record<string, UltaryAccount> = {
   [MY_NICKNAME]: {

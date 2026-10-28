@@ -1,5 +1,6 @@
 'use client';
 
+import { nicknameTag } from '@/lib/nickname-tag';
 import { PageLoadError } from '@/components/common/PageLoadError';
 
 import Link from 'next/link';
@@ -72,7 +73,7 @@ export default function AiLogDetailClient({ aiRequestId }: { aiRequestId: number
                   <tbody>
                     <Field label="기능" value={AI_FEATURE[item.featureType] ?? item.featureType} />
                     <Field label="최초 호출날짜" value={firstCreatedAt ? formatWhen(firstCreatedAt) : null} />
-                    <Field label="회원" value={item.userNo != null ? `${item.userNickname ?? '알 수 없는 사용자'}(${item.userNo})` : null} />
+                    <Field label="회원" value={item.userNo != null ? `${item.userNickname ? nicknameTag(item.userNickname) : '알 수 없는 사용자'}(${item.userNo})` : null} />
                     <Field label="휴대폰 번호" value={item.userPhone} />
                     <Field label="이메일" value={item.userEmail} />
                     <Field

@@ -6,7 +6,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 
-function run(files = {}, command = 'build', serverValue) {
+function run(files = {}, command = 'build', serverValue, cliSource) {
   const root = mkdtempSync(join(tmpdir(), 'ultary-env-test-'));
   try {
     mkdirSync(join(root, 'scripts'));
@@ -20,7 +20,7 @@ function run(files = {}, command = 'build', serverValue) {
     mkdirSync(nextBin, { recursive: true });
     writeFileSync(
       join(nextBin, 'next'),
-      `console.log(JSON.stringify({value:process.env.ULTARY_ENV_TEST_VALUE ?? null,args:process.argv.slice(2)}));`,
+      cliSource ?? `console.log(JSON.stringify({value:process.env.ULTARY_ENV_TEST_VALUE ?? null,args:process.argv.slice(2)}));`,
     );
     for (const [name, value] of Object.entries(files)) {
       if (value === null) mkdirSync(join(root, name));
@@ -83,4 +83,11 @@ test('unreadable env paths fail rather than being silently skipped', () => {
   const result = run({ '.env.production': null });
   assert.notEqual(result.status, 0);
   assert.match(result.stderr, /EISDIR|EPERM|EACCES/);
+});
+
+test('Next dev runs directly without an extra wrapper child and preserves its exit code', () => {
+  const result = run({}, 'dev', undefined,
+    'console.log(JSON.stringify({parentPid:process.ppid}));process.exitCode=7;');
+  assert.equal(result.status, 7, result.stderr);
+  assert.equal(JSON.parse(result.stdout).parentPid, process.pid);
 });

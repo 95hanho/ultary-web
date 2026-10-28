@@ -1,6 +1,7 @@
 'use client';
 
 import { PageHeader } from '@/components/common/PageHeader';
+import { filterNickname, validateNickname } from '@/lib/auth/signup-rules';
 import { MY_NICKNAME, myUltaryPath } from '@/lib/mock/ultary-accounts';
 import { useRouter } from 'next/navigation';
 import { useState, type FormEvent } from 'react';
@@ -20,7 +21,7 @@ export default function ProfileClient({ nickname }: ProfileClientProps) {
 
   function onSubmit(e?: FormEvent) {
     e?.preventDefault();
-    if (!displayName.trim()) return;
+    if (validateNickname(displayName)) return;
     setSaved(true);
     window.setTimeout(() => {
       router.push(basePath);
@@ -36,7 +37,7 @@ export default function ProfileClient({ nickname }: ProfileClientProps) {
           <button
             type="button"
             className={styles.saveBtn}
-            disabled={!displayName.trim()}
+            disabled={validateNickname(displayName) != null}
             onClick={() => onSubmit()}
           >
             저장
@@ -47,13 +48,15 @@ export default function ProfileClient({ nickname }: ProfileClientProps) {
       <main className={styles.main}>
         <form id="profile-form" className={styles.form} onSubmit={onSubmit}>
           <label className={styles.field}>
-            <span className={styles.label}>닉네임</span>
+            <span className={styles.label}>닉네임태그</span>
             <input
               className={styles.input}
-              value={displayName}
-              onChange={(e) => setDisplayName(e.target.value)}
-              placeholder="닉네임을 입력해주세요."
-              maxLength={20}
+              value={`@${displayName}`}
+              onChange={(e) => setDisplayName(filterNickname(e.target.value))}
+              placeholder="닉네임태그를 입력해주세요."
+              maxLength={11}
+              autoCapitalize="none"
+              autoCorrect="off"
             />
           </label>
 

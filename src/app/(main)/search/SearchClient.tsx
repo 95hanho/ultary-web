@@ -1,4 +1,6 @@
 'use client';
+import { nicknameTag } from '@/lib/nickname-tag';
+import { PetNamesAndNicknameTag } from '@/components/common/PetNamesAndNicknameTag';
 import { useResettableState } from '@/lib/react/useResettableState';
 
 import { PageLoadError } from '@/components/common/PageLoadError';
@@ -20,7 +22,6 @@ import {
 import type { BffEnvelope } from '@/types/api';
 import { myUltaryPath } from '@/lib/mock/ultary-accounts';
 import { formatTagPostCount, type MockHashtag, type SearchAccount } from '@/lib/mock/search';
-import { highlightMatch, sortPetTagsByMatch } from '@/lib/search/highlight';
 import { useModalStore } from '@/stores/modal.store';
 import clsx from 'clsx';
 import { Profile, type StoryStatus } from '@/components/my-ultary/Profile';
@@ -114,7 +115,6 @@ function AccountRow({
   onEnter: (account: SearchAccount, href?: string) => void;
   onRemove?: () => void;
 }) {
-  const tags = sortPetTagsByMatch(account.petTags, petQuery || highlightQuery);
   const story: StoryStatus = account.hasStory ? (account.hasUnviewed ? 'unread' : 'read') : 'none';
   const storyHref =
     story !== 'none' && account.userNo != null
@@ -137,7 +137,7 @@ function AccountRow({
             <Link
               href={storyHref}
               className={styles.accountImageWrap}
-              aria-label={`${account.nickname} 스토리 보기`}
+              aria-label={`${nicknameTag(account.nickname)} 스토리 보기`}
               onMouseDown={(event) => event.preventDefault()}
               onClick={(event) => {
                 event.preventDefault();
@@ -165,20 +165,14 @@ function AccountRow({
             onEnter(account);
           }}
         >
-          <span className={styles.accountNick}>
-            {highlightMatch(account.nickname, highlightQuery, styles.hit)}
-          </span>
-          <span className={styles.accountTags}>
-            {tags.map((tag, i) => (
-              <span key={tag}>
-                {i > 0 ? ' ' : null}
-                {highlightMatch(tag, petQuery || highlightQuery, styles.hit)}
-              </span>
-            ))}
-          </span>
+          <PetNamesAndNicknameTag
+            nickname={account.nickname}
+            petNames={account.petNames ?? []}
+            query={petQuery || highlightQuery}
+          />
         </Link>
       </div>
-      {onRemove ? <RemoveRecentButton label={account.nickname} onRemove={onRemove} /> : null}
+      {onRemove ? <RemoveRecentButton label={nicknameTag(account.nickname)} onRemove={onRemove} /> : null}
     </li>
   );
 }
@@ -709,7 +703,7 @@ export default function SearchClient() {
             {userResults.length === 0 ? (
               <EmptyState
                 title="검색 결과가 없어요"
-                description="다른 닉네임이나 펫 태그로 다시 검색해 보세요."
+                description="다른 닉네임태그나 펫 이름으로 다시 검색해 보세요."
               />
             ) : (
               <ul className={styles.accountList}>

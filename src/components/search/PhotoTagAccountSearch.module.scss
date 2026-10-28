@@ -10,7 +10,8 @@
 .inner {
   display: flex;
   width: 100%;
-  max-width: 430px;
+  max-width: 550px;
+  min-width: 375px;
   height: 100dvh;
   flex-direction: column;
   padding-bottom: env(safe-area-inset-bottom, 0px);

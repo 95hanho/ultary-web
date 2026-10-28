@@ -3,7 +3,8 @@
   z-index: 10;
   display: flex;
   width: 100%;
-  max-width: 430px;
+  max-width: 550px;
+  min-width: 375px;
   min-height: 100%;
   margin: 0 auto;
   flex-direction: column;
@@ -371,6 +372,13 @@
   border-radius: 5px;
   padding: 5px 14px;
   font-size: 14px;
+}
+
+.nameHint {
+  margin: 0;
+  color: var(--brand-gray-500);
+  font-size: 12px;
+  line-height: 1.4;
 }
 
 .formError {

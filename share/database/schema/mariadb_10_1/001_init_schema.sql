@@ -150,8 +150,8 @@ CREATE TABLE `ultary_user` (
   `suspended_at` DATETIME NULL DEFAULT NULL COMMENT '회원 정지 시각. 해제하면 NULL',
   PRIMARY KEY (`user_no`) USING BTREE,
   UNIQUE KEY `UK_ultary_user_nickname` (`nickname`) USING BTREE,
-  UNIQUE KEY `UK_ultary_user_email` (`email`) USING BTREE,
-  UNIQUE KEY `UK_ultary_user_phone` (`phone`) USING BTREE,
+  KEY `IDX_ultary_user_email` (`email`) USING BTREE,
+  KEY `IDX_ultary_user_phone` (`phone`) USING BTREE,
   KEY `IDX_ultary_user_is_default_nickname` (`is_default_nickname`) USING BTREE,
   KEY `IDX_ultary_user_withdrawal_status` (`withdrawal_status`) USING BTREE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_general_ci COMMENT='사용자 계정 및 보호자 프로필';
@@ -1005,4 +1005,23 @@ CREATE TABLE IF NOT EXISTS ultary_comment_mention_snapshot (
   targets_json TEXT NOT NULL,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (target_type, target_id, content_hash)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 콘텐츠의 주인공 펫. 사진 속 언급/협업 태그와 별도 관계.
+CREATE TABLE IF NOT EXISTS ultary_content_pet (
+  content_type VARCHAR(5) NOT NULL,
+  content_id INT(11) NOT NULL,
+  pet_id INT(11) NOT NULL,
+  sort_order INT NOT NULL DEFAULT 0,
+  PRIMARY KEY (content_type, content_id, pet_id),
+  KEY idx_content_pet_pet (pet_id, content_type, content_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS ultary_user_link (
+  owner_user_no INT(11) NOT NULL,
+  target_user_no INT(11) NOT NULL,
+  sort_order INT NOT NULL DEFAULT 0,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (owner_user_no, target_user_no),
+  KEY IDX_ultary_link_target (target_user_no)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

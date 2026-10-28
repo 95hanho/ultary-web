@@ -1,3 +1,4 @@
+import { nicknameTag } from '@/lib/nickname-tag';
 import { bffGet } from '@/lib/api/bffFetch';
 import { bffEndpoints } from '@/lib/api/endpoints';
 import { isRecord } from '@/lib/api/error';
@@ -289,7 +290,7 @@ function readReports(raw: unknown): ReportItem[] {
 }
 
 export function memberLabel(userNo: number, nickname: string | null) {
-  return nickname ? `no.${userNo}(${nickname})` : `no.${userNo}`;
+  return nickname ? `no.${userNo}(${nicknameTag(nickname)})` : `no.${userNo}`;
 }
 
 export function formatWhen(iso: string) {

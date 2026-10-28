@@ -33,6 +33,14 @@ export async function POST(request: NextRequest) {
       await clientConnectionHeaders(),
     );
 
+    if (tokens.selectionRequired) {
+      if (!Array.isArray(tokens.accounts) || tokens.accounts.length < 2)
+        throw new Error('INVALID_ACCOUNT_SELECTION');
+      return NextResponse.json({
+        success: true,
+        data: { selectionRequired: true, accounts: tokens.accounts },
+      });
+    }
     const response = NextResponse.json(
       { success: true, message: 'LOGIN_SUCCESS' },
       { status: 200 },

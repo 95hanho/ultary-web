@@ -1,5 +1,6 @@
 'use client';
 
+import { nicknameTag } from '@/lib/nickname-tag';
 import { PageLoadError } from '@/components/common/PageLoadError';
 import { httpErrorStatus } from '@/lib/api/error';
 
@@ -93,7 +94,7 @@ export default function TagListClient() {
           </colgroup>
           <thead><tr>
             <th scope="col">번호</th><th scope="col">이미지</th><th scope="col">태그명</th>
-            <th scope="col">태그title</th><th scope="col">태그설명</th><th scope="col">링크(도메인명)</th><th scope="col">닉네임(no)</th>
+            <th scope="col">태그title</th><th scope="col">태그설명</th><th scope="col">링크(도메인명)</th><th scope="col">닉네임태그(no)</th>
             <th scope="col">요청날짜</th><th scope="col">확인날짜</th><th scope="col">상태변경</th>
           </tr></thead>
           <tbody>
@@ -128,8 +129,8 @@ export default function TagListClient() {
                     </a>
                   ) : '–'}
                 </td>
-                <td><span className={styles.tableText} title={item.requesterNickname ?? undefined}>
-                  {item.requesterUserNo != null ? (item.requesterNickname || '알 수 없는 사용자') + '(' + item.requesterUserNo + ')' : '–'}
+                <td><span className={styles.tableText} title={item.requesterNickname ? nicknameTag(item.requesterNickname) : undefined}>
+                  {item.requesterUserNo != null ? (item.requesterNickname ? nicknameTag(item.requesterNickname) : '알 수 없는 사용자') + '(' + item.requesterUserNo + ')' : '–'}
                 </span></td>
                 <td className={styles.tableDate}>{item.createdAt ? formatWhen(item.createdAt) : '–'}</td>
                 <td className={styles.tableDate}>{item.reviewedAt ? formatWhen(item.reviewedAt) : '–'}</td>

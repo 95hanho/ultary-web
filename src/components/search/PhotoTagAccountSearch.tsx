@@ -8,7 +8,7 @@ import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import styles from './PhotoTagAccountSearch.module.scss';
 
-export type PetMentionSelection = { petId: number; petTag: string };
+export type PetMentionSelection = { petId: number; petName: string };
 type Props = {
   open: boolean;
   mode: 'STORY_TAG' | 'FEED_TAG';
@@ -39,11 +39,11 @@ function PhotoTagSearchContents({ mode, onSelect, onClose }: Omit<Props, 'open'>
     };
   }, [onClose]);
 
-  const pick = (account: RankedAccount, tag?: string) => {
+  const pick = (account: RankedAccount, petId?: number) => {
     const term = query.trim().replace(/^@+/, '').toLowerCase();
-    const pet = tag
-      ? account.pets.find((pet) => pet.petTag === tag)
-      : (account.pets.find((pet) => term && pet.petTag.slice(1).toLowerCase().includes(term)) ??
+    const pet = petId
+      ? account.pets.find((pet) => pet.petId === petId)
+      : (account.pets.find((pet) => term && pet.name.toLowerCase().includes(term)) ??
         account.pets[0]);
     if (pet) onSelect(pet);
   };
@@ -60,7 +60,7 @@ function PhotoTagSearchContents({ mode, onSelect, onClose }: Omit<Props, 'open'>
           serverSearch
           autoFocus
           onSelect={(account) => pick(account)}
-          onSelectPetTag={pick}
+          onSelectPet={pick}
         />
       </div>
     </div>

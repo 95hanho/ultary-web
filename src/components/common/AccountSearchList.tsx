@@ -1,10 +1,11 @@
 'use client';
+import { nicknameTag } from '@/lib/nickname-tag';
 
+import { PetNamesAndNicknameTag } from './PetNamesAndNicknameTag';
 import { PageLoadError } from '@/components/common/PageLoadError';
 
 import { MediaImage } from '@/components/common/MediaImage';
 import { NO_PROFILE_SRC } from '@/lib/profileImage';
-import { highlightMatch } from '@/lib/search/highlight';
 import clsx from 'clsx';
 import { useId } from 'react';
 import Image from 'next/image';
@@ -14,7 +15,9 @@ export type AccountSearchItem = {
   userNo: number | string;
   nickname: string;
   imageUrl: string;
-  petTags: string[];
+  petTags?: string[];
+  pets?: { petId: number; name: string }[];
+  petNames?: string[];
 };
 
 type Props<T extends AccountSearchItem> = {
@@ -22,7 +25,7 @@ type Props<T extends AccountSearchItem> = {
   query: string;
   onQueryChange: (query: string) => void;
   onSelect: (item: T) => void;
-  onSelectPetTag?: (item: T, petTag: string) => void;
+  onSelectPet?: (item: T, petId: number) => void;
   selectedUserNo?: number | string | null;
   status?: 'idle' | 'loading' | 'ready' | 'error';
   /** Server search should filter before limiting; keep its order unchanged. */
@@ -42,7 +45,7 @@ export function AccountSearchList<T extends AccountSearchItem>({
   query,
   onQueryChange,
   onSelect,
-  onSelectPetTag,
+  onSelectPet,
   selectedUserNo,
   status = 'ready',
   serverSearch = false,
@@ -62,7 +65,7 @@ export function AccountSearchList<T extends AccountSearchItem>({
       : items.filter(
           (item) =>
             item.nickname.toLowerCase().includes(term) ||
-            item.petTags.some((tag) => tag.replace(/^@+/, '').toLowerCase().includes(term)),
+            item.petNames?.some((name) => name.toLowerCase().includes(term)),
         );
 
   return (
@@ -76,7 +79,7 @@ export function AccountSearchList<T extends AccountSearchItem>({
               autoFocus={autoFocus}
               className={styles.searchInput}
               placeholder="검색"
-              aria-label="닉네임 또는 펫태그 검색"
+              aria-label="닉네임태그·펫 이름 검색"
               value={query}
               disabled={disabled}
               onChange={(event) => onQueryChange(event.target.value)}
@@ -121,14 +124,14 @@ export function AccountSearchList<T extends AccountSearchItem>({
             {visible.map((item) => {
               const blocked = disabled || Boolean(isDisabled?.(item));
               const note = getNote?.(item);
-              if (onSelectPetTag) {
+              if (onSelectPet) {
                 return (
                   <li key={item.userNo} className={styles.petRow}>
                     <button
                       type="button"
                       className={styles.petAvatar}
                       disabled={blocked}
-                      aria-label={`${item.nickname} 선택`}
+                      aria-label={`${nicknameTag(item.nickname)} 선택`}
                       onClick={() => onSelect(item)}
                     >
                       <MediaImage
@@ -140,27 +143,14 @@ export function AccountSearchList<T extends AccountSearchItem>({
                       />
                     </button>
                     <span className={styles.text}>
-                      <button
-                        type="button"
-                        className={clsx(styles.nick, styles.petButton)}
+                      <PetNamesAndNicknameTag
+                        nickname={item.nickname}
+                        petNames={item.petNames ?? []}
+                        query={term}
                         disabled={blocked}
-                        onClick={() => onSelect(item)}
-                      >
-                        {highlightMatch(item.nickname, term, styles.hit)}
-                      </button>
-                      <span className={styles.petTags}>
-                        {item.petTags.map((tag) => (
-                          <button
-                            type="button"
-                            key={tag}
-                            className={clsx(styles.tags, styles.petButton)}
-                            disabled={blocked}
-                            onClick={() => onSelectPetTag(item, tag)}
-                          >
-                            {highlightMatch(tag, term, styles.hit)}
-                          </button>
-                        ))}
-                      </span>
+                        onNicknameSelect={() => onSelect(item)}
+                        onPetSelect={(index) => onSelectPet(item, item.pets![index]!.petId)}
+                      />
                       {note ? <span className={styles.note}>{note}</span> : null}
                     </span>
                   </li>
@@ -178,14 +168,12 @@ export function AccountSearchList<T extends AccountSearchItem>({
                     />
                   </span>
                   <span className={styles.text}>
-                    <span className={styles.nick}>
-                      {highlightMatch(item.nickname, term, styles.hit)}
-                    </span>
-                    {item.petTags.length ? (
-                      <span className={styles.tags}>
-                        {highlightMatch(item.petTags.join(' '), term, styles.hit)}
-                      </span>
-                    ) : null}
+                    <PetNamesAndNicknameTag
+                      nickname={item.nickname}
+                      petNames={item.petNames ?? []}
+                      query={term}
+                      disabled={blocked}
+                    />
                     {note ? <span className={styles.note}>{note}</span> : null}
                   </span>
                 </>
@@ -202,7 +190,7 @@ export function AccountSearchList<T extends AccountSearchItem>({
                         checked={selectedUserNo === item.userNo}
                         disabled={blocked}
                         onChange={() => onSelect(item)}
-                        aria-label={`${item.nickname} 선택`}
+                        aria-label={`${nicknameTag(item.nickname)} 선택`}
                       />
                     </label>
                   ) : (

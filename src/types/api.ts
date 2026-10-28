@@ -72,7 +72,10 @@ export type AdminLoginRequest = {
 };
 
 /** POST /api/v1/auth/login — email 또는 phone + password */
+export type AccountChoice = { userNo: number; nickname: string };
+export type AccountSelection = { selectionRequired: boolean; accounts: AccountChoice[] };
 export type LoginRequest = {
+  userNo?: number;
   email?: string;
   phone?: string;
   password: string;
@@ -118,6 +121,8 @@ export type RefreshTokenRequest = {
 
 /** login / refresh / social/login 공통 토큰 필드 */
 export type TokenResponse = {
+  selectionRequired?: boolean;
+  accounts?: AccountChoice[];
   accessToken: string;
   refreshToken: string;
   tokenType: 'Bearer' | string;
@@ -138,7 +143,7 @@ export type SocialLoginResponse = TokenResponse & {
   defaultNickname: boolean;
 };
 
-/** PATCH /api/v1/auth/me — 닉네임은 별도 API. 번호가 바뀔 때만 phone과 인증 완료 토큰 */
+/** PATCH /api/v1/auth/me — 닉네임태그는 별도 API. 번호가 바뀔 때만 phone과 인증 완료 토큰 */
 export type UpdateMeRequest = {
   name?: string | null;
   email?: string | null;
@@ -151,12 +156,15 @@ export type UpdateMeRequest = {
 
 /** POST /api/v1/auth/password/token */
 export type PasswordTokenRequest = {
+  userNo?: number;
   phone: string;
   phoneAuthCompleteToken: string;
 };
 
 export type PasswordTokenResponse = {
-  passwordChangeToken: string;
+  selectionRequired?: boolean;
+  accounts?: AccountChoice[];
+  passwordChangeToken?: string;
 };
 
 /** PUT /api/v1/auth/password */

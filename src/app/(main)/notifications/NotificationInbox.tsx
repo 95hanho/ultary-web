@@ -1,5 +1,6 @@
 'use client';
 
+import { nicknameTag } from '@/lib/nickname-tag';
 import { PageLoadError } from '@/components/common/PageLoadError';
 
 import { bffDelete, bffGet, bffPatchJson, bffPostJson } from '@/lib/api/bffFetch';
@@ -152,16 +153,16 @@ function linkifyMessage(
   item: NotificationItem,
   router: ReturnType<typeof useRouter>,
 ) {
-  const nickname = item.actorNickname.trim();
+  const nickname = item.actorNickname.trim().replace(/^@+/, '');
   const token = nickname
-    ? `(${escapeRegExp(nickname)}|댓글|답글|게시글|스토리)`
+    ? `(@*${escapeRegExp(nickname)}|댓글|답글|게시글|스토리)`
     : '(댓글|답글|게시글|스토리)';
   const parts = message.split(new RegExp(token, 'g'));
   return parts.map((part, index) => {
-    if (nickname && part === nickname) {
+    if (nickname && part.replace(/^@+/, '') === nickname) {
       return (
         <Link key={index} href={myUltaryPath(nickname)} className={styles.nickname}>
-          {part}
+          {nicknameTag(part)}
         </Link>
       );
     }
@@ -184,7 +185,7 @@ function linkifyMessage(
 function ActorPhrase({ nickname, othersCount }: { nickname: string; othersCount?: number }) {
   const nick = (
     <Link href={myUltaryPath(nickname)} className={styles.nickname}>
-      {nickname}
+      {nicknameTag(nickname)}
     </Link>
   );
   if (othersCount != null && othersCount > 0) {
@@ -237,7 +238,7 @@ function NotificationMessage({ item }: { item: NotificationItem }) {
   const actor = <ActorPhrase nickname={item.actorNickname} othersCount={item.othersCount} />;
   const nickOnly = (
     <Link href={myUltaryPath(item.actorNickname)} className={styles.nickname}>
-      {item.actorNickname}
+      {nicknameTag(item.actorNickname)}
     </Link>
   );
 
@@ -649,7 +650,7 @@ export function NotificationInbox({ variant = 'page' }: { variant?: 'page' | 'po
                 <Link
                   href={ultaryHref}
                   className={styles.imageWrap}
-                  aria-label={`${item.actorNickname} 울타리`}
+                  aria-label={`${nicknameTag(item.actorNickname)} 울타리`}
                 >
                   <MediaImage
                     src={item.profileUrl}

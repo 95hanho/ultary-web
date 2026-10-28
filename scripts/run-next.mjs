@@ -34,17 +34,27 @@ nextEnv.processEnv(
   root,
 );
 
-// --env-file을 execArgv에 넣지 않아 Next가 NODE_OPTIONS로 전달하지 않게 한다.
-const child = spawn(
-  process.execPath,
-  [fileURLToPath(new URL('../node_modules/next/dist/bin/next', import.meta.url)), command, ...args],
-  { cwd: root, stdio: 'inherit', env: process.env },
-);
-
-child.on('error', (error) => {
-  console.error('[next] Failed to start:', error.message);
-  process.exitCode = 1;
-});
-child.on('exit', (code) => {
-  process.exitCode = code ?? 1;
-});
+const nextCli = new URL('../node_modules/next/dist/bin/next', import.meta.url);
+if (command === 'dev') {
+  // 개발 서버는 같은 Node에서 시작해 Windows의 래퍼 spawn EPERM 경로를 없앤다.
+  // Next dev가 관리하는 서버 프로세스와 시그널 처리는 그대로 유지한다.
+  process.chdir(root);
+  process.argv = [process.execPath, fileURLToPath(nextCli), command, ...args];
+  await import(nextCli.href);
+} else {
+  // build/start는 별도 런타임의 @next/env 초기 상태를 유지한다.
+  // 같은 프로세스에서 미리 로드하면 Next의 bundler/NODE_ENV 설정이 초기화될 수 있다.
+  // --env-file을 execArgv에 넣지 않아 Next가 NODE_OPTIONS로 전달하지 않게 한다.
+  const child = spawn(process.execPath, [fileURLToPath(nextCli), command, ...args], {
+    cwd: root,
+    stdio: 'inherit',
+    env: process.env,
+  });
+  child.on('error', (error) => {
+    console.error('[next] Failed to start:', error.message);
+    process.exitCode = 1;
+  });
+  child.on('exit', (code) => {
+    process.exitCode = code ?? 1;
+  });
+}

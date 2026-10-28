@@ -9,7 +9,7 @@ function load(path,mocks={}){
 }
 const meta=load('lib/seo/metadata.ts');const origin='https://ultary.example.test';
 const pathMock={myUltaryPath:name=>'/myultary/'+encodeURIComponent(name)};
-const base={'@/lib/seo/metadata':meta,'@/lib/seo/site':{SEO_ORIGIN:origin}};
+const base={'@/lib/nickname-tag':load('lib/nickname-tag.ts'),'@/lib/seo/metadata':meta,'@/lib/seo/site':{SEO_ORIGIN:origin}};
 
 test('only configured HTTPS origins can enable search indexing',()=>{
  for(const value of ['', 'http://localhost:3000','https://localhost','https://127.0.0.1','https://[::1]','https://user:password@example.test','https://example.test/path','https://example.test/?q=1'])assert.equal(meta.indexableOrigin(value),null);
@@ -43,7 +43,7 @@ function feedFixture({member=false,fail=false}={}){
 }
 test('shared feed canonical and OG image are independent of mediaIndex',async()=>{
  const f=feedFixture();const value=await f.generateMetadata({params:Promise.resolve({feedId:'120'}),searchParams:Promise.resolve({mediaIndex:'1'})});
- assert.equal(value.alternates.canonical,origin+'/feeds/120');assert.equal(value.openGraph.images[0].url,'https://cdn.example.test/first.jpg');assert.equal(value.description,'공개 산책');
+ assert.equal(value.alternates.canonical,origin+'/feeds/120');assert.equal(value.openGraph.images[0].url,'https://cdn.example.test/first.jpg');assert.equal(value.description,'공개 산책');assert.equal(value.title,'@울타리님의 게시글 - Ultary');
 });
 test('member metadata never performs an anonymous lookup that could bypass a block',async()=>{
  const f=feedFixture({member:true});const value=await f.generateMetadata({params:Promise.resolve({feedId:'120'})});assert.equal(value.robots.index,false);assert.equal(f.calls.length,0);

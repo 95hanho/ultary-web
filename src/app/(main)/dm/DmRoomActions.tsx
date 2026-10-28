@@ -1,4 +1,5 @@
 'use client';
+import { nicknameTag } from '@/lib/nickname-tag';
 
 import { bffDelete } from '@/lib/api/bffFetch';
 import { bffEndpoints } from '@/lib/api/endpoints';
@@ -100,7 +101,7 @@ export function DmRoomActions({
         ref={buttonRef}
         type="button"
         className={styles.roomMoreBtn}
-        aria-label={`${nickname} 채팅방 더보기`}
+        aria-label={`${nicknameTag(nickname)} 채팅방 더보기`}
         aria-haspopup="menu"
         aria-expanded={place != null}
         disabled={deleting || disabled}
@@ -129,7 +130,7 @@ export function DmRoomActions({
               className={styles.roomMoreMenu}
               style={place}
               role="menu"
-              aria-label={`${nickname} 채팅방 메뉴`}
+              aria-label={`${nicknameTag(nickname)} 채팅방 메뉴`}
             >
               <button
                 type="button"

@@ -229,6 +229,12 @@
   background: var(--brand-black-700);
 }
 
+.details {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
 .actions {
   display: flex;
   align-items: center;
@@ -389,6 +395,7 @@
 
 .captionNick {
   margin-right: 4px;
+  color: var(--brand-gray-100);
   font-weight: 700;
 }
 
@@ -460,3 +467,10 @@
   position: relative;
   min-height: min(80dvh, 700px);
 }
+
+.authorText { display: flex; min-width: 0; flex-direction: column; gap: 2px; }
+.subjectNames { color: var(--brand-black-700); font-size: 14px; font-weight: 700; overflow-wrap: anywhere; }
+.authorText .nickname { color: var(--brand-gray-100); }
+.authorText:has(.subjectNames) .nickname { font-size: 11px; }
+
+.profileLink { min-width: 0; max-width: 60%; }

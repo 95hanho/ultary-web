@@ -66,13 +66,13 @@ export default function WritePhotoTagsClient() {
     setSearchOpen(true);
   };
 
-  const handleSelectPet = (pet: { petId: number; petTag: string }) => {
+  const handleSelectPet = (pet: { petId: number; petName: string }) => {
     const point = pendingPoint.current;
     if (!current || !point) {
       setSearchOpen(false);
       return;
     }
-    addPetTag(current.id, { petTag: pet.petTag, petId: pet.petId, x: point.x, y: point.y });
+    addPetTag(current.id, { petName: pet.petName, petId: pet.petId, x: point.x, y: point.y });
     pendingPoint.current = null;
     setSearchOpen(false);
   };
@@ -139,13 +139,13 @@ export default function WritePhotoTagsClient() {
               type="button"
               className={styles.petTagBox}
               style={{ left: `${tag.x * 100}%`, top: `${tag.y * 100}%` }}
-              aria-label={`${tag.petTag} 태그 삭제`}
+              aria-label={`${tag.petName} 태그 삭제`}
               onClick={(e) => {
                 e.stopPropagation();
                 removePetTag(current.id, tag.id);
               }}
             >
-              {tag.petTag}
+              {tag.petName}
             </button>
           ))}
         </div>

@@ -31,31 +31,6 @@ function pickHistoryId(raw: Record<string, unknown>): number | undefined {
   return undefined;
 }
 
-function mentionLabel(value: string): string {
-  const name = value.trim().replace(/^@+/, '');
-  return name ? `@${name}` : '';
-}
-
-function pickPetTags(raw: Record<string, unknown>): string[] {
-  const source = Array.isArray(raw.petTags)
-    ? raw.petTags
-    : Array.isArray(raw.pets)
-      ? raw.pets
-      : [];
-  return source
-    .map((pet) => {
-      if (typeof pet === 'string') return mentionLabel(pet);
-      if (!isRecord(pet)) return '';
-      const name =
-        (typeof pet.mentionId === 'string' && pet.mentionId) ||
-        (typeof pet.petName === 'string' && pet.petName) ||
-        (typeof pet.name === 'string' && pet.name) ||
-        '';
-      return mentionLabel(name);
-    })
-    .filter(Boolean);
-}
-
 function toAccount(raw: unknown): SearchAccount | null {
   if (!isRecord(raw)) return null;
   if (typeof raw.type === 'string' && raw.type !== 'USER') return null;
@@ -68,7 +43,14 @@ function toAccount(raw: unknown): SearchAccount | null {
     userNo,
     nickname,
     imageUrl: resolveFileDisplayUrl(asFile(raw.profileFile)) ?? NO_PROFILE_SRC,
-    petTags: pickPetTags(raw),
+    petTags: [],
+    petNames: Array.isArray(raw.petNames)
+      ? raw.petNames.filter((name): name is string => typeof name === 'string')
+      : Array.isArray(raw.pets)
+        ? raw.pets.flatMap((pet) =>
+            isRecord(pet) && typeof pet.name === 'string' ? [pet.name] : [],
+          )
+        : [],
     hasStory: raw.hasStory === true,
     hasUnviewed: raw.hasUnviewed === true,
   };
@@ -109,8 +91,7 @@ function toRecentItem(raw: unknown): RecentSearchItem | null {
 
   if (raw.type === 'TAG') {
     if (typeof raw.tagId !== 'number') return null;
-    const hashtag =
-      typeof raw.hashtag === 'string' ? raw.hashtag.trim().replace(/^#/, '') : '';
+    const hashtag = typeof raw.hashtag === 'string' ? raw.hashtag.trim().replace(/^#/, '') : '';
     if (!hashtag) return null;
     return {
       kind: 'TAG',
@@ -158,8 +139,7 @@ export function mapSearchTags(raw: unknown): SearchTagHit[] {
   return listFrom(raw, ['tags'])
     .map((item) => {
       if (!isRecord(item) || typeof item.tagId !== 'number') return null;
-      const hashtag =
-        typeof item.hashtag === 'string' ? item.hashtag.trim().replace(/^#/, '') : '';
+      const hashtag = typeof item.hashtag === 'string' ? item.hashtag.trim().replace(/^#/, '') : '';
       if (!hashtag) return null;
       return {
         tagId: item.tagId,

@@ -137,9 +137,9 @@
   --ultary-bg-tile: calc(var(--ultary-bg-col) * var(--ultary-bg-scale));
   --ultary-bg-ratio: 0.6658444; /* 702 / 1054 */
 
-  position: absolute;
+  position: fixed;
   inset-inline: 0;
-  bottom: 0;
+  bottom: -70px;
   z-index: 0;
   overflow: hidden;
   pointer-events: none;
@@ -148,6 +148,24 @@
   background-repeat: repeat-x;
   background-position: center bottom;
   background-size: 120% auto;
+
+  &::after {
+    content: '';
+    position: absolute;
+    inset-block: 0;
+    left: 50%;
+    width: min(550px, 100%);
+    transform: translateX(-50%);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    mask-image: linear-gradient(
+      to right,
+      transparent,
+      #000 32px,
+      #000 calc(100% - 32px),
+      transparent
+    );
+  }
 }
 
 @media (min-width: 431px) {
@@ -156,4 +174,3 @@
     background-size: var(--ultary-bg-tile) auto;
   }
 }
-

@@ -1,4 +1,5 @@
 'use client';
+import { nicknameTag } from '@/lib/nickname-tag';
 
 import { PageLoadError } from '@/components/common/PageLoadError';
 
@@ -7,7 +8,7 @@ import type { FeedData } from '@/components/feed/Feed';
 import { bffGet } from '@/lib/api/bffFetch';
 import { bffEndpoints } from '@/lib/api/endpoints';
 import { toFeedData } from '@/lib/feed/toFeedData';
-import { MY_NICKNAME, myUltaryPath } from '@/lib/mock/ultary-accounts';
+import { myUltaryPath } from '@/lib/mock/ultary-accounts';
 import { gridFeedIds } from '@/lib/myultary/fromApi';
 import { mapSearchUsers } from '@/lib/search/accounts';
 import type { BffEnvelope, MeResponse } from '@/types/api';
@@ -46,7 +47,7 @@ export default function MyUltaryPostsClient() {
         if (postId) await bffGet(bffEndpoints.feeds.detail, { feedId: postId });
         const meRes = await bffGet<BffEnvelope<MeResponse>>(bffEndpoints.auth.me);
         const meNick = meRes.data?.nickname?.trim() ?? '';
-        const isMine = nickname === MY_NICKNAME || (meNick !== '' && nickname === meNick);
+        const isMine = meNick !== '' && nickname === meNick;
         if (!cancelled) setOwnerName(isMine && meNick ? meNick : nickname);
 
         let ids: string[] = [];
@@ -96,11 +97,10 @@ export default function MyUltaryPostsClient() {
 
   return (
     <FeedListPage
-      title={ownerName ? `${ownerName}님의 피드` : ''}
+      title={ownerName ? `${nicknameTag(ownerName)}님의 피드` : ''}
       backHref={myUltaryPath(nickname)}
       feeds={feeds}
       focusId={postId}
-      showAuthor={false}
     />
   );
 }

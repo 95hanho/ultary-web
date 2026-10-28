@@ -1,3 +1,4 @@
+import type { SubjectPet } from './pet';
 import type { DateTimeString, Flag, SoftDelete, Timestamps } from './common';
 import type { FeedPetStatus, FeedVisibility } from './enums';
 import type { FeedCoverFileEmbed, FeedMediaFileEmbed, FileSummary } from './file';
@@ -16,6 +17,7 @@ export type Feed = {
 
 /** 피드 상세·타임라인 읽기 응답 (media 임베드) */
 export type FeedDetailResponse = Feed & {
+  subjectPets?: SubjectPet[];
   media?: FeedMediaFileEmbed[];
   /** 작성자의 대표 펫 사진. 없으면 null */
   authorProfileFile?: FileSummary | null;

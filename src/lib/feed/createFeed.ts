@@ -20,6 +20,7 @@ export type CreateFeedMedia = {
 };
 
 export type CreateFeedBody = {
+  subjectPetIds?: number[];
   content?: string;
   visibility?: 'PUBLIC' | 'NEIGHBORS' | 'PRIVATE';
   media: CreateFeedMedia[];
@@ -27,11 +28,7 @@ export type CreateFeedBody = {
   tagIds?: number[];
 };
 
-async function uploadDataUrl(
-  dataUrl: string,
-  fileName: string,
-  mimeType: string,
-): Promise<number> {
+async function uploadDataUrl(dataUrl: string, fileName: string, mimeType: string): Promise<number> {
   const res = await fetch(dataUrl);
   const blob = await res.blob();
   const form = new FormData();
@@ -74,8 +71,17 @@ function readExactTagId(raw: unknown, hashtag: string): number | null {
 }
 
 /** 본문 해시태그 → tagId (없으면 생성) */
-export async function resolveCaptionTagIds(caption: string, existingTags: Array<{ tagId: number; hashtag: string }> = []): Promise<number[]> {
-  const bodies = [...new Set(listHashtagBodies(caption).map((b) => b.trim()).filter(Boolean))];
+export async function resolveCaptionTagIds(
+  caption: string,
+  existingTags: Array<{ tagId: number; hashtag: string }> = [],
+): Promise<number[]> {
+  const bodies = [
+    ...new Set(
+      listHashtagBodies(caption)
+        .map((b) => b.trim())
+        .filter(Boolean),
+    ),
+  ];
   const ids: number[] = [];
   for (const body of bodies) {
     const searchRes = await bffGet<BffEnvelope<unknown>>(bffEndpoints.tags.search, {
@@ -83,7 +89,10 @@ export async function resolveCaptionTagIds(caption: string, existingTags: Array<
       limit: 20,
     });
     let tagId = readExactTagId(searchRes.data ?? searchRes, body);
-    if (tagId == null) tagId = existingTags.find(tag => normalizeHashtagBody(tag.hashtag) === normalizeHashtagBody(body))?.tagId ?? null;
+    if (tagId == null)
+      tagId =
+        existingTags.find((tag) => normalizeHashtagBody(tag.hashtag) === normalizeHashtagBody(body))
+          ?.tagId ?? null;
     if (tagId == null) {
       const created = await bffPostJson<BffEnvelope<unknown>>(bffEndpoints.tags.root, {
         hashtag: body,
@@ -105,19 +114,19 @@ function toPercent(ratio: number): number {
 
 /** draft 미디어·본문으로 게시글 등록 */
 export async function createFeedFromDraft(input: {
+  subjectPetIds?: number[];
   caption: string;
   items: WriteDraftItem[];
   visibility?: CreateFeedBody['visibility'];
 }): Promise<unknown> {
-  const { caption, items, visibility = 'PUBLIC' } = input;
+  const { caption, items, visibility = 'PUBLIC', subjectPetIds = [] } = input;
   if (items.length === 0) throw new Error('미디어가 필요합니다.');
 
   const media: CreateFeedMedia[] = [];
   const petMap = new Map<number, { petId: number; role: 'TAGGED'; isMain: boolean }>();
 
   for (const item of items) {
-    const source =
-      item.kind === 'image' ? (item.croppedDataUrl ?? item.sourceUrl) : item.sourceUrl;
+    const source = item.kind === 'image' ? (item.croppedDataUrl ?? item.sourceUrl) : item.sourceUrl;
     const fileId = await uploadDataUrl(source, item.fileName, item.mimeType);
     const mentions: CreateFeedMediaMention[] = [];
     for (const tag of item.petTags ?? []) {
@@ -149,6 +158,7 @@ export async function createFeedFromDraft(input: {
   }
 
   const body: CreateFeedBody = {
+    subjectPetIds,
     content: caption.trim() || undefined,
     visibility,
     media,

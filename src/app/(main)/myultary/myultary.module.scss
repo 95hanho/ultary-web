@@ -2,7 +2,8 @@
   position: relative;
   display: flex;
   width: 100%;
-  max-width: 430px;
+  max-width: 550px;
+  min-width: 375px;
   min-height: 100%;
   margin: 0 auto;
   flex-direction: column;
@@ -562,3 +563,13 @@
 .guestLogin {
   margin-top: 0;
 }
+
+.petDetailSelect {
+  display: inline-flex;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.clearPetSelection { border: 0; padding: 4px 0; background: transparent; color: var(--brand-grass-650); font-size: 12px; cursor: pointer; }

@@ -1,5 +1,8 @@
 'use client';
 
+import { useModalStore } from '@/stores/modal.store';
+import { nicknameTag } from '@/lib/nickname-tag';
+import type { AccountSelection, LoginRequest } from '@/types/api';
 import { bffPostJson } from '@/lib/api/bffFetch';
 import { bffEndpoints } from '@/lib/api/endpoints';
 import { isHttpError } from '@/lib/api/error';
@@ -61,6 +64,32 @@ export default function LoginClient({ initialError, signupComplete = false }: Pr
     setShowSignupComplete(false);
   };
 
+  const submitLogin = (body: LoginRequest) =>
+    startTransition(async () => {
+      try {
+        const result = await bffPostJson<BffEnvelope<AccountSelection>>(
+          bffEndpoints.auth.login,
+          body,
+        );
+        if (result.data?.selectionRequired) {
+          useModalStore
+            .getState()
+            .open({
+              variant: 'action',
+              title: '로그인할 계정을 선택해 주세요.',
+              showCloseButton: true,
+              items: result.data.accounts.map((account) => ({
+                label: nicknameTag(account.nickname),
+                onClick: () => submitLogin({ ...body, userNo: account.userNo }),
+              })),
+            });
+          return;
+        }
+        window.location.replace('/');
+      } catch (err) {
+        setError(pickLoginError(err));
+      }
+    });
   const onSubmit = (e: FormEvent) => {
     e.preventDefault();
     clearNotices();
@@ -70,18 +99,7 @@ export default function LoginClient({ initialError, signupComplete = false }: Pr
       return;
     }
 
-    startTransition(async () => {
-      try {
-        await bffPostJson<BffEnvelope<null>>(
-          bffEndpoints.auth.login,
-          toLoginRequest(loginId, password),
-        );
-        // 계정 전환 시 프로필·사용자 번호·소켓 등 이전 세션의 메모리 캐시도 초기화한다.
-        window.location.replace('/');
-      } catch (err) {
-        setError(pickLoginError(err));
-      }
-    });
+    submitLogin(toLoginRequest(loginId, password));
   };
 
   return (

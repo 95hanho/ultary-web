@@ -1,5 +1,6 @@
 'use client';
 
+import { nicknameTag } from '@/lib/nickname-tag';
 import { PageLoadError } from '@/components/common/PageLoadError';
 
 import { FooterMenu } from '@/components/common/FooterMenu';
@@ -240,7 +241,7 @@ function ActivityMessage({ item }: { item: ActivityItem }) {
 
   const nick = item.targetNickname ? (
     <Link href={ultaryHref} className={styles.nickname}>
-      {item.targetNickname}
+      {nicknameTag(item.targetNickname)}
     </Link>
   ) : null;
 
@@ -404,7 +405,7 @@ export default function ActivityClient() {
                         <Link
                           href={ultaryHref}
                           className={styles.imageWrap}
-                          aria-label={`${item.targetNickname} 울타리`}
+                          aria-label={`${nicknameTag(item.targetNickname)} 울타리`}
                         >
                           <MediaImage
                             src={item.profileUrl}

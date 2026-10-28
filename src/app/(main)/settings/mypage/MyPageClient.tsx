@@ -1,5 +1,6 @@
 'use client';
 
+import { nicknameTag } from '@/lib/nickname-tag';
 import { PageLoadError } from '@/components/common/PageLoadError';
 
 import { FooterMenu } from '@/components/common/FooterMenu';
@@ -207,8 +208,8 @@ export default function MyPageClient() {
               </div>
 
               <div className={styles.row}>
-                <span className={styles.rowLabel}>닉네임</span>
-                <span className={styles.rowValue}>{view.nickname}</span>
+                <span className={styles.rowLabel}>닉네임태그</span>
+                <span className={styles.rowValue}>{nicknameTag(view.nickname)}</span>
               </div>
 
               <div className={styles.row}>

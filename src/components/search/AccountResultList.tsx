@@ -1,7 +1,8 @@
 'use client';
+import { nicknameTag } from '@/lib/nickname-tag';
 
+import { PetNamesAndNicknameTag } from '@/components/common/PetNamesAndNicknameTag';
 import type { SearchAccount } from '@/lib/mock/search';
-import { highlightMatch, sortPetTagsByMatch } from '@/lib/search/highlight';
 import { MediaImage } from '@/components/common/MediaImage';
 import styles from './AccountResultList.module.scss';
 
@@ -9,33 +10,32 @@ type AccountResultListProps = {
   accounts: SearchAccount[];
   highlightQuery: string;
   petQuery: string;
-  /** 닉네임 클릭 — 보통 첫 펫언급 선택 */
+  /** 닉네임태그 클릭 — 보통 첫 펫언급 선택 */
   onSelectNickname: (account: SearchAccount) => void;
   /** 개별 펫언급 클릭 */
-  onSelectPetTag: (account: SearchAccount, petTag: string) => void;
+  onSelectPet: (account: SearchAccount, petId: number) => void;
 };
 
-/** 닉네임·펫언급 검색 결과 (해시태그 제외) */
+/** 닉네임태그·펫언급 검색 결과 (해시태그 제외) */
 export function AccountResultList({
   accounts,
   highlightQuery,
   petQuery,
   onSelectNickname,
-  onSelectPetTag,
+  onSelectPet,
 }: AccountResultListProps) {
   if (accounts.length === 0) return null;
 
   return (
     <ul className={styles.list} aria-label="계정 검색 결과">
       {accounts.map((account, i) => {
-        const tags = sortPetTagsByMatch(account.petTags, petQuery || highlightQuery);
         return (
           <li key={`${account.id}-${i}`} className={styles.item}>
             <div className={styles.row}>
               <button
                 type="button"
                 className={styles.imageWrap}
-                aria-label={`${account.nickname} 선택`}
+                aria-label={`${nicknameTag(account.nickname)} 선택`}
                 onClick={() => onSelectNickname(account)}
               >
                 <MediaImage
@@ -47,25 +47,13 @@ export function AccountResultList({
                 />
               </button>
               <span className={styles.text}>
-                <button
-                  type="button"
-                  className={styles.nickBtn}
-                  onClick={() => onSelectNickname(account)}
-                >
-                  {highlightMatch(account.nickname, highlightQuery, styles.hit)}
-                </button>
-                <span className={styles.tags}>
-                  {tags.map((tag) => (
-                    <button
-                      key={tag}
-                      type="button"
-                      className={styles.petBtn}
-                      onClick={() => onSelectPetTag(account, tag)}
-                    >
-                      {highlightMatch(tag, petQuery || highlightQuery, styles.hit)}
-                    </button>
-                  ))}
-                </span>
+                <PetNamesAndNicknameTag
+                  nickname={account.nickname}
+                  petNames={account.petNames ?? []}
+                  query={petQuery || highlightQuery}
+                  onNicknameSelect={() => onSelectNickname(account)}
+                  onPetSelect={(index) => onSelectPet(account, account.petChoices![index]!.petId)}
+                />
               </span>
             </div>
           </li>

@@ -2,7 +2,8 @@
   position: relative;
   display: flex;
   width: 100%;
-  max-width: 430px;
+  max-width: 550px;
+  min-width: 375px;
   min-height: 100%;
   margin: 0 auto;
   flex-direction: column;
@@ -52,7 +53,7 @@
 
 .storyItem {
   display: flex;
-  width: 80px;
+  width: 112px;
   flex-direction: column;
   align-items: center;
   gap: 6px;
@@ -194,3 +195,9 @@
   line-height: 1.2;
   text-align: center;
 }
+
+.storyNickname strong, .storyNickname small { display: block; overflow: hidden; text-overflow: ellipsis; }
+.storyNickname { color: var(--brand-gray-100); }
+.storyNickname strong { color: var(--brand-black-700); }
+.storyNickname small { margin-top: 2px; color: var(--brand-gray-100); font-size: 10px; }
+.storyNickname > span { text-align: center; }

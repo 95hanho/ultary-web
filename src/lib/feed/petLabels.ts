@@ -9,7 +9,7 @@ import type { FileSummary } from '@/types/file';
 export type FeedPetLabel = {
   label: string;
   imageUrl: string;
-  /** 보호자 닉네임. 있으면 그 울타리로 이동 */
+  /** 보호자 닉네임태그. 있으면 그 울타리로 이동 */
   ownerNickname?: string;
   userNo?: number;
 };
@@ -31,7 +31,11 @@ function readOwnerNickname(item: Record<string, unknown>, fallback?: string) {
   if (typeof item.ownerNickname === 'string' && item.ownerNickname.trim()) {
     return item.ownerNickname.trim();
   }
-  if (isRecord(item.owner) && typeof item.owner.nickname === 'string' && item.owner.nickname.trim()) {
+  if (
+    isRecord(item.owner) &&
+    typeof item.owner.nickname === 'string' &&
+    item.owner.nickname.trim()
+  ) {
     return item.owner.nickname.trim();
   }
   const nick = fallback?.trim();
@@ -43,20 +47,15 @@ function absorb(raw: unknown, ownerNickname?: string) {
     ? raw
     : isRecord(raw) && Array.isArray(raw.items)
       ? raw.items
-    : isRecord(raw) && Array.isArray(raw.content)
-      ? raw.content
-      : isRecord(raw) && Array.isArray(raw.pets)
-        ? raw.pets
-        : [];
+      : isRecord(raw) && Array.isArray(raw.content)
+        ? raw.content
+        : isRecord(raw) && Array.isArray(raw.pets)
+          ? raw.pets
+          : [];
   for (const item of list) {
     if (!isRecord(item) || typeof item.petId !== 'number') continue;
-    const mention = typeof item.mentionId === 'string' ? item.mentionId.trim() : '';
     const name = typeof item.name === 'string' ? item.name.trim() : '';
-    const label = mention
-      ? mention.startsWith('@')
-        ? mention
-        : `@${mention}`
-      : name;
+    const label = name;
     if (!label) continue;
     const prev = byPetId.get(item.petId);
     byPetId.set(item.petId, {
@@ -122,7 +121,7 @@ export type FeedPetHint = {
   ownerNickname?: string;
 };
 
-/** 사진 태그 petId → @mention · 프로필 · 보호자 닉네임 */
+/** 사진 태그 petId → @mention · 프로필 · 보호자 닉네임태그 */
 export async function resolveFeedPetLabels(
   petIds: number[],
   authorUserNo?: number,
@@ -146,8 +145,7 @@ export async function resolveFeedPetLabels(
     const searches = new Set<string>();
     for (const hint of hints) {
       if (byPetId.has(hint.petId)) continue;
-      if (hint.mentionId) searches.add(hint.mentionId);
-      else if (hint.petName) searches.add(hint.petName);
+      if (hint.petName) searches.add(hint.petName);
     }
     await Promise.all([...searches].map((query) => loadBySearch(query).catch(() => undefined)));
 
@@ -163,11 +161,7 @@ export async function resolveFeedPetLabels(
     for (const hint of hints) {
       if (byPetId.has(hint.petId) || !hint.ownerNickname) continue;
       byPetId.set(hint.petId, {
-        label: hint.mentionId
-          ? hint.mentionId.startsWith('@')
-            ? hint.mentionId
-            : `@${hint.mentionId}`
-          : '태그',
+        label: hint.petName || '반려동물',
         imageUrl: NO_PROFILE_SRC,
         ownerNickname: hint.ownerNickname,
       });

@@ -1,4 +1,7 @@
 'use client';
+import { LinkedUltaries } from '@/components/my-ultary/LinkedUltaries';
+import { selectGridPet, selectGridTab, type ContentTab } from '@/lib/myultary/petFeedSelection';
+import { nicknameTag } from '@/lib/nickname-tag';
 import { useResettableState } from '@/lib/react/useResettableState';
 import { useHydrated } from '@/lib/react/useHydrated';
 
@@ -16,8 +19,7 @@ import { bffEndpoints } from '@/lib/api/endpoints';
 import { bffDelete, bffGet, bffPatchJson, bffPostJson } from '@/lib/api/bffFetch';
 import { isHttpError, isRecord } from '@/lib/api/error';
 import type { BffEnvelope } from '@/types/api';
-import { MOCK_MY_FEEDS, MOCK_SAVED_FEEDS } from '@/lib/mock/feeds';
-import { getUltaryAccount, MY_NICKNAME, myUltaryPath } from '@/lib/mock/ultary-accounts';
+import { myUltaryPath } from '@/lib/mock/ultary-accounts';
 import {
   mapFeedGrid,
   mapMyPets,
@@ -54,7 +56,6 @@ import {
   useCallback,
   useEffect,
   useLayoutEffect,
-  useMemo,
   useRef,
   useState,
   type ChangeEvent,
@@ -86,57 +87,8 @@ const GroupOffIcon = '/images/icon/Group_light.svg';
 const GroupOnIcon = '/images/icon/Group_light_on.svg';
 
 type AccountStoryStatus = 'none' | 'read' | 'unread';
-type ContentTab = 'feed' | 'pinned' | 'tagged';
 
 type Pet = MyUltaryPetCard;
-
-const MOCK_PETS: Pet[] = [
-  {
-    id: 'pet-1',
-    name: '초코',
-    handle: '@choco_01',
-    gender: 'M',
-    bio: '산책 좋아함',
-    imageUrl: '/images/mock/profile.jpg',
-    isBirthday: true,
-  },
-  {
-    id: 'pet-2',
-    name: '모카',
-    handle: '@mocha_02',
-    gender: 'F',
-    bio: '낮잠 전문',
-    imageUrl: '/images/mock/profile.jpg',
-    isBirthday: false,
-  },
-  {
-    id: 'pet-3',
-    name: '바닐라',
-    handle: '@vanilla_03',
-    gender: 'F',
-    bio: '간식 러버',
-    imageUrl: '/images/mock/profile.jpg',
-    isBirthday: false,
-  },
-  {
-    id: 'pet-4',
-    name: '쿠키',
-    handle: '@cookie_04',
-    gender: 'M',
-    bio: '공놀이 좋아함',
-    imageUrl: '/images/mock/profile.jpg',
-    isBirthday: false,
-  },
-  {
-    id: 'pet-5',
-    name: '땅콩',
-    handle: '@peanut_05',
-    gender: 'M',
-    bio: '겁 많음',
-    imageUrl: '/images/mock/profile.jpg',
-    isBirthday: false,
-  },
-];
 
 function getStoryIcon(status: AccountStoryStatus) {
   if (status === 'unread') return StoryOnIcon;
@@ -174,21 +126,21 @@ type MyUltaryClientProps = {
   guestData?: PublicUltaryView;
 };
 
-/** 마이울타리 (/myultary/[nickname]) — 내 계정·다른 사람 모두 API, 예시 계정만 mock */
+/** 마이울타리 (/myultary/[nickname]) — 내 계정·다른 사람 모두 실제 API 사용 */
 export default function MyUltaryClient({ nickname, guestData }: MyUltaryClientProps) {
   const guest = guestData != null;
   const [loadFailed, setLoadFailed] = useState<{ error: unknown } | null>(null);
   const router = useRouter();
-  const mockAccount = getUltaryAccount(nickname);
-  const expectsOwn = guest || !mockAccount || mockAccount.isOwnAccount;
   const basePath = myUltaryPath(nickname);
 
   const petSwiperRef = useRef<SwiperType | null>(null);
   const petPhotoInputRef = useRef<HTMLInputElement>(null);
   const [canPetPrev, setCanPetPrev] = useState(false);
   const [canPetNext, setCanPetNext] = useState(false);
-  const [petViewMode, setPetViewMode] = useState<'carousel' | 'detail'>('carousel');
-  const [selectedPetId, setSelectedPetId] = useState('');
+  const [petViewMode, setPetViewMode] = useResettableState<'carousel' | 'detail'>('carousel', [
+    nickname,
+  ]);
+  const [selectedPetId, setSelectedPetId] = useResettableState('', [nickname]);
   const hydrated = useHydrated();
   const [restoredScroll] = useResettableState(
     () => (hydrated ? readUltaryGridScroll(nickname) : null),
@@ -202,46 +154,42 @@ export default function MyUltaryClient({ nickname, guestData }: MyUltaryClientPr
   const [photoTargetPetId, setPhotoTargetPetId] = useState<string | null>(null);
   const [profileReload, setProfileReload] = useState(0);
   const [profile, setProfile] = useState<MyUltaryProfile | null>(guestData?.profile ?? null);
-  const [viewingOwn, setViewingOwn] = useState(!guest && mockAccount?.isOwnAccount === true);
+  const [viewingOwn, setViewingOwn] = useState(false);
   const [profileReady, setProfileReady] = useResettableState(
-    guest || !expectsOwn,
-    [basePath, expectsOwn, nickname, guest, profileReload],
-    !guest && expectsOwn,
+    guest,
+    [basePath, nickname, guest, profileReload],
+    !guest,
   );
   const [unknownAccount, setUnknownAccount] = useState(false);
   const [apiPets, setApiPets] = useState<Pet[]>(guestData?.pets ?? []);
   const [apiFeedPosts, setApiFeedPosts] = useState<FeedGridItem[]>(guestData?.feeds ?? []);
   const [pinnedPosts, setPinnedPosts] = useResettableState<FeedGridItem[]>(
     guestData?.pinned ?? [],
-    [basePath, expectsOwn, nickname, guest, profileReload],
-    !guest && expectsOwn,
+    [basePath, nickname, guest, profileReload],
+    !guest,
   );
   const [taggedPosts, setTaggedPosts] = useResettableState<FeedGridItem[]>(
     guestData?.tagged ?? [],
-    [basePath, expectsOwn, nickname, guest, profileReload],
-    !guest && expectsOwn,
+    [basePath, nickname, guest, profileReload],
+    !guest,
   );
   const [feedsReady, setFeedsReady] = useResettableState(
-    guest || !expectsOwn,
-    [basePath, expectsOwn, nickname, guest, profileReload],
-    !guest && expectsOwn,
+    guest,
+    [basePath, nickname, guest, profileReload],
+    !guest,
   );
   const [pinnedReady, setPinnedReady] = useResettableState(
-    guest || !expectsOwn,
-    [basePath, expectsOwn, nickname, guest, profileReload],
-    !guest && expectsOwn,
+    guest,
+    [basePath, nickname, guest, profileReload],
+    !guest,
   );
   const [taggedReady, setTaggedReady] = useResettableState(
-    guest || !expectsOwn,
-    [basePath, expectsOwn, nickname, guest, profileReload],
-    !guest && expectsOwn,
+    guest,
+    [basePath, nickname, guest, profileReload],
+    !guest,
   );
-  const [bio, setBio] = useState(
-    () => guestData?.profile.bio ?? (expectsOwn ? '' : (mockAccount?.bio ?? '')),
-  );
-  const [savedBio, setSavedBio] = useState(
-    () => guestData?.profile.bio ?? (expectsOwn ? '' : (mockAccount?.bio ?? '')),
-  );
+  const [bio, setBio] = useState(() => guestData?.profile.bio ?? '');
+  const [savedBio, setSavedBio] = useState(() => guestData?.profile.bio ?? '');
   const [editingBio, setEditingBio] = useState(false);
   const bioInputRef = useRef<HTMLInputElement>(null);
 
@@ -267,24 +215,17 @@ export default function MyUltaryClient({ nickname, guestData }: MyUltaryClientPr
   const writeFileInputRef = useRef<HTMLInputElement>(null);
   const storyFileInputRef = useRef<HTMLInputElement>(null);
 
-  const pets = expectsOwn ? apiPets : MOCK_PETS;
-  const singlePet = pets.length === 1;
-  const activePetView = singlePet ? 'detail' : petViewMode;
+  const pets = apiPets;
+  const activePetView = petViewMode;
   const selectedPet = pets.find((pet) => pet.id === selectedPetId) ?? pets[0];
   const birthdayPet = pets.find((pet) => pet.isBirthday);
   const showPetNav = pets.length > 4;
   const isOwnAccount = viewingOwn && !unknownAccount;
-  const storyStatus: AccountStoryStatus = profile
-    ? storyRingStatus(profile)
-    : (mockAccount?.storyStatus ?? 'none');
-  const displayNickname = expectsOwn
-    ? (profile?.nickname ?? nickname)
-    : (mockAccount?.nickname ?? nickname);
-  const postCount = expectsOwn ? (profile?.feedCount ?? 0) : (mockAccount?.postCount ?? 0);
-  const followCount = expectsOwn ? (profile?.followCount ?? 0) : (mockAccount?.followCount ?? 0);
-  const followerCount = expectsOwn
-    ? (profile?.followerCount ?? 0)
-    : (mockAccount?.followerCount ?? 0);
+  const storyStatus: AccountStoryStatus = profile ? storyRingStatus(profile) : 'none';
+  const displayNickname = profile?.nickname ?? nickname;
+  const postCount = profile?.feedCount ?? 0;
+  const followCount = profile?.followCount ?? 0;
+  const followerCount = profile?.followerCount ?? 0;
 
   useEffect(() => {
     if (!profileReady) return;
@@ -307,7 +248,7 @@ export default function MyUltaryClient({ nickname, guestData }: MyUltaryClientPr
     const next = bio.trim();
     setBio(next);
     setEditingBio(false);
-    if (!expectsOwn || next === savedBio) return;
+    if (!viewingOwn || guest || next === savedBio) return;
     void (async () => {
       try {
         await bffPatchJson<BffEnvelope<unknown>, { bio: string }>(bffEndpoints.myUltary.bio, {
@@ -323,7 +264,7 @@ export default function MyUltaryClient({ nickname, guestData }: MyUltaryClientPr
   };
 
   useEffect(() => {
-    if (guest || !expectsOwn) return;
+    if (guest) return;
     let cancelled = false;
 
     (async () => {
@@ -331,8 +272,7 @@ export default function MyUltaryClient({ nickname, guestData }: MyUltaryClientPr
         const res = await bffGet<BffEnvelope<unknown>>(bffEndpoints.myUltary.profile);
         const nextProfile = mapMyUltaryProfile(res.data);
         if (cancelled) return;
-        const isMine =
-          nickname === MY_NICKNAME || (nextProfile != null && nickname === nextProfile.nickname);
+        const isMine = nextProfile != null && nickname === nextProfile.nickname;
         if (isMine && nextProfile) {
           setViewingOwn(true);
           setProfile(nextProfile);
@@ -348,7 +288,7 @@ export default function MyUltaryClient({ nickname, guestData }: MyUltaryClientPr
           const nextPets = mapMyPets(petsRes.data, NO_PROFILE_SRC);
           setApiPets(nextPets);
           setSelectedPetId((current) =>
-            nextPets.some((pet) => pet.id === current) ? current : (nextPets[0]?.id ?? ''),
+            nextPets.some((pet) => pet.id === current) ? current : '',
           );
           setApiFeedPosts(mapFeedGrid(feedsRes.data, (id) => `${basePath}/posts/${id}`));
           setFeedsReady(true);
@@ -406,9 +346,7 @@ export default function MyUltaryClient({ nickname, guestData }: MyUltaryClientPr
         setBio(otherProfile.bio);
         setSavedBio(otherProfile.bio);
         setApiPets(nextPets);
-        setSelectedPetId((current) =>
-          nextPets.some((pet) => pet.id === current) ? current : (nextPets[0]?.id ?? ''),
-        );
+        setSelectedPetId((current) => (nextPets.some((pet) => pet.id === current) ? current : ''));
         setApiFeedPosts(mapFeedGrid(feedsRes.data, (id) => `${basePath}/posts/${id}`));
         setProfileReady(true);
         setFeedsReady(true);
@@ -424,7 +362,7 @@ export default function MyUltaryClient({ nickname, guestData }: MyUltaryClientPr
     return () => {
       cancelled = true;
     };
-  }, [basePath, expectsOwn, nickname, guest, profileReload, setProfileReady, setFeedsReady]);
+  }, [basePath, nickname, guest, profileReload, setProfileReady, setFeedsReady, setSelectedPetId]);
 
   useEffect(() => {
     if (
@@ -687,34 +625,61 @@ export default function MyUltaryClient({ nickname, guestData }: MyUltaryClientPr
     saveUltaryGridScroll(nickname, contentTab);
   };
 
-  const feedPosts = useMemo(() => {
-    if (expectsOwn) return apiFeedPosts;
-    return MOCK_MY_FEEDS.map((feed) => ({
-      id: feed.id,
-      imageUrl: feed.images[0] ?? '/images/mock/post.jpg',
-      isMulti: feed.images.length > 1,
-      href: `${basePath}/posts/${feed.id}`,
-    }));
-  }, [apiFeedPosts, basePath, expectsOwn]);
+  const feedPosts = apiFeedPosts;
+  const pinnedGrid = pinnedPosts;
 
-  const pinnedGrid = useMemo(() => {
-    if (expectsOwn) return pinnedPosts;
-    return MOCK_SAVED_FEEDS.map((feed) => ({
-      id: feed.id,
-      imageUrl: feed.images[0] ?? '/images/mock/post.jpg',
-      isMulti: feed.images.length > 1,
-      href: `${basePath}/pinned/${feed.id}`,
-    }));
-  }, [basePath, expectsOwn, pinnedPosts]);
-
-  const posts =
-    contentTab === 'pinned' ? pinnedGrid : contentTab === 'tagged' ? taggedPosts : feedPosts;
-  const gridReady =
-    contentTab === 'pinned'
+  const selectedGridPet =
+    contentTab !== 'pinned' && pets.some((pet) => pet.id === selectedPetId) ? selectedPetId : '';
+  const petGridKey = selectedGridPet
+    ? `${profile?.userNo}:${contentTab}:${selectedGridPet}:${profileReload}`
+    : '';
+  const [petGrid, setPetGrid] = useState<{
+    key: string;
+    posts: FeedGridItem[];
+    error?: { value: unknown };
+  } | null>(null);
+  useEffect(() => {
+    if (!petGridKey || !profile?.userNo) return;
+    let cancelled = false;
+    bffGet<BffEnvelope<unknown>>(bffEndpoints.users.petFeeds, {
+      userNo: profile.userNo,
+      petId: selectedGridPet,
+      tab: contentTab,
+      limit: 50,
+    })
+      .then((response) => {
+        if (!cancelled)
+          setPetGrid({
+            key: petGridKey,
+            posts: mapFeedGrid(response.data, (id) =>
+              guest
+                ? `/feeds/${id}`
+                : `${basePath}/${contentTab === 'tagged' ? 'tagged' : 'posts'}/${id}`,
+            ),
+          });
+      })
+      .catch((error) => {
+        if (!cancelled) setPetGrid({ key: petGridKey, posts: [], error: { value: error } });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [petGridKey, profile?.userNo, selectedGridPet, contentTab, guest, basePath]);
+  const petGridResult = petGrid?.key === petGridKey ? petGrid : null;
+  const posts = selectedGridPet
+    ? (petGridResult?.posts ?? [])
+    : contentTab === 'pinned'
+      ? pinnedGrid
+      : contentTab === 'tagged'
+        ? taggedPosts
+        : feedPosts;
+  const gridReady = selectedGridPet
+    ? petGridResult !== null
+    : contentTab === 'pinned'
       ? pinnedReady
       : contentTab === 'tagged'
         ? taggedReady
-        : !expectsOwn || feedsReady;
+        : feedsReady;
   const showEmptyGrid = gridReady && posts.length === 0;
   const postsLocked =
     blockedByMe || (!viewingOwn && profile?.privateAccount === true && profile.following !== true);
@@ -850,20 +815,23 @@ export default function MyUltaryClient({ nickname, guestData }: MyUltaryClientPr
   };
 
   if (unknownAccount) notFound();
-  if (!expectsOwn && !mockAccount) notFound();
 
-  if (expectsOwn && (!profileReady || !feedsReady)) {
+  if (!profileReady || !feedsReady) {
     return <LogoLoading />;
   }
 
+  const changeContentTab = (tab: ContentTab) => {
+    const next = selectGridTab({ tab: contentTab, petId: selectedPetId }, tab);
+    if (next.tab === contentTab) return;
+    setSelectedPetId(next.petId);
+    setPetViewMode('carousel');
+    setContentTab(next.tab);
+  };
   const handlePetSelect = (petId: string) => {
-    if (pets.length <= 1) return;
-    if (petViewMode === 'detail' && petId === selectedPetId) {
-      setPetViewMode('carousel');
-    } else {
-      setSelectedPetId(petId);
-      setPetViewMode('detail');
-    }
+    const next = selectGridPet({ tab: contentTab, petId: selectedPetId }, petId);
+    setContentTab(next.tab);
+    setSelectedPetId(next.petId);
+    setPetViewMode(next.petId ? 'detail' : 'carousel');
 
     window.setTimeout(() => {
       petSwiperRef.current?.update();
@@ -932,7 +900,7 @@ export default function MyUltaryClient({ nickname, guestData }: MyUltaryClientPr
       <section className={styles.profileSection} aria-label="프로필">
         <div className={styles.profileMain}>
           <div className={styles.nicknameRow}>
-            <h1 className={styles.nickname}>{displayNickname}</h1>
+            <h1 className={styles.nickname}>{nicknameTag(displayNickname)}</h1>
             {!guest && !isOwnAccount ? (
               <button
                 type="button"
@@ -956,7 +924,7 @@ export default function MyUltaryClient({ nickname, guestData }: MyUltaryClientPr
                 type="button"
                 className={styles.statBtn}
                 disabled={blockedByMe}
-                onClick={() => setContentTab('feed')}
+                onClick={() => changeContentTab('feed')}
               >
                 <strong>게시물</strong>
                 {postCount}
@@ -1040,6 +1008,13 @@ export default function MyUltaryClient({ nickname, guestData }: MyUltaryClientPr
 
           {!blockedByMe ? (
             <>
+              {profile?.userNo ? (
+                <LinkedUltaries
+                  key={profile.userNo}
+                  userNo={profile.userNo}
+                  own={isOwnAccount && !guest}
+                />
+              ) : null}
               {birthdayPet ? (
                 <p className={styles.birthdayRow}>
                   <span>🎂오늘 생일을 맞이한 {birthdayPet.name}를 축하해주세요.</span>
@@ -1057,7 +1032,7 @@ export default function MyUltaryClient({ nickname, guestData }: MyUltaryClientPr
                   ) : null
                 ) : (
                   <>
-                    {singlePet ? null : (
+                    {pets.length === 0 ? null : (
                       <div className={styles.petCarouselWrap}>
                         <Swiper
                           modules={[FreeMode]}
@@ -1096,7 +1071,8 @@ export default function MyUltaryClient({ nickname, guestData }: MyUltaryClientPr
                                     styles.petCardBtnSelected,
                                 )}
                                 onClick={() => handlePetSelect(pet.id)}
-                                aria-label={`${pet.name} 상세 보기`}
+                                aria-label={`${pet.name} 피드 보기`}
+                                aria-pressed={selectedPetId === pet.id && contentTab !== 'pinned'}
                               >
                                 <span className={styles.petCardPhoto}>
                                   <MediaImage
@@ -1153,7 +1129,15 @@ export default function MyUltaryClient({ nickname, guestData }: MyUltaryClientPr
                         aria-hidden={activePetView !== 'detail'}
                       >
                         <div className={styles.petDetailPhotoWrap}>
-                          <Profile imageUrl={selectedPet.imageUrl} size={88} />
+                          <button
+                            type="button"
+                            className={styles.petDetailSelect}
+                            onClick={() => handlePetSelect(selectedPet.id)}
+                            aria-label={`${selectedPet.name} 선택 해제`}
+                            tabIndex={activePetView === 'detail' ? 0 : -1}
+                          >
+                            <Profile imageUrl={selectedPet.imageUrl} size={88} />
+                          </button>
                           {isOwnAccount ? (
                             <button
                               type="button"
@@ -1176,8 +1160,15 @@ export default function MyUltaryClient({ nickname, guestData }: MyUltaryClientPr
                             {selectedPet.name}
                             {selectedPet.gender ? `(${selectedPet.gender})` : ''}
                           </p>
-                          <p className={styles.petHandle}>{selectedPet.handle}</p>
                           <p className={styles.petBio}>{selectedPet.bio}</p>
+                          <button
+                            type="button"
+                            className={styles.clearPetSelection}
+                            tabIndex={activePetView === 'detail' ? 0 : -1}
+                            onClick={() => handlePetSelect(selectedPet.id)}
+                          >
+                            전체 피드 보기
+                          </button>
                         </div>
                       </div>
                     ) : null}
@@ -1241,7 +1232,7 @@ export default function MyUltaryClient({ nickname, guestData }: MyUltaryClientPr
                 styles.sideTabBtn,
                 contentTab === 'feed' ? styles.sideTabActive : undefined,
               )}
-              onClick={() => setContentTab('feed')}
+              onClick={() => changeContentTab('feed')}
               aria-label="피드"
               aria-pressed={contentTab === 'feed'}
             >
@@ -1257,14 +1248,14 @@ export default function MyUltaryClient({ nickname, guestData }: MyUltaryClientPr
               type="button"
               className={clsx(
                 styles.sideTabBtn,
-                contentTab === 'pinned' ? styles.sideTabActive : undefined,
+                contentTab === 'tagged' ? styles.sideTabActive : undefined,
               )}
-              onClick={() => setContentTab('pinned')}
-              aria-label="고정"
-              aria-pressed={contentTab === 'pinned'}
+              onClick={() => changeContentTab('tagged')}
+              aria-label="태그됨"
+              aria-pressed={contentTab === 'tagged'}
             >
               <Image
-                src={contentTab === 'pinned' ? SavedOnIcon : SavedOffIcon}
+                src={contentTab === 'tagged' ? GroupOnIcon : GroupOffIcon}
                 alt=""
                 width={20}
                 height={20}
@@ -1275,14 +1266,14 @@ export default function MyUltaryClient({ nickname, guestData }: MyUltaryClientPr
               type="button"
               className={clsx(
                 styles.sideTabBtn,
-                contentTab === 'tagged' ? styles.sideTabActive : undefined,
+                contentTab === 'pinned' ? styles.sideTabActive : undefined,
               )}
-              onClick={() => setContentTab('tagged')}
-              aria-label="태그됨"
-              aria-pressed={contentTab === 'tagged'}
+              onClick={() => changeContentTab('pinned')}
+              aria-label="고정"
+              aria-pressed={contentTab === 'pinned'}
             >
               <Image
-                src={contentTab === 'tagged' ? GroupOnIcon : GroupOffIcon}
+                src={contentTab === 'pinned' ? SavedOnIcon : SavedOffIcon}
                 alt=""
                 width={20}
                 height={20}
@@ -1300,6 +1291,12 @@ export default function MyUltaryClient({ nickname, guestData }: MyUltaryClientPr
         {blockedByMe ? null : postsLocked ? (
           <p className={styles.feedEmpty} role="status">
             비공개 계정입니다
+          </p>
+        ) : selectedGridPet && petGridResult?.error ? (
+          <PageLoadError error={petGridResult.error.value} />
+        ) : selectedGridPet && !petGridResult ? (
+          <p className={styles.feedEmpty} role="status">
+            불러오는 중
           </p>
         ) : showEmptyGrid ? (
           <p className={styles.feedEmpty} role="status">

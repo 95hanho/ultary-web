@@ -3,8 +3,8 @@
 export const PHONE_RE = /^01[0-9]{8,9}$/;
 export const PASSWORD_RE =
   /^(?=.*[A-Za-z])(?=.*\d)(?=.*[!@#$%^&*()_+\-={}\[\]|;:'",.<>/?~`\\]).{8,100}$/;
-/** 허용 문자만. 길이는 한글=2, 영문·숫자=1 가중치로 별도 검사 */
-export const NICKNAME_RE = /^[A-Za-z0-9가-힣]+$/;
+/** 닉네임태그 본문: 영문 소문자와 밑줄 1~10자 */
+export const NICKNAME_RE = /^[a-z_]{1,10}$/;
 export const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export const MSG = {
@@ -13,13 +13,11 @@ export const MSG = {
   emailRequired: '이메일을 입력해주세요.',
   email: '이메일 형식이 올바르지 않습니다.',
   passwordRequired: '비밀번호를 입력해주세요.',
-  password:
-    '비밀번호는 8자 이상이며 영문, 숫자, 특수문자를 각각 1자 이상 포함해야 합니다.',
+  password: '비밀번호는 8자 이상이며 영문, 숫자, 특수문자를 각각 1자 이상 포함해야 합니다.',
   passwordConfirm: '비밀번호가 일치하지 않습니다.',
   nameRequired: '이름을 입력해주세요.',
-  nicknameRequired: '닉네임을 입력해주세요.',
-  nickname:
-    '닉네임은 한글 2~5자 또는 영문·숫자 4~10자입니다. 섞어 쓸 때는 한글 1자를 2자로, 영문·숫자는 1자로 계산해 합 10자를 넘을 수 없습니다.',
+  nicknameRequired: '닉네임태그를 입력해주세요.',
+  nickname: '닉네임태그는 영문 소문자와 밑줄(_)만 사용해 1~10자로 입력해주세요.',
   sidoRequired: '지역 시/도를 선택해주세요.',
   sigunguRequired: '지역 시/군/구를 선택해주세요.',
   phoneAuth: '휴대폰 인증을 완료해주세요.',
@@ -36,25 +34,13 @@ export function filterCode(value: string) {
   return value.replace(/\D/g, '').slice(0, 6);
 }
 
-function isHangulChar(ch: string) {
-  return /[가-힣]/.test(ch);
-}
-
-/** 한글 1자 = 2, 영문·숫자 1자 = 1 */
-export function nicknameWeight(value: string) {
-  let weight = 0;
-  for (const ch of value) {
-    weight += isHangulChar(ch) ? 2 : 1;
-  }
-  return weight;
-}
-
-/**
- * 닉네임: 영문·숫자·완성 한글만 남긴다.
- * 조합 중인 자모(ㄱ, ㅏ)는 유지해야 한글 입력이 끊기지 않는다. 제출 검사는 완성 글자만 허용.
- */
+/** 닉네임태그 입력: @는 화면에 표시하고 영문은 소문자로 정규화한다. */
 export function filterNickname(value: string) {
-  return value.replace(/[^A-Za-z0-9가-힣ㄱ-ㅎㅏ-ㅣ]/g, '');
+  return value
+    .replace(/^@+/, '')
+    .toLowerCase()
+    .replace(/[^a-z_]/g, '')
+    .slice(0, 10);
 }
 
 /** 이름: 최대 20자 */
@@ -83,19 +69,5 @@ export function validatePassword(password: string) {
 }
 
 export function validateNickname(nickname: string) {
-  if (!NICKNAME_RE.test(nickname)) return MSG.nickname;
-
-  const hangul = [...nickname].filter(isHangulChar).length;
-  /** 영문·숫자는 둘 다 가중치 1 */
-  const latin = nickname.length - hangul;
-  const weight = hangul * 2 + latin;
-
-  if (hangul > 5 || latin > 10) return MSG.nickname;
-  if (hangul > 0 && latin === 0) {
-    return hangul >= 2 ? null : MSG.nickname;
-  }
-  if (latin > 0 && hangul === 0) {
-    return latin >= 4 ? null : MSG.nickname;
-  }
-  return weight >= 4 && weight <= 10 ? null : MSG.nickname;
+  return NICKNAME_RE.test(nickname) ? null : MSG.nickname;
 }

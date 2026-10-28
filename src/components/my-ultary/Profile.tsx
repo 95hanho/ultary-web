@@ -17,7 +17,7 @@ export type ProfileProps = {
   onError?: ReactEventHandler<HTMLImageElement>;
 };
 
-/** 공통 프로필 아바타 (닉네임은 부모가 배치) */
+/** 공통 프로필 아바타 (닉네임태그는 부모가 배치) */
 export function Profile({
   imageUrl,
   size,

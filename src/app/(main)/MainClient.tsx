@@ -1,5 +1,9 @@
 'use client';
+import { nicknameTag } from '@/lib/nickname-tag';
 
+import { PetNamesAndNicknameTag } from '@/components/common/PetNamesAndNicknameTag';
+import { PetProfileGroup } from '@/components/my-ultary/PetProfileGroup';
+import type { SubjectPet } from '@/types/pet';
 import { PageLoadError } from '@/components/common/PageLoadError';
 
 import { FooterMenu } from '@/components/common/FooterMenu';
@@ -36,6 +40,8 @@ const ArrowRightIcon = '/images/icon/arrow_right.svg';
 const FALLBACK_PROFILE = NO_PROFILE_SRC;
 
 type StoryRing = {
+  subjectNames?: string[];
+  subjectPets?: SubjectPet[];
   userNo: number;
   nickname: string;
   imageUrl: string;
@@ -78,7 +84,10 @@ function ownersToRings(owners: StoryOwner[]): StoryRing[] {
   return owners.map((o) => ({
     userNo: o.userNo,
     nickname: o.nickname,
-    imageUrl: resolveFileDisplayUrl(o.profileFile) ?? FALLBACK_PROFILE,
+    subjectNames: (o.subjectPets ?? []).map((pet) => pet.name),
+    subjectPets: o.subjectPets ?? [],
+    imageUrl:
+      resolveFileDisplayUrl(o.subjectPets?.[0]?.profileFile ?? o.profileFile) ?? FALLBACK_PROFILE,
     story: o.hasUnviewed ? 'unread' : 'read',
   }));
 }
@@ -138,9 +147,7 @@ export default function MainClient() {
         const mapped = toFeedDataList(feedsRes.data ?? feedsRes);
         setFeeds(mapped);
         if (recommendedRes) {
-          setRecommended(
-            toFeedDataList(recommendedRes.data ?? recommendedRes),
-          );
+          setRecommended(toFeedDataList(recommendedRes.data ?? recommendedRes));
         }
 
         const me = meRes?.data ?? null;
@@ -230,26 +237,27 @@ export default function MainClient() {
                           aria-label="스토리 업"
                           onClick={() => storyFileInputRef.current?.click()}
                         >
-                          <Profile
-                            imageUrl={user.imageUrl}
-                            size={80}
-                            story="none"
-                          />
+                          <Profile imageUrl={user.imageUrl} size={80} story="none" />
                           <span className={styles.storyPlus} aria-hidden>
                             <Plus size={14} strokeWidth={2.75} />
                           </span>
                         </button>
                       ) : (
-                        <Link href={storyHref(user)} aria-label={`${user.nickname} 스토리`}>
-                          <Profile
-                            imageUrl={user.imageUrl}
+                        <Link href={storyHref(user)} aria-label={`${nicknameTag(user.nickname)} 스토리`}>
+                          <PetProfileGroup
+                            pets={user.subjectPets ?? []}
+                            fallbackImage={user.imageUrl}
                             size={80}
                             story={user.story}
+                            layout="stack"
                           />
                         </Link>
                       )}
                       <Link href={myUltaryPath(user.nickname)} className={styles.storyNickname}>
-                        {user.nickname}
+                        <PetNamesAndNicknameTag
+                          nickname={user.nickname}
+                          petNames={user.subjectNames ?? []}
+                        />
                       </Link>
                     </div>
                   </SwiperSlide>

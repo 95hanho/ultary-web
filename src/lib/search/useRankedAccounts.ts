@@ -14,7 +14,8 @@ export type RankedAccount = {
   nickname: string;
   imageUrl: string;
   petTags: string[];
-  pets: { petId: number; petTag: string }[];
+  petNames: string[];
+  pets: { petId: number; petName: string; name: string }[];
   dmRoomId: string | null;
   following: boolean;
   followedBy: boolean;
@@ -27,9 +28,15 @@ function readAccounts(raw: unknown): RankedAccount[] {
       return [];
     const pets = Array.isArray(item.pets)
       ? item.pets.flatMap((pet) => {
-          if (!isRecord(pet) || typeof pet.petId !== 'number' || typeof pet.mentionId !== 'string')
+          if (!isRecord(pet) || typeof pet.petId !== 'number' || typeof pet.name !== 'string')
             return [];
-          return [{ petId: pet.petId, petTag: `@${pet.mentionId.replace(/^@+/, '')}` }];
+          return [
+            {
+              petId: pet.petId,
+              name: typeof pet.name === 'string' ? pet.name : '',
+              petName: pet.name,
+            },
+          ];
         })
       : [];
     const file =
@@ -41,7 +48,8 @@ function readAccounts(raw: unknown): RankedAccount[] {
         userNo: item.userNo,
         nickname: item.nickname,
         imageUrl: resolveFileDisplayUrl(file) ?? NO_PROFILE_SRC,
-        petTags: pets.map((pet) => pet.petTag),
+        petTags: pets.map((pet) => pet.petName),
+        petNames: pets.map((pet) => pet.name),
         pets,
         dmRoomId:
           typeof item.dmRoomId === 'number' || typeof item.dmRoomId === 'string'

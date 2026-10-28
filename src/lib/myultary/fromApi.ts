@@ -108,12 +108,11 @@ export function mapMyPets(raw: unknown, fallbackImage: string): MyUltaryPetCard[
   return unwrapList(raw).flatMap((item) => {
     if (!isRecord(item) || typeof item.petId !== 'number') return [];
     const name = typeof item.name === 'string' ? item.name : '';
-    const mentionId = typeof item.mentionId === 'string' ? item.mentionId : '';
     return [
       {
         id: String(item.petId),
         name,
-        handle: mentionId ? `@${mentionId}` : '',
+        handle: typeof item.name === 'string' ? item.name : '',
         gender: genderLabel(item.gender),
         bio: typeof item.bio === 'string' ? item.bio : '',
         imageUrl: resolveFileDisplayUrl(asFile(item.profileFile)) ?? fallbackImage,

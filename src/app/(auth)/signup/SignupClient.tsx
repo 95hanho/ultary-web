@@ -37,7 +37,7 @@ function pickErrorMessage(err: unknown, fallback: string) {
     if (typeof data.detail === 'string' && data.detail.trim()) return data.detail;
     if (typeof data.message === 'string' && data.message.trim()) {
       const code = data.message;
-      if (code === 'NICKNAME_DUPLICATED') return '이미 사용 중인 닉네임입니다.';
+      if (code === 'NICKNAME_DUPLICATED') return '이미 사용 중인 닉네임태그입니다.';
       if (code === 'PHONE_ALREADY_USED') return '이미 가입된 휴대폰 번호입니다.';
       if (code === 'EMAIL_DUPLICATED') return '이미 사용 중인 이메일입니다.';
       return data.message;
@@ -434,20 +434,23 @@ export default function SignupClient() {
         </label>
 
         <label className={styles.field}>
-          <span className={styles.label}>닉네임</span>
+          <span className={styles.label}>닉네임태그</span>
           <div className={styles.inputWrap}>
             <input
               ref={nicknameRef}
               type="text"
-              value={nickname}
+              value={`@${nickname}`}
+              maxLength={11}
+              autoCapitalize="none"
+              autoCorrect="off"
               onChange={(e) => {
                 setNickname(filterNickname(e.target.value));
                 clearError('nickname');
               }}
-              placeholder="닉네임을 입력해주세요."
+              placeholder="닉네임태그를 입력해주세요."
               className={styles.input}
             />
-            <FieldNote>닉네임은 7일에 한 번만 변경할 수 있습니다.</FieldNote>
+            <FieldNote>닉네임태그는 7일에 한 번만 변경할 수 있습니다.</FieldNote>
             <FieldHint message={errors.nickname} />
           </div>
         </label>

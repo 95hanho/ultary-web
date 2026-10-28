@@ -1,5 +1,7 @@
 'use client';
+import { nicknameTag } from '@/lib/nickname-tag';
 
+import { PetNamesAndNicknameTag } from '@/components/common/PetNamesAndNicknameTag';
 import { PageLoadError } from '@/components/common/PageLoadError';
 import { notFound } from 'next/navigation';
 
@@ -33,6 +35,7 @@ type RelationRow = {
   story: StoryStatus;
   /** 화면용. 응답 mentionId 앞에 @를 붙인 값 */
   petTags: string[];
+  petNames: string[];
   neighborId: number | null;
   following: boolean;
   mutual: boolean;
@@ -191,7 +194,7 @@ export default function RelationListClient({
                   onChange={(event) => setQuery(event.target.value)}
                   onFocus={() => setSearchFocused(true)}
                   onBlur={() => setSearchFocused(false)}
-                  aria-label="닉네임 또는 펫태그 검색"
+                  aria-label="닉네임태그 또는 펫 이름 검색"
                 />
                 {query.length > 0 ? (
                   <button
@@ -225,61 +228,67 @@ export default function RelationListClient({
                   >
                     {group.title ? <h2 className={styles.groupTitle}>{group.title}</h2> : null}
                     <ul className={styles.accountList}>
-                {group.rows.map((row) => {
-                  const profile = (
-                    <Profile
-                      imageUrl={failedProfileUrls.has(row.imageUrl) ? NO_PROFILE_SRC : row.imageUrl}
-                      size={45}
-                      story={row.story}
-                      className={styles.accountProfile}
-                      onError={() => {
-                        if (row.imageUrl === NO_PROFILE_SRC) return;
-                        setFailedProfileUrls((prev) => {
-                          if (prev.has(row.imageUrl)) return prev;
-                          return new Set(prev).add(row.imageUrl);
-                        });
-                      }}
-                    />
-                  );
-                  return (
-                    <li key={row.userNo} className={styles.accountItem}>
-                      <div className={styles.accountInfo}>
-                        {row.story === 'none' ? (
-                          <span className={styles.accountImageWrap}>{profile}</span>
-                        ) : (
-                          <Link
-                            href={`/stories?${new URLSearchParams({ userNo: String(row.userNo), nickname: row.nickname, single: '1' }).toString()}`}
-                            className={styles.accountImageWrap}
-                            aria-label={`${row.nickname} 스토리 보기`}
-                          >
-                            {profile}
-                          </Link>
-                        )}
-                        <span className={styles.accountText}>
-                          <Link href={myUltaryPath(row.nickname)} className={styles.accountNick}>
-                            {row.nickname}
-                          </Link>
-                          {row.petTags.length > 0 ? (
-                            <span className={styles.accountTags}>{row.petTags.join(' ')}</span>
-                          ) : null}
-                        </span>
-                      </div>
-                      {meUserNo != null && row.userNo !== meUserNo ? (
-                        <button
-                          type="button"
-                          className={clsx(
-                            styles.actionBtn,
-                            row.following ? styles.actionDisconnect : styles.actionConnect,
-                          )}
-                          disabled={busyUserNo === row.userNo}
-                          onClick={() => void toggle(row)}
-                        >
-                          {row.following ? '팔로우 끊기' : '팔로우'}
-                        </button>
-                      ) : null}
-                    </li>
-                  );
-                })}
+                      {group.rows.map((row) => {
+                        const profile = (
+                          <Profile
+                            imageUrl={
+                              failedProfileUrls.has(row.imageUrl) ? NO_PROFILE_SRC : row.imageUrl
+                            }
+                            size={45}
+                            story={row.story}
+                            className={styles.accountProfile}
+                            onError={() => {
+                              if (row.imageUrl === NO_PROFILE_SRC) return;
+                              setFailedProfileUrls((prev) => {
+                                if (prev.has(row.imageUrl)) return prev;
+                                return new Set(prev).add(row.imageUrl);
+                              });
+                            }}
+                          />
+                        );
+                        return (
+                          <li key={row.userNo} className={styles.accountItem}>
+                            <div className={styles.accountInfo}>
+                              {row.story === 'none' ? (
+                                <span className={styles.accountImageWrap}>{profile}</span>
+                              ) : (
+                                <Link
+                                  href={`/stories?${new URLSearchParams({ userNo: String(row.userNo), nickname: row.nickname, single: '1' }).toString()}`}
+                                  className={styles.accountImageWrap}
+                                  aria-label={`${nicknameTag(row.nickname)} 스토리 보기`}
+                                >
+                                  {profile}
+                                </Link>
+                              )}
+                              <span className={styles.accountText}>
+                                <Link
+                                  href={myUltaryPath(row.nickname)}
+                                  className={styles.accountNick}
+                                >
+                                  <PetNamesAndNicknameTag
+                                    nickname={row.nickname}
+                                    petNames={row.petNames}
+                                    query={query}
+                                  />
+                                </Link>
+                              </span>
+                            </div>
+                            {meUserNo != null && row.userNo !== meUserNo ? (
+                              <button
+                                type="button"
+                                className={clsx(
+                                  styles.actionBtn,
+                                  row.following ? styles.actionDisconnect : styles.actionConnect,
+                                )}
+                                disabled={busyUserNo === row.userNo}
+                                onClick={() => void toggle(row)}
+                              >
+                                {row.following ? '팔로우 끊기' : '팔로우'}
+                              </button>
+                            ) : null}
+                          </li>
+                        );
+                      })}
                     </ul>
                   </section>
                 ))}
@@ -298,7 +307,9 @@ function filterRows(rows: RelationRow[], query: string) {
   if (!term) return rows;
   return rows.filter((row) => {
     if (row.nickname.toLowerCase().includes(term)) return true;
-    return row.petTags.some((tag) => tag.replace(/^@+/, '').toLowerCase().includes(term));
+    return (
+      row.petNames.some((name) => name.toLowerCase().includes(term))
+    );
   });
 }
 
@@ -320,7 +331,10 @@ function readRows(raw: unknown) {
         nickname,
         imageUrl: resolveFileDisplayUrl(asFile(item.profileFile)) ?? NO_PROFILE_SRC,
         story,
-        petTags: readPetTags(item.petTags),
+        petTags: [],
+        petNames: Array.isArray(item.petNames)
+          ? item.petNames.filter((name): name is string => typeof name === 'string')
+          : [],
         neighborId: typeof item.neighborId === 'number' ? item.neighborId : null,
         following: item.following === true,
         mutual: item.mutual === true,
@@ -329,14 +343,6 @@ function readRows(raw: unknown) {
   });
 }
 
-function readPetTags(raw: unknown) {
-  if (!Array.isArray(raw)) return [];
-  return raw.flatMap((tag) => {
-    if (typeof tag !== 'string') return [];
-    const name = tag.trim().replace(/^@+/, '');
-    return name ? [`@${name}`] : [];
-  });
-}
 
 function readFollowResult(raw: unknown) {
   if (!isRecord(raw)) return { neighborId: null as number | null, accepted: false };

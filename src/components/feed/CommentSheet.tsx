@@ -1,4 +1,5 @@
 'use client';
+import { nicknameTag } from '@/lib/nickname-tag';
 import { useResettableState } from '@/lib/react/useResettableState';
 import { useHydrated } from '@/lib/react/useHydrated';
 
@@ -202,7 +203,7 @@ function CommentBody({
         <Link
           href={`/stories?${new URLSearchParams({ userNo: String(item.userNo), nickname: item.nickname, single: '1' }).toString()}`}
           className={clsx(styles.avatarWrap, compact && styles.avatarWrapSm)}
-          aria-label={`${item.nickname} 스토리`}
+          aria-label={`${nicknameTag(item.nickname)} 스토리`}
         >
           <Profile imageUrl={item.profileUrl} size={compact ? 32 : 40} story={item.story} />
         </Link>
@@ -216,10 +217,10 @@ function CommentBody({
         <div className={styles.textWrap}>
           <p ref={textRef} className={clsx(styles.text, !expanded && styles.textClamped)}>
             {readOnly ? (
-              <span className={styles.nick}>{item.nickname}</span>
+              <span className={styles.nick}>{nicknameTag(item.nickname)}</span>
             ) : (
               <Link href={myUltaryPath(item.nickname)} className={styles.nick}>
-                {item.nickname}
+                {nicknameTag(item.nickname)}
               </Link>
             )}{' '}
             {renderContent(item.content, readOnly, item.mentionedUsers)}
@@ -367,7 +368,7 @@ export function CommentSheet({
   const hasMentionMatch = mentionAccounts.items.some(
     (account) =>
       account.nickname.toLowerCase().includes(mentionTerm) ||
-      account.petTags.some((tag) => tag.replace(/^@+/, '').toLowerCase().includes(mentionTerm)),
+      account.petNames.some((name) => name.toLowerCase().includes(mentionTerm)),
   );
   const [draftMentions, setDraftMentions] = useResettableState<MentionUser[]>(
     [],
@@ -497,7 +498,7 @@ export function CommentSheet({
       setReplyTo({ parentCommentId, nickname: parent.nickname, userNo: parent.userNo });
       setDraft((prev) => {
         const mention =
-          currentUserNo != null && target.userNo === currentUserNo ? '' : `@${target.nickname} `;
+          currentUserNo != null && target.userNo === currentUserNo ? '' : `${nicknameTag(target.nickname)} `;
         if (mention && prev.startsWith(mention)) return clampFeedContent(prev);
         return clampFeedContent(mention);
       });
@@ -1053,7 +1054,7 @@ export function CommentSheet({
                         '내 댓글에 답글 남기는 중'
                       ) : (
                         <>
-                          <strong>@{replyTo.nickname}</strong>님의 댓글에 답글 남기는 중
+                          <strong>{nicknameTag(replyTo.nickname)}</strong>님의 댓글에 답글 남기는 중
                         </>
                       )}
                     </span>
@@ -1112,7 +1113,7 @@ export function CommentSheet({
                         : replyTo
                           ? replyingToOwnComment
                             ? '내 댓글에 답글 남기기…'
-                            : `@${replyTo.nickname}님의 댓글에 답글 남기기…`
+                            : `${nicknameTag(replyTo.nickname)}님의 댓글에 답글 남기기…`
                           : '댓글을 입력하세요…'
                     }
                     aria-label={replyTo ? '답글 입력' : '댓글 입력'}

@@ -1,4 +1,6 @@
 'use client';
+import { useModalStore } from '@/stores/modal.store';
+import { nicknameTag } from '@/lib/nickname-tag';
 import { PhoneDemoCode } from '@/components/auth/PhoneDemoCode';
 
 import { PageHeader } from '@/components/common/PageHeader';
@@ -94,7 +96,9 @@ export default function PasswordClient() {
         setDemoCode(res.data?.demoCode ?? '');
         setPhoneAuthCompleteToken('');
         setPhoneVerified(false);
-        setInfoMessage(res.data?.demoCode ? '데모 인증번호를 확인해 주세요.' : '인증번호를 발송했습니다.');
+        setInfoMessage(
+          res.data?.demoCode ? '데모 인증번호를 확인해 주세요.' : '인증번호를 발송했습니다.',
+        );
       } catch (err) {
         setFormError(pickErrorMessage(err, '인증번호 발송에 실패했습니다.'));
       }
@@ -133,7 +137,7 @@ export default function PasswordClient() {
     });
   }
 
-  function submitPassword() {
+  function submitPassword(userNo?: number) {
     setFormError(null);
     setInfoMessage(null);
     const next: FieldErrors = {};
@@ -161,8 +165,22 @@ export default function PasswordClient() {
       try {
         const tokenRes = await bffPostJson<BffEnvelope<PasswordTokenResponse>>(
           bffEndpoints.auth.passwordToken,
-          { phone, phoneAuthCompleteToken },
+          { phone, phoneAuthCompleteToken, userNo },
         );
+        if (tokenRes.data?.selectionRequired) {
+          useModalStore
+            .getState()
+            .open({
+              variant: 'action',
+              title: '비밀번호를 변경할 계정을 선택해 주세요.',
+              showCloseButton: true,
+              items: (tokenRes.data.accounts ?? []).map((account) => ({
+                label: nicknameTag(account.nickname),
+                onClick: () => submitPassword(account.userNo),
+              })),
+            });
+          return;
+        }
         const passwordChangeToken = tokenRes.data?.passwordChangeToken;
         if (!passwordChangeToken) throw new Error('비밀번호 변경 토큰이 없습니다.');
         await bffPutJson(bffEndpoints.auth.password, {

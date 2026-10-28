@@ -13,14 +13,14 @@ export function MyPageEditDevTools() {
   useDevTestActions('mypage', 'MYPAGE DEV', [
     {
       id: 'reset-nickname-cooldown',
-      label: '닉네임 변경 제한 초기화',
+      label: '닉네임태그 변경 제한 초기화',
       onClick: async () => {
         const res = await bffPostJson<BffEnvelope<{ userNo?: number; nicknameChangedAt?: string }>>(
           bffEndpoints.test.nicknameCooldown,
           {},
         );
         console.log('[MyPageEditDevTools] nickname cooldown reset', res.data ?? res);
-        return '닉네임 변경 제한을 풀었습니다.';
+        return '닉네임태그 변경 제한을 풀었습니다.';
       },
     },
   ]);

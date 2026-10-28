@@ -1,4 +1,5 @@
 'use client';
+import { nicknameTag } from '@/lib/nickname-tag';
 import { useResettableState } from '@/lib/react/useResettableState';
 import { useHydrated } from '@/lib/react/useHydrated';
 import { ENABLE_DEV_TOOLS } from '@/lib/env.client';
@@ -51,10 +52,10 @@ type Props = {
 
 /** 로컬 시드 계정. 로그인 페이지 테스트 로그인에서만 쓴다. */
 const TEST_LOGINS = [
-  { nickname: '울타리', phone: '01011112222' },
-  { nickname: '나리집사', phone: '01033334444' },
-  { nickname: '산책러', phone: '01055556666' },
-  { nickname: '대기중', phone: '01077778888' },
+  { nickname: 'ultary', phone: '01011112222' },
+  { nickname: 'nari_owner', phone: '01033334444' },
+  { nickname: 'walker', phone: '01055556666' },
+  { nickname: 'waiting', phone: '01077778888' },
 ] as const;
 
 const TEST_LOGIN_PASSWORD = 'Test1234!';
@@ -296,7 +297,7 @@ export function DevTestDock({ groups }: Props) {
                 {testLoginOpen ? (
                   <select
                     className={styles.testLoginSelect}
-                    aria-label="테스트 로그인 닉네임"
+                    aria-label="테스트 로그인 닉네임태그"
                     value={testLoginPick}
                     disabled={Boolean(busyId)}
                     onChange={(event) => {
@@ -316,15 +317,15 @@ export function DevTestDock({ groups }: Props) {
                           );
                           // 일반 로그인과 동일하게 이전 계정의 모듈 캐시와 소켓을 초기화한다.
                           window.location.replace('/');
-                          return `${account.nickname} 로그인`;
+                          return `${nicknameTag(account.nickname)} 로그인`;
                         },
                       });
                     }}
                   >
-                    <option value="">-로그인 닉네임 선택-</option>
+                    <option value="">-로그인 닉네임태그 선택-</option>
                     {TEST_LOGINS.map((account) => (
                       <option key={account.phone} value={account.phone}>
-                        {account.nickname}
+                        {nicknameTag(account.nickname)}
                       </option>
                     ))}
                   </select>

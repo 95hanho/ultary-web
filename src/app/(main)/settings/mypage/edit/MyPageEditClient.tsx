@@ -228,7 +228,9 @@ export default function MyPageEditClient() {
         setDemoCode(res.data?.demoCode ?? '');
         setPhoneAuthCompleteToken('');
         setPhoneVerified(false);
-        setInfoMessage(res.data?.demoCode ? '데모 인증번호를 확인해 주세요.' : '인증번호를 발송했습니다.');
+        setInfoMessage(
+          res.data?.demoCode ? '데모 인증번호를 확인해 주세요.' : '인증번호를 발송했습니다.',
+        );
       } catch (err) {
         setFormError(pickErrorMessage(err, '인증번호 발송에 실패했습니다.'));
       }
@@ -332,10 +334,7 @@ export default function MyPageEditClient() {
     const nicknameChanged = trimmedNickname !== initialProfile.nickname.trim();
     const emailChanged = email.trim() !== initialProfile.email.trim();
     const nextRegion = regionPayload(regionSido, regionSigungu);
-    const initialRegion = regionPayload(
-      initialProfile.regionSido,
-      initialProfile.regionSigungu,
-    );
+    const initialRegion = regionPayload(initialProfile.regionSido, initialProfile.regionSigungu);
     const regionChanged =
       nextRegion.regionSido !== initialRegion.regionSido ||
       nextRegion.regionSigungu !== initialRegion.regionSigungu;
@@ -405,167 +404,176 @@ export default function MyPageEditClient() {
           <p className={styles.fieldNote}>불러오는 중…</p>
         ) : (
           <>
-        {nameEditable ? (
-          <label className={styles.field}>
-            <span className={styles.label}>이름</span>
-            <div className={styles.inputWrap}>
-              <input
-                ref={nameRef}
-                type="text"
-                value={name}
-                onChange={(e) => {
-                  setName(filterName(e.target.value));
-                  clearError('name');
-                }}
-                placeholder="이름을 입력해주세요."
-                className={styles.input}
-              />
-              <FieldNote>이름은 한 번 정하면 바꿀 수 없습니다.</FieldNote>
-              <FieldHint message={errors.name} />
+            {nameEditable ? (
+              <label className={styles.field}>
+                <span className={styles.label}>이름</span>
+                <div className={styles.inputWrap}>
+                  <input
+                    ref={nameRef}
+                    type="text"
+                    value={name}
+                    onChange={(e) => {
+                      setName(filterName(e.target.value));
+                      clearError('name');
+                    }}
+                    placeholder="이름을 입력해주세요."
+                    className={styles.input}
+                  />
+                  <FieldNote>이름은 한 번 정하면 바꿀 수 없습니다.</FieldNote>
+                  <FieldHint message={errors.name} />
+                </div>
+              </label>
+            ) : null}
+
+            <label className={styles.field}>
+              <span className={styles.label}>닉네임태그</span>
+              <div className={styles.inputWrap}>
+                <input
+                  ref={nicknameRef}
+                  type="text"
+                  value={`@${nickname}`}
+                  maxLength={11}
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                  onChange={(e) => {
+                    setNickname(
+                      e.target.value
+                        .replace(/^@+/, '')
+                        .toLowerCase()
+                        .replace(/[^a-z_]/g, '')
+                        .slice(0, 10),
+                    );
+                    clearError('nickname');
+                  }}
+                  placeholder="닉네임태그를 입력해주세요."
+                  className={styles.input}
+                />
+                <FieldNote>닉네임태그는 7일에 한 번만 변경할 수 있습니다.</FieldNote>
+                <FieldHint message={errors.nickname} />
+              </div>
+            </label>
+
+            <label className={styles.field}>
+              <span className={styles.label}>이메일</span>
+              <div className={styles.inputWrap}>
+                <input
+                  ref={emailRef}
+                  type="email"
+                  value={email}
+                  onChange={(e) => {
+                    setEmail(filterEmail(e.target.value));
+                    clearError('email');
+                  }}
+                  placeholder="이메일을 입력해주세요."
+                  autoComplete="email"
+                  className={styles.input}
+                />
+                <FieldHint message={errors.email} />
+              </div>
+            </label>
+
+            <div className={styles.field}>
+              <span className={styles.label}>연락처</span>
+              <div className={styles.inputWrap}>
+                <div className={styles.phoneRow}>
+                  <input
+                    ref={phoneRef}
+                    type="tel"
+                    value={phone}
+                    onChange={(e) => {
+                      const nextPhone = filterPhone(e.target.value);
+                      setPhone(nextPhone);
+                      resetPhoneAuth();
+                      setPhoneVerified(nextPhone === initialProfile.phone);
+                      setInfoMessage(null);
+                      clearError('phone');
+                    }}
+                    placeholder="연락처를 입력해주세요.('-' 제외)"
+                    className={clsx(styles.input, styles.phoneInput)}
+                  />
+                  <button
+                    type="button"
+                    className={styles.sideBtn}
+                    onClick={requestPhoneCode}
+                    disabled={!loaded || pending || !phoneChanged || phoneVerified}
+                  >
+                    인증요청
+                  </button>
+                </div>
+                <PhoneDemoCode code={demoCode} />
+                <FieldHint message={errors.phone} />
+              </div>
             </div>
-          </label>
-        ) : null}
 
-        <label className={styles.field}>
-          <span className={styles.label}>닉네임</span>
-          <div className={styles.inputWrap}>
-            <input
-              ref={nicknameRef}
-              type="text"
-              value={nickname}
-              onChange={(e) => {
-                setNickname(e.target.value);
-                clearError('nickname');
-              }}
-              placeholder="닉네임을 입력해주세요."
-              className={styles.input}
-            />
-            <FieldNote>닉네임은 7일에 한 번만 변경할 수 있습니다.</FieldNote>
-            <FieldHint message={errors.nickname} />
-          </div>
-        </label>
+            {phoneAuthToken && !phoneVerified ? (
+              <div className={styles.codeRow}>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  value={code}
+                  onChange={(e) => setCode(filterCode(e.target.value))}
+                  placeholder="인증번호 6자리"
+                  className={clsx(styles.input, styles.phoneInput)}
+                />
+                <button
+                  type="button"
+                  className={styles.sideBtn}
+                  onClick={verifyPhoneCode}
+                  disabled={pending}
+                >
+                  확인
+                </button>
+              </div>
+            ) : null}
 
-        <label className={styles.field}>
-          <span className={styles.label}>이메일</span>
-          <div className={styles.inputWrap}>
-            <input
-              ref={emailRef}
-              type="email"
-              value={email}
-              onChange={(e) => {
-                setEmail(filterEmail(e.target.value));
-                clearError('email');
-              }}
-              placeholder="이메일을 입력해주세요."
-              autoComplete="email"
-              className={styles.input}
-            />
-            <FieldHint message={errors.email} />
-          </div>
-        </label>
-
-        <div className={styles.field}>
-          <span className={styles.label}>연락처</span>
-          <div className={styles.inputWrap}>
-            <div className={styles.phoneRow}>
-              <input
-                ref={phoneRef}
-                type="tel"
-                value={phone}
-                onChange={(e) => {
-                  const nextPhone = filterPhone(e.target.value);
-                  setPhone(nextPhone);
-                  resetPhoneAuth();
-                  setPhoneVerified(nextPhone === initialProfile.phone);
-                  setInfoMessage(null);
-                  clearError('phone');
-                }}
-                placeholder="연락처를 입력해주세요.('-' 제외)"
-                className={clsx(styles.input, styles.phoneInput)}
-              />
-              <button
-                type="button"
-                className={styles.sideBtn}
-                onClick={requestPhoneCode}
-                disabled={!loaded || pending || !phoneChanged || phoneVerified}
-              >
-                인증요청
-              </button>
+            <div className={styles.regionRow}>
+              <label className={styles.field}>
+                <span className={styles.label}>지역 시/도</span>
+                <div className={styles.inputWrap}>
+                  <select
+                    ref={regionSidoRef}
+                    value={regionSido}
+                    onChange={(e) => {
+                      setRegionSido(e.target.value);
+                      setRegionSigungu(REGION_NONE);
+                      clearError('regionSido');
+                      clearError('regionSigungu');
+                    }}
+                    className={styles.select}
+                  >
+                    {SIDO_OPTIONS.map((sido) => (
+                      <option key={sido} value={sido}>
+                        {sido}
+                      </option>
+                    ))}
+                  </select>
+                  <FieldHint message={errors.regionSido} />
+                </div>
+              </label>
+              <label className={styles.field}>
+                <span className={styles.label}>지역 시/군/구</span>
+                <div className={styles.inputWrap}>
+                  <select
+                    ref={regionSigunguRef}
+                    value={regionSigungu}
+                    onChange={(e) => {
+                      setRegionSigungu(e.target.value);
+                      clearError('regionSigungu');
+                    }}
+                    className={styles.select}
+                    disabled={sigunguDisabled}
+                  >
+                    <option value={REGION_NONE}>{REGION_NONE}</option>
+                    {sigunguOptions.map((sigungu) => (
+                      <option key={sigungu} value={sigungu}>
+                        {sigungu}
+                      </option>
+                    ))}
+                  </select>
+                  <FieldHint message={errors.regionSigungu} />
+                </div>
+              </label>
             </div>
-            <PhoneDemoCode code={demoCode} />
-            <FieldHint message={errors.phone} />
-          </div>
-        </div>
-
-        {phoneAuthToken && !phoneVerified ? (
-          <div className={styles.codeRow}>
-            <input
-              type="text"
-              inputMode="numeric"
-              value={code}
-              onChange={(e) => setCode(filterCode(e.target.value))}
-              placeholder="인증번호 6자리"
-              className={clsx(styles.input, styles.phoneInput)}
-            />
-            <button
-              type="button"
-              className={styles.sideBtn}
-              onClick={verifyPhoneCode}
-              disabled={pending}
-            >
-              확인
-            </button>
-          </div>
-        ) : null}
-
-        <div className={styles.regionRow}>
-          <label className={styles.field}>
-            <span className={styles.label}>지역 시/도</span>
-            <div className={styles.inputWrap}>
-              <select
-                ref={regionSidoRef}
-                value={regionSido}
-                onChange={(e) => {
-                  setRegionSido(e.target.value);
-                  setRegionSigungu(REGION_NONE);
-                  clearError('regionSido');
-                  clearError('regionSigungu');
-                }}
-                className={styles.select}
-              >
-                {SIDO_OPTIONS.map((sido) => (
-                  <option key={sido} value={sido}>
-                    {sido}
-                  </option>
-                ))}
-              </select>
-              <FieldHint message={errors.regionSido} />
-            </div>
-          </label>
-          <label className={styles.field}>
-            <span className={styles.label}>지역 시/군/구</span>
-            <div className={styles.inputWrap}>
-              <select
-                ref={regionSigunguRef}
-                value={regionSigungu}
-                onChange={(e) => {
-                  setRegionSigungu(e.target.value);
-                  clearError('regionSigungu');
-                }}
-                className={styles.select}
-                disabled={sigunguDisabled}
-              >
-                <option value={REGION_NONE}>{REGION_NONE}</option>
-                {sigunguOptions.map((sigungu) => (
-                  <option key={sigungu} value={sigungu}>
-                    {sigungu}
-                  </option>
-                ))}
-              </select>
-              <FieldHint message={errors.regionSigungu} />
-            </div>
-          </label>
-        </div>
           </>
         )}
       </div>

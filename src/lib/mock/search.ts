@@ -1,7 +1,8 @@
 export type SearchPetChoice = {
   petId: number;
-  /** `@mentionId` */
-  petTag: string;
+  /** 사진에 표시할 펫 이름 */
+  petName: string;
+  name?: string;
 };
 
 export type SearchAccount = {
@@ -15,7 +16,8 @@ export type SearchAccount = {
   hasStory?: boolean;
   hasUnviewed?: boolean;
   petTags: string[];
-  /** 펫 검색 결과. 태그 문자열과 petId를 맞춘다 */
+  petNames?: string[];
+  /** 펫 검색 결과. 이름이 같아도 petId로 선택한다 */
   petChoices?: SearchPetChoice[];
 };
 
@@ -85,11 +87,8 @@ export function filterMockHashtags(term: string): MockHashtag[] {
   });
 }
 
-/** 닉네임·펫언급 검색 (`#` 해시태그는 대상 아님) */
-export function filterMockAccounts(
-  term: string,
-  mode: 'plain' | 'pet' = 'plain',
-): SearchAccount[] {
+/** 닉네임태그·펫언급 검색 (`#` 해시태그는 대상 아님) */
+export function filterMockAccounts(term: string, mode: 'plain' | 'pet' = 'plain'): SearchAccount[] {
   const q = term.trim().toLowerCase().replace(/^@/, '');
   if (!q) return [];
 

@@ -34,6 +34,7 @@ type ShareTarget = {
   nickname: string;
   imageUrl: string;
   petTags: string[];
+  petNames: string[];
   dmRoomId: number | null;
   following: boolean;
   followedBy: boolean;
@@ -343,12 +344,10 @@ function readShareTargets(raw: unknown): ShareTarget[] {
         dmRoomId: readRoomNumber(item.dmRoomId),
         following: item.following === true,
         followedBy: item.followedBy === true,
-        petTags: Array.isArray(item.petTags)
-          ? item.petTags.flatMap((tag) => {
-              const name = typeof tag === 'string' ? tag.trim().replace(/^@+/, '') : '';
-              return name ? [`@${name}`] : [];
-            })
+        petNames: Array.isArray(item.petNames)
+          ? item.petNames.filter((name): name is string => typeof name === 'string')
           : [],
+        petTags: [],
         group: typeof item.group === 'number' ? item.group : 9,
         activeAt: typeof item.activeAt === 'string' ? item.activeAt : '',
       },

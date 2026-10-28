@@ -1,11 +1,15 @@
 'use client';
+import { nicknameTag } from '@/lib/nickname-tag';
 import { useSearchParams } from 'next/navigation';
 import { useResettableState } from '@/lib/react/useResettableState';
 
 import { formatFeedTime } from '@/lib/feed/formatFeedTime';
 import { RevealTime } from '@/components/common/RevealTime';
 import { MediaImage } from '@/components/common/MediaImage';
-import { Profile, type StoryStatus } from '@/components/my-ultary/Profile';
+import type { StoryStatus } from '@/components/my-ultary/Profile';
+import { PetProfileGroup } from '@/components/my-ultary/PetProfileGroup';
+import { PetNamesAndNicknameTag } from '@/components/common/PetNamesAndNicknameTag';
+import type { SubjectPet } from '@/types/pet';
 import { bffDelete, bffGet, bffPostJson } from '@/lib/api/bffFetch';
 import { subscribeContentModerated } from '@/lib/ws/liveSocket';
 import type { BffEnvelope } from '@/types/api';
@@ -66,6 +70,8 @@ export type FeedData = {
   /** 작성자. 스토리 링·스토리 이동에 사용 */
   userNo?: number;
   nickname: string;
+  subjectNames?: string[];
+  subjectPets?: SubjectPet[];
   profileUrl: string;
   /** 캐러셀용. 목업은 같은 사진 여러 장도 OK */
   images: string[];
@@ -97,9 +103,9 @@ export type FeedPhotoTag = {
   /** 사진 기준 0~1 */
   x: number;
   y: number;
-  /** 멘션 응답에 보호자 닉네임이 있으면 그 울타리로 이동 */
+  /** 멘션 응답에 보호자 닉네임태그가 있으면 그 울타리로 이동 */
   ownerNickname?: string;
-  /** 보호자. 펫 목록으로 닉네임을 찾을 때 사용 */
+  /** 보호자. 펫 목록으로 닉네임태그를 찾을 때 사용 */
   userNo?: number;
   mentionId?: string;
   petName?: string;
@@ -111,7 +117,7 @@ function tagOwnerHref(tag: FeedPhotoTag, labels: Record<number, FeedPetLabel>) {
 }
 
 type FeedProps = FeedData & {
-  /** 마이울타리 게시글 목록에서는 작성자 사진·닉네임을 숨긴다 */
+  /** 마이울타리 게시글 목록에서는 작성자 사진·닉네임태그를 숨긴다 */
   showAuthor?: boolean;
   /** 캐러셀 시작 위치. 0이 첫 장 */
   initialMediaIndex?: number;
@@ -128,6 +134,8 @@ export function Feed({
   id,
   userNo,
   nickname,
+  subjectNames = [],
+  subjectPets = [],
   profileUrl,
   images,
   mediaIds,
@@ -647,19 +655,37 @@ export function Feed({
       {showAuthor ? (
         <header className={styles.header}>
           {storyHref ? (
-            <Link href={storyHref} className={styles.profileLink} aria-label={`${nickname} 스토리`}>
-              <Profile imageUrl={profileUrl} size={36} story={storyRing} />
+            <Link href={storyHref} className={styles.profileLink} aria-label={`${nicknameTag(nickname)} 스토리`}>
+              <PetProfileGroup
+                pets={subjectPets}
+                fallbackImage={profileUrl}
+                size={36}
+                story={storyRing}
+              />
             </Link>
           ) : (
-            <Profile imageUrl={profileUrl} size={36} story={readOnly ? 'none' : storyRing} />
+            <PetProfileGroup
+              pets={subjectPets}
+              fallbackImage={profileUrl}
+              size={36}
+              story={readOnly ? 'none' : storyRing}
+            />
           )}
-          {readOnly ? (
-            <span className={styles.nickname}>{nickname}</span>
-          ) : (
-            <Link href={myUltaryPath(nickname)} className={styles.nickname}>
-              {nickname}
-            </Link>
-          )}
+          <div className={styles.authorText}>
+            {readOnly ? (
+              <PetNamesAndNicknameTag
+                nickname={nickname}
+                petNames={subjectPets.length ? subjectPets.map((pet) => pet.name) : subjectNames}
+              />
+            ) : (
+              <Link href={myUltaryPath(nickname)} className={styles.nickname}>
+                <PetNamesAndNicknameTag
+                  nickname={nickname}
+                  petNames={subjectPets.length ? subjectPets.map((pet) => pet.name) : subjectNames}
+                />
+              </Link>
+            )}
+          </div>
         </header>
       ) : null}
       <div className={styles.content}>
@@ -713,7 +739,7 @@ export function Feed({
                       ? tags.map((tag) => {
                           const href = tagOwnerHref(tag, petLabels);
                           const label =
-                            petLabels[tag.petId]?.label ?? tag.mentionId ?? tag.petName ?? '태그';
+                            petLabels[tag.petId]?.label ?? tag.petName ?? '태그';
                           const style = { left: `${tag.x * 100}%`, top: `${tag.y * 100}%` };
                           if (!href || readOnly) {
                             return (
@@ -830,274 +856,281 @@ export function Feed({
           ) : null}
         </div>
 
-        <div className={styles.actions}>
-          <div className={styles.actionsLeft}>
-            {!readOnly ? (
-              <button
-                type="button"
-                className={clsx(styles.actionBtn, styles.actionPressable, styles.iconOnlyPress)}
-                aria-label={`좋아요 ${likes}`}
-                aria-pressed={liked}
-                disabled={likePending}
-                onClick={() => {
-                  void toggleLike();
-                }}
-              >
-                <span className={styles.toggleIcon}>
-                  <Heart
-                    className={styles.restIcon}
-                    size={25}
-                    strokeWidth={2}
-                    fill={liked ? 'currentColor' : 'none'}
-                    aria-hidden
-                  />
-                  <Heart
-                    className={styles.pressedIcon}
-                    size={25}
-                    strokeWidth={2}
-                    fill={liked ? 'none' : 'currentColor'}
-                    aria-hidden
-                  />
-                </span>
-                <span className={clsx(styles.actionCount, liked && styles.actionCountOn)}>
-                  {likes}
-                </span>
-              </button>
-            ) : null}
-            <button
-              type="button"
-              className={clsx(styles.actionBtn, styles.actionPressable, styles.iconOnlyPress)}
-              aria-label={`댓글 ${comments}`}
-              onClick={() => setCommentsOpen(true)}
-            >
-              <Image src={CommentIcon} alt="" width={31} height={31} />
-              <span className={styles.actionCount}>{comments}</span>
-            </button>
-          </div>
-          {!readOnly ? (
-            <div className={styles.actionsRight}>
-              {!isMine ? (
+        <div className={styles.details}>
+          <div className={styles.actions}>
+            <div className={styles.actionsLeft}>
+              {!readOnly ? (
                 <button
                   type="button"
-                  className={clsx(styles.actionBtn, styles.actionPressable)}
-                  aria-label={pinned ? '울타리 고정 해제' : '울타리 고정'}
-                  aria-pressed={pinned}
-                  disabled={pinPending}
-                  onClick={() => void togglePin()}
+                  className={clsx(styles.actionBtn, styles.actionPressable, styles.iconOnlyPress)}
+                  aria-label={`좋아요 ${likes}`}
+                  aria-pressed={liked}
+                  disabled={likePending}
+                  onClick={() => {
+                    void toggleLike();
+                  }}
                 >
                   <span className={styles.toggleIcon}>
-                    <Image
+                    <Heart
                       className={styles.restIcon}
-                      src={pinned ? PinFillIcon : PinIcon}
-                      alt=""
-                      width={25}
-                      height={25}
+                      size={25}
+                      strokeWidth={2}
+                      fill={liked ? 'currentColor' : 'none'}
+                      aria-hidden
                     />
-                    <Image
+                    <Heart
                       className={styles.pressedIcon}
-                      src={pinned ? PinIcon : PinFillIcon}
-                      alt=""
-                      width={25}
-                      height={25}
+                      size={25}
+                      strokeWidth={2}
+                      fill={liked ? 'none' : 'currentColor'}
+                      aria-hidden
                     />
+                  </span>
+                  <span className={clsx(styles.actionCount, liked && styles.actionCountOn)}>
+                    {likes}
                   </span>
                 </button>
               ) : null}
               <button
                 type="button"
-                className={clsx(styles.actionBtn, styles.actionPressable)}
-                aria-label="공유"
-                onClick={() => {
-                  openModal({
-                    variant: 'action',
-                    title: '공유',
-                    items: [
-                      {
-                        label: '링크 복사',
-                        onClick: () => {
-                          const url = new URL(`/feeds/${id}`, window.location.origin);
-                          url.searchParams.set('mediaIndex', String(index));
-                          void navigator.clipboard?.writeText(url.toString()).catch(() => {
-                            /* ignore */
-                          });
-                        },
-                      },
-                      {
-                        label: '메시지로 보내기',
-                        onClick: () => {
-                          const mediaId = mediaIds?.[index];
-                          setShareMediaId(mediaId != null ? mediaId : null);
-                          setShareOpen(true);
-                        },
-                      },
-                    ],
-                  });
-                }}
+                className={clsx(styles.actionBtn, styles.actionPressable, styles.iconOnlyPress)}
+                aria-label={`댓글 ${comments}`}
+                onClick={() => setCommentsOpen(true)}
               >
-                <Image src={ShareIcon} alt="" width={27} height={10} />
+                <Image src={CommentIcon} alt="" width={31} height={31} />
+                <span className={styles.actionCount}>{comments}</span>
               </button>
-              <div className={styles.moreWrap} ref={moreWrapRef}>
-                <button
-                  type="button"
-                  className={styles.actionBtn}
-                  aria-label="더보기"
-                  aria-expanded={moreOpen}
-                  onClick={() => {
-                    setMorePlace(null);
-                    setMoreOpen((open) => !open);
-                  }}
-                >
-                  <Ellipsis size={25} strokeWidth={2} />
-                </button>
-                {myReport ? (
+            </div>
+            {!readOnly ? (
+              <div className={styles.actionsRight}>
+                {!isMine ? (
                   <button
                     type="button"
-                    className={clsx(styles.actionBtn, styles.reportIndicator)}
-                    aria-label="신고한 게시글 추가 메뉴"
+                    className={clsx(styles.actionBtn, styles.actionPressable)}
+                    aria-label={pinned ? '울타리 고정 해제' : '울타리 고정'}
+                    aria-pressed={pinned}
+                    disabled={pinPending}
+                    onClick={() => void togglePin()}
+                  >
+                    <span className={styles.toggleIcon}>
+                      <Image
+                        className={styles.restIcon}
+                        src={pinned ? PinFillIcon : PinIcon}
+                        alt=""
+                        width={25}
+                        height={25}
+                      />
+                      <Image
+                        className={styles.pressedIcon}
+                        src={pinned ? PinIcon : PinFillIcon}
+                        alt=""
+                        width={25}
+                        height={25}
+                      />
+                    </span>
+                  </button>
+                ) : null}
+                <button
+                  type="button"
+                  className={clsx(styles.actionBtn, styles.actionPressable)}
+                  aria-label="공유"
+                  onClick={() => {
+                    openModal({
+                      variant: 'action',
+                      title: '공유',
+                      items: [
+                        {
+                          label: '링크 복사',
+                          onClick: () => {
+                            const url = new URL(`/feeds/${id}`, window.location.origin);
+                            url.searchParams.set('mediaIndex', String(index));
+                            void navigator.clipboard?.writeText(url.toString()).catch(() => {
+                              /* ignore */
+                            });
+                          },
+                        },
+                        {
+                          label: '메시지로 보내기',
+                          onClick: () => {
+                            const mediaId = mediaIds?.[index];
+                            setShareMediaId(mediaId != null ? mediaId : null);
+                            setShareOpen(true);
+                          },
+                        },
+                      ],
+                    });
+                  }}
+                >
+                  <Image src={ShareIcon} alt="" width={27} height={10} />
+                </button>
+                <div className={styles.moreWrap} ref={moreWrapRef}>
+                  <button
+                    type="button"
+                    className={styles.actionBtn}
+                    aria-label="더보기"
                     aria-expanded={moreOpen}
                     onClick={() => {
                       setMorePlace(null);
                       setMoreOpen((open) => !open);
                     }}
                   >
-                    <Siren size={25} strokeWidth={2} aria-hidden />
+                    <Ellipsis size={25} strokeWidth={2} />
                   </button>
-                ) : null}
-                {moreOpen ? (
-                  <div
-                    ref={moreMenuRef}
-                    className={styles.moreMenu}
-                    role="menu"
-                    style={
-                      morePlace
-                        ? { top: morePlace.top, left: morePlace.left }
-                        : { visibility: 'hidden' }
-                    }
-                  >
-                    {!isMine ? (
-                      <button
-                        type="button"
-                        className={styles.moreItem}
-                        role="menuitem"
-                        disabled={savePending}
-                        onClick={() => {
-                          setMoreOpen(false);
-                          void toggleSave();
-                        }}
-                      >
-                        <span className={styles.moreIcon}>
-                          <Bookmark
-                            size={22}
-                            strokeWidth={1.75}
-                            fill={saved ? 'currentColor' : 'none'}
-                          />
-                        </span>
-                        <span className={styles.moreLabel}>게시글 저장</span>
-                      </button>
-                    ) : (
-                      <Link
-                        href={`${myUltaryPath(nickname)}/write/compose?editFeedId=${encodeURIComponent(id)}`}
-                        className={styles.moreItem}
-                        role="menuitem"
-                        onClick={() => {
-                          setMoreOpen(false);
-                          useWriteDraftStore.getState().clear();
-                        }}
-                      >
-                        <span className={styles.moreIcon}>
-                          <Pencil size={22} strokeWidth={1.75} />
-                        </span>
-                        <span className={styles.moreLabel}>게시글 수정</span>
-                      </Link>
-                    )}
-                    {isMine ? (
-                      <button
-                        type="button"
-                        className={styles.moreItem}
-                        role="menuitem"
-                        disabled={deletePending}
-                        onClick={askDelete}
-                      >
-                        <span className={styles.moreIcon}>
-                          <Trash2 size={22} strokeWidth={1.75} />
-                        </span>
-                        <span className={styles.moreLabel}>삭제</span>
-                      </button>
-                    ) : null}
-                    {canReport ? (
-                      <button
-                        type="button"
-                        className={styles.moreItem}
-                        role="menuitem"
-                        onClick={askReport}
-                      >
-                        <span className={styles.moreIcon}>
-                          <Flag size={22} strokeWidth={1.75} />
-                        </span>
-                        <span className={styles.moreLabel}>
-                          {canCancelReport(myReport) ? '신고취소' : '신고하기'}
-                        </span>
-                      </button>
-                    ) : null}
-                  </div>
-                ) : null}
+                  {myReport ? (
+                    <button
+                      type="button"
+                      className={clsx(styles.actionBtn, styles.reportIndicator)}
+                      aria-label="신고한 게시글 추가 메뉴"
+                      aria-expanded={moreOpen}
+                      onClick={() => {
+                        setMorePlace(null);
+                        setMoreOpen((open) => !open);
+                      }}
+                    >
+                      <Siren size={25} strokeWidth={2} aria-hidden />
+                    </button>
+                  ) : null}
+                  {moreOpen ? (
+                    <div
+                      ref={moreMenuRef}
+                      className={styles.moreMenu}
+                      role="menu"
+                      style={
+                        morePlace
+                          ? { top: morePlace.top, left: morePlace.left }
+                          : { visibility: 'hidden' }
+                      }
+                    >
+                      {!isMine ? (
+                        <button
+                          type="button"
+                          className={styles.moreItem}
+                          role="menuitem"
+                          disabled={savePending}
+                          onClick={() => {
+                            setMoreOpen(false);
+                            void toggleSave();
+                          }}
+                        >
+                          <span className={styles.moreIcon}>
+                            <Bookmark
+                              size={22}
+                              strokeWidth={1.75}
+                              fill={saved ? 'currentColor' : 'none'}
+                            />
+                          </span>
+                          <span className={styles.moreLabel}>게시글 저장</span>
+                        </button>
+                      ) : (
+                        <Link
+                          href={`${myUltaryPath(nickname)}/write/compose?editFeedId=${encodeURIComponent(id)}`}
+                          className={styles.moreItem}
+                          role="menuitem"
+                          onClick={() => {
+                            setMoreOpen(false);
+                            useWriteDraftStore.getState().clear();
+                          }}
+                        >
+                          <span className={styles.moreIcon}>
+                            <Pencil size={22} strokeWidth={1.75} />
+                          </span>
+                          <span className={styles.moreLabel}>게시글 수정</span>
+                        </Link>
+                      )}
+                      {isMine ? (
+                        <button
+                          type="button"
+                          className={styles.moreItem}
+                          role="menuitem"
+                          disabled={deletePending}
+                          onClick={askDelete}
+                        >
+                          <span className={styles.moreIcon}>
+                            <Trash2 size={22} strokeWidth={1.75} />
+                          </span>
+                          <span className={styles.moreLabel}>삭제</span>
+                        </button>
+                      ) : null}
+                      {canReport ? (
+                        <button
+                          type="button"
+                          className={styles.moreItem}
+                          role="menuitem"
+                          onClick={askReport}
+                        >
+                          <span className={styles.moreIcon}>
+                            <Flag size={22} strokeWidth={1.75} />
+                          </span>
+                          <span className={styles.moreLabel}>
+                            {canCancelReport(myReport) ? '신고취소' : '신고하기'}
+                          </span>
+                        </button>
+                      ) : null}
+                    </div>
+                  ) : null}
+                </div>
               </div>
-            </div>
-          ) : null}
-        </div>
+            ) : null}
+          </div>
 
-        <div className={styles.captionWrap}>
-          <p ref={captionRef} className={clsx(styles.caption, !expanded && styles.captionClamped)}>
-            {showAuthor ? <strong className={styles.captionNick}>{nickname}</strong> : null}
-            {showAuthor ? ' ' : null}
-            {captionParts.map((part, i) => {
-              if (part.type !== 'tag') {
-                return <span key={`t-${i}`}>{part.value}</span>;
-              }
-              return (
-                <button
-                  key={`tag-${i}-${part.value}`}
-                  type="button"
-                  data-tag-trigger="true"
-                  className={styles.captionTag}
-                  onMouseDown={(e) => {
-                    // 버튼 포커스 스크롤이 모달 scroll-close를 유발하지 않게
-                    e.preventDefault();
-                  }}
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    openTagActive(part.value, e.currentTarget);
-                  }}
-                  onMouseEnter={(e) => {
-                    // 터치 기기의 sticky hover / 합성 mouseenter 무시
-                    if (lastPointerTypeRef.current !== 'mouse') return;
-                    hoverTagRef.current = part.value.replace(/^#/, '').trim();
-                    scheduleHoverPreview(part.value, e.currentTarget);
-                  }}
-                  onMouseLeave={() => {
-                    if (lastPointerTypeRef.current !== 'mouse') return;
-                    hoverTagRef.current = null;
-                    clearHoverOpenTimer();
-                    scheduleCloseIfPreview(Date.now());
-                  }}
-                >
-                  {part.value}
+          <div className={styles.captionWrap}>
+            <p
+              ref={captionRef}
+              className={clsx(styles.caption, !expanded && styles.captionClamped)}
+            >
+              {showAuthor ? (
+                <strong className={styles.captionNick}>{nicknameTag(nickname)}</strong>
+              ) : null}
+              {showAuthor ? ' ' : null}
+              {captionParts.map((part, i) => {
+                if (part.type !== 'tag') {
+                  return <span key={`t-${i}`}>{part.value}</span>;
+                }
+                return (
+                  <button
+                    key={`tag-${i}-${part.value}`}
+                    type="button"
+                    data-tag-trigger="true"
+                    className={styles.captionTag}
+                    onMouseDown={(e) => {
+                      // 버튼 포커스 스크롤이 모달 scroll-close를 유발하지 않게
+                      e.preventDefault();
+                    }}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      openTagActive(part.value, e.currentTarget);
+                    }}
+                    onMouseEnter={(e) => {
+                      // 터치 기기의 sticky hover / 합성 mouseenter 무시
+                      if (lastPointerTypeRef.current !== 'mouse') return;
+                      hoverTagRef.current = part.value.replace(/^#/, '').trim();
+                      scheduleHoverPreview(part.value, e.currentTarget);
+                    }}
+                    onMouseLeave={() => {
+                      if (lastPointerTypeRef.current !== 'mouse') return;
+                      hoverTagRef.current = null;
+                      clearHoverOpenTimer();
+                      scheduleCloseIfPreview(Date.now());
+                    }}
+                  >
+                    {part.value}
+                  </button>
+                );
+              })}
+            </p>
+            {!expanded && needsMore ? (
+              <span className={styles.moreFade}>
+                <button type="button" className={styles.moreBtn} onClick={() => setExpanded(true)}>
+                  ...더보기
                 </button>
-              );
-            })}
-          </p>
-          {!expanded && needsMore ? (
-            <span className={styles.moreFade}>
-              <button type="button" className={styles.moreBtn} onClick={() => setExpanded(true)}>
-                ...더보기
-              </button>
-            </span>
+              </span>
+            ) : null}
+          </div>
+          {createdAt ? (
+            <RevealTime {...formatFeedTime(createdAt)} className={styles.postedAt} />
           ) : null}
         </div>
-        {createdAt ? (
-          <RevealTime {...formatFeedTime(createdAt)} className={styles.postedAt} />
-        ) : null}
       </div>
 
       {tagOpen ? (

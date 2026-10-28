@@ -18,7 +18,7 @@ export function signupFieldErrors(error: unknown): Record<string, string> {
   const code = payload.code ?? payload.message;
   const duplicate: Record<string, [string, string]> = {
     PHONE_ALREADY_USED: ['phone', '이미 가입된 휴대폰 번호입니다.'],
-    NICKNAME_DUPLICATED: ['nickname', '이미 사용 중인 닉네임입니다.'],
+    NICKNAME_DUPLICATED: ['nickname', '이미 사용 중인 닉네임태그입니다.'],
     EMAIL_DUPLICATED: ['email', '이미 사용 중인 이메일입니다.'],
   };
   if (typeof code === 'string' && duplicate[code]) {

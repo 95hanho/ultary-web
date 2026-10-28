@@ -3,7 +3,8 @@
   z-index: 10;
   display: flex;
   width: 100%;
-  max-width: 430px;
+  max-width: 550px;
+  min-width: 375px;
   height: 100dvh;
   max-height: 100dvh;
   margin: 0 auto;
@@ -30,6 +31,7 @@
 
 .roomBlock {
   border-bottom: 1px solid var(--brand-gray-100);
+  background: rgba(243, 254, 255, 0.88);
 
   &:hover {
     background: var(--brand-grass-100);
@@ -301,6 +303,24 @@
   font-size: 14px;
   line-height: 1.4;
   word-break: break-word;
+}
+
+@media (min-width: 690px) {
+  .roomNick {
+    font-size: 16px;
+  }
+
+  .roomPreview {
+    font-size: 15px;
+  }
+
+  .roomTime {
+    font-size: 13px;
+  }
+
+  .bubbleText {
+    font-size: 16px;
+  }
 }
 
 .bubbleMeta {

@@ -6,7 +6,7 @@ import type { FileSummary } from './file';
 export type Pet = {
   petId: number;
   userNo: number;
-  mentionId: string;
+  mentionId?: string;
   name: string;
   species: PetSpecies;
   breed: string | null;
@@ -16,8 +16,10 @@ export type Pet = {
   profileFileId: number | null;
   /** 읽기 응답 임베드 */
   profileFile?: FileSummary | null;
-  /** 작을수록 우선. 1이 가장 높음. 사진 있는 펫 중 가장 높은 값이 유저 프로필 사진 */
+  /** 작을수록 우선. 첫 번째 활성 펫이 대표 프로필이며 사진이 없으면 기본 이미지 */
   priority: number;
   bio: string | null;
 } & Timestamps &
   SoftDelete;
+
+export type SubjectPet = { petId: number; name: string; profileFile?: FileSummary | null };

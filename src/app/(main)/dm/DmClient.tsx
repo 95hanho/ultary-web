@@ -1,4 +1,5 @@
 'use client';
+import { nicknameTag } from '@/lib/nickname-tag';
 import { useResettableState } from '@/lib/react/useResettableState';
 
 import { PageLoadError } from '@/components/common/PageLoadError';
@@ -332,7 +333,7 @@ function ShareCard({ share }: { share: DmShareCard }) {
             <Link
               href={ownerStoryHref}
               className={styles.shareAuthorAvatar}
-              aria-label={`${share.authorNickname} 스토리 보기`}
+              aria-label={`${nicknameTag(share.authorNickname)} 스토리 보기`}
             >
               {avatar}
             </Link>
@@ -341,7 +342,7 @@ function ShareCard({ share }: { share: DmShareCard }) {
           )}
           {share.authorNickname ? (
             <Link href={myUltaryPath(share.authorNickname)} className={styles.shareAuthorName}>
-              {share.authorNickname}
+              {nicknameTag(share.authorNickname)}
             </Link>
           ) : null}
         </span>
@@ -832,7 +833,7 @@ export default function DmClient({ roomId, feedId, feedMediaId, storyId }: DmCli
                 <Link
                   href={`/stories?${new URLSearchParams({ userNo: active.peerUserNo, nickname: peerNickname, single: '1' }).toString()}`}
                   className={styles.threadPeerAvatar}
-                  aria-label={`${peerNickname} 스토리 보기`}
+                  aria-label={`${nicknameTag(peerNickname)} 스토리 보기`}
                 >
                   {avatar}
                 </Link>
@@ -841,7 +842,7 @@ export default function DmClient({ roomId, feedId, feedMediaId, storyId }: DmCli
               )}
               {peerNickname ? (
                 <Link href={myUltaryPath(peerNickname)} className={styles.threadPeerName}>
-                  {peerNickname}
+                  {nicknameTag(peerNickname)}
                 </Link>
               ) : (
                 <span className={styles.threadPeerName}>메시지</span>
@@ -1043,7 +1044,7 @@ export default function DmClient({ roomId, feedId, feedMediaId, storyId }: DmCli
                     </span>
                     <span className={styles.roomBody}>
                       <span className={styles.roomTop}>
-                        <strong className={styles.roomNick}>{room.nickname}</strong>
+                        <strong className={styles.roomNick}>{nicknameTag(room.nickname)}</strong>
                         <RevealTime
                           label={room.timeLabel}
                           absolute={room.absoluteLabel}

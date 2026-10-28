@@ -1,4 +1,5 @@
 'use client';
+import { SubjectPetPicker } from '@/components/common/SubjectPetPicker';
 
 import { FooterMenu } from '@/components/common/FooterMenu';
 import { PageHeader } from '@/components/common/PageHeader';
@@ -63,6 +64,8 @@ export default function StoryUpClient() {
   const kind = useStoryDraftStore((s) => s.kind);
   const fileName = useStoryDraftStore((s) => s.fileName);
   const texts = useStoryDraftStore((s) => s.texts);
+  const subjectPetIds = useStoryDraftStore((s) => s.subjectPetIds);
+  const setSubjectPetIds = useStoryDraftStore((s) => s.setSubjectPetIds);
   const petTags = useStoryDraftStore((s) => s.petTags);
   const upsertText = useStoryDraftStore((s) => s.upsertText);
   const removeText = useStoryDraftStore((s) => s.removeText);
@@ -226,6 +229,7 @@ export default function StoryUpClient() {
 
       await bffPostJson(bffEndpoints.myUltary.stories, {
         fileId,
+        subjectPetIds: draft.subjectPetIds,
         mediaType,
         texts: overlay.texts,
         mentions: overlay.mentions,
@@ -329,13 +333,13 @@ export default function StoryUpClient() {
     };
   };
 
-  const handleSelectPet = (pet: { petId: number; petTag: string }) => {
+  const handleSelectPet = (pet: { petId: number; petName: string }) => {
     const point = pendingPoint.current;
     if (!point) {
       setSearchOpen(false);
       return;
     }
-    addPetTag({ petId: pet.petId, petTag: pet.petTag, x: point.x, y: point.y });
+    addPetTag({ petId: pet.petId, petName: pet.petName, x: point.x, y: point.y });
     pendingPoint.current = null;
     setSearchOpen(false);
   };
@@ -366,6 +370,11 @@ export default function StoryUpClient() {
 
       <main className={styles.main}>
         <div className={styles.scroll}>
+          <SubjectPetPicker
+            value={subjectPetIds}
+            onChange={setSubjectPetIds}
+            disabled={submitting}
+          />
           <div className={styles.stageWrap}>
             <div
               ref={stageRef}
@@ -392,13 +401,13 @@ export default function StoryUpClient() {
                   type="button"
                   className={styles.petTagBox}
                   style={{ left: `${tag.x * 100}%`, top: `${tag.y * 100}%` }}
-                  aria-label={`${tag.petTag} 삭제`}
+                  aria-label={`${tag.petName} 삭제`}
                   onClick={(e) => {
                     e.stopPropagation();
                     removePetTag(tag.id);
                   }}
                 >
-                  {tag.petTag}
+                  {tag.petName}
                 </button>
               ))}
 

@@ -1,4 +1,5 @@
 'use client';
+import { nicknameTag } from '@/lib/nickname-tag';
 
 import { PageLoadError } from '@/components/common/PageLoadError';
 
@@ -6,8 +7,8 @@ import { FeedListPage } from '@/components/feed/FeedListPage';
 import type { FeedData } from '@/components/feed/Feed';
 import { bffGet } from '@/lib/api/bffFetch';
 import { bffEndpoints } from '@/lib/api/endpoints';
-import { toFeedData } from '@/lib/feed/toFeedData';
-import { MY_NICKNAME, myUltaryPath } from '@/lib/mock/ultary-accounts';
+import { loadCollectionFeeds } from '@/lib/myultary/loadCollectionFeeds';
+import { myUltaryPath } from '@/lib/mock/ultary-accounts';
 import { gridFeedIds } from '@/lib/myultary/fromApi';
 import { mapSearchUsers } from '@/lib/search/accounts';
 import type { BffEnvelope, MeResponse } from '@/types/api';
@@ -17,15 +18,6 @@ import { useEffect, useState } from 'react';
 type FeedCollectionClientProps = {
   kind: 'pinned' | 'tagged';
 };
-
-async function loadFeedCards(ids: string[]): Promise<FeedData[]> {
-  const details = await Promise.all(
-    ids.map((id) =>
-      bffGet<BffEnvelope<unknown>>(bffEndpoints.feeds.detail, { feedId: id }),
-    ),
-  );
-  return details.map((res, i) => toFeedData(res.data, ids[i] ?? `feed-${i}`));
-}
 
 /** 고정·태그 그리드에서 들어온 게시글 리스트 */
 export function FeedCollectionClient({ kind }: FeedCollectionClientProps) {
@@ -48,7 +40,7 @@ export function FeedCollectionClient({ kind }: FeedCollectionClientProps) {
         if (postId) await bffGet(bffEndpoints.feeds.detail, { feedId: postId });
         const meRes = await bffGet<BffEnvelope<MeResponse>>(bffEndpoints.auth.me);
         const meNick = meRes.data?.nickname?.trim() ?? '';
-        const isMine = nickname === MY_NICKNAME || (meNick !== '' && nickname === meNick);
+        const isMine = meNick !== '' && nickname === meNick;
         if (!cancelled) setOwnerName(isMine && meNick ? meNick : nickname);
 
         let listRes: BffEnvelope<unknown>;
@@ -81,7 +73,7 @@ export function FeedCollectionClient({ kind }: FeedCollectionClientProps) {
         }
 
         const ids = gridFeedIds(listRes.data);
-        const next = ids.length > 0 ? await loadFeedCards(ids) : [];
+        const next = ids.length > 0 ? await loadCollectionFeeds(ids, postId) : [];
         if (!cancelled) setFeeds(next);
       } catch (err) {
         console.error('[myultary] collection load failed', err);
@@ -104,13 +96,12 @@ export function FeedCollectionClient({ kind }: FeedCollectionClientProps) {
         kind === 'tagged'
           ? '태그된 피드'
           : ownerName
-            ? `${ownerName}님의 고정 피드`
+            ? `${nicknameTag(ownerName)}님의 고정 피드`
             : ''
       }
       backHref={myUltaryPath(nickname)}
       feeds={feeds}
       focusId={postId}
-      showAuthor={kind === 'tagged'}
     />
   );
 }

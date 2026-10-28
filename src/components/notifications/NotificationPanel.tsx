@@ -1,5 +1,6 @@
 'use client';
 
+import { nicknameTag } from '@/lib/nickname-tag';
 import { EmptyState } from '@/components/common/EmptyState';
 import { MY_NICKNAME, OTHER_NICKNAME, myUltaryPath } from '@/lib/mock/ultary-accounts';
 import { MediaImage } from '@/components/common/MediaImage';
@@ -57,7 +58,7 @@ export function NotificationPanel({ compact = false }: { compact?: boolean }) {
             <Link
               href={myUltaryPath(item.nickname)}
               className={styles.avatar}
-              aria-label={`${item.nickname} 울타리`}
+              aria-label={`${nicknameTag(item.nickname)} 울타리`}
             >
               <MediaImage
                 src={item.profileUrl}
@@ -73,7 +74,7 @@ export function NotificationPanel({ compact = false }: { compact?: boolean }) {
                   href={myUltaryPath(item.nickname)}
                   className={styles.nick}
                 >
-                  {item.nickname}
+                  {nicknameTag(item.nickname)}
                 </Link>
                 {item.message}
               </p>

@@ -1,5 +1,6 @@
 'use client';
 
+import { nicknameTag } from '@/lib/nickname-tag';
 import { PageLoadError } from '@/components/common/PageLoadError';
 import { httpErrorStatus } from '@/lib/api/error';
 
@@ -115,13 +116,13 @@ export default function ReportListClient() {
                     {item.targetSuspended ? <span className={styles.tableMuted + ' ' + styles.suspendedMember}>정지된 회원</span> : null}
                   </td>
                   <td>
-                    <span className={styles.tableText} title={item.targetNickname}>
-                      {item.targetUserNo != null ? (item.targetNickname || '알 수 없는 사용자') + '(' + item.targetUserNo + ')' : '–'}
+                    <span className={styles.tableText} title={nicknameTag(item.targetNickname)}>
+                      {item.targetUserNo != null ? (item.targetNickname ? nicknameTag(item.targetNickname) : '알 수 없는 사용자') + '(' + item.targetUserNo + ')' : '–'}
                     </span>
                   </td>
                   <td>
-                    <span className={styles.tableText} title={item.reporterNickname}>
-                      {item.reporterUserNo != null ? (item.reporterNickname || '알 수 없는 사용자') + '(' + item.reporterUserNo + ')' : '–'}
+                    <span className={styles.tableText} title={nicknameTag(item.reporterNickname)}>
+                      {item.reporterUserNo != null ? (item.reporterNickname ? nicknameTag(item.reporterNickname) : '알 수 없는 사용자') + '(' + item.reporterUserNo + ')' : '–'}
                     </span>
                   </td>
                   <td className={styles.tableDate}>{item.createdAt ? formatWhen(item.createdAt) : '–'}</td>

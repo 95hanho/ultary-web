@@ -10,9 +10,9 @@ import { springPatchJson } from '@/lib/api/springFetch';
 import { validateNickname } from '@/lib/auth/signup-rules';
 import type { ChangeNicknameRequest } from '@/types/api';
 
-/** BFF /api/auth/me/nickname — PATCH 닉네임 변경 */
+/** BFF /api/auth/me/nickname — PATCH 닉네임태그 변경 */
 export async function PATCH(request: NextRequest) {
-  console.log('[API] 닉네임 변경');
+  console.log('[API] 닉네임태그 변경');
   try {
     const accessToken = await requireAccessToken();
     if (isUnauthorized(accessToken)) return accessToken;
@@ -21,7 +21,7 @@ export async function PATCH(request: NextRequest) {
     const nickname = body.nickname?.trim();
     if (!nickname) {
       return NextResponse.json(
-        { message: 'INVALID_INPUT', detail: '닉네임을 입력해주세요.' },
+        { message: 'INVALID_INPUT', detail: '닉네임태그를 입력해주세요.' },
         { status: 400 },
       );
     }

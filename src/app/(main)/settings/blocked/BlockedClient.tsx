@@ -1,5 +1,6 @@
 'use client';
 
+import { nicknameTag } from '@/lib/nickname-tag';
 import { PageLoadError } from '@/components/common/PageLoadError';
 
 import { FooterMenu } from '@/components/common/FooterMenu';
@@ -152,7 +153,7 @@ export default function BlockedClient() {
                     <Link
                       href={ultaryHref}
                       className={styles.imageWrap}
-                      aria-label={`${item.nickname} 울타리`}
+                      aria-label={`${nicknameTag(item.nickname)} 울타리`}
                     >
                       <MediaImage
                         src={item.profileUrl}
@@ -176,10 +177,10 @@ export default function BlockedClient() {
                   <div className={styles.info}>
                     {ultaryHref ? (
                       <Link href={ultaryHref} className={styles.nickname}>
-                        {item.nickname}
+                        {nicknameTag(item.nickname)}
                       </Link>
                     ) : (
-                      <span className={styles.nickname}>{item.nickname}</span>
+                      <span className={styles.nickname}>{nicknameTag(item.nickname)}</span>
                     )}
                     <span className={styles.time}>{item.blocked ? item.blockedAtLabel : '차단 해제됨'}</span>
                   </div>

@@ -23,9 +23,9 @@ export const bffEndpoints = {
     logout: '/api/auth/logout',
     /** GET 내 회원정보 */
     me: '/api/auth/me',
-    /** PATCH 회원정보 변경 (닉네임 제외) */
+    /** PATCH 회원정보 변경 (닉네임태그 제외) */
     updateMe: '/api/auth/me',
-    /** PATCH 닉네임 변경 */
+    /** PATCH 닉네임태그 변경 */
     changeNickname: '/api/auth/me/nickname',
     /** DELETE 회원탈퇴 */
     withdraw: '/api/auth/me',
@@ -79,6 +79,9 @@ export const bffEndpoints = {
   },
 
   myUltary: {
+    links: '/api/my-ultary/links',
+    link: '/api/my-ultary/links/:targetUserNo',
+    linksSearch: '/api/my-ultary/links/search',
     /** GET 마이울타리 정보 */
     profile: '/api/my-ultary',
     /** GET MY 게시글 그리드 */
@@ -111,8 +114,6 @@ export const bffEndpoints = {
     root: '/api/pets',
     /** PATCH 수정 (profileFileId·priority 포함) / DELETE 삭제 */
     detail: '/api/pets/:petId',
-    /** PATCH 멘션 ID 변경 */
-    mentionId: '/api/pets/:petId/mention-id',
     /** POST 피드 반려동물 태그 승인 */
     tagApprove: '/api/pets/tags/:feedPetId/approve',
     /** POST 피드 반려동물 태그 거절 */
@@ -164,6 +165,8 @@ export const bffEndpoints = {
   },
 
   users: {
+    ultaryLinks: '/api/users/:userNo/ultary-links',
+    petFeeds: '/api/users/:userNo/pet-feeds',
     /** GET 다른 유저 울타리 정보 */
     ultary: '/api/users/:userNo/ultary',
     /** GET 그 유저의 펫 목록 */
@@ -278,10 +281,8 @@ export const bffEndpoints = {
   test: {
     /** DELETE 내 스토리 읽음 전부 초기화 */
     storyViews: '/api/test/story-views',
-    /** POST 닉네임 변경 쿨다운 초기화 */
+    /** POST 닉네임태그 변경 쿨다운 초기화 */
     nicknameCooldown: '/api/test/nickname-cooldown',
-    /** POST 펫 멘션 ID 변경 쿨다운 초기화 */
-    mentionIdCooldown: '/api/test/pets/:petId/mention-id-cooldown',
     /** DELETE 내 리프레시 토큰 전부 폐기 */
     tokens: '/api/test/tokens',
     /** POST development — access 쿠키와 만료 표시만 삭제. Spring 호출 없음 */
@@ -316,9 +317,9 @@ export const springEndpoints = {
     logout: '/api/v1/auth/logout',
     /** GET */
     me: '/api/v1/auth/me',
-    /** PATCH 회원정보 (닉네임 제외) */
+    /** PATCH 회원정보 (닉네임태그 제외) */
     updateMe: '/api/v1/auth/me',
-    /** PATCH 닉네임 */
+    /** PATCH 닉네임태그 */
     changeNickname: '/api/v1/auth/me/nickname',
     /** DELETE */
     withdraw: '/api/v1/auth/me',
@@ -366,6 +367,9 @@ export const springEndpoints = {
   },
 
   myUltary: {
+    links: '/api/v1/my-ultary/links',
+    link: '/api/v1/my-ultary/links/:targetUserNo',
+    linksSearch: '/api/v1/my-ultary/links/search',
     /** GET */
     profile: '/api/v1/my-ultary',
     /** GET */
@@ -399,7 +403,6 @@ export const springEndpoints = {
     /** PATCH / DELETE */
     detail: '/api/v1/pets/:petId',
     /** PATCH 멘션 ID */
-    mentionId: '/api/v1/pets/:petId/mention-id',
     /** POST */
     tagApprove: '/api/v1/pets/tags/:feedPetId/approve',
     /** POST */
@@ -451,6 +454,8 @@ export const springEndpoints = {
   },
 
   users: {
+    ultaryLinks: '/api/v1/users/:userNo/ultary-links',
+    petFeeds: '/api/v1/users/:userNo/pet-feeds',
     /** GET */
     ultary: '/api/v1/users/:userNo/ultary',
     /** GET */
@@ -565,7 +570,6 @@ export const springEndpoints = {
     /** POST Bearer — nickname_changed_at 을 올해 1월 1일로 */
     nicknameCooldown: '/api/v1/test/nickname-cooldown',
     /** POST Bearer — mention_id_changed_at 을 올해 1월 1일로 */
-    mentionIdCooldown: '/api/v1/test/pets/:petId/mention-id-cooldown',
     /** DELETE Bearer — 내 ultary_token 리프레시 행 전부 폐기. local 프로필만 */
     tokens: '/api/v1/test/tokens',
   },

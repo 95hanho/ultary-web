@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         {
           message: 'INVALID_INPUT',
-          detail: '비밀번호와 닉네임을 입력해주세요.',
+          detail: '비밀번호와 닉네임태그를 입력해주세요.',
         },
         { status: 400 },
       );

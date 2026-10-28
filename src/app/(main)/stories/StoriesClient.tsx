@@ -1,9 +1,12 @@
 'use client';
+import { nicknameTag } from '@/lib/nickname-tag';
+import { PetNamesAndNicknameTag } from '@/components/common/PetNamesAndNicknameTag';
+import { PetProfileGroup } from '@/components/my-ultary/PetProfileGroup';
+import type { SubjectPet } from '@/types/pet';
 import { useResettableState } from '@/lib/react/useResettableState';
 
 import { PageLoadError } from '@/components/common/PageLoadError';
 
-import { Profile } from '@/components/my-ultary/Profile';
 import { MediaImage } from '@/components/common/MediaImage';
 import { StoryDevTools } from '@/components/dev/StoryDevTools';
 import { bffDelete, bffGet, bffPostJson } from '@/lib/api/bffFetch';
@@ -31,6 +34,9 @@ import {
 import styles from './stories.module.scss';
 
 type StorySlide = {
+  subjectPets: SubjectPet[];
+  subjectNames: string[];
+  subjectProfile?: string | null;
   storyId: number;
   userNo: number;
   kind: 'image' | 'video';
@@ -81,6 +87,9 @@ function toSlide(story: Story): StorySlide {
     resolveFileDisplayUrl(story.thumbnailFile) ??
     FALLBACK_MEDIA;
   return {
+    subjectProfile: resolveFileDisplayUrl(story.subjectPets?.[0]?.profileFile),
+    subjectPets: story.subjectPets ?? [],
+    subjectNames: (story.subjectPets ?? []).map((pet) => pet.name),
     storyId: story.storyId,
     userNo: story.userNo,
     kind: story.mediaType === 'VIDEO' ? 'video' : 'image',
@@ -259,9 +268,7 @@ export default function StoriesClient({
         setOwners(ownerList);
 
         const first = list[0];
-        const nick = onlyStoryId
-          ? first?.nickname?.trim() || first?.authorNickname?.trim() || nicknameHint || 'ULTARY'
-          : nicknameHint || first?.nickname?.trim() || first?.authorNickname?.trim() || 'ULTARY';
+        const nick = first?.authorNickname?.trim() || first?.nickname?.trim() || nicknameHint || 'ULTARY';
         setNickname(nick);
         setProfileUrl(resolveFileDisplayUrl(first?.authorProfileFile) ?? FALLBACK_PROFILE);
 
@@ -724,10 +731,19 @@ export default function StoriesClient({
             <Link
               href={myUltaryPath(nickname)}
               className={styles.profileLeft}
-              aria-label={`${nickname} 울타리`}
+              aria-label={`${nicknameTag(nickname)} 울타리`}
             >
-              <Profile imageUrl={profileUrl} size={44} story="none" />
-              <span className={styles.nickname}>{nickname}</span>
+              <PetProfileGroup
+                pets={current?.subjectPets ?? []}
+                fallbackImage={profileUrl}
+                size={44}
+                story="read"
+              />
+              <PetNamesAndNicknameTag
+                nickname={nickname}
+                petNames={current?.subjectNames ?? []}
+                tone="media"
+              />
             </Link>
             <div className={styles.actions}>
               {/* 더보기. 메뉴가 정해지면 다시 연다.
@@ -797,8 +813,8 @@ export default function StoriesClient({
               <input
                 className={styles.replyField}
                 value={reply}
-                placeholder={`${nickname}님에게 답장하기...`}
-                aria-label={`${nickname}님에게 답장하기`}
+                placeholder={`${nicknameTag(nickname)}님에게 답장하기...`}
+                aria-label={`${nicknameTag(nickname)}님에게 답장하기`}
                 maxLength={500}
                 autoComplete="off"
                 onChange={(event) => {
@@ -917,8 +933,6 @@ function ReplySentNotice() {
 }
 
 function mentionLabel(mention: StoryMention): string {
-  const id = mention.mentionId?.trim();
-  if (id) return id.startsWith('@') ? id : `@${id}`;
   const name = mention.petName?.trim();
   return name || '태그된 펫';
 }

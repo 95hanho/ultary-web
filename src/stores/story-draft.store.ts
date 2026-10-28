@@ -17,12 +17,14 @@ export type StoryTextBox = {
 export type StoryPetTag = {
   id: string;
   petId: number;
-  petTag: string;
+  petName: string;
   x: number;
   y: number;
 };
 
 type StoryDraftState = {
+  subjectPetIds: number[];
+  setSubjectPetIds: (ids: number[]) => void;
   sourceUrl: string | null;
   /** 이미지 크롭 결과 */
   croppedDataUrl: string | null;
@@ -32,11 +34,7 @@ type StoryDraftState = {
   fileName: string;
   texts: StoryTextBox[];
   petTags: StoryPetTag[];
-  setMedia: (payload: {
-    sourceUrl: string;
-    kind: 'image' | 'video';
-    fileName: string;
-  }) => void;
+  setMedia: (payload: { sourceUrl: string; kind: 'image' | 'video'; fileName: string }) => void;
   setCrop: (croppedDataUrl: string, cropRect: NormalizedCrop | null) => void;
   clearEdits: () => void;
   setTexts: (texts: StoryTextBox[]) => void;
@@ -48,6 +46,8 @@ type StoryDraftState = {
 };
 
 export const useStoryDraftStore = create<StoryDraftState>((set) => ({
+  subjectPetIds: [],
+  setSubjectPetIds: (subjectPetIds) => set({ subjectPetIds }),
   sourceUrl: null,
   croppedDataUrl: null,
   cropRect: null,
@@ -57,6 +57,7 @@ export const useStoryDraftStore = create<StoryDraftState>((set) => ({
   petTags: [],
   setMedia: ({ sourceUrl, kind, fileName }) =>
     set({
+      subjectPetIds: [],
       sourceUrl,
       kind,
       fileName,
@@ -84,7 +85,7 @@ export const useStoryDraftStore = create<StoryDraftState>((set) => ({
         {
           id: tag.id ?? `st-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
           petId: tag.petId,
-          petTag: tag.petTag,
+          petName: tag.petName,
           x: tag.x,
           y: tag.y,
         },
@@ -93,6 +94,7 @@ export const useStoryDraftStore = create<StoryDraftState>((set) => ({
   removePetTag: (id) => set((state) => ({ petTags: state.petTags.filter((t) => t.id !== id) })),
   clear: () =>
     set({
+      subjectPetIds: [],
       sourceUrl: null,
       croppedDataUrl: null,
       cropRect: null,

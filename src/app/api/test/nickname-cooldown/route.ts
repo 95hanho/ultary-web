@@ -24,7 +24,7 @@ export async function POST() {
     );
   }
 
-  console.log('[API] 테스트 · 닉네임 변경 기간 초기화');
+  console.log('[API] 테스트 · 닉네임태그 변경 기간 초기화');
   try {
     const accessToken = await requireAccessToken();
     if (isUnauthorized(accessToken)) return accessToken;

@@ -1,3 +1,4 @@
+import type { SubjectPet } from './pet';
 import type { DateTimeString, SoftDelete, Timestamps } from './common';
 import type { FileSummary } from './file';
 
@@ -9,6 +10,7 @@ export type StoryMediaType = 'IMAGE' | 'VIDEO';
  * 링 메타 + 유저 프로필. 스토리 미디어는 GET /main/stories?userNo=
  */
 export type StoryOwner = {
+  subjectPets?: SubjectPet[];
   userNo: number;
   nickname: string;
   /** ultary_story_view 기준 안 읽은 활성 스토리 여부 */
@@ -22,6 +24,7 @@ export type StoryOwner = {
  * FileSummary 임베드 + 단건 읽음 여부
  */
 export type Story = {
+  subjectPets?: SubjectPet[];
   storyId: number;
   userNo: number;
   mediaType: StoryMediaType;
@@ -71,6 +74,7 @@ export type StoryMention = {
 
 /** POST /my-ultary/stories — 파일 업로드 후 fileId와 사진 위 글자·멘션 */
 export type CreateStoryRequest = {
+  subjectPetIds?: number[];
   fileId: number;
   mediaType: StoryMediaType;
   texts: StoryText[];

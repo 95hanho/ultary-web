@@ -22,7 +22,7 @@ export type WriteDraftItem = {
 export type WritePhotoPetTag = {
   id: string;
   /** `@choco_01` */
-  petTag: string;
+  petName: string;
   petId?: number;
   /** 이미지 기준 가로 비율 0~1 */
   x: number;
@@ -31,12 +31,20 @@ export type WritePhotoPetTag = {
 };
 
 type WriteDraftState = {
+  subjectPetIds: number[];
+  setSubjectPetIds: (ids: number[]) => void;
   items: WriteDraftItem[];
   caption: string;
   visibility: FeedVisibility | null;
   setVisibility: (visibility: FeedVisibility) => void;
   editingFeedId: string | null;
-  beginEditing: (feedId: string, items: WriteDraftItem[], caption: string, visibility: FeedVisibility) => void;
+  beginEditing: (
+    feedId: string,
+    items: WriteDraftItem[],
+    caption: string,
+    visibility: FeedVisibility,
+    subjectPetIds?: number[],
+  ) => void;
   /** 사진 설정에서 보고 있던 장. 작성 화면에서 돌아오면 이 장부터 */
   cropIndex: number;
   setItems: (items: WriteDraftItem[]) => void;
@@ -50,14 +58,25 @@ type WriteDraftState = {
 
 /** 게시글 작성 중 임시 미디어·본문 (새로고침 시 초기화) */
 export const useWriteDraftStore = create<WriteDraftState>((set) => ({
+  subjectPetIds: [],
+  setSubjectPetIds: (subjectPetIds) => set({ subjectPetIds }),
   items: [],
   caption: '',
-  visibility: null,
+  visibility: 'PUBLIC',
   setVisibility: (visibility) => set({ visibility }),
   editingFeedId: null,
-  beginEditing: (feedId, items, caption, visibility) => set({ editingFeedId: feedId, items, caption, visibility, cropIndex: 0 }),
+  beginEditing: (feedId, items, caption, visibility, subjectPetIds = []) =>
+    set({ subjectPetIds, editingFeedId: feedId, items, caption, visibility, cropIndex: 0 }),
   cropIndex: 0,
-  setItems: (items) => set((state) => ({ items, cropIndex: 0, editingFeedId: null, visibility: state.editingFeedId ? null : state.visibility, caption: state.editingFeedId ? '' : state.caption })),
+  setItems: (items) =>
+    set((state) => ({
+      items,
+      cropIndex: 0,
+      editingFeedId: null,
+      subjectPetIds: state.editingFeedId ? [] : state.subjectPetIds,
+      visibility: state.editingFeedId ? 'PUBLIC' : state.visibility,
+      caption: state.editingFeedId ? '' : state.caption,
+    })),
   setCropIndex: (cropIndex) => set({ cropIndex }),
   updateCrop: (id, croppedDataUrl, cropRect) =>
     set((state) => ({
@@ -72,7 +91,7 @@ export const useWriteDraftStore = create<WriteDraftState>((set) => ({
         if (item.id !== itemId) return item;
         const next: WritePhotoPetTag = {
           id: tag.id ?? `pt-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-          petTag: tag.petTag,
+          petName: tag.petName,
           petId: tag.petId,
           x: tag.x,
           y: tag.y,
@@ -88,5 +107,13 @@ export const useWriteDraftStore = create<WriteDraftState>((set) => ({
           : { ...item, petTags: (item.petTags ?? []).filter((t) => t.id !== tagId) },
       ),
     })),
-  clear: () => set({ items: [], caption: '', visibility: null, cropIndex: 0, editingFeedId: null }),
+  clear: () =>
+    set({
+      subjectPetIds: [],
+      items: [],
+      caption: '',
+      visibility: 'PUBLIC',
+      cropIndex: 0,
+      editingFeedId: null,
+    }),
 }));
