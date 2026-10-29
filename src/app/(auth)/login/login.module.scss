@@ -14,14 +14,113 @@
 }
 
 .logoWrap {
+  position: relative;
   display: flex;
+  height: 120px;
+  align-items: center;
   justify-content: center;
   margin-bottom: 40px;
+
+  &[data-intro='true'] .logo {
+    visibility: hidden;
+    opacity: 0;
+  }
+
+  &[data-intro='true'] .mobileIntro {
+    visibility: visible;
+    opacity: 1;
+  }
 }
 
 .logo {
   width: min(100%, 334px);
   height: auto;
+  transition: opacity 180ms ease;
+}
+
+.loginPanel {
+  width: 100%;
+  max-width: 344px;
+  margin: 0 auto;
+}
+
+.introImageWrap {
+  display: none;
+}
+
+.introImage {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.mobileIntro {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  visibility: hidden;
+  opacity: 0;
+  color: var(--brand-black-700);
+  text-align: center;
+  pointer-events: none;
+  transition: opacity 180ms ease;
+
+  h1 {
+    margin: 0;
+    font-size: 22px;
+    font-weight: 700;
+    line-height: 1.35;
+  }
+
+  strong {
+    color: var(--brand-grass-600);
+  }
+
+  p {
+    margin: 0;
+    color: var(--brand-gray-500);
+    font-size: 13px;
+    line-height: 1.5;
+  }
+}
+
+@media (min-width: 1024px) {
+  .shell {
+    display: grid;
+    max-width: 1040px;
+    grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
+    align-items: center;
+    gap: 32px;
+    padding: 32px 32px 100px;
+  }
+
+  .introImageWrap {
+    display: block;
+  }
+
+  .logoWrap {
+    height: 100px;
+
+    &[data-intro='true'] .logo {
+      visibility: visible;
+      opacity: 1;
+    }
+  }
+
+  .mobileIntro {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .logo,
+  .mobileIntro {
+    transition: none;
+  }
 }
 
 .errorBanner {

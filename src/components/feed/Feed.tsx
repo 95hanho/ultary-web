@@ -659,7 +659,7 @@ export function Feed({
               <PetProfileGroup
                 pets={subjectPets}
                 fallbackImage={profileUrl}
-                size={36}
+                size={41}
                 story={storyRing}
               />
             </Link>
@@ -667,7 +667,7 @@ export function Feed({
             <PetProfileGroup
               pets={subjectPets}
               fallbackImage={profileUrl}
-              size={36}
+              size={41}
               story={readOnly ? 'none' : storyRing}
             />
           )}

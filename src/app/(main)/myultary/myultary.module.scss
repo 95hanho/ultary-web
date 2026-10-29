@@ -32,7 +32,7 @@
 
 .profileSection {
   position: relative;
-  padding: 8px 5px 12px;
+  padding: 8px 10px 12px;
   background: rgba(243, 254, 255, 0.92);
 }
 
@@ -236,6 +236,7 @@
 
 .petEmpty {
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
   box-sizing: border-box;
@@ -548,6 +549,35 @@
   text-align: center;
 }
 
+.feedEmptyText {
+  margin: 0;
+}
+
+.emptyAction {
+  display: inline-flex;
+  margin-top: 10px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--brand-grass-600);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.5;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+
+  &:hover,
+  &:active {
+    color: var(--brand-grass-650);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--brand-grass-600);
+    outline-offset: 4px;
+  }
+}
+
 .hiddenFileInput {
   position: absolute;
   width: 1px;
@@ -572,4 +602,11 @@
   cursor: pointer;
 }
 
-.clearPetSelection { border: 0; padding: 4px 0; background: transparent; color: var(--brand-grass-650); font-size: 12px; cursor: pointer; }
+.clearPetSelection {
+  border: 0;
+  padding: 4px 0;
+  background: transparent;
+  color: var(--brand-grass-650);
+  font-size: 12px;
+  cursor: pointer;
+}

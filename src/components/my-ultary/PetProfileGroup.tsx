@@ -12,7 +12,7 @@ export function PetProfileGroup({
   pets,
   fallbackImage,
   size,
-  story = 'read',
+  story = 'none',
   layout = 'row',
 }: {
   pets: readonly SubjectPet[];
@@ -21,6 +21,8 @@ export function PetProfileGroup({
   story?: StoryStatus;
   layout?: 'row' | 'stack';
 }) {
+  const stackCardSize = size - Math.min(Math.max(pets.length - 1, 0), 2) * 5;
+  const stackInset = (size - stackCardSize) / 2;
   if (!pets.length) return <Profile imageUrl={fallbackImage} size={size} story={story} />;
   if (layout === 'stack')
     return (
@@ -30,15 +32,15 @@ export function PetProfileGroup({
             key={pet.petId}
             className={styles.card}
             style={{
-              left: index === 0 ? 12 : index % 2 ? 0 : 24,
-              top: index === 0 ? 12 : index === 1 ? 6 : 0,
+              left: (index === 0 ? 12 : index % 2 ? 0 : 24) + stackInset,
+              top: (index === 0 ? 12 : index === 1 ? 6 : 0) + stackInset,
               zIndex: pets.length - index,
             }}
           >
             <Profile
               imageUrl={resolveFileDisplayUrl(pet.profileFile) ?? NO_PROFILE_SRC}
-              size={size}
-              story={index === 0 ? story : 'read'}
+              size={stackCardSize}
+              story={story}
             />
           </span>
         ))}
@@ -46,7 +48,11 @@ export function PetProfileGroup({
     );
   return (
     <span
-      className={clsx(styles.row, story === 'unread' ? styles.storyUnread : styles.storyRead)}
+      className={clsx(
+        styles.row,
+        story === 'unread' && styles.storyUnread,
+        story === 'read' && styles.storyRead,
+      )}
       style={{ '--pet-size': `${size - 10}px` } as CSSProperties}
     >
       {pets.map((pet) => (

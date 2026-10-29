@@ -79,6 +79,29 @@ test('story stack places the first management pet in front with offset cards beh
   const html = renderToStaticMarkup(element);
   assert.match(html, /storyUnread/);
 });
+
+test('all stacked pet cards follow the same story state when unread becomes read', () => {
+  for (const story of ['unread', 'read', 'none']) {
+    const html = renderToStaticMarkup(jsx.jsx(PetProfileGroup, {
+      pets, fallbackImage: '/account.png', size: 80, layout: 'stack', story,
+    }));
+    const expected = { unread: 'storyUnread', read: 'storyRead', none: 'storyNone' }[story];
+    assert.equal((html.match(new RegExp(expected, 'g')) ?? []).length, pets.length);
+    for (const other of ['storyUnread', 'storyRead', 'storyNone'].filter(value => value !== expected))
+      assert.ok(!html.includes(other));
+  }
+});
+
+test('feed pet profiles without stories have no read or unread ring, including the default', () => {
+  for (const story of [undefined, 'none']) {
+    const html = renderToStaticMarkup(jsx.jsx(PetProfileGroup, {
+      pets, fallbackImage: '/account.png', size: 41, story,
+    }));
+    assert.match(html, /class="row"/);
+    assert.doesNotMatch(html, /storyRead|storyUnread/);
+    assert.equal((html.match(/<img/g) ?? []).length, pets.length);
+  }
+});
 test('search mapping retains real pet names and account representative profile separately', () => {
   const { mapSearchUsers } = load('lib/search/accounts.ts', {
     '@/lib/api/error': { isRecord: value => value != null && typeof value === 'object' && !Array.isArray(value) },

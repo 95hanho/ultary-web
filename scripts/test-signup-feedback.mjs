@@ -69,6 +69,24 @@ test('required-field errors remain next to inputs',()=>{
  const f=fixture();nodes(f.render(),n=>typeof n.props?.onSubmit==='function')[0].props.onSubmit();
  assert.equal(banners(f.render()).length,0);assert.ok(hints(f.render()).includes(rules.MSG.phoneRequired));
 });
+
+test('nickname input preserves unrestricted typing and validates only when submitted', () => {
+ const f=fixture();
+ assert.equal(input(f.render(),'닉네임태그').props.value,'');
+ assert.equal(input(f.render(),'닉네임태그').props.maxLength,undefined);
+ const prefix=nodes(f.render(),n=>n.type==='span'&&n.props?.className==='nicknamePrefix');
+ assert.equal(prefix.length,1);assert.equal(prefix[0].props.children,'@');
+ for(const raw of ['Upper','한글123!','abcdefghijk','@ultary',' ultary ']) {
+  input(f.render(),'닉네임태그').props.onChange({target:{value:raw}});
+  assert.equal(input(f.render(),'닉네임태그').props.value,raw);
+  assert.ok(!hints(f.render()).includes(rules.MSG.nickname));
+  nodes(f.render(),n=>typeof n.props?.onSubmit==='function')[0].props.onSubmit();
+  assert.ok(hints(f.render()).includes(rules.MSG.nickname));
+ }
+ input(f.render(),'닉네임태그').props.onChange({target:{value:'valid_tag'}});
+ nodes(f.render(),n=>typeof n.props?.onSubmit==='function')[0].props.onSubmit();
+ assert.ok(!hints(f.render()).includes(rules.MSG.nickname));
+});
 test('server validation and duplicate errors map to inputs while transport errors remain form-wide',()=>{
  const result=fieldErrors({status:400,data:{code:'INVALID_INPUT',data:{password:'비밀번호 형식',phoneAuthCompleteToken:'인증 필요',unknown:'무시'}}});
  assert.equal(result.password,'비밀번호 형식');assert.equal(result.phone,'인증 필요');assert.equal(result.unknown,undefined);

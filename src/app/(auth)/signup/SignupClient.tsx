@@ -10,7 +10,6 @@ import {
   filterCode,
   filterEmail,
   filterName,
-  filterNickname,
   filterPhone,
   MSG,
   validateEmail,
@@ -436,21 +435,25 @@ export default function SignupClient() {
         <label className={styles.field}>
           <span className={styles.label}>닉네임태그</span>
           <div className={styles.inputWrap}>
-            <input
-              ref={nicknameRef}
-              type="text"
-              value={`@${nickname}`}
-              maxLength={11}
-              autoCapitalize="none"
-              autoCorrect="off"
-              onChange={(e) => {
-                setNickname(filterNickname(e.target.value));
-                clearError('nickname');
-              }}
-              placeholder="닉네임태그를 입력해주세요."
-              className={styles.input}
-            />
-            <FieldNote>닉네임태그는 7일에 한 번만 변경할 수 있습니다.</FieldNote>
+            <div className={styles.nicknameInputWrap}>
+              <span className={styles.nicknamePrefix} aria-hidden="true">
+                @
+              </span>
+              <input
+                ref={nicknameRef}
+                type="text"
+                value={nickname}
+                autoCapitalize="none"
+                autoCorrect="off"
+                onChange={(e) => {
+                  setNickname(e.target.value);
+                  clearError('nickname');
+                }}
+                placeholder="닉네임태그를 입력해주세요."
+                className={clsx(styles.input, styles.nicknameInput)}
+              />
+            </div>
+            <FieldNote>닉네임태그는 30일에 한 번만 변경할 수 있습니다.</FieldNote>
             <FieldHint message={errors.nickname} />
           </div>
         </label>

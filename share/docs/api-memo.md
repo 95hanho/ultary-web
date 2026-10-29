@@ -27,7 +27,7 @@ BFF: `/api/...` · Spring: `/api/v1/...`
 | 내 회원정보 조회 | GET | `/api/auth/me` | `/api/v1/auth/me` |
 | 회원정보 변경 (닉네임 제외) | PATCH | `/api/auth/me` | `/api/v1/auth/me` |
 | 닉네임 변경 가능 여부 | GET | `/api/auth/me/nickname/change-availability` | `/api/v1/auth/me/nickname/change-availability` |
-| 닉네임 변경 (생성·변경 후 7일 쿨다운) | PATCH | `/api/auth/me/nickname` | `/api/v1/auth/me/nickname` |
+| 닉네임 변경 (생성·변경 후 30일 쿨다운) | PATCH | `/api/auth/me/nickname` | `/api/v1/auth/me/nickname` |
 | 회원탈퇴 | DELETE | `/api/auth/me` | `/api/v1/auth/me` |
 | 회원가입 | POST | `/api/auth/signup` | `/api/v1/auth/signup` | `phoneAuthCompleteToken`, `password`, `nickname`, `name`, `email`, `regionSido`, `regionSigungu`. 지역은 비워도 된다 |
 | 휴대폰 인증 | POST | `/api/auth/phone` | `/api/v1/auth/phone` | 발송 전에 번호 중복. `purpose` 생략·`SIGNUP`은 가입된 번호 거절. `PROFILE`은 Bearer 필수, 내 번호만 허용. `PASSWORD`는 재설정이라 가입된 번호로 발송 |
@@ -499,7 +499,7 @@ FE는 OAuth code를 Spring에 보내지 않는다. BFF가 code를 교환해 `pro
 |------|--------|--------|------|
 | 비밀번호 인코딩 | POST | `/api/v1/test/password/encode` | 인증 불필요 |
 | **내 스토리 읽음 초기화** | DELETE | `/api/v1/test/story-views` | Bearer 필수. `ultary_story_view`에서 내 viewer 행 전부 삭제 → `deletedCount` |
-| **닉네임 변경 기간 초기화** | POST | `/api/v1/test/nickname-cooldown` | Bearer 필수. 내 `nickname_changed_at`을 올해 1월 1일 00:00으로 바꿔 7일 쿨다운을 푼다 |
+| **닉네임 변경 기간 초기화** | POST | `/api/v1/test/nickname-cooldown` | Bearer 필수. 내 `nickname_changed_at`을 올해 1월 1일 00:00으로 바꿔 30일 쿨다운을 푼다 |
 | **펫 멘션 ID 변경 기간 초기화** | POST | `/api/v1/test/pets/{petId}/mention-id-cooldown` | Bearer 필수. 내 펫의 `mention_id_changed_at`을 올해 1월 1일 00:00으로 바꿔 30일 쿨다운을 푼다. 없거나 내 펫이 아니면 404 |
 | **액세스·리프레시 토큰 초기화** | DELETE | `/api/v1/test/tokens` | Bearer 필수. 내 `ultary_token` 리프레시 행을 모두 폐기 → `userNo`, `revokedCount`. 액세스 JWT는 DB에 없으므로, 버튼은 성공 후 access·refresh 쿠키(와 개발용 만료 쿠키)를 지워야 로그인 전 상태가 된다 |
 

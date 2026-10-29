@@ -89,11 +89,11 @@ export default function TagListClient() {
           <caption className={styles.tableCaption}>태그요청 목록</caption>
           <colgroup>
             <col className={styles.numberColumn} /><col className={styles.imageColumn} />
-            <col /><col /><col /><col className={styles.linkColumn} /><col /><col className={styles.dateColumn} />
+            <col /><col className={styles.memberColumn} /><col /><col /><col className={styles.linkColumn} /><col /><col className={styles.dateColumn} />
             <col className={styles.dateColumn} /><col className={styles.actionColumn} />
           </colgroup>
           <thead><tr>
-            <th scope="col">번호</th><th scope="col">이미지</th><th scope="col">태그명</th>
+            <th scope="col">번호</th><th scope="col">이미지</th><th scope="col">태그명</th><th scope="col">피드 수</th>
             <th scope="col">태그title</th><th scope="col">태그설명</th><th scope="col">링크(도메인명)</th><th scope="col">닉네임태그(no)</th>
             <th scope="col">요청날짜</th><th scope="col">확인날짜</th><th scope="col">상태변경</th>
           </tr></thead>
@@ -116,6 +116,7 @@ export default function TagListClient() {
                 <td>
                   <strong className={styles.tableText} title={'#' + item.hashtag}>#{item.hashtag}</strong>
                 </td>
+                <td className={styles.tableNumber}>{item.feedCount.toLocaleString()}</td>
                 <td title={item.title}>
                   {item.title ? Array.from(item.title).slice(0, 15).join('') + (Array.from(item.title).length > 15 ? '...' : '') : '–'}
                 </td>

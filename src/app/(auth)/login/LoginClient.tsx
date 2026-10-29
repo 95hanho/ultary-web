@@ -58,6 +58,7 @@ export default function LoginClient({ initialError, signupComplete = false }: Pr
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(socialErrorMessage(initialError));
   const [showSignupComplete, setShowSignupComplete] = useState(signupComplete);
+  const [hasInteracted, setHasInteracted] = useState(false);
 
   const clearNotices = () => {
     setError(null);
@@ -72,17 +73,15 @@ export default function LoginClient({ initialError, signupComplete = false }: Pr
           body,
         );
         if (result.data?.selectionRequired) {
-          useModalStore
-            .getState()
-            .open({
-              variant: 'action',
-              title: '로그인할 계정을 선택해 주세요.',
-              showCloseButton: true,
-              items: result.data.accounts.map((account) => ({
-                label: nicknameTag(account.nickname),
-                onClick: () => submitLogin({ ...body, userNo: account.userNo }),
-              })),
-            });
+          useModalStore.getState().open({
+            variant: 'action',
+            title: '로그인할 계정을 선택해 주세요.',
+            showCloseButton: true,
+            items: result.data.accounts.map((account) => ({
+              label: nicknameTag(account.nickname),
+              onClick: () => submitLogin({ ...body, userNo: account.userNo }),
+            })),
+          });
           return;
         }
         window.location.replace('/');
@@ -104,101 +103,131 @@ export default function LoginClient({ initialError, signupComplete = false }: Pr
 
   return (
     <main className={styles.shell}>
-      <div className={styles.logoWrap}>
+      <aside className={styles.introImageWrap}>
         <Image
-          src={LOGO_SRC}
-          alt="ULTARY"
-          width={334}
-          height={100}
-          priority
-          className={styles.logo}
+          src="/images/img/login_intro.png"
+          alt="우리 집 반려동물이 주인공인 곳. 함께한 하루를 기록하고, 다른 집 친구들의 일상도 만나보세요."
+            width={1201}
+            height={1310}
+          sizes="(min-width: 1024px) 520px, 1px"
+          className={styles.introImage}
         />
-      </div>
-
-      <div className={styles.content}>
-        {showSignupComplete && !error && !pending ? (
-          <p className={styles.successBanner} role="status">
-            회원가입이 완료되었습니다. 로그인해 주세요.
-          </p>
-        ) : null}
-        {error ? <p className={styles.errorBanner}>{error}</p> : null}
-
-        <form onSubmit={onSubmit} className={styles.form} noValidate>
-          <div className={styles.fields}>
-            <input
-              type="text"
-              name="loginId"
-              value={loginId}
-              onChange={(e) => {
-                setLoginId(e.target.value);
-                clearNotices();
-              }}
-              placeholder="휴대폰번호 또는 이메일을 입력해주세요."
-              autoComplete="off"
-              className={styles.input}
-              disabled={pending}
-            />
-            <input
-              type="password"
-              name="password"
-              value={password}
-              onChange={(e) => {
-                setPassword(e.target.value);
-                clearNotices();
-              }}
-              placeholder="비밀번호를 입력해주세요."
-              autoComplete="off"
-              className={styles.input}
-              disabled={pending}
-            />
+      </aside>
+      <div className={styles.loginPanel}>
+        <div className={styles.logoWrap} data-intro={!hasInteracted}>
+          <Image
+            src={LOGO_SRC}
+            alt="ULTARY"
+            width={334}
+            height={100}
+            priority
+            className={styles.logo}
+          />
+          <div className={styles.mobileIntro} aria-hidden={hasInteracted}>
+            <h1>
+              우리 집 반려동물이
+              <br />
+              <strong>주인공인 곳</strong>
+            </h1>
+            <p>
+              함께한 하루를 기록하고,
+              <br />
+              다른 집 친구들의 일상도 만나보세요.
+            </p>
           </div>
+        </div>
 
-          <div className={styles.actions}>
-            <button type="submit" className={styles.loginButton} disabled={pending}>
-              {pending ? '로그인 중…' : '로그인'}
-            </button>
+        <div className={styles.content}>
+          {showSignupComplete && !error && !pending ? (
+            <p className={styles.successBanner} role="status">
+              회원가입이 완료되었습니다. 로그인해 주세요.
+            </p>
+          ) : null}
+          {error ? <p className={styles.errorBanner}>{error}</p> : null}
 
-            <Link href="/login/password" className={styles.findPasswordButton}>
-              비밀번호 찾기
-            </Link>
-
-            <Link href="/signup" className={styles.signupLink}>
-              계정이 없으신가요?
-            </Link>
-
-            <div className={styles.social}>
-              <a
-                href={bffEndpoints.auth.google}
-                className={styles.googleBtn}
-                aria-disabled={pending}
-              >
-                <Image
-                  src={GOOGLE_ICON_SRC}
-                  alt=""
-                  width={19}
-                  height={19}
-                  className={styles.googleIcon}
-                />
-                구글로그인
-              </a>
-
-              <a
-                href={bffEndpoints.auth.kakao}
-                className={styles.kakaoBtn}
-                aria-label="카카오 로그인"
-                aria-disabled={pending}
-              >
-                <Image
-                  src={KAKAO_BTN_SRC}
-                  alt="카카오 로그인"
-                  width={600}
-                  height={90}
-                  className={styles.kakaoImage}
-                />
-              </a>
+          <form
+            onSubmit={onSubmit}
+            onFocusCapture={() => setHasInteracted(true)}
+            onClickCapture={() => setHasInteracted(true)}
+            className={styles.form}
+            noValidate
+          >
+            <div className={styles.fields}>
+              <input
+                type="text"
+                name="loginId"
+                value={loginId}
+                onChange={(e) => {
+                  setLoginId(e.target.value);
+                  clearNotices();
+                }}
+                placeholder="휴대폰번호 또는 이메일을 입력해주세요."
+                autoComplete="off"
+                className={styles.input}
+                disabled={pending}
+              />
+              <input
+                type="password"
+                name="password"
+                value={password}
+                onChange={(e) => {
+                  setPassword(e.target.value);
+                  clearNotices();
+                }}
+                placeholder="비밀번호를 입력해주세요."
+                autoComplete="off"
+                className={styles.input}
+                disabled={pending}
+              />
             </div>
-          </div>
-        </form>
+
+            <div className={styles.actions}>
+              <button type="submit" className={styles.loginButton} disabled={pending}>
+                {pending ? '로그인 중…' : '로그인'}
+              </button>
+
+              <Link href="/login/password" className={styles.findPasswordButton}>
+                비밀번호 찾기
+              </Link>
+
+              <Link href="/signup" className={styles.signupLink}>
+                계정이 없으신가요?
+              </Link>
+
+              <div className={styles.social}>
+                <a
+                  href={bffEndpoints.auth.google}
+                  className={styles.googleBtn}
+                  aria-disabled={pending}
+                >
+                  <Image
+                    src={GOOGLE_ICON_SRC}
+                    alt=""
+                    width={19}
+                    height={19}
+                    className={styles.googleIcon}
+                  />
+                  구글로그인
+                </a>
+
+                <a
+                  href={bffEndpoints.auth.kakao}
+                  className={styles.kakaoBtn}
+                  aria-label="카카오 로그인"
+                  aria-disabled={pending}
+                >
+                  <Image
+                    src={KAKAO_BTN_SRC}
+                    alt="카카오 로그인"
+                    width={600}
+                    height={90}
+                    className={styles.kakaoImage}
+                  />
+                </a>
+              </div>
+            </div>
+          </form>
+        </div>
       </div>
     </main>
   );

@@ -1028,6 +1028,11 @@ export default function MyUltaryClient({ nickname, guestData }: MyUltaryClientPr
                   profileReady ? (
                     <div className={styles.petEmpty} role="status">
                       <p className={styles.petEmptyText}>등록된 펫이 없습니다.</p>
+                      {isOwnAccount ? (
+                        <Link href="/settings/pets" className={styles.emptyAction}>
+                          반려동물 관리로 가기
+                        </Link>
+                      ) : null}
                     </div>
                   ) : null
                 ) : (
@@ -1299,9 +1304,18 @@ export default function MyUltaryClient({ nickname, guestData }: MyUltaryClientPr
             불러오는 중
           </p>
         ) : showEmptyGrid ? (
-          <p className={styles.feedEmpty} role="status">
-            게시글이 없습니다
-          </p>
+          <div className={styles.feedEmpty} role="status">
+            <p className={styles.feedEmptyText}>게시글이 없습니다</p>
+            {isOwnAccount && contentTab === 'feed' ? (
+              <button
+                type="button"
+                className={styles.emptyAction}
+                onClick={() => writeFileInputRef.current?.click()}
+              >
+                게시글 작성하기
+              </button>
+            ) : null}
+          </div>
         ) : gridReady ? (
           <FeedGrid posts={posts} />
         ) : null}

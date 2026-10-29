@@ -48,12 +48,23 @@
 }
 
 .storySlide {
+  position: relative;
   width: auto !important;
+
+  &:first-child:not(:last-child)::after {
+    position: absolute;
+    top: 4px;
+    right: 0;
+    bottom: 4px;
+    border-right: 1px solid var(--brand-gray-50);
+    content: '';
+    pointer-events: none;
+  }
 }
 
 .storyItem {
   display: flex;
-  width: 112px;
+  width: 102px;
   flex-direction: column;
   align-items: center;
   gap: 6px;
@@ -196,8 +207,23 @@
   text-align: center;
 }
 
-.storyNickname strong, .storyNickname small { display: block; overflow: hidden; text-overflow: ellipsis; }
-.storyNickname { color: var(--brand-gray-100); }
-.storyNickname strong { color: var(--brand-black-700); }
-.storyNickname small { margin-top: 2px; color: var(--brand-gray-100); font-size: 10px; }
-.storyNickname > span { text-align: center; }
+.storyNickname strong,
+.storyNickname small {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.storyNickname {
+  color: var(--brand-gray-100);
+}
+.storyNickname strong {
+  color: var(--brand-black-700);
+}
+.storyNickname small {
+  margin-top: 2px;
+  color: var(--brand-gray-100);
+  font-size: 10px;
+}
+.storyNickname > span {
+  text-align: center;
+}

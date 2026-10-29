@@ -25,6 +25,7 @@ const dataDependencies = {
 const dataRequire = name => { if (!(name in dataDependencies)) throw Error(name); return dataDependencies[name]; };
 const mapping = load('lib/myultary/fromApi.ts', dataRequire);
 const search = load('lib/search/accounts.ts', dataRequire);
+const petFeedSelection = load('lib/myultary/petFeedSelection.ts', dataRequire);
 const { bffEndpoints } = load('lib/api/endpoints.ts', () => { throw Error('Unexpected dependency'); });
 const fixturePets = [
   { petId: 104, name: '코코', profileFile: { fileId: 163, filePath: 'https://cdn.test/coco.jpg' } },
@@ -34,7 +35,7 @@ const fixtureFeeds = [
   { feedId: 152, coverFile: { fileId: 1, filePath: 'https://cdn.test/feed-one.jpg' } },
   { feedId: 151, coverFile: { fileId: 2, filePath: 'https://cdn.test/feed-two.jpg' } },
 ];
-function fixture(me, fail = false) {
+function fixture(me, fail = false, data = {}) {
   const slots = [], effects = [], calls = []; let cursor = 0;
   const useState = initial => {
     const index = cursor++;
@@ -53,6 +54,7 @@ function fixture(me, fail = false) {
       '@/lib/react/useHydrated': { useHydrated: () => false },
       '@/lib/mock/ultary-accounts': paths,
       '@/lib/myultary/fromApi': mapping, '@/lib/search/accounts': search,
+      '@/lib/myultary/petFeedSelection': petFeedSelection,
       '@/lib/api/error': errors, '@/lib/api/endpoints': { bffEndpoints },
       '@/lib/report/openReport': report,
       '@/lib/nickname-tag': { nicknameTag: value => '@' + value.replace(/^@+/, '') },
@@ -68,8 +70,8 @@ function fixture(me, fail = false) {
         if (url === bffEndpoints.myUltary.profile) return { data: me };
         if (url === bffEndpoints.main.search) return { data: { users: [{ userNo: 103, nickname: params.q }] } };
         if (url === bffEndpoints.users.ultary) return { data: { userNo: 103, nickname: 'walker', feedCount: 2 } };
-        if ([bffEndpoints.pets.root, bffEndpoints.users.pets].includes(url)) return { data: fixturePets };
-        if ([bffEndpoints.myUltary.feeds, bffEndpoints.users.feeds].includes(url)) return { data: fixtureFeeds };
+        if ([bffEndpoints.pets.root, bffEndpoints.users.pets].includes(url)) return { data: data.pets ?? fixturePets };
+        if ([bffEndpoints.myUltary.feeds, bffEndpoints.users.feeds].includes(url)) return { data: data.feeds ?? fixtureFeeds };
         throw Error('Unexpected API ' + url);
       } },
     };
@@ -109,4 +111,25 @@ test('a failed real request shows the error screen instead of sample pets and re
   f.render('walker'); await f.runEffects(); const tree = f.render('walker');
   assert.equal(tree.type, 'PageLoadError');
   assert.equal(tree.props.error.status, 503);
+});
+
+test('own empty Ultary links to pet management and starts the existing photo-first write flow', async () => {
+  const f = fixture({ userNo: 304, nickname: 'googlegjxk', feedCount: 0 }, false, { pets: [], feeds: [] });
+  f.render('googlegjxk'); await f.runEffects(); const tree = f.render('googlegjxk');
+  assert.equal(descendants(tree, node => node.props?.href === '/settings/pets' && node.props.children === '반려동물 관리로 가기').length, 1);
+  const write = descendants(tree, node => node.type === 'button' && node.props.children === '게시글 작성하기');
+  assert.equal(write.length, 1);
+  const fileInput = descendants(tree, node => node.type === 'input' && node.props.type === 'file' && node.props.multiple)[0];
+  let opened = 0;
+  fileInput.props.ref.current = { click: () => { opened++; } };
+  write[0].props.onClick();
+  assert.equal(opened, 1);
+  descendants(tree, node => node.type === 'button' && node.props['aria-label'] === '태그됨')[0].props.onClick();
+  assert.equal(descendants(f.render('googlegjxk'), node => node.type === 'button' && node.props.children === '게시글 작성하기').length, 0);
+});
+
+test('another users empty Ultary has neither pet management nor write actions', async () => {
+  const f = fixture({ userNo: 101, nickname: 'ultary' }, false, { pets: [], feeds: [] });
+  f.render('walker'); await f.runEffects(); const tree = f.render('walker');
+  assert.equal(descendants(tree, node => ['반려동물 관리로 가기', '게시글 작성하기'].includes(node.props?.children)).length, 0);
 });

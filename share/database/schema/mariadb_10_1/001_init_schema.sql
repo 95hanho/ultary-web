@@ -50,7 +50,7 @@
 --   - 최근 펫 태그: 스토리 @·사진 태그에서 고른 펫. ultary_user_pet_tag_history (user_no, pet_id) 1행. 검색 기록과 섞지 않음
 --   - 피드 삭제: 작성자(user_no) 또는 COLLABORATOR 펫 보호자. deleted_by_user_no에 실제 삭제자 기록
 -- Identity change cooldown (생성 직후부터 잠금, *_changed_at에 기록):
---   - user.nickname          : 변경 후(및 생성 직후) 7일간 재변경 불가
+--   - user.nickname          : 변경 후(및 생성 직후) 30일간 재변경 불가
 --   - pet.mention_id         : 변경 후(및 생성 직후) 30일간 재변경 불가. pet.name은 생성 후 불변
 --   - tag.handle             : 설정·변경 후 30일간 재변경 불가. tag.hashtag는 생성 후 불변
 --     · handle이 NULL인 태그: handle_changed_at NULL → 최초 설정은 언제든 가능
@@ -136,7 +136,7 @@ CREATE TABLE `ultary_user` (
   `password` VARCHAR(200) NULL DEFAULT NULL COMMENT 'BCrypt 해시. 소셜만 사용 시 NULL, 이후 설정 가능',
   `name` VARCHAR(20) NULL DEFAULT NULL,
   `nickname` VARCHAR(30) NOT NULL COMMENT '표시 이름. 한글 2~5 / 영문·숫자 4~10 / 혼합은 한글1=2·영문·숫자1=1 가중치 합 4~10. 소셜 가입 시 google|kakao + 랜덤영문(총 10자)',
-  `nickname_changed_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '닉네임 마지막 변경(또는 최초 부여) 시각. 생성 직후부터 7일간 재변경 불가',
+  `nickname_changed_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '닉네임 마지막 변경(또는 최초 부여) 시각. 생성 직후부터 30일간 재변경 불가',
   `is_default_nickname` TINYINT(1) NOT NULL DEFAULT 1 COMMENT '1=자동 생성 닉네임(변경 유도 대상), 0=사용자가 직접 변경함',
   `email` VARCHAR(50) NULL DEFAULT NULL COMMENT '소셜에서 전달되거나 이후 등록. 비밀번호 로그인 식별자로 사용 가능',
   `phone` VARCHAR(20) NULL DEFAULT NULL COMMENT '본인인증 후 등록. 비밀번호 로그인 식별자로 사용 가능',

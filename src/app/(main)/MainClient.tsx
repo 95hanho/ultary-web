@@ -1,24 +1,25 @@
 'use client';
 import { nicknameTag } from '@/lib/nickname-tag';
 
+import { PageLoadError } from '@/components/common/PageLoadError';
 import { PetNamesAndNicknameTag } from '@/components/common/PetNamesAndNicknameTag';
 import { PetProfileGroup } from '@/components/my-ultary/PetProfileGroup';
 import type { SubjectPet } from '@/types/pet';
-import { PageLoadError } from '@/components/common/PageLoadError';
 
 import { FooterMenu } from '@/components/common/FooterMenu';
 import { LogoHeader } from '@/components/common/LogoHeader';
 import { LogoLoading } from '@/components/common/LogoLoading';
-import { FeedList } from '@/components/feed/FeedList';
 import type { FeedData } from '@/components/feed/Feed';
+import { FeedList } from '@/components/feed/FeedList';
+import { FirstActivityGuide } from '@/components/feed/FirstActivityGuide';
 import { Profile, type StoryStatus } from '@/components/my-ultary/Profile';
 import { bffGet } from '@/lib/api/bffFetch';
 import { bffEndpoints } from '@/lib/api/endpoints';
-import { toFeedDataList } from '@/lib/feed/toFeedData';
 import { resolveFileDisplayUrl } from '@/lib/api/fileUrl';
-import { NO_PROFILE_SRC } from '@/lib/profileImage';
-import { readFileAsDataUrl } from '@/lib/pending-pet-photo';
+import { toFeedDataList } from '@/lib/feed/toFeedData';
 import { myUltaryPath } from '@/lib/mock/ultary-accounts';
+import { readFileAsDataUrl } from '@/lib/pending-pet-photo';
+import { NO_PROFILE_SRC } from '@/lib/profileImage';
 import { useStoryDraftStore } from '@/stores/story-draft.store';
 import type { BffEnvelope, MeResponse } from '@/types/api';
 import type { StoryOwner } from '@/types/story';
@@ -130,6 +131,7 @@ export default function MainClient() {
   const [recommended, setRecommended] = useState<FeedData[]>([]);
   const [storyUsers, setStoryUsers] = useState<StoryRing[]>([]);
   const [ready, setReady] = useState(false);
+  const [myNickname, setMyNickname] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -151,6 +153,7 @@ export default function MainClient() {
         }
 
         const me = meRes?.data ?? null;
+        setMyNickname(me?.nickname ?? null);
         setStoryUsers(withMyStoryAdd(owners, me));
       } catch (err) {
         console.error('[main] BFF load failed', err);
@@ -201,7 +204,7 @@ export default function MainClient() {
               <Swiper
                 modules={[FreeMode]}
                 slidesPerView="auto"
-                spaceBetween={15}
+                spaceBetween={0}
                 freeMode
                 className={styles.storySwiper}
                 onSwiper={(swiper) => {
@@ -243,7 +246,10 @@ export default function MainClient() {
                           </span>
                         </button>
                       ) : (
-                        <Link href={storyHref(user)} aria-label={`${nicknameTag(user.nickname)} 스토리`}>
+                        <Link
+                          href={storyHref(user)}
+                          aria-label={`${nicknameTag(user.nickname)} 스토리`}
+                        >
                           <PetProfileGroup
                             pets={user.subjectPets ?? []}
                             fallbackImage={user.imageUrl}
@@ -304,6 +310,7 @@ export default function MainClient() {
           onChange={(event) => void handleStoryFileChange(event)}
         />
 
+        {myNickname ? <FirstActivityGuide nickname={myNickname} /> : null}
         <FeedList feeds={feeds} />
 
         {feeds.length === 0 ? (

@@ -13,7 +13,7 @@ import { NextResponse } from 'next/server';
 /**
  * BFF POST /api/test/nickname-cooldown
  * Spring local: POST /api/v1/test/nickname-cooldown
- * nickname_changed_at 을 올해 1월 1일로 되돌려 7일 쿨다운을 푼다.
+ * nickname_changed_at 을 올해 1월 1일로 되돌려 30일 쿨다운을 푼다.
  * FE는 development에서만 호출 (share §13)
  */
 export async function POST() {

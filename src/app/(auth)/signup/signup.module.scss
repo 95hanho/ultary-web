@@ -40,6 +40,26 @@
   width: 100%;
 }
 
+.nicknameInputWrap {
+  position: relative;
+  width: 100%;
+}
+
+.nicknameInputWrap .nicknameInput {
+  padding-left: 36px;
+}
+
+.nicknamePrefix {
+  position: absolute;
+  top: 50%;
+  left: 15px;
+  transform: translateY(-50%);
+  color: var(--brand-gray-400);
+  font-size: 16px;
+  line-height: 1.2;
+  pointer-events: none;
+}
+
 .input,
 .select {
   box-sizing: border-box;
