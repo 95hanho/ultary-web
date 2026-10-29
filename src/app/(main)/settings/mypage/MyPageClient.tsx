@@ -8,13 +8,14 @@ import { PageHeader } from '@/components/common/PageHeader';
 import { bffGet, bffPostJson } from '@/lib/api/bffFetch';
 import { bffEndpoints } from '@/lib/api/endpoints';
 import { isHttpError } from '@/lib/api/error';
+import { completeSocialLinkWindow, openSocialLinkWindow, type SocialLinkResult } from '@/lib/auth/social-link-window';
 import { formatPhoneDisplay, formatRegionDisplay } from '@/lib/mock/mypage';
 import type { BffEnvelope, MeResponse } from '@/types/api';
 import clsx from 'clsx';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import styles from './mypage.module.scss';
 
 const GOOGLE_ICON_SRC = '/images/icon/google_social.png';
@@ -95,12 +96,65 @@ export default function MyPageClient() {
   const [error, setError] = useState<string | null>(null);
   const [snsError, setSnsError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const linkWindowCleanup = useRef<(() => void) | null>(null);
 
-  async function loadMe() {
+  const loadMe = useCallback(async () => {
     const res = await bffGet<BffEnvelope<MeResponse>>(bffEndpoints.auth.me);
     if (!res.data) throw new Error('회원정보를 불러오지 못했습니다.');
     setProfile(meToView(res.data));
+  }, []);
+
+  const applySocialLinkResult = useCallback(async ({ linked, error: linkError }: SocialLinkResult) => {
+    if (linkError === 'UNAUTHORIZED') {
+      try {
+        await bffPostJson(bffEndpoints.auth.logout, {});
+      } catch (err) {
+        console.error('[mypage] logout after UNAUTHORIZED', err);
+      }
+      router.replace('/login');
+      router.refresh();
+      return;
+    }
+    if (linked) {
+      try {
+        await loadMe();
+      } catch (err) {
+        console.error('[mypage] reload after link', err);
+      }
+    }
+    setSnsError(linkError ? snsLinkErrorMessage(linkError) : null);
+  }, [loadMe, router]);
+
+  function startSocialLink(provider: 'google' | 'kakao') {
+    linkWindowCleanup.current?.();
+    setSnsError(null);
+    try {
+      linkWindowCleanup.current = openSocialLinkWindow(
+        snsLinkHref(provider),
+        provider === 'google' ? 'GOOGLE' : 'KAKAO',
+        (result) => {
+          linkWindowCleanup.current = null;
+          void applySocialLinkResult(result);
+        },
+      );
+      if (!linkWindowCleanup.current) setSnsError('팝업이 차단되었습니다. 팝업을 허용한 뒤 다시 시도해 주세요.');
+    } catch (err) {
+      console.error('[mypage] open social link window', err);
+      setSnsError('SNS 연동 창을 열지 못했습니다. 다시 시도해 주세요.');
+    }
   }
+
+  useEffect(() => {
+    // 연동 창을 수동으로 닫은 경우에도 돌아올 때 실제 연결 상태를 확인한다.
+    const refreshOnFocus = () => {
+      if (linkWindowCleanup.current) void loadMe().catch((err) => console.error('[mypage] reload after focus', err));
+    };
+    window.addEventListener('focus', refreshOnFocus);
+    return () => {
+      window.removeEventListener('focus', refreshOnFocus);
+      linkWindowCleanup.current?.();
+    };
+  }, [loadMe]);
 
   useEffect(() => {
     let cancelled = false;
@@ -139,39 +193,23 @@ export default function MyPageClient() {
     const linkError = searchParams.get('error');
     if (!linked && !linkError) return;
 
+    const result: SocialLinkResult = {
+      linked: linked === 'GOOGLE' || linked === 'KAKAO' ? linked : undefined,
+      error: linkError || undefined,
+    };
+    if (completeSocialLinkWindow(searchParams.get('socialLinkFlow'), result)) return;
+
     let cancelled = false;
 
     (async () => {
-      if (linkError === 'UNAUTHORIZED') {
-        try {
-          await bffPostJson(bffEndpoints.auth.logout, {});
-        } catch (err) {
-          console.error('[mypage] logout after UNAUTHORIZED', err);
-        }
-        router.replace('/login');
-        router.refresh();
-        return;
-      }
-
-      if (linked) {
-        try {
-          await loadMe();
-        } catch (err) {
-          console.error('[mypage] reload after link', err);
-        }
-      }
-
-      if (linkError && !cancelled) {
-        setSnsError(snsLinkErrorMessage(linkError));
-      }
-
-      if (!cancelled) router.replace(MYPAGE_PATH);
+      await applySocialLinkResult(result);
+      if (!cancelled && linkError !== 'UNAUTHORIZED') router.replace(MYPAGE_PATH);
     })();
 
     return () => {
       cancelled = true;
     };
-  }, [searchParams, router]);
+  }, [searchParams, router, applySocialLinkResult]);
 
   const view = profile;
 
@@ -250,6 +288,7 @@ export default function MyPageClient() {
                   ) : (
                     <a
                       href={snsLinkHref('google')}
+                      onClick={(event) => { event.preventDefault(); startSocialLink('google'); }}
                       className={clsx(styles.snsBtn, styles.snsBtnOff)}
                       aria-label="구글 연동하기"
                     >
@@ -272,6 +311,7 @@ export default function MyPageClient() {
                   ) : (
                     <a
                       href={snsLinkHref('kakao')}
+                      onClick={(event) => { event.preventDefault(); startSocialLink('kakao'); }}
                       className={clsx(styles.snsBtn, styles.snsBtnKakao, styles.snsBtnOff)}
                       aria-label="카카오 연동하기"
                     >

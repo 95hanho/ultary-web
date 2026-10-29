@@ -14,7 +14,7 @@ share/
     rules.json
   database/
     schema/mariadb_10_1/    ← 001_init_schema.sql (schema_version 34)
-    seed/mariadb_10_1/      ← 001_dev_sample_data.sql (로컬 전용, CDN 시드 포함)
+    seed/README.md         ← 개발 데이터·기존 시드 제거 안내
   docs/
     api-memo.md             ← 엔드포인트·도메인 메모
     API_CONTRACT.md         ← 응답·계약 요약
@@ -28,7 +28,7 @@ share/
 |------|------|
 | `validation/` | 회원가입·로그인·식별자 입력 검사. BFF/FE 미러링 |
 | `database/schema/` | MariaDB 스키마 |
-| `database/seed/` | 로컬 전용 시드 (운영 제외) |
+| `database/seed/` | 개발 데이터 안내 (옛 스키마·CDN 시드는 제거) |
 | `docs/api-memo.md` | 엔드포인트·도메인 메모 |
 | `docs/API_CONTRACT.md` | 계약 요약 |
 | `docs/auth-access.md` | 로그인 필수·공유 단건 게스트·로그인 모달 |

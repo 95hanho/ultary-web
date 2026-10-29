@@ -540,6 +540,25 @@
   padding-top: 4px;
 }
 
+.feedGrid > li {
+  background: none;
+
+  > a {
+    transition: transform 300ms ease 40ms;
+  }
+
+  &:hover > a,
+  &:active > a {
+    transform: scale(0.95);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .feedGrid > li > a {
+    transition: none;
+  }
+}
+
 .feedEmpty {
   margin: 48px 0 0;
   color: var(--brand-gray-100);

@@ -1317,7 +1317,7 @@ export default function MyUltaryClient({ nickname, guestData }: MyUltaryClientPr
             ) : null}
           </div>
         ) : gridReady ? (
-          <FeedGrid posts={posts} />
+          <FeedGrid posts={posts} className={styles.feedGrid} />
         ) : null}
       </section>
 

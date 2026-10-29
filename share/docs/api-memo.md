@@ -48,10 +48,10 @@ BFF: `/api/...` · Spring: `/api/v1/...`
 
 FE는 OAuth code를 Spring에 보내지 않는다. BFF가 code를 교환해 `providerUserId`를 만들고, 로그인 쿠키 Bearer로 Spring `POST /auth/social/link`를 호출한다.
 
-1. 미연동 버튼 → `GET /api/auth/social/google?intent=link&returnUrl=/settings/mypage` (카카오는 `/kakao`). 액세스 쿠키가 없으면 `/login?error=UNAUTHORIZED&returnUrl=…`로 보낸다.
+1. 미연동 버튼은 별도 창에서 `GET /api/auth/social/google?intent=link&returnUrl=/settings/mypage?socialLinkFlow=<UUID>`를 시작한다(실제 returnUrl은 URL 인코딩, 카카오는 `/kakao`). 원래 마이페이지는 그대로 유지한다. 액세스 쿠키가 없으면 `/login?error=UNAUTHORIZED&returnUrl=…`로 보낸다.
 2. 구글·카카오 동의 후 같은 콜백 URL. BFF가 `intent=link`이면 `POST /api/v1/auth/social/link` (Bearer). 세션 쿠키는 그대로 둔다.
-3. 성공 → `/settings/mypage?linked=GOOGLE` (또는 `KAKAO`). FE는 `GET /auth/me`로 `googleLinked`/`kakaoLinked`를 다시 본다.
-4. 실패 → `/settings/mypage?error=<code>`. code는 `SOCIAL_ALREADY_LINKED`, `SOCIAL_ACCOUNT_IN_USE`, `UNAUTHORIZED`, `google_link_failed` / `kakao_link_failed`, OAuth `error` 등.
+3. 성공 → 연동 창의 `/settings/mypage?socialLinkFlow=<UUID>&linked=GOOGLE` (또는 `KAKAO`). UUID별 같은 출처의 BroadcastChannel로 원래 창에 결과를 전달하고 연동 창을 닫는다. 원래 창은 `GET /auth/me`로 `googleLinked`/`kakaoLinked`를 갱신한다. 원래 창의 방문 기록이 바뀌지 않아 브라우저/헤더 뒤로가기는 외부 인증 화면으로 되돌아가지 않는다.
+4. 실패 → 연동 창의 `/settings/mypage?socialLinkFlow=<UUID>&error=<code>`. 원래 창에 오류를 표시하고 연동 창을 닫는다. code는 `SOCIAL_ALREADY_LINKED`, `SOCIAL_ACCOUNT_IN_USE`, `UNAUTHORIZED`, `google_link_failed` / `kakao_link_failed`, OAuth `error` 등. 팝업 차단 시 원래 화면에 허용 안내를 표시한다.
 
 `intent`를 빼거나 `login`이면 기존 소셜 로그인·가입이다. 콜백 Redirect URI는 로그인·연동 공통이다.
 
@@ -87,7 +87,9 @@ FE는 OAuth code를 Spring에 보내지 않는다. BFF가 code를 교환해 `pro
 
 로그인 `phone`: DB·조회는 digits only(`^01[0-9]{8,9}$`). 요청에 하이픈/공백/`+82`가 있어도 서버에서 정규화. HTTP 예시는 항상 `"01011112222"`(JSON 문자열).
 
-탈퇴 계정(`WITHDRAWN`)으로 이메일·휴대폰 로그인 또는 소셜 로그인을 하면 `403`, code `ACCOUNT_WITHDRAWN`, message `탈퇴된 계정입니다.` 정지 계정(`SUSPENDED`)은 `403`, code `ACCOUNT_SUSPENDED`, message `정지된 계정입니다.` 이미 발급된 액세스 토큰의 다음 요청과 리프레시도 같은 코드다. 비밀번호가 틀린 활성 계정은 `LOGIN_FAILED`.
+탈퇴 계정(`WITHDRAWN`)의 이메일·휴대폰 로그인과 기존 액세스 토큰·리프레시는 `403`, code `ACCOUNT_WITHDRAWN`, message `탈퇴된 계정입니다.` 정지 계정(`SUSPENDED`)은 `403`, code `ACCOUNT_SUSPENDED`, message `정지된 계정입니다.` 비밀번호가 틀린 활성 계정은 `LOGIN_FAILED`.
+
+탈퇴 시 Google/Kakao 연결을 같은 트랜잭션에서 삭제하고 모든 리프레시 토큰을 폐기한다. 이후 같은 소셜 계정으로 로그인하면 새 회원으로 가입하고, 다른 활성 회원에게 연동할 수도 있다. 탈퇴한 회원/콘텐츠를 복구하거나 이메일만으로 다른 회원에게 자동 연결하지 않는다. 기존 버전에서 탈퇴 후 남은 연결도 소셜 로그인·연동 시 해당 제공자/식별자와 `WITHDRAWN` 상태를 확인한 뒤 해제한다. `ACTIVE`·`SUSPENDED` 회원의 연결은 재사용할 수 없다. 기존 잔존 연결 일괄 정리는 백업 후 `036_release_withdrawn_social_links.sql`로 수행할 수 있다.
 
 입력 검사 공통 스펙: `share/validation/rules.json` (닉네임·비번·폰·handle·hashtag). Bean Validation 실패 시 `ApiResponse` `success:false` + `message` + `data`(필드 맵).
 
@@ -538,11 +540,10 @@ HTTP: `requests/test.http`
   - 기존 DB v24→v25: `019_follow_wording.sql` (팔로우·팔로워 설명. 컬럼 값 변경 없음)
   - 기존 DB v23→v24: `018_neighbor_follow_back.sql` (`ultary_neighbor.followed_back` 맞팔)
   - `ultary_file` 출처: `source_type`(OWNED|UNSPLASH|AI|ETC), `author_name`, `source_url`, `license_url`, `copyright_notice`
-- 로컬 시드(선택): `share/database/seed/mariadb_10_1/001_dev_sample_data.sql`  
-  - 스키마 직후 실행. **재실행 가능**(CLEANUP 후 INSERT). 운영/최종 배포에서는 실행하지 않음.  
-  - CDN 시드: `file_path` = `https://ehfqntuqntu.cdn1.cafe24.com/ultary/{filename}` (profile/post/story/goods). file_id **110~141**.  
-  - 일반 업로드 파일은 `images/…`, `videos/…` (UPLOAD_DIR 상대경로).  
-  - 시드 user **101~105** (펫 유저당 1~2). HTTP: `my-ultary` / `story` / `neighbor` → 101 (`01011112222` / `Test1234!`). SNS 연동 시드 없음
+- 개발 데이터: `share/database/seed/README.md`
+  - 옛 스키마·펫 태그·CDN 주소를 사용하는 시드 5개는 제거했다. 현재 DB에 재실행하지 않는다.
+  - 현재 시연 데이터는 2026-10-29 CDN 개편에 맞춰 관리한다. 새 DB로 옮길 때는 비공개 백업을 사용한다.
+  - 일반 업로드 파일은 `images/…`, `videos/…` (UPLOAD_DIR 상대경로).
 - 입력 검사 공통 스펙: `share/validation/` (`rules.json`)
 
 ### 응답 임베드: FileSummary
