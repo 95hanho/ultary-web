@@ -13,6 +13,8 @@ import {
   selectedMentionTokens,
   retainMentionUsers,
   mentionPayload,
+  availableMentionAccounts,
+  replyMentionDraft,
   type MentionUser,
   type ActiveMention,
 } from '@/lib/search/mention-input';
@@ -161,6 +163,7 @@ function CommentBody({
   parentCommentId,
   onReply,
   focused,
+  composing,
   menuOpen,
   onToggleMenu,
   readOnly = false,
@@ -168,8 +171,9 @@ function CommentBody({
   item: MockCommentReply;
   compact?: boolean;
   parentCommentId: string;
-  onReply: (target: MockCommentReply, parentCommentId: string) => void;
+  onReply: (target: MockCommentReply, parentCommentId: string, kind: 'comment' | 'reply') => void;
   focused?: boolean;
+  composing?: boolean;
   menuOpen?: boolean;
   onToggleMenu: (anchor: HTMLButtonElement) => void;
   readOnly?: boolean;
@@ -197,7 +201,12 @@ function CommentBody({
   return (
     <div
       id={compact ? `reply-${item.id}` : `comment-${item.id}`}
-      className={clsx(styles.item, compact && styles.itemReply, focused && styles.itemFocus)}
+      className={clsx(
+        styles.item,
+        compact && styles.itemReply,
+        focused && styles.itemFocus,
+        composing && styles.itemComposing,
+      )}
     >
       {!readOnly && item.story && item.story !== 'none' && item.userNo != null ? (
         <Link
@@ -240,7 +249,7 @@ function CommentBody({
               <button
                 type="button"
                 className={styles.replyBtn}
-                onClick={() => onReply(item, parentCommentId)}
+                onClick={() => onReply(item, parentCommentId, compact ? 'reply' : 'comment')}
               >
                 답글 달기
               </button>
@@ -364,16 +373,22 @@ export function CommentSheet({
     '',
     feedId,
   );
-  const mentionTerm = mention?.term.trim().replace(/^@+/, '').toLowerCase() ?? '';
-  const hasMentionMatch = mentionAccounts.items.some(
-    (account) =>
-      account.nickname.toLowerCase().includes(mentionTerm) ||
-      account.petNames.some((name) => name.toLowerCase().includes(mentionTerm)),
-  );
   const [draftMentions, setDraftMentions] = useResettableState<MentionUser[]>(
     [],
     [open, feedId],
     open,
+  );
+  const mentionTerm = mention?.term.trim().replace(/^@+/, '').toLowerCase() ?? '';
+  const availableAccounts = availableMentionAccounts(
+    draft,
+    mention,
+    mentionAccounts.items,
+    draftMentions,
+  );
+  const hasMentionMatch = availableAccounts.some(
+    (account) =>
+      account.nickname.toLowerCase().includes(mentionTerm) ||
+      account.petNames.some((name) => name.toLowerCase().includes(mentionTerm)),
   );
   const commitMention = (active: ActiveMention, account: MentionUser, value = draft) => {
     const next = replaceMention(value, active, account.nickname, draftMentions);
@@ -433,8 +448,10 @@ export function CommentSheet({
     parentCommentId: string;
     nickname: string;
     userNo?: number;
+    target: ThreadTarget;
   } | null>(null, [open, comments, feedId, focusCommentId, focusReplyId, readOnly], open);
   const replyingToOwnComment = myUserNo != null && replyTo?.userNo === myUserNo;
+  const composingTarget = editing ?? replyTo?.target;
 
   useEffect(() => {
     if (!open) return;
@@ -484,7 +501,7 @@ export function CommentSheet({
   }, [readOnly]);
 
   const startReply = useCallback(
-    async (target: MockCommentReply, parentCommentId: string) => {
+    async (target: MockCommentReply, parentCommentId: string, kind: 'comment' | 'reply') => {
       const parent = items.find((comment) => comment.id === parentCommentId);
       if (!parent) return;
       const currentUserNo = myUserNo ?? (await loadMyUserNo());
@@ -493,18 +510,30 @@ export function CommentSheet({
       setEditing(null);
       setMenu(null);
       setMention(null);
-      setDraftMentions([]);
+      const next = replyMentionDraft(draft, draftMentions, target, currentUserNo);
+      setDraftMentions(next.mentions);
       // 안내는 원댓글 작성자, 자동 멘션은 실제 누른 댓글/답글 작성자를 기준으로 한다.
-      setReplyTo({ parentCommentId, nickname: parent.nickname, userNo: parent.userNo });
-      setDraft((prev) => {
-        const mention =
-          currentUserNo != null && target.userNo === currentUserNo ? '' : `${nicknameTag(target.nickname)} `;
-        if (mention && prev.startsWith(mention)) return clampFeedContent(prev);
-        return clampFeedContent(mention);
+      setReplyTo({
+        parentCommentId,
+        nickname: parent.nickname,
+        userNo: parent.userNo,
+        target: { kind, id: target.id, parentCommentId },
       });
+      setDraft(clampFeedContent(next.value));
       requestAnimationFrame(() => inputRef.current?.focus());
     },
-    [items, myUserNo, setDraft, setEditing, setMenu, setReplyTo, setMention, setDraftMentions],
+    [
+      items,
+      myUserNo,
+      draft,
+      draftMentions,
+      setDraft,
+      setEditing,
+      setMenu,
+      setReplyTo,
+      setMention,
+      setDraftMentions,
+    ],
   );
 
   const clearReply = useCallback(() => {
@@ -974,6 +1003,11 @@ export function CommentSheet({
                       parentCommentId={comment.id}
                       onReply={startReply}
                       focused={focusDomId === `comment-${comment.id}`}
+                      composing={
+                        !readOnly &&
+                        composingTarget?.kind === 'comment' &&
+                        composingTarget.id === comment.id
+                      }
                       menuOpen={menu?.kind === 'comment' && menu.id === comment.id}
                       onToggleMenu={(anchor) =>
                         toggleItemMenu(
@@ -994,6 +1028,11 @@ export function CommentSheet({
                             parentCommentId={comment.id}
                             onReply={startReply}
                             focused={focusDomId === `reply-${reply.id}`}
+                            composing={
+                              !readOnly &&
+                              composingTarget?.kind === 'reply' &&
+                              composingTarget.id === reply.id
+                            }
                             menuOpen={menu?.kind === 'reply' && menu.id === reply.id}
                             onToggleMenu={(anchor) =>
                               toggleItemMenu(
@@ -1017,7 +1056,7 @@ export function CommentSheet({
                   onMouseDown={(event) => event.preventDefault()}
                 >
                   <AccountSearchList
-                    items={mentionAccounts.items}
+                    items={availableAccounts}
                     query={mention.term}
                     onQueryChange={() => undefined}
                     onSelect={pickMention}

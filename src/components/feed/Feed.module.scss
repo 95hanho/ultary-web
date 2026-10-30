@@ -395,7 +395,7 @@
 
 .captionNick {
   margin-right: 4px;
-  color: var(--brand-gray-100);
+  color: var(--brand-gray-200);
   font-weight: 700;
 }
 
@@ -470,7 +470,7 @@
 
 .authorText { display: flex; min-width: 0; flex-direction: column; gap: 2px; }
 .subjectNames { color: var(--brand-black-700); font-size: 14px; font-weight: 700; overflow-wrap: anywhere; }
-.authorText .nickname { color: var(--brand-gray-100); }
+.authorText .nickname { color: var(--brand-gray-200); }
 .authorText:has(.subjectNames) .nickname { font-size: 11px; }
 
 .profileLink { min-width: 0; max-width: 60%; }

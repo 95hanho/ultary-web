@@ -245,6 +245,11 @@ export const bffEndpoints = {
   },
 
   admin: {
+    users: '/api/admin/users',
+    user: '/api/admin/users/:userNo',
+    userSuspend: '/api/admin/users/:userNo/suspend',
+    userUnsuspend: '/api/admin/users/:userNo/unsuspend',
+    actions: '/api/admin/actions',
     /** POST 관리자 로그인 (loginId + password) */
     login: '/api/admin/auth/login',
     /** POST 관리자 토큰 재발급 */
@@ -531,6 +536,11 @@ export const springEndpoints = {
   },
 
   admin: {
+    users: '/api/v1/admin/users',
+    user: '/api/v1/admin/users/:userNo',
+    userSuspend: '/api/v1/admin/users/:userNo/suspend',
+    userUnsuspend: '/api/v1/admin/users/:userNo/unsuspend',
+    actions: '/api/v1/admin/actions',
     /** POST loginId + password */
     login: '/api/v1/admin/auth/login',
     /** POST refreshToken */

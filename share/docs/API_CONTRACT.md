@@ -20,6 +20,8 @@
 
 ## 응답
 
+관리자 회원 관리·처리 이력: `GET /api/v1/admin/users`, `GET /api/v1/admin/users/{userNo}`, `GET /api/v1/admin/actions`. 정지/해제는 기존 POST 경로를 유지하고 사유를 저장한다. 목록은 `page`(0부터)·`size`, `{items,totalCount,page,pageSize}`를 사용한다. 상세 권한·마스킹·기록 범위는 [회원 관리 문서](admin-management.md)를 참고한다.
+
 관리자 AI 오류 로그: `GET /api/v1/admin/ai/logs`, `GET /api/v1/admin/ai/logs/{aiRequestId}`. BFF는 `/api/admin/ai/logs` 및 하위 ID 경로. 관리자 인증·필터·페이지 규약은 [비동기 모더레이션 문서](async-moderation.md#관리자-ai-로그-조회) 참조.
 
 - 성공: `ApiResponse<T>` (`success: true`, `code: "OK"`, `message`, `data`)

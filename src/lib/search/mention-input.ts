@@ -45,6 +45,40 @@ export function replaceMention(
   };
 }
 export type MentionUser = { userNo: number; nickname: string };
+/** Hide names already in the body, but keep the token currently being completed searchable. */
+export function availableMentionAccounts<T extends MentionUser>(
+  value: string,
+  active: ActiveMention | null,
+  accounts: T[],
+  selected: MentionUser[] = [],
+) {
+  const present = new Set(
+    mentionTokens(value)
+      .filter((token) => !active || token.start !== active.start)
+      .map((token) => token.text.slice(1).toLowerCase()),
+  );
+  for (const token of selectedMentionTokens(value, selected))
+    present.add(token.text.slice(1).toLowerCase());
+  return accounts.filter((account) => !present.has(account.nickname.toLowerCase()));
+}
+
+/** Reply buttons explicitly select their author, just like picking a suggestion. */
+export function replyMentionDraft(
+  previous: string,
+  people: MentionUser[],
+  target: { userNo?: number; nickname: string },
+  currentUserNo: number | null,
+) {
+  if (target.userNo == null || target.userNo === currentUserNo)
+    return { value: '', mentions: [] as MentionUser[] };
+  const person = { userNo: target.userNo, nickname: target.nickname };
+  const prefix = '@' + target.nickname + ' ';
+  const value = previous.startsWith(prefix) ? previous : prefix;
+  const retained = previous.startsWith(prefix)
+    ? people.filter((user) => user.userNo !== person.userNo && mentionPayload(value, [user]).length)
+    : [];
+  return { value, mentions: [person, ...retained] };
+}
 /** Only the first occurrence of an explicitly selected identity is an atomic mention. */
 export function selectedMentionTokens(value: string, people: MentionUser[]) {
   const used = new Set<number>();

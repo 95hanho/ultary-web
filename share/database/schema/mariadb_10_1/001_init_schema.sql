@@ -1,4 +1,6 @@
--- schema_version: 38
+-- schema_version: 40
+-- v40: 관리자 시연 이력 구분·중복 방지 (038_admin_action_log_samples.sql)
+-- v39: 관리자 처리 이력 (037_admin_action_log.sql)
 -- v34: bounded refresh retry recovery and token replacement lineage
 -- v33: per-login session identity and original login metadata
 -- Ultary MariaDB 10.1 초기 스키마
@@ -87,6 +89,7 @@
 SET NAMES utf8;
 SET FOREIGN_KEY_CHECKS = 0;
 
+DROP TABLE IF EXISTS `ultary_admin_action_log`;
 DROP TABLE IF EXISTS `ultary_ai_moderation_job`;
 DROP TABLE IF EXISTS `ultary_ai_moderation_state`;
 DROP TABLE IF EXISTS `ultary_ai_request_log`;
@@ -1024,4 +1027,28 @@ CREATE TABLE IF NOT EXISTS ultary_user_link (
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (owner_user_no, target_user_no),
   KEY IDX_ultary_link_target (target_user_no)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+-- 관리자 조치와 같은 트랜잭션으로 저장하는 처리 이력. 과거 기록은 추정 생성하지 않는다.
+CREATE TABLE IF NOT EXISTS ultary_admin_action_log (
+  action_log_id BIGINT NOT NULL AUTO_INCREMENT,
+  admin_no INT(11) NOT NULL,
+  admin_login_id VARCHAR(50) NOT NULL,
+  admin_name VARCHAR(50) NULL,
+  action VARCHAR(40) NOT NULL,
+  target_type VARCHAR(20) NOT NULL,
+  target_id INT(11) NOT NULL,
+  request_id INT(11) NULL,
+  target_label VARCHAR(150) NULL,
+  before_status VARCHAR(30) NULL,
+  after_status VARCHAR(30) NULL,
+  reason VARCHAR(500) NULL,
+  is_sample TINYINT(1) NOT NULL DEFAULT 0,
+  sample_source_key VARCHAR(100) NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (action_log_id),
+  KEY idx_admin_action_created (created_at, action_log_id),
+  KEY idx_admin_action_target (target_type, target_id, action_log_id),
+  KEY idx_admin_action_admin (admin_no, action_log_id),
+  UNIQUE KEY uk_admin_action_sample_source (sample_source_key),
+  CONSTRAINT fk_admin_action_admin FOREIGN KEY (admin_no) REFERENCES ultary_admin(admin_no)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

@@ -409,6 +409,6 @@
 }
 
 .authorText { display: flex; min-width: 0; flex-direction: column; gap: 2px; }
-.authorText .nickname { color: var(--brand-gray-100); }
+.authorText .nickname { color: var(--brand-gray-200); }
 .authorText:has(strong) .nickname { font-size: 11px; }
 .profileLeft > :first-child { max-width: 55%; }

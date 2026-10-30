@@ -455,6 +455,8 @@ FE는 OAuth code를 Spring에 보내지 않는다. BFF가 code를 교환해 `pro
 
 ## 12. 관리자
 
+회원 관리(`/admin/users`)·처리 이력(`/admin/actions`) 화면, 목록·상세·정지/해제 API, 관리자 조치의 트랜잭션 기록은 [회원 관리·처리 이력](admin-management.md)에 정리한다. 회원 관리는 첫 메뉴, 이력은 관리자 메인 일반 메뉴 아래와 사이드바 로그아웃 위에 배치한다.
+
 | 기능 | Method | BFF | Spring |
 |------|--------|-----|--------|
 | 관리자 로그인 | POST | `/api/admin/auth/login` | `/api/v1/admin/auth/login` |

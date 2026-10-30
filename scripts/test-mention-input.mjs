@@ -3,6 +3,9 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 import ts from 'typescript';
+import { createRequire } from 'node:module';
+import { createElement } from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
 const exports = {};
 vm.runInNewContext(
   ts.transpileModule(
@@ -12,6 +15,110 @@ vm.runInNewContext(
   { exports },
 );
 const { activeMention, mentionTokens, mentionDeletion, replaceMention } = exports;
+
+test('the real input renders reply-button mentions with the selected highlight markup', () => {
+  const require = createRequire(import.meta.url);
+  const component = {};
+  vm.runInNewContext(
+    ts.transpileModule(
+      readFileSync(new URL('../src/components/common/MentionInput.tsx', import.meta.url), 'utf8'),
+      {
+        compilerOptions: {
+          module: ts.ModuleKind.CommonJS,
+          target: ts.ScriptTarget.ES2022,
+          jsx: ts.JsxEmit.ReactJSX,
+        },
+      },
+    ).outputText,
+    {
+      exports: component,
+      require(name) {
+        if (name === '@/lib/search/mention-input') return exports;
+        if (name.endsWith('.scss')) return { default: {} };
+        return require(name);
+      },
+    },
+  );
+  const draft = exports.replyMentionDraft('', [], { userNo: 2, nickname: 'walker' }, 1);
+  const props = {
+    value: draft.value,
+    selectedUsers: draft.mentions,
+    onValueChange() {},
+    onMentionChange() {},
+  };
+  const html = renderToStaticMarkup(createElement(component.MentionInput, props));
+  assert.match(html, /<strong>@walker<\/strong>/);
+  const plain = renderToStaticMarkup(
+    createElement(component.MentionInput, { ...props, selectedUsers: [] }),
+  );
+  assert.doesNotMatch(plain, /<strong>/);
+});
+
+test('already entered identities are absent from suggestions, active completion still matches', () => {
+  const accounts = [
+    { userNo: 1, nickname: 'walker' },
+    { userNo: 2, nickname: 'doggy' },
+    { userNo: 3, nickname: 'ultary' },
+  ];
+  const value = '@walker @doggy 안녕하세요. @ultary';
+  const active = activeMention(value, value.length);
+  assert.equal(
+    exports
+      .availableMentionAccounts('@walker ', { start: 0, end: 7, term: 'walker' }, accounts, [
+        accounts[0],
+      ])
+      .some((user) => user.userNo === 1),
+    false,
+  );
+  assert.equal(
+    JSON.stringify(exports.availableMentionAccounts(value, active, accounts)),
+    JSON.stringify([accounts[2]]),
+  );
+  const duplicate = '@walker 본문 @walker';
+  assert.equal(
+    exports
+      .availableMentionAccounts(duplicate, activeMention(duplicate, duplicate.length), accounts)
+      .some((user) => user.userNo === 1),
+    false,
+  );
+  assert.equal(
+    exports.availableMentionAccounts('본문 @', activeMention('본문 @', 4), accounts).length,
+    3,
+  );
+  assert.equal(exports.availableMentionAccounts('본문', null, accounts).length, 3);
+});
+
+test('reply action selects an atomic mention and sends its identity, self reply adds none', () => {
+  const target = { userNo: 2, nickname: 'walker' };
+  const result = exports.replyMentionDraft('', [], target, 1);
+  assert.equal(result.value, '@walker ');
+  assert.equal(exports.selectedMentionTokens(result.value, result.mentions).length, 1);
+  assert.equal(
+    JSON.stringify(exports.mentionPayload(result.value, result.mentions)),
+    JSON.stringify([{ userNo: 2 }]),
+  );
+  assert.ok(
+    mentionDeletion(result.value, result.value.length, result.value.length, true, result.mentions),
+  );
+  assert.equal(exports.replyMentionDraft('', [], target, 2).value, '');
+  assert.equal(exports.replyMentionDraft('', [], { nickname: 'unknown' }, 1).mentions.length, 0);
+  const retained = exports.replyMentionDraft(
+    '@walker @doggy 본문',
+    [{ userNo: 3, nickname: 'doggy' }],
+    target,
+    1,
+  );
+  assert.equal(retained.mentions.length, 2);
+  assert.equal(
+    exports.replyMentionDraft(
+      retained.value,
+      retained.mentions,
+      { userNo: 4, nickname: 'other' },
+      1,
+    ).mentions.length,
+    1,
+  );
+});
 test('Korean nicknames and bare @ open suggestions, emails do not', () => {
   assert.equal(activeMention('@', 1).term, '');
   assert.equal(activeMention('안녕 @나리', 6).term, '나리');

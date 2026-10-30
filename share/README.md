@@ -13,7 +13,7 @@ share/
     README.md
     rules.json
   database/
-    schema/mariadb_10_1/    ← 001_init_schema.sql (schema_version 34)
+    schema/mariadb_10_1/    ← 001_init_schema.sql (schema_version 40)
     seed/README.md         ← 개발 데이터·기존 시드 제거 안내
   docs/
     api-memo.md             ← 엔드포인트·도메인 메모

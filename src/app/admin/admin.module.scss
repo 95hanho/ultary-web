@@ -136,6 +136,70 @@
   }
 }
 
+.menuHistory {
+  margin-top: 36px;
+}
+
+.sideBottom {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-top: auto;
+}
+
+.aiFilters .memberSearch { width: min(300px, 70vw); }
+.userActionColumn { width: 210px; }
+.petNamesColumn { width: 180px; }
+.sampleHistory {
+  display: block;
+  margin-top: 4px;
+  color: var(--brand-gray-500);
+  font-size: 11px;
+  font-weight: 400;
+}
+.userStatusControl {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  input {
+    width: 100%;
+    max-width: 240px;
+    box-sizing: border-box;
+    padding: 6px 8px;
+    border: 1px solid var(--brand-gray-200);
+    border-radius: 6px;
+    font-size: 13px;
+  }
+}
+.memberLink {
+  color: var(--brand-grass-700);
+  text-underline-offset: 3px;
+  &:hover, &:active { text-decoration-thickness: 2px; }
+}
+.metaBlock { display: block; margin-top: 4px; color: var(--brand-gray-500); }
+.auditReason { white-space: pre-wrap; }
+.userDetailHeader {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px;
+  margin: 20px 0;
+  > .userStatusControl { margin-left: auto; }
+  p { margin: 6px 0 0; }
+}
+.memberSectionTitle { margin: 28px 0 12px; font-size: 20px; }
+.adminPetList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+  padding: 0;
+  list-style: none;
+  li { display: flex; align-items: center; gap: 10px; }
+  p { margin: 4px 0 0; font-size: 13px; }
+}
+.memberTableScroll { width: 100%; overflow-x: auto; }
+
 .workspace {
   display: flex;
   height: 100dvh;

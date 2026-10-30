@@ -11,6 +11,7 @@ import styles from './admin.module.scss';
 import { useMenuCounts, withCount } from './useMenuCounts';
 
 const LINKS = [
+  { href: '/admin/users', label: '회원 관리' },
   { href: '/admin/tags', label: '태그요청' },
   { href: '/admin/reports', label: '신고목록' },
   { href: '/admin/ai/logs', label: 'AI 오류 로그' },
@@ -71,14 +72,18 @@ export default function AdminShell({ children }: { children: ReactNode }) {
                           ? counts?.pendingTagRequestCount
                           : link.href === '/admin/reports'
                             ? counts?.requestedReportCount
-                            : counts?.failedAiRequestCount,
+                            : link.href === '/admin/ai/logs' ? counts?.failedAiRequestCount : undefined,
                       )}
                     </Link>
                   );
                 })}
               </nav>
             </div>
-            <AdminLogoutButton />
+            <div className={styles.sideBottom}>
+              <Link href="/admin/actions" className={pathname.startsWith('/admin/actions') ? `${styles.sideLink} ${styles.sideLinkActive}` : styles.sideLink}
+                aria-current={pathname.startsWith('/admin/actions') ? 'page' : undefined}>관리자 처리 이력</Link>
+              <AdminLogoutButton />
+            </div>
           </>
         ) : null}
       </aside>
