@@ -1,28 +1,12 @@
 import { springEndpoints } from '@/lib/api/endpoints';
-import {
-  bearer,
-  handleBffError,
-  isUnauthorized,
-  ok,
-  requireAccessToken,
-} from '@/lib/api/bffRoute';
+import { bearer, handleBffError, isUnauthorized, ok, requireAccessToken } from '@/lib/api/bffRoute';
 import { springDelete } from '@/lib/api/springFetch';
-import { isProd } from '@/lib/env.server';
-import { NextResponse } from 'next/server';
 
 /**
  * BFF DELETE /api/test/story-views
- * Spring local: DELETE /api/v1/test/story-views — 내 스토리 읽음 전부 삭제
- * FE는 development에서만 호출 (share §13)
+ * 운영 체험 도구: 인증된 본인의 스토리 읽음만 초기화한다.
  */
 export async function DELETE() {
-  if (isProd) {
-    return NextResponse.json(
-      { message: 'NOT_FOUND', detail: '테스트 API는 개발 환경에서만 사용합니다.' },
-      { status: 404 },
-    );
-  }
-
   console.log('[API] 테스트 · 스토리 읽음 초기화');
   try {
     const accessToken = await requireAccessToken();

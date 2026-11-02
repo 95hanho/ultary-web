@@ -12,6 +12,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useState, useTransition, type FormEvent } from 'react';
 import styles from './login.module.scss';
+import { MobileLoginIntro } from './MobileLoginIntro';
 
 const ACCOUNT_WITHDRAWN_MESSAGE = '탈퇴된 계정입니다. 고객센터에 문의해주세요.';
 const ACCOUNT_SUSPENDED_MESSAGE = '정지된 계정입니다. 고객센터에 문의해주세요.';
@@ -58,7 +59,6 @@ export default function LoginClient({ initialError, signupComplete = false }: Pr
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(socialErrorMessage(initialError));
   const [showSignupComplete, setShowSignupComplete] = useState(signupComplete);
-  const [hasInteracted, setHasInteracted] = useState(false);
 
   const clearNotices = () => {
     setError(null);
@@ -103,6 +103,7 @@ export default function LoginClient({ initialError, signupComplete = false }: Pr
 
   return (
     <main className={styles.shell}>
+      <MobileLoginIntro />
       <aside className={styles.introImageWrap}>
         <Image
           src="/images/img/login_intro.png"
@@ -114,7 +115,7 @@ export default function LoginClient({ initialError, signupComplete = false }: Pr
         />
       </aside>
       <div className={styles.loginPanel}>
-        <div className={styles.logoWrap} data-intro={!hasInteracted}>
+        <div className={styles.logoWrap}>
           <Image
             src={LOGO_SRC}
             alt="ULTARY"
@@ -123,18 +124,6 @@ export default function LoginClient({ initialError, signupComplete = false }: Pr
             priority
             className={styles.logo}
           />
-          <div className={styles.mobileIntro} aria-hidden={hasInteracted}>
-            <h1>
-              우리 집 반려동물이
-              <br />
-              <strong>주인공인 곳</strong>
-            </h1>
-            <p>
-              함께한 하루를 기록하고,
-              <br />
-              다른 집 친구들의 일상도 만나보세요.
-            </p>
-          </div>
         </div>
 
         <div className={styles.content}>
@@ -147,8 +136,6 @@ export default function LoginClient({ initialError, signupComplete = false }: Pr
 
           <form
             onSubmit={onSubmit}
-            onFocusCapture={() => setHasInteracted(true)}
-            onClickCapture={() => setHasInteracted(true)}
             className={styles.form}
             noValidate
           >

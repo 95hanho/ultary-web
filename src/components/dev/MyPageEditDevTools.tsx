@@ -6,7 +6,7 @@ import { bffEndpoints } from '@/lib/api/endpoints';
 import type { BffEnvelope } from '@/types/api';
 
 /**
- * 회원정보 수정 페이지 development 테스트 도구.
+ * 회원정보 수정 페이지 local/prod 공통 체험 도구.
  * share §13 — POST /api/test/nickname-cooldown
  */
 export function MyPageEditDevTools() {

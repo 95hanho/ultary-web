@@ -494,17 +494,16 @@ FE는 OAuth code를 Spring에 보내지 않는다. BFF가 code를 교환해 `pro
 
 ---
 
-## 13. 로컬 테스트 전용 (`local` 프로필)
+## 13. 체험 도구·로컬 테스트 API
 
-> Spring `@Profile("local")` — **prod 프로필에서는 컨트롤러 미등록(404)**.  
-> FE는 development에서만 버튼/호출. BFF 경유 시에도 Spring이 local이어야 함.
+> 스토리 읽음·닉네임태그 제한 초기화는 local/prod 공통 체험 기능이다. BFF 키와 사용자 Bearer 인증이 필요하며 요청의 회원번호와 무관하게 본인만 변경한다.
+> 비밀번호 인코딩·토큰 초기화는 Spring `@Profile("local")` 전용이며 prod에서는 컨트롤러 미등록(404)이다. FE의 a/r토큰 초기화 API도 운영에서 차단한다.
 
 | 기능 | Method | Spring | 비고 |
 |------|--------|--------|------|
 | 비밀번호 인코딩 | POST | `/api/v1/test/password/encode` | 인증 불필요 |
-| **내 스토리 읽음 초기화** | DELETE | `/api/v1/test/story-views` | Bearer 필수. `ultary_story_view`에서 내 viewer 행 전부 삭제 → `deletedCount` |
-| **닉네임 변경 기간 초기화** | POST | `/api/v1/test/nickname-cooldown` | Bearer 필수. 내 `nickname_changed_at`을 올해 1월 1일 00:00으로 바꿔 30일 쿨다운을 푼다 |
-| **펫 멘션 ID 변경 기간 초기화** | POST | `/api/v1/test/pets/{petId}/mention-id-cooldown` | Bearer 필수. 내 펫의 `mention_id_changed_at`을 올해 1월 1일 00:00으로 바꿔 30일 쿨다운을 푼다. 없거나 내 펫이 아니면 404 |
+| **내 스토리 읽음 초기화** | DELETE | `/api/v1/test/story-views` | local/prod. Bearer 필수. `ultary_story_view`에서 내 viewer 행만 전부 삭제 → `deletedCount` |
+| **닉네임태그 변경 기간 초기화** | POST | `/api/v1/test/nickname-cooldown` | local/prod. Bearer 필수. 내 `nickname_changed_at`을 31일 전으로 바꿔 30일 제한을 해제. 닉네임 자체는 변경하지 않음 |
 | **액세스·리프레시 토큰 초기화** | DELETE | `/api/v1/test/tokens` | Bearer 필수. 내 `ultary_token` 리프레시 행을 모두 폐기 → `userNo`, `revokedCount`. 액세스 JWT는 DB에 없으므로, 버튼은 성공 후 access·refresh 쿠키(와 개발용 만료 쿠키)를 지워야 로그인 전 상태가 된다 |
 
 HTTP: `requests/test.http`

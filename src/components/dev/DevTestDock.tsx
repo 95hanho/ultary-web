@@ -205,7 +205,7 @@ export function DevTestDock({ groups }: Props) {
       ) : (
         <div className={styles.panel}>
           <div className={styles.panelHead}>
-            <span className={styles.panelTitle}>DEV</span>
+            <span className={styles.panelTitle}>체험 도구</span>
             <button
               type="button"
               className={styles.hideBtn}
@@ -232,47 +232,51 @@ export function DevTestDock({ groups }: Props) {
                 {formatClock(issuedAt)} 재발급
               </p>
             ) : null}
-            <button
-              type="button"
-              className={clsx(styles.actionBtn, styles.statusAction)}
-              disabled={Boolean(busyId)}
-              onClick={() =>
-                void run({
-                  id: 'reset-refresh-token',
-                  label: 'r토큰 초기화',
-                  onClick: async () => {
-                    const res = await bffDelete<BffEnvelope<{ revokedCount?: number }>>(
-                      bffEndpoints.test.tokens,
-                    );
-                    refreshClearedRef.current = true;
-                    const count = res.data?.revokedCount;
-                    return typeof count === 'number'
-                      ? `r토큰 ${count}개 폐기`
-                      : 'r토큰을 폐기했습니다';
-                  },
-                })
-              }
-            >
-              {busyId === 'reset-refresh-token' ? '…' : 'r토큰 초기화'}
-            </button>
-            <button
-              type="button"
-              className={clsx(styles.actionBtn, styles.statusAction)}
-              disabled={Boolean(busyId)}
-              onClick={() =>
-                void run({
-                  id: 'reset-access-token',
-                  label: 'a토큰 초기화',
-                  onClick: async () => {
-                    await bffPostJson(bffEndpoints.test.accessTokenReset, {});
-                    refreshClearedRef.current = true;
-                    return 'a토큰을 지웠습니다';
-                  },
-                })
-              }
-            >
-              {busyId === 'reset-access-token' ? '…' : 'a토큰 초기화'}
-            </button>
+            {process.env.NODE_ENV !== 'production' ? (
+              <>
+                <button
+                  type="button"
+                  className={clsx(styles.actionBtn, styles.statusAction)}
+                  disabled={Boolean(busyId)}
+                  onClick={() =>
+                    void run({
+                      id: 'reset-refresh-token',
+                      label: 'r토큰 초기화',
+                      onClick: async () => {
+                        const res = await bffDelete<BffEnvelope<{ revokedCount?: number }>>(
+                          bffEndpoints.test.tokens,
+                        );
+                        refreshClearedRef.current = true;
+                        const count = res.data?.revokedCount;
+                        return typeof count === 'number'
+                          ? `r토큰 ${count}개 폐기`
+                          : 'r토큰을 폐기했습니다';
+                      },
+                    })
+                  }
+                >
+                  {busyId === 'reset-refresh-token' ? '…' : 'r토큰 초기화'}
+                </button>
+                <button
+                  type="button"
+                  className={clsx(styles.actionBtn, styles.statusAction)}
+                  disabled={Boolean(busyId)}
+                  onClick={() =>
+                    void run({
+                      id: 'reset-access-token',
+                      label: 'a토큰 초기화',
+                      onClick: async () => {
+                        await bffPostJson(bffEndpoints.test.accessTokenReset, {});
+                        refreshClearedRef.current = true;
+                        return 'a토큰을 지웠습니다';
+                      },
+                    })
+                  }
+                >
+                  {busyId === 'reset-access-token' ? '…' : 'a토큰 초기화'}
+                </button>
+              </>
+            ) : null}
             {onLoginPage ? (
               <>
                 <button

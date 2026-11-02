@@ -11,7 +11,7 @@ type Props = {
 };
 
 /**
- * 스토리 페이지 development 테스트 도구.
+ * 스토리 페이지 local/prod 공통 체험 도구.
  * share §13 — DELETE /api/test/story-views
  * 초기화 후 콜백에서 이전 페이지로 돌아가는 것을 권장 (현재 스토리 재읽음 방지).
  */
