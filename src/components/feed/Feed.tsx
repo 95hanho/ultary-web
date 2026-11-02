@@ -4,6 +4,8 @@ import { useSearchParams } from 'next/navigation';
 import { useResettableState } from '@/lib/react/useResettableState';
 
 import { formatFeedTime } from '@/lib/feed/formatFeedTime';
+import { saveFeedEditReturn } from '@/lib/feed/edit-return';
+import { adjustMainCommentCount, removeMainFeed, updateMainFeed } from '@/lib/feed/main-session';
 import { RevealTime } from '@/components/common/RevealTime';
 import { MediaImage } from '@/components/common/MediaImage';
 import type { StoryStatus } from '@/components/my-ultary/Profile';
@@ -14,6 +16,7 @@ import { bffDelete, bffGet, bffPostJson } from '@/lib/api/bffFetch';
 import { subscribeContentModerated } from '@/lib/ws/liveSocket';
 import type { BffEnvelope } from '@/types/api';
 import { loadMyUserNo } from '@/lib/auth/myUserNo';
+import { canEditContent } from '@/lib/auth/contentEdit';
 import { bffEndpoints } from '@/lib/api/endpoints';
 import { isRecord, isHttpError } from '@/lib/api/error';
 import { resolveFeedPetLabels, type FeedPetLabel } from '@/lib/feed/petLabels';
@@ -69,6 +72,7 @@ export type FeedData = {
   id: string;
   /** 작성자. 스토리 링·스토리 이동에 사용 */
   userNo?: number;
+  advertisement?: boolean;
   nickname: string;
   subjectNames?: string[];
   subjectPets?: SubjectPet[];
@@ -141,6 +145,7 @@ export function Feed({
   mediaIds,
   photoTags,
   caption,
+  advertisement = false,
   createdAt,
   tagIds = [],
   story = 'none',
@@ -195,12 +200,14 @@ export function Feed({
     const unsubscribe = subscribeContentModerated((event) => {
       if (event.feedId !== id) return;
       if (event.targetType === 'FEED' && event.action === 'HIDDEN') {
+        removeMainFeed(id);
         setRemoved(true);
         return;
       }
       void bffGet<BffEnvelope<unknown>>(bffEndpoints.feeds.detail, { feedId: id })
         .then((res) => {
           if (!active || !isRecord(res.data)) return;
+          updateMainFeed(res.data);
           setCaptionOverride({
             feedId: id,
             source: caption,
@@ -209,7 +216,10 @@ export function Feed({
           if (typeof res.data.commentCount === 'number') setComments(res.data.commentCount);
         })
         .catch((err) => {
-          if (active && isHttpError(err) && err.status === 404) setRemoved(true);
+          if (active && isHttpError(err) && err.status === 404) {
+            removeMainFeed(id);
+            setRemoved(true);
+          }
         });
     });
     return () => {
@@ -267,6 +277,7 @@ export function Feed({
   }, [readOnly]);
 
   const isMine = myUserNo != null && userNo === myUserNo;
+  const canEdit = canEditContent(myUserNo, userNo);
   const canReport = myUserNo != null && userNo != null && userNo !== myUserNo;
 
   useEffect(() => {
@@ -403,6 +414,7 @@ export function Feed({
         ? await bffPostJson<unknown>(bffEndpoints.feeds.like, { feedId: id })
         : await bffDelete<unknown>(bffEndpoints.feeds.like, { feedId: id });
       const saved = readLikeState(res);
+      updateMainFeed(res);
       if (saved) {
         setLiked(saved.liked);
         setLikes(saved.count);
@@ -426,6 +438,7 @@ export function Feed({
         ? await bffPostJson<unknown>(bffEndpoints.feeds.pin, { feedId: id })
         : await bffDelete<unknown>(bffEndpoints.feeds.pin, { feedId: id });
       const flag = readFlag(res, 'pinnedByMe');
+      updateMainFeed(res);
       const applied = flag ?? next;
       if (flag != null) setPinned(flag);
       showFooterNotice(applied ? '울타리 고정이 완료되었습니다.' : '울타리 고정이 취소되었습니다.');
@@ -447,6 +460,7 @@ export function Feed({
         ? await bffPostJson<unknown>(bffEndpoints.feeds.save, { feedId: id })
         : await bffDelete<unknown>(bffEndpoints.feeds.save, { feedId: id });
       const flag = readFlag(res, 'savedByMe');
+      updateMainFeed(res);
       const applied = flag ?? next;
       if (flag != null) setSaved(flag);
       showFooterNotice(applied ? '게시글 저장이 완료되었습니다.' : '게시글 저장이 취소되었습니다.');
@@ -474,6 +488,7 @@ export function Feed({
             setDeletePending(true);
             try {
               await bffDelete<unknown>(bffEndpoints.feeds.detail, { feedId: id });
+              removeMainFeed(id);
               setRemoved(true);
             } catch (err) {
               console.error('[feed] delete failed', err);
@@ -525,7 +540,9 @@ export function Feed({
   const hasMultiple = safeImages.length > 1;
   const showPrev = hasMultiple && index > 0;
   const showNext = hasMultiple && index < safeImages.length - 1;
-  const captionParts = splitCaptionTags(visibleCaption);
+  const captionParts = splitCaptionTags(
+    advertisement ? visibleCaption.replace(/^\s*\[광고\]\s*/, '') : visibleCaption,
+  );
   const storyRing = story ?? 'none';
   const storyHref =
     !readOnly && storyRing !== 'none' && userNo != null
@@ -652,40 +669,53 @@ export function Feed({
       id={`feed-${id}`}
       className={clsx(styles.feed, readOnly && styles.readOnlyPreview)}
     >
-      {showAuthor ? (
+      {showAuthor || advertisement ? (
         <header className={styles.header}>
-          {storyHref ? (
-            <Link href={storyHref} className={styles.profileLink} aria-label={`${nicknameTag(nickname)} 스토리`}>
-              <PetProfileGroup
-                pets={subjectPets}
-                fallbackImage={profileUrl}
-                size={41}
-                story={storyRing}
-              />
-            </Link>
-          ) : (
-            <PetProfileGroup
-              pets={subjectPets}
-              fallbackImage={profileUrl}
-              size={41}
-              story={readOnly ? 'none' : storyRing}
-            />
-          )}
-          <div className={styles.authorText}>
-            {readOnly ? (
-              <PetNamesAndNicknameTag
-                nickname={nickname}
-                petNames={subjectPets.length ? subjectPets.map((pet) => pet.name) : subjectNames}
-              />
-            ) : (
-              <Link href={myUltaryPath(nickname)} className={styles.nickname}>
-                <PetNamesAndNicknameTag
-                  nickname={nickname}
-                  petNames={subjectPets.length ? subjectPets.map((pet) => pet.name) : subjectNames}
+          {showAuthor ? (
+            <>
+              {storyHref ? (
+                <Link
+                  href={storyHref}
+                  className={styles.profileLink}
+                  aria-label={`${nicknameTag(nickname)} 스토리`}
+                >
+                  <PetProfileGroup
+                    pets={subjectPets}
+                    fallbackImage={profileUrl}
+                    size={41}
+                    story={storyRing}
+                  />
+                </Link>
+              ) : (
+                <PetProfileGroup
+                  pets={subjectPets}
+                  fallbackImage={profileUrl}
+                  size={41}
+                  story={readOnly ? 'none' : storyRing}
                 />
-              </Link>
-            )}
-          </div>
+              )}
+              <div className={styles.authorText}>
+                {readOnly ? (
+                  <PetNamesAndNicknameTag
+                    nickname={nickname}
+                    petNames={
+                      subjectPets.length ? subjectPets.map((pet) => pet.name) : subjectNames
+                    }
+                  />
+                ) : (
+                  <Link href={myUltaryPath(nickname)} className={styles.nickname}>
+                    <PetNamesAndNicknameTag
+                      nickname={nickname}
+                      petNames={
+                        subjectPets.length ? subjectPets.map((pet) => pet.name) : subjectNames
+                      }
+                    />
+                  </Link>
+                )}
+              </div>
+            </>
+          ) : null}
+          {advertisement ? <strong className={styles.advertisementLabel}>[광고]</strong> : null}
         </header>
       ) : null}
       <div className={styles.content}>
@@ -738,8 +768,7 @@ export function Feed({
                     {tagsOpen && i === index
                       ? tags.map((tag) => {
                           const href = tagOwnerHref(tag, petLabels);
-                          const label =
-                            petLabels[tag.petId]?.label ?? tag.petName ?? '태그';
+                          const label = petLabels[tag.petId]?.label ?? tag.petName ?? '태그';
                           const style = { left: `${tag.x * 100}%`, top: `${tag.y * 100}%` };
                           if (!href || readOnly) {
                             return (
@@ -1021,9 +1050,11 @@ export function Feed({
                           </span>
                           <span className={styles.moreLabel}>게시글 저장</span>
                         </button>
-                      ) : (
+                      ) : null}
+                      {canEdit ? (
                         <Link
                           href={`${myUltaryPath(nickname)}/write/compose?editFeedId=${encodeURIComponent(id)}`}
+                          onNavigate={() => saveFeedEditReturn(id)}
                           className={styles.moreItem}
                           role="menuitem"
                           onClick={() => {
@@ -1036,7 +1067,7 @@ export function Feed({
                           </span>
                           <span className={styles.moreLabel}>게시글 수정</span>
                         </Link>
-                      )}
+                      ) : null}
                       {isMine ? (
                         <button
                           type="button"
@@ -1161,8 +1192,14 @@ export function Feed({
         focusCommentId={focusCommentId}
         focusReplyId={focusReplyId}
         portalTarget={readOnly ? previewRoot : undefined}
-        onCommentCreated={() => setComments((count) => count + 1)}
-        onCommentDeleted={() => setComments((count) => Math.max(0, count - 1))}
+        onCommentCreated={() => {
+          setComments((count) => count + 1);
+          adjustMainCommentCount(id, 1);
+        }}
+        onCommentDeleted={() => {
+          setComments((count) => Math.max(0, count - 1));
+          adjustMainCommentCount(id, -1);
+        }}
       />
       {!readOnly ? (
         <ShareMessageSheet

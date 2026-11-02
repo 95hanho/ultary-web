@@ -220,12 +220,20 @@ export function DevTestDock({ groups }: Props) {
             <span
               className={clsx(styles.timer, remain != null && remain <= 0 && styles.timerExpired)}
             >
-              {remain == null ? 'a토큰 없음' : `a토큰 ${formatRemain(remain)}`}
+              {remain == null
+                ? '로그인이 필요합니다'
+                : remain <= 0
+                  ? '인증 갱신 대기'
+                  : `인증 유효 시간 ${formatRemain(remain)}`}
             </span>
-            {expiresAt != null ? (
-              <p className={styles.meta}>{formatClock(expiresAt)} 만료</p>
+            {expiresAt != null && remain != null ? (
+              <p className={styles.meta}>
+                {remain <= 0
+                  ? '다음 요청 시 인증을 갱신합니다'
+                  : `${formatClock(expiresAt)}까지 유효`}
+              </p>
             ) : (
-              <p className={styles.meta}>로그인 후 예상 만료 시각이 나옵니다</p>
+              <p className={styles.meta}>테스트로그인으로 체험해보세요</p>
             )}
             {viaRefresh && issuedAt != null ? (
               <p className={clsx(styles.refreshNote, refreshFresh && styles.refreshFresh)}>

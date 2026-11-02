@@ -22,6 +22,7 @@ import {
 import { notifyAiContentBlocked } from '@/lib/ai/content-blocked';
 import { subscribeContentModerated } from '@/lib/ws/liveSocket';
 import { loadMyUserNo } from '@/lib/auth/myUserNo';
+import { canEditContent } from '@/lib/auth/contentEdit';
 import { clampFeedContent, FEED_CONTENT_MAX_LENGTH } from '@/lib/content/limits';
 import {
   createFeedComment,
@@ -1191,7 +1192,7 @@ export function CommentSheet({
                     : { visibility: 'hidden' }
                 }
               >
-                {menu.mine ? (
+                {menu.mine || canEditContent(myUserNo, null) ? (
                   <>
                     <button
                       type="button"
@@ -1204,17 +1205,19 @@ export function CommentSheet({
                       </span>
                       <span className={styles.itemMenuLabel}>수정</span>
                     </button>
-                    <button
-                      type="button"
-                      className={styles.itemMenuBtn}
-                      role="menuitem"
-                      onClick={() => removeTarget(menu)}
-                    >
-                      <span className={styles.itemMenuIcon}>
-                        <Trash2 size={22} strokeWidth={1.75} />
-                      </span>
-                      <span className={styles.itemMenuLabel}>삭제하기</span>
-                    </button>
+                    {menu.mine ? (
+                      <button
+                        type="button"
+                        className={styles.itemMenuBtn}
+                        role="menuitem"
+                        onClick={() => removeTarget(menu)}
+                      >
+                        <span className={styles.itemMenuIcon}>
+                          <Trash2 size={22} strokeWidth={1.75} />
+                        </span>
+                        <span className={styles.itemMenuLabel}>삭제하기</span>
+                      </button>
+                    ) : null}
                   </>
                 ) : (
                   <button

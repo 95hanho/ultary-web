@@ -108,6 +108,7 @@ FE는 OAuth code를 Spring에 보내지 않는다. BFF가 code를 교환해 `pro
 | 팔로우 스토리 조회 | GET | `/api/main/stories?userNo=` | `/api/v1/main/stories?userNo=` | 구현 |
 | 팔로우 게시글 조회 (무한 스크롤) | GET | `/api/main/feeds` | `/api/v1/main/feeds` | 구현 |
 | 메인 추천 게시글 | GET | `/api/main/feeds/recommended` | `/api/v1/main/feeds/recommended` | 구현 |
+| 메인 광고 후보 | GET | `/api/main/feeds/advertisements` | `/api/v1/main/feeds/advertisements` | 구현 |
 | 검색 (닉네임 / 펫멘션 / 태그명) | GET | `/api/main/search` | `/api/v1/main/search` | 구현 |
 | 태그 게시글 그리드 | GET | `/api/main/search/tags/:tagId/feeds?limit=30` | `/api/v1/main/search/tags/{tagId}/feeds?limit=30` | 구현 |
 | 검색 추천 게시글 | GET | `/api/main/search/recommended` | `/api/v1/main/search/recommended` | 구현 |
@@ -125,7 +126,9 @@ FE는 OAuth code를 Spring에 보내지 않는다. BFF가 code를 교환해 `pro
 > **팔로우 스토리 조회** `GET /main/stories?userNo=`: 해당 유저 활성 스토리 배열(`created_at` ASC). **항목마다 `viewedByMe`**(스토리 단건 읽음, `ultary_story_view`)와 **`likedByMe`**(내 공감, 취소한 건 제외). FileSummary 포함. `GET /my-ultary/stories`, `POST /stories/{storyId}/view`도 같다.  
 > **FE 재생**: 배열은 시간순 유지. 시작 인덱스 = 첫 `viewedByMe === false` (없으면 `0` = 처음부터). 넘긴 뒤 `POST /stories/:storyId/view`로 읽음 기록.  
 > 메인 피드: 본인 + 팔로우 게시글. `PUBLIC` / 본인 / `NEIGHBORS`(ACCEPTED 팔로우 관계). 차단 쌍 제외. 커서 `cursorFeedId` + `nextCursorFeedId`.  
-> **추천 게시글** (`/main/feeds/recommended`, `/main/search/recommended`): 나중에 추천 알고리즘 추가해야함. 지금은 조회 가능한 전체 피드(공개·본인·팔로우 관계 공개, 차단 제외)를 최신순 `limit`건(기본 10, 최대 20). 응답은 피드 단건과 같은 `FeedResponse` 배열. 팔로우 타임라인과 별개.  
+> **추천 게시글** (`/main/feeds/recommended`, `/main/search/recommended`): 본인 제외·공개 계정·전체공개·미디어·차단 조건을 적용한다. 메인은 팔로우 작성자와 전용 판매자 제외, 검색은 팔로우 후순위다. 기본 메인 10·검색 18개, `limit=1..50`, `cursor`로 이어받는다. 응답 `{items: FeedResponse[], nextCursor: string|null}`. 작성자 분산과 후보 부족 시 완화·커서 정책은 [추천 문서](feed-recommendations.md) 참조. 기존 상품 30% 분산은 제거했다.
+>
+> **메인 광고** (`/main/feeds/advertisements`): 공개·승인·차단 조건을 통과한 전용 판매자 피드 최대 50개를 무작위 순서의 `FeedResponse[]`로 반환한다. 일반 타임라인에서는 해당 판매자를 제외하고 FE가 일반 글 4·5개 간격으로 후보를 중복 없이 삽입한다. 모든 단건/목록 `FeedResponse.advertisement`는 이 전용 판매자 작성 여부이며 FE는 이미지 위 프로필 행 오른쪽 끝에 굵은 `[광고]`를 표시한다. 상세: [광고 문서](feed-advertisements.md).
 > **작성자 프로필**: 항목마다 `authorProfileFile` (`FileSummary | null`). 작성자의 대표 펫 사진. 없으면 `null`. 게시글 사진(`media[].file`)과 별개. 단건 `GET /feeds/{feedId}`도 동일.  
 > 검색 페이지 `GET /main/search?q=&type=&limit=`. `@`/`#` 접두는 서버에서 제거. URL 쿼리에서는 `#`를 `%23`, `@`를 `%40`로 인코딩해야 함. 입력 중과 엔터는 같은 응답이고 `limit`만 다르다. 입력 중 `limit=5`, 엔터 `limit=20`.  
 > **검색 페이지**: `type=USER`는 닉네임 → `users[]`. `type=MENTION`은 펫 멘션 → `users[]`(유저당 한 줄, `petTags`). `type=TAG`는 태그명 → `tags[]`(`tagId`, `hashtag`, `feedCount`). `users[]` 항목은 `userNo`, `nickname`, `profileFile`, `petTags`, `bio`. `petTags`는 mentionId 배열(`@` 없음, priority 순, 없으면 `[]`). 본인·차단 유저는 빠진다. `tags[].feedCount`는 태그 클릭 그리드와 같은, 그 조회자에게 보이는 게시글 수다.  
@@ -231,6 +234,8 @@ FE는 OAuth code를 Spring에 보내지 않는다. BFF가 code를 교환해 `pro
 | 답글 좋아요 취소 | DELETE | `/api/feeds/:feedId/comments/:commentId/replies/:replyId/like` |
 
 > 댓글·답글 응답: `likeCount`, `likedByMe`, `authorProfileFile` (`FileSummary | null`, 작성자 프로필. 미등록이면 null), `myReport`. 목록에 답글이 포함되면 답글에도 동일. 좋아요 토글·작성·수정도 해당 댓글/답글 응답을 다시 반환. 테이블은 `ultary_feed_comment_like` / `ultary_feed_reply_like` (피드 좋아요와 분리).  
+> **태그 저장 순서**: FE는 본문에 해시태그를 포함해 게시글 API로 보내며 태그를 미리 생성하지 않는다. BE는 본문과 명시적 tagIds의 태그명을 함께 검사하고, 승인 후 새 태그·피드·연결을 한 트랜잭션에 저장한다. 실패 시 새 태그도 롤백한다. 상세: [feed-caption-tags.md](feed-caption-tags.md).
+>
 > **AI 모더레이션**: 게시글 작성/수정은 동기 AI 검사 통과 후 저장한다. 부적절(400)·장애(503)에는 저장하지 않는다. 댓글·답글 작성/수정은 저장과 검사 작업 등록을 같은 트랜잭션에서 처리하고 즉시 응답한다. AI는 DB 작업자가 비동기 검사하며 시도 로그를 독립 저장한다. 관리자 오류 처리는 ai-manual-review-and-phone-demo.md 참고. 유해 시 숨김/승인 본문 복구, 장애 시 콘텐츠 유지·재시도이며 사용자 제재가 아니다. 자세한 계약은 `async-moderation.md`.
 > **내 신고** `myReport`: 게시글 상세·댓글·답글·울타리(`GET /users/{userNo}/ultary`)에 있다. 없으면 `null`. 있으면 `reportId`, `status`. `status=REQUESTED`일 때 `DELETE /reports/{reportId}`로 취소한다. 관리자가 `CONFIRMED`(확인)로 바꾼 뒤, 삭제조치·거절·정지는 취소하지 않는다.
 
@@ -246,11 +251,12 @@ FE는 OAuth code를 Spring에 보내지 않는다. BFF가 code를 교환해 `pro
 | handle 변경 가능 여부 | GET | `/api/tags/:tagId/handle/change-availability` |
 | handle 변경/최초 설정 (설정·변경 후 30일 쿨다운) | PATCH | `/api/tags/:tagId/handle` |
 | 태그 검색 | GET | `/api/tags/search` |
-| 내용 입력 시 태그 추천 | GET | `/api/tags/recommend` | Gemini 기반(최대 5). 총 3회 실패 시 서비스 오류 |
+| 작성·수정 태그 자동완성 | GET | `/api/tags/suggest` · `q`, `limit`. 검색어 길이 / 태그명 길이 내림차순 → 조회 가능한 POST 수 내림차순 → 태그명 가나다순. 정렬 후 limit 적용 |
+| 내용 입력 시 태그 추천 | GET | `/api/tags/recommend` | DB 태그 우선 + Gemini 일반 추천(최대 10). 총 3회 실패 시 서비스 오류 |
 | 상업 태그 설명 요청 | POST | `/api/tags/:tagId/profile-requests` |
 | 내 태그 설명 요청 | GET | `/api/tags/profile-requests` |
 
-> `GET /tags/recommend?q=`는 게시글 작성 중 **내용(q)** 으로 해시태그를 최대 5개 추천한다. FE는 **이미 존재하는 태그**(선택된 `tagId`·본문의 기존 hashtag)를 뺀 본문만 `q`로 보내고, 태그 제외 글자 수 ≥ 20일 때 버튼으로 호출한다. Gemini가 추천하고, `#`·중복·빈 값·hashtag 규칙(1~30, 영문·숫자·한글·_)에 맞게 정리한다. DB에 같은 hashtag가 있으면 그 태그의 `tagId` 등을 채우고, 없으면 `tagId`만 null인 후보를 준다. Gemini 요청은 총 3회 시도하며 최종 실패 시 503 서비스 오류를 표시한다. 정상 빈 응답일 때만 DB 추천으로 보완한다. AI 장애로 게시글 작성은 막히지 않는다.
+> `GET /tags/recommend?q=`는 게시글 작성 중 **내용(q)** 으로 해시태그를 최대 10개 추천한다. 사용 가능한 DB 후보 최대 100개의 이름·제목·설명을 AI에 전달해 관련 기존 태그 최대 5개와 일반 추천 최대 5개를 한 번에 선별한다. DB 태그 우선으로 정렬하고 대소문자 구분 없이 중복을 제거한다. 상세: `docs/hashtag-recommendations.md`. FE는 **이미 존재하는 태그**(선택된 `tagId`·본문의 기존 hashtag)를 뺀 본문만 `q`로 보내고, 태그 제외 글자 수 ≥ 20일 때 버튼으로 호출한다. Gemini가 추천하고, `#`·중복·빈 값·hashtag 규칙(1~30, 영문·숫자·한글·_)에 맞게 정리한다. DB에 같은 hashtag가 있으면 그 태그의 `tagId` 등을 채우고, 없으면 `tagId`만 null인 후보를 준다. Gemini 요청은 총 3회 시도하며 최종 실패 시 503 서비스 오류를 표시한다. 정상 빈 응답일 때만 DB 추천으로 보완한다. AI 장애로 게시글 작성은 막히지 않는다.
 
 > `hashtag`는 생성 후 불변. `handle`은 선택·UNIQUE. handle 미설정(`handle_changed_at` NULL)이면 최초 설정은 언제든 가능. 생성 시 handle을 넣으면 그 시점부터 30일 쿨다운.
 

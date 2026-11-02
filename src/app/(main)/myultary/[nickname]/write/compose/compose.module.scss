@@ -247,6 +247,14 @@
   background: var(--brand-sky-100);
 }
 
+.suggestStatus {
+  margin: 0;
+  padding: 10px 19px;
+  color: var(--brand-gray-500);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
 .editorShell {
   position: relative;
   height: 140px;
@@ -276,12 +284,18 @@
   border-radius: 7px;
   overflow-y: auto;
   scrollbar-gutter: stable;
+  scrollbar-width: thin;
+  font-family: var(--font-sans);
   font-size: 16px;
   font-weight: 400;
   letter-spacing: -0.02em;
   line-height: 1.45;
   white-space: pre-wrap;
   word-break: break-word;
+
+  &::-webkit-scrollbar {
+    width: 12px;
+  }
 }
 
 .editorBackdrop {
@@ -289,13 +303,8 @@
   inset: 0;
   color: #000;
   pointer-events: none;
-  /* Keep the same scrollbar gutter as textarea; hide the thumb only. */
-  scrollbar-width: thin;
+  /* 입력창과 같은 스크롤바 폭을 유지하고 색상만 숨긴다. */
   scrollbar-color: transparent transparent;
-
-  &::-webkit-scrollbar {
-    width: 12px;
-  }
 
   &::-webkit-scrollbar-thumb {
     background: transparent;

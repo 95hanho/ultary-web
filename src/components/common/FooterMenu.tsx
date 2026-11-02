@@ -5,6 +5,7 @@ import { useResettableState } from '@/lib/react/useResettableState';
 import { MediaImage } from '@/components/common/MediaImage';
 import { bffGet, bffPostJson } from '@/lib/api/bffFetch';
 import { bffEndpoints } from '@/lib/api/endpoints';
+import { handleMainHomeClick } from '@/lib/feed/main-session';
 import { resolveFileDisplayUrl } from '@/lib/api/fileUrl';
 import { fetchDmUnread, getDmUnreadBadge, subscribeDmUnread } from '@/lib/dm/unreadBadge';
 import { MY_NICKNAME, myUltaryPath } from '@/lib/mock/ultary-accounts';
@@ -164,6 +165,10 @@ export function FooterMenu() {
     }
     setNoticeOpen(false);
     setMoreOpen(false);
+    if (href === '/' && pathname === '/') {
+      handleMainHomeClick(event);
+      return;
+    }
     if (!isWriteFlowPath(pathname) || pathname === href) return;
     event.preventDefault();
     confirmLeaveWrite(() => router.push(href));

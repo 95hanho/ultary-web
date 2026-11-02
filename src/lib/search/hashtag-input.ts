@@ -9,6 +9,8 @@ export type ActiveHashtag = {
 };
 
 const TAG_BODY = /[0-9A-Za-z가-힣_]/;
+// 완성되지 않은 한글도 입력 중인 태그로 유지한다. 저장할 태그 판정과는 분리한다.
+const TAG_INPUT_BODY = /[0-9A-Za-z가-힣ㄱ-ㅎㅏ-ㅣ_]/;
 const HASHTAG_TOKEN = /#[0-9A-Za-z가-힣_]+/g;
 
 function escapeRegExp(value: string): string {
@@ -95,14 +97,14 @@ export function appendHashtagIfAbsent(
 export function getActiveHashtag(value: string, caret: number): ActiveHashtag | null {
   const safeCaret = Math.max(0, Math.min(caret, value.length));
   const left = value.slice(0, safeCaret);
-  const match = left.match(/#[0-9A-Za-z가-힣_]*$/);
+  const match = left.match(/#[0-9A-Za-z가-힣ㄱ-ㅎㅏ-ㅣ_]*$/);
   if (!match) return null;
 
   const start = safeCaret - match[0].length;
   if (!isTagBoundaryBefore(value, start)) return null;
 
   let end = safeCaret;
-  while (end < value.length && TAG_BODY.test(value[end]!)) {
+  while (end < value.length && TAG_INPUT_BODY.test(value[end]!)) {
     end += 1;
   }
 
@@ -177,7 +179,8 @@ export function isHashtagClosed(value: string, tokenEnd: number): boolean {
 /**
  * Backspace 시 통째로 지울 해시태그 구간.
  * - 확정된 태그(`#태그 ` / `#태그`+구분자)만 대상. 입력 중(`#태그|` EOS)은 null.
- * - 태그 뒤 공백 한 칸까지 포함.
+ * - 공백 바로 뒤에서는 공백만 지우도록 null을 반환한다.
+ * - 태그 자체에서 삭제할 때만 뒤 공백 한 칸까지 포함한다.
  */
 export function atomicHashtagRangeForBackspace(
   value: string,
@@ -185,13 +188,7 @@ export function atomicHashtagRangeForBackspace(
 ): { start: number; end: number } | null {
   if (caret <= 0) return null;
 
-  if (value[caret - 1] === ' ') {
-    const token = findHashtagTokenAt(value, caret - 2);
-    if (token && token.end === caret - 1 && isTagBoundaryBefore(value, token.start)) {
-      return { start: token.start, end: caret };
-    }
-    return null;
-  }
+  if (/\s/.test(value[caret - 1]!)) return null;
 
   const token = findHashtagTokenAt(value, caret - 1);
   if (!token || !isHashtagClosed(value, token.end)) return null;

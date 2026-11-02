@@ -17,7 +17,7 @@ export default function AdminMenuClient() {
         <h1 className={styles.menuTitle}>관리자 메뉴</h1>
         <Link href="/admin/users" className={styles.menuButton}>회원 관리</Link>
         <Link href="/admin/tags" className={styles.menuButton}>
-          {withCount('태그요청', counts?.pendingTagRequestCount)}
+          {withCount('링크태그요청', counts?.pendingTagRequestCount)}
         </Link>
         <Link href="/admin/reports" className={styles.menuButton}>
           {withCount('신고목록', counts?.requestedReportCount)}

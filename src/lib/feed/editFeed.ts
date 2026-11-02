@@ -3,7 +3,8 @@ import { bffGet, bffPatchJson } from '@/lib/api/bffFetch';
 import { bffEndpoints } from '@/lib/api/endpoints';
 import { resolveFileDisplayUrl } from '@/lib/api/fileUrl';
 import { loadMyUserNo } from '@/lib/auth/myUserNo';
-import { resolveCaptionTagIds } from './createFeed';
+import { canEditContent } from '@/lib/auth/contentEdit';
+import { updateMainFeed } from './main-session';
 import { resolveFeedPetLabels } from './petLabels';
 import type { WriteDraftItem } from '@/stores/write-draft.store';
 import type { BffEnvelope } from '@/types/api';
@@ -15,10 +16,10 @@ export async function loadFeedEditDraft(feedId: string) {
     loadMyUserNo(),
   ]);
   const feed = response.data;
-  if (!feed || userNo == null || feed.userNo !== userNo) {
+  if (!feed || !canEditContent(userNo, feed.userNo)) {
     throw {
       status: 403,
-      message: '본인이 작성한 게시글만 수정할 수 있습니다.',
+      message: '게시글 수정 권한이 없습니다.',
       data: null,
       url: bffEndpoints.feeds.detail,
     };
@@ -89,26 +90,14 @@ export async function updateFeedFromDraft(
       }),
     };
   });
-  const current = await bffGet<BffEnvelope<FeedDetailResponse>>(bffEndpoints.feeds.detail, {
-    feedId,
-  });
-  const existing = await Promise.all(
-    (current.data?.tagIds ?? []).map(async (tagId) => {
-      const tag = await bffGet<BffEnvelope<{ hashtag: string }>>(bffEndpoints.tags.detail, {
-        tagId,
-      });
-      if (!tag.data?.hashtag) throw new Error('기존 태그 정보를 불러오지 못했습니다.');
-      return { tagId, hashtag: tag.data.hashtag };
-    }),
-  );
-  const tagIds = await resolveCaptionTagIds(caption, existing);
-  return bffPatchJson(bffEndpoints.feeds.detail, {
+  const response = await bffPatchJson<BffEnvelope<FeedDetailResponse>>(bffEndpoints.feeds.detail, {
     feedId,
     visibility,
     subjectPetIds,
     content: caption.trim(),
     clearContent: !caption.trim(),
     mediaTags,
-    tagIds,
   });
+  if (response.data) updateMainFeed(response.data);
+  return response;
 }

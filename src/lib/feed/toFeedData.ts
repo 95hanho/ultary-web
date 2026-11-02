@@ -116,6 +116,7 @@ export function toFeedData(raw: unknown, fallbackId: string): FeedData {
   return {
     id: String(detail.feedId ?? fallbackId),
     userNo: typeof detail.userNo === 'number' ? detail.userNo : undefined,
+    advertisement: detail.advertisement === true,
     nickname,
     subjectNames: (detail.subjectPets ?? []).map((pet) => pet.name),
     subjectPets: detail.subjectPets ?? [],

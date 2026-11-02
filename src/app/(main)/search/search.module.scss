@@ -207,7 +207,9 @@
 
 .accountItem {
   display: flex;
+  flex-shrink: 0;
   align-items: center;
+  height: 53px;
   margin: 0;
   padding: 0;
 

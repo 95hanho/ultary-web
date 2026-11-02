@@ -8,23 +8,34 @@ import { resolveFileDisplayUrl } from '@/lib/api/fileUrl';
 import { NO_PROFILE_SRC } from '@/lib/profileImage';
 import type { BffEnvelope } from '@/types/api';
 import type { Pet } from '@/types/pet';
+import type { FeedDetailResponse } from '@/types/feed';
 import styles from './SubjectPetPicker.module.scss';
 
 export function SubjectPetPicker({
   value,
   onChange,
   disabled = false,
+  editFeedId,
 }: {
   value: number[];
   onChange: (ids: number[]) => void;
   disabled?: boolean;
+  editFeedId?: string;
 }) {
   const [pets, setPets] = useState<Pet[]>([]);
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
   const [retry, setRetry] = useState(0);
   useEffect(() => {
     let cancelled = false;
-    bffGet<BffEnvelope<Pet[]>>(bffEndpoints.pets.root)
+    async function loadPets() {
+      if (!editFeedId) return bffGet<BffEnvelope<Pet[]>>(bffEndpoints.pets.root);
+      const response = await bffGet<BffEnvelope<FeedDetailResponse>>(bffEndpoints.feeds.detail, {
+        feedId: editFeedId,
+      });
+      if (!response.data) throw new Error('게시글 정보를 불러오지 못했습니다.');
+      return bffGet<BffEnvelope<Pet[]>>(bffEndpoints.users.pets, { userNo: response.data.userNo });
+    }
+    loadPets()
       .then((response) => {
         if (!Array.isArray(response.data)) throw new Error('Invalid pets');
         if (!cancelled) {
@@ -38,7 +49,7 @@ export function SubjectPetPicker({
     return () => {
       cancelled = true;
     };
-  }, [retry]);
+  }, [retry, editFeedId]);
   const selectedNames = pets
     .filter((pet) => value.includes(pet.petId))
     .map((pet) => pet.name)

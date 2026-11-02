@@ -7,6 +7,7 @@ import type { FeedCoverFileEmbed, FeedMediaFileEmbed, FileSummary } from './file
 export type Feed = {
   feedId: number;
   userNo: number;
+  advertisement?: boolean;
   content: string | null;
   visibility: FeedVisibility;
   likeCount: number;

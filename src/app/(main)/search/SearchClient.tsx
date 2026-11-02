@@ -2,11 +2,13 @@
 import { nicknameTag } from '@/lib/nickname-tag';
 import { PetNamesAndNicknameTag } from '@/components/common/PetNamesAndNicknameTag';
 import { useResettableState } from '@/lib/react/useResettableState';
+import { readRecommendedReturn, saveRecommendedReturn } from '@/lib/search/recommended-return';
 
 import { PageLoadError } from '@/components/common/PageLoadError';
 
 import { FooterMenu } from '@/components/common/FooterMenu';
 import { FeedGrid, type FeedGridItem } from '@/components/feed/FeedGrid';
+import { InfiniteFeedFooter } from '@/components/feed/InfiniteFeedFooter';
 import { HashtagResultList } from '@/components/search/HashtagResultList';
 import { bffDelete, bffGet, bffPostJson } from '@/lib/api/bffFetch';
 import { bffEndpoints } from '@/lib/api/endpoints';
@@ -28,11 +30,29 @@ import { Profile, type StoryStatus } from '@/components/my-ultary/Profile';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useEffect, useMemo, useRef, useState, type FocusEvent } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type FocusEvent,
+} from 'react';
 import { EmptyState } from '@/components/common/EmptyState';
 import styles from './search.module.scss';
 
 const SearchIcon = '/images/icon/Search.svg';
+type RecommendedPage = { items: unknown[]; nextCursor: string | null };
+const gridFromPage = (page: RecommendedPage): FeedGridItem[] =>
+  toFeedDataList(page)
+    .filter((feed) => Boolean(feed.images[0]))
+    .map((feed) => ({
+      id: feed.id,
+      imageUrl: feed.images[0],
+      isMulti: feed.images.length > 1,
+      href: `/posts/${feed.id}`,
+    }));
 
 /** API 오기 전 회색 칸. 이미지는 넣지 않는다 */
 const RECOMMENDED_PLACEHOLDERS: FeedGridItem[] = Array.from({ length: 9 }, (_, i) => ({
@@ -172,7 +192,9 @@ function AccountRow({
           />
         </Link>
       </div>
-      {onRemove ? <RemoveRecentButton label={nicknameTag(account.nickname)} onRemove={onRemove} /> : null}
+      {onRemove ? (
+        <RemoveRecentButton label={nicknameTag(account.nickname)} onRemove={onRemove} />
+      ) : null}
     </li>
   );
 }
@@ -253,36 +275,79 @@ export default function SearchClient() {
     [phase],
     phase !== 'active',
   );
-  const [recommendedPosts, setRecommendedPosts] =
-    useState<FeedGridItem[]>(RECOMMENDED_PLACEHOLDERS);
+  const [recommendedPosts, setRecommendedPosts] = useState<FeedGridItem[]>(
+    () => readRecommendedReturn()?.posts ?? RECOMMENDED_PLACEHOLDERS,
+  );
+  const [recommendedCursor, setRecommendedCursor] = useState<string | null>(
+    () => readRecommendedReturn()?.nextCursor ?? null,
+  );
+  const [recommendedLoading, setRecommendedLoading] = useState(() => !readRecommendedReturn());
+  const [recommendedError, setRecommendedError] = useState(false);
+  const recommendedBusy = useRef(false);
+
+  useLayoutEffect(() => {
+    const previous = readRecommendedReturn();
+    if (!previous) return;
+    window.scrollTo({ top: previous.scrollY, behavior: 'instant' });
+    // Reapply after Next's own navigation scroll handling.
+    const frame = requestAnimationFrame(() =>
+      window.scrollTo({ top: previous.scrollY, behavior: 'instant' }),
+    );
+    return () => cancelAnimationFrame(frame);
+  }, []);
 
   useEffect(() => {
+    if (readRecommendedReturn()) return;
     let cancelled = false;
     (async () => {
       try {
-        const res = await bffGet<BffEnvelope<unknown>>(bffEndpoints.main.searchRecommended, {
-          limit: 10,
-        });
-        const grid: FeedGridItem[] = toFeedDataList(res.data ?? res)
-          .filter((feed) => Boolean(feed.images[0]))
-          .map((feed) => ({
-            id: feed.id,
-            imageUrl: feed.images[0],
-            isMulti: feed.images.length > 1,
-            href: `${myUltaryPath(feed.nickname)}/posts/${feed.id}`,
-          }));
+        const res = await bffGet<BffEnvelope<RecommendedPage>>(
+          bffEndpoints.main.searchRecommended,
+          {
+            limit: 18,
+          },
+        );
         if (cancelled) return;
-        setRecommendedPosts(grid);
+        if (!res.data) throw new Error('추천 게시글 응답이 올바르지 않습니다.');
+        setRecommendedPosts(gridFromPage(res.data));
+        setRecommendedCursor(res.data.nextCursor);
       } catch (err) {
         console.error('[search] recommended failed', err);
         if (!cancelled) setLoadFailed({ error: err });
         if (!cancelled) setRecommendedPosts([]);
+      } finally {
+        if (!cancelled) setRecommendedLoading(false);
       }
     })();
     return () => {
       cancelled = true;
     };
   }, []);
+
+  const loadMoreRecommended = useCallback(async () => {
+    if (recommendedBusy.current || recommendedLoading || !recommendedCursor) return;
+    recommendedBusy.current = true;
+    setRecommendedLoading(true);
+    setRecommendedError(false);
+    try {
+      const res = await bffGet<BffEnvelope<RecommendedPage>>(bffEndpoints.main.searchRecommended, {
+        limit: 18,
+        cursor: recommendedCursor,
+      });
+      if (!res.data) throw new Error('추천 게시글 응답이 올바르지 않습니다.');
+      const next = gridFromPage(res.data);
+      setRecommendedPosts((previous) => {
+        const ids = new Set(previous.map((post) => post.id));
+        return [...previous, ...next.filter((post) => !ids.has(post.id))];
+      });
+      setRecommendedCursor(res.data.nextCursor);
+    } catch {
+      setRecommendedError(true);
+    } finally {
+      recommendedBusy.current = false;
+      setRecommendedLoading(false);
+    }
+  }, [recommendedCursor, recommendedLoading]);
 
   useEffect(() => {
     replaceSearchUrl(searchListPath(phase === 'active', query, committed));
@@ -634,7 +699,20 @@ export default function SearchClient() {
       </header>
 
       <main className={styles.main}>
-        {phase === 'idle' ? <FeedGrid posts={recommendedPosts} /> : null}
+        {phase === 'idle' ? (
+          <FeedGrid
+            posts={recommendedPosts}
+            onNavigate={() => saveRecommendedReturn(recommendedPosts, recommendedCursor)}
+          />
+        ) : null}
+        {phase === 'idle' ? (
+          <InfiniteFeedFooter
+            hasMore={recommendedCursor != null}
+            loading={recommendedLoading}
+            error={recommendedError}
+            onLoadMore={loadMoreRecommended}
+          />
+        ) : null}
 
         {showMinLengthHint ? (
           <p className={styles.minLengthHint} role="status">

@@ -76,7 +76,7 @@ export default function TagListClient() {
 
   return (
     <section className={styles.paneFull}>
-      <h1 className={styles.paneTitle}>태그요청</h1>
+      <h1 className={styles.paneTitle}>링크태그요청</h1>
       {state === 'loading' && tags.length === 0 ? (
         <p className={styles.empty}>불러오는 중</p>
       ) : null}
@@ -86,7 +86,7 @@ export default function TagListClient() {
       ) : null}
       <div ref={listRef} className={styles.listWrap + ' ' + styles.tableWrap}>
         <table className={styles.dataTable}>
-          <caption className={styles.tableCaption}>태그요청 목록</caption>
+          <caption className={styles.tableCaption}>링크태그요청 목록</caption>
           <colgroup>
             <col className={styles.numberColumn} /><col className={styles.imageColumn} />
             <col /><col className={styles.memberColumn} /><col /><col /><col className={styles.linkColumn} /><col /><col className={styles.dateColumn} />

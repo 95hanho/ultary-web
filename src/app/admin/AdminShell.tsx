@@ -12,7 +12,7 @@ import { useMenuCounts, withCount } from './useMenuCounts';
 
 const LINKS = [
   { href: '/admin/users', label: '회원 관리' },
-  { href: '/admin/tags', label: '태그요청' },
+  { href: '/admin/tags', label: '링크태그요청' },
   { href: '/admin/reports', label: '신고목록' },
   { href: '/admin/ai/logs', label: 'AI 오류 로그' },
 ];

@@ -16,6 +16,7 @@ import { isHttpError, isRecord } from '@/lib/api/error';
 import { clampFeedContent, FEED_CONTENT_MAX_LENGTH } from '@/lib/content/limits';
 import { createFeedFromDraft } from '@/lib/feed/createFeed';
 import { loadFeedEditDraft, updateFeedFromDraft } from '@/lib/feed/editFeed';
+import { requestFeedEditReturn } from '@/lib/feed/edit-return';
 import type { MockHashtag } from '@/lib/mock/search';
 import { splitCaptionTags } from '@/lib/mock/tags';
 import { myUltaryPath } from '@/lib/mock/ultary-accounts';
@@ -54,9 +55,9 @@ import styles from './compose.module.scss';
 
 const MultiIcon = '/images/icon/multi.svg';
 const SUGGEST_LIMIT = 10;
-const SUGGEST_DELAY_MS = 300;
+const SUGGEST_DELAY_MS = 400;
 const RECOMMEND_MIN_PLAIN = 20;
-const RECOMMEND_LIMIT = 5;
+const RECOMMEND_LIMIT = 10;
 
 function submitFailureMessage(error: unknown) {
   if (isHttpError(error)) {
@@ -155,13 +156,19 @@ export default function WriteComposeClient({ editFeedId }: { editFeedId?: string
     [],
     [suggestOpen, activeTag?.term],
   );
-  const [suggestReady, setSuggestReady] = useResettableState(false, [suggestOpen, activeTag?.term]);
+  const [suggestStatus, setSuggestStatus] = useResettableState<
+    'typing' | 'loading' | 'ready' | 'error'
+  >('typing', [suggestOpen, activeTag?.term]);
   const [tagWarn, setTagWarn] = useState(false);
   const [tagWarnFromBlur, setTagWarnFromBlur] = useState(false);
   const [recommendItems, setRecommendItems] = useState<RecommendTag[]>([]);
   const [recommendOpen, setRecommendOpen] = useState(false);
   const [recommendLoading, setRecommendLoading] = useState(false);
-  const recommendRequestRef = useRef<{ caption: string } | null>(null);
+  const recommendRequestRef = useRef<{
+    caption: string;
+    petIds: string;
+    editFeedId?: string;
+  } | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const showLoading = submitting || loadingEdit;
   /** DB에 있는(선택된 tagId / 조회 확인된) 해시태그 본문 — 소문자, `#` 없음 */
@@ -209,9 +216,10 @@ export default function WriteComposeClient({ editFeedId }: { editFeedId?: string
   }, []);
 
   const updateSuggest = useCallback(
-    (value: string, caret: number) => {
+    (value: string, caret: number, beginTyping = false) => {
       const active = getActiveHashtag(value, caret);
-      if (!active || active.term.length === 0) {
+      // 커서 이동은 새 검색을 시작하지 않는다. 현재 입력 중인 태그만 이어서 검색한다.
+      if (!active || (!beginTyping && activeTagRef.current?.start !== active.start)) {
         setActiveTag(null);
         setSuggestOpen(false);
         setSuggestItems([]);
@@ -219,16 +227,9 @@ export default function WriteComposeClient({ editFeedId }: { editFeedId?: string
       }
 
       setActiveTag(active);
-      if (active.term.length < 2) {
-        setSuggestOpen(false);
-        setSuggestItems([]);
-        setSuggestReady(false);
-        return;
-      }
-
       setSuggestOpen(true);
     },
-    [setSuggestItems, setSuggestReady],
+    [setSuggestItems],
   );
 
   const focusCaptionAt = useCallback(
@@ -262,10 +263,10 @@ export default function WriteComposeClient({ editFeedId }: { editFeedId?: string
       setSuggestOpen(false);
       setActiveTag(null);
       setSuggestItems([]);
-      setSuggestReady(false);
+      setSuggestStatus('typing');
       focusCaptionAt(next, nextCaret);
     },
-    [caption, focusCaptionAt, markExistingTag, setSuggestItems, setSuggestReady],
+    [caption, focusCaptionAt, markExistingTag, setSuggestItems, setSuggestStatus],
   );
 
   const applyRecommendTag = useCallback(
@@ -280,15 +281,23 @@ export default function WriteComposeClient({ editFeedId }: { editFeedId?: string
 
   useEffect(() => {
     // 앞뒤 공백을 제외한 원문이 사라지면 결과와 진행 중 요청을 함께 무효화한다.
-    const unsubscribe = useWriteDraftStore.subscribe(({ caption: nextCaption }) => {
-      const request = recommendRequestRef.current;
-      if (!request || nextCaption.trim().includes(request.caption)) return;
-      recommendRequestRef.current = null;
-      setRecommendItems([]);
-      setRecommendOpen(false);
-      setRecommendLoading(false);
-      setRecommendHint(false);
-    });
+    const unsubscribe = useWriteDraftStore.subscribe(
+      ({ caption: nextCaption, subjectPetIds: nextPetIds, editingFeedId: nextFeedId }) => {
+        const request = recommendRequestRef.current;
+        if (
+          !request ||
+          (nextCaption.trim().includes(request.caption) &&
+            nextPetIds.join(',') === request.petIds &&
+            (nextFeedId ?? undefined) === request.editFeedId)
+        )
+          return;
+        recommendRequestRef.current = null;
+        setRecommendItems([]);
+        setRecommendOpen(false);
+        setRecommendLoading(false);
+        setRecommendHint(false);
+      },
+    );
     return () => {
       unsubscribe();
       recommendRequestRef.current = null;
@@ -296,7 +305,7 @@ export default function WriteComposeClient({ editFeedId }: { editFeedId?: string
   }, [setRecommendHint]);
 
   const requestRecommend = useCallback(async () => {
-    const request = { caption: caption.trim() };
+    const request = { caption: caption.trim(), petIds: subjectPetIds.join(','), editFeedId };
     recommendRequestRef.current = request;
     setRecommendHint(false);
     setRecommendItems([]);
@@ -324,6 +333,8 @@ export default function WriteComposeClient({ editFeedId }: { editFeedId?: string
         {
           q,
           limit: RECOMMEND_LIMIT,
+          selectedPetIds: request.petIds || undefined,
+          editFeedId,
         },
         undefined,
         { timeoutMs: 70000 },
@@ -348,16 +359,16 @@ export default function WriteComposeClient({ editFeedId }: { editFeedId?: string
     } finally {
       if (recommendRequestRef.current === request) setRecommendLoading(false);
     }
-  }, [caption, existingTagBodies, markExistingTag, setRecommendHint]);
+  }, [caption, existingTagBodies, markExistingTag, setRecommendHint, subjectPetIds, editFeedId]);
 
   const suggestTerm = activeTag?.term ?? '';
   useEffect(() => {
-    if (!suggestOpen || suggestTerm.length < 2) return;
+    if (!suggestOpen || !suggestTerm) return;
     const term = suggestTerm;
     let cancelled = false;
-    setSuggestReady(false);
     const timer = window.setTimeout(() => {
-      bffGet<BffEnvelope<unknown>>(bffEndpoints.tags.search, {
+      setSuggestStatus('loading');
+      bffGet<BffEnvelope<unknown>>(bffEndpoints.tags.suggest, {
         q: term,
         limit: SUGGEST_LIMIT,
       })
@@ -366,13 +377,13 @@ export default function WriteComposeClient({ editFeedId }: { editFeedId?: string
           const items = mapSearchTags(res.data ?? res);
           setSuggestItems(items);
           for (const item of items) if (item.tagId != null) markExistingTag(item.tag);
-          setSuggestReady(true);
+          setSuggestStatus('ready');
         })
         .catch((err) => {
           console.error('[write-compose] tag suggest failed', err);
           if (cancelled) return;
           setSuggestItems([]);
-          setSuggestReady(true);
+          setSuggestStatus('error');
         });
     }, SUGGEST_DELAY_MS);
 
@@ -380,7 +391,7 @@ export default function WriteComposeClient({ editFeedId }: { editFeedId?: string
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [suggestOpen, suggestTerm, markExistingTag, setSuggestItems, setSuggestReady]);
+  }, [suggestOpen, suggestTerm, markExistingTag, setSuggestItems, setSuggestStatus]);
 
   useEffect(() => {
     if (editFeedId) return;
@@ -400,7 +411,10 @@ export default function WriteComposeClient({ editFeedId }: { editFeedId?: string
         await updateFeedFromDraft(editFeedId, caption, items, visibility, subjectPetIds);
       else await createFeedFromDraft({ caption, items, visibility, subjectPetIds });
       clear();
-      router.push(editFeedId ? `${basePath}/posts/${editFeedId}` : basePath);
+      if (editFeedId) {
+        const origin = requestFeedEditReturn(editFeedId);
+        router.replace(origin ?? `${basePath}/posts/${editFeedId}`, { scroll: origin == null });
+      } else router.push(basePath);
       router.refresh();
     } catch (err) {
       if (
@@ -424,7 +438,7 @@ export default function WriteComposeClient({ editFeedId }: { editFeedId?: string
   const captionParts = splitCaptionTags(caption);
   const suggestQuery = activeTag?.raw ?? '';
   const showMinLengthHint = !tagWarn && activeTag?.term.length === 1;
-  const showSuggestOverlay = suggestOpen && suggestReady && suggestItems.length > 0;
+  const showSuggestOverlay = suggestOpen;
   const visibleRecommend = recommendItems.filter((item) => !captionHasHashtag(caption, item.tag));
 
   if (editErrorMessage || visibilityError)
@@ -457,7 +471,11 @@ export default function WriteComposeClient({ editFeedId }: { editFeedId?: string
       />
       <PageHeader
         title={pageTitle}
-        onBack={() => router.push(returnHref)}
+        onBack={() => {
+          const origin = editFeedId ? requestFeedEditReturn(editFeedId) : null;
+          if (origin) router.replace(origin, { scroll: false });
+          else router.push(returnHref);
+        }}
         onSubmit={() => void handleSubmit()}
         submitLabel={
           submitting ? (isEditing ? '수정 중…' : '게시 중…') : isEditing ? '수정' : '게시'
@@ -509,7 +527,12 @@ export default function WriteComposeClient({ editFeedId }: { editFeedId?: string
           <ChevronRight size={20} className={styles.tagChevron} aria-hidden />
         </button>
 
-        <SubjectPetPicker value={subjectPetIds} onChange={setSubjectPetIds} disabled={submitting} />
+        <SubjectPetPicker
+          value={subjectPetIds}
+          onChange={setSubjectPetIds}
+          disabled={submitting}
+          editFeedId={editFeedId}
+        />
         <section className={styles.visibilitySection}>
           <VisibilityPicker
             label="공개 범위"
@@ -561,10 +584,13 @@ export default function WriteComposeClient({ editFeedId }: { editFeedId?: string
                     const caret = Math.min(e.target.selectionStart ?? value.length, value.length);
                     setCaption(value);
                     clearTagWarnIfValid(value);
-                    requestAnimationFrame(() => {
-                      syncBackdropScroll();
-                      updateSuggest(value, caret);
-                    });
+                    const tagTextChanged = value.replace(/\s/g, '') !== caption.replace(/\s/g, '');
+                    updateSuggest(value, caret, tagTextChanged);
+                    requestAnimationFrame(syncBackdropScroll);
+                  }}
+                  onCompositionEnd={(e) => {
+                    const el = e.currentTarget;
+                    updateSuggest(el.value, el.selectionStart ?? el.value.length);
                   }}
                   onScroll={syncBackdropScroll}
                   onClick={(e) => {
@@ -620,10 +646,6 @@ export default function WriteComposeClient({ editFeedId }: { editFeedId?: string
                       setTagWarn(true);
                       setTagWarnFromBlur(true);
                     }
-                    setSuggestOpen(false);
-                    setActiveTag(null);
-                    setSuggestItems([]);
-                    setSuggestReady(false);
                   }}
                   placeholder="내용을 입력하세요. #태그"
                   rows={6}
@@ -696,7 +718,18 @@ export default function WriteComposeClient({ editFeedId }: { editFeedId?: string
               </div>
 
               {showSuggestOverlay ? (
-                <div className={styles.suggestOverlay}>
+                <div className={styles.suggestOverlay} aria-busy={suggestStatus === 'loading'}>
+                  {suggestStatus !== 'ready' || suggestItems.length === 0 ? (
+                    <p className={styles.suggestStatus} role="status" aria-live="polite">
+                      {suggestStatus === 'typing'
+                        ? '입력중...'
+                        : suggestStatus === 'loading'
+                          ? '검색중...'
+                          : suggestStatus === 'error'
+                            ? '태그를 불러오지 못했습니다. 다시 입력해주세요.'
+                            : '검색 결과가 없습니다.'}
+                    </p>
+                  ) : null}
                   <HashtagResultList
                     items={suggestItems}
                     highlightQuery={suggestQuery}

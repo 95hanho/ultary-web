@@ -1,6 +1,17 @@
 'use client';
 import { nicknameTag } from '@/lib/nickname-tag';
-
+import {
+  ensureMainFeedSession,
+  getMainFeedSession,
+  getMainFeedServerSnapshot,
+  getMainScroll,
+  loadMoreMainFeeds,
+  saveMainScroll,
+  subscribeMainFeedSession,
+} from '@/lib/feed/main-session';
+import { readPendingFeedEditReturn } from '@/lib/feed/edit-return';
+import { insertFeedAdvertisements } from '@/lib/feed/main-feed-ads';
+import { restoreMainScroll } from '@/lib/feed/main-scroll';
 import { PageLoadError } from '@/components/common/PageLoadError';
 import { PetNamesAndNicknameTag } from '@/components/common/PetNamesAndNicknameTag';
 import { PetProfileGroup } from '@/components/my-ultary/PetProfileGroup';
@@ -9,26 +20,23 @@ import type { SubjectPet } from '@/types/pet';
 import { FooterMenu } from '@/components/common/FooterMenu';
 import { LogoHeader } from '@/components/common/LogoHeader';
 import { LogoLoading } from '@/components/common/LogoLoading';
-import type { FeedData } from '@/components/feed/Feed';
 import { FeedList } from '@/components/feed/FeedList';
+import { InfiniteFeedFooter } from '@/components/feed/InfiniteFeedFooter';
 import { FirstActivityGuide } from '@/components/feed/FirstActivityGuide';
 import { Profile, type StoryStatus } from '@/components/my-ultary/Profile';
-import { bffGet } from '@/lib/api/bffFetch';
-import { bffEndpoints } from '@/lib/api/endpoints';
 import { resolveFileDisplayUrl } from '@/lib/api/fileUrl';
-import { toFeedDataList } from '@/lib/feed/toFeedData';
 import { myUltaryPath } from '@/lib/mock/ultary-accounts';
 import { readFileAsDataUrl } from '@/lib/pending-pet-photo';
 import { NO_PROFILE_SRC } from '@/lib/profileImage';
 import { useStoryDraftStore } from '@/stores/story-draft.store';
-import type { BffEnvelope, MeResponse } from '@/types/api';
+import type { MeResponse } from '@/types/api';
 import type { StoryOwner } from '@/types/story';
 import clsx from 'clsx';
 import { Plus } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useEffect, useRef, useState, type ChangeEvent } from 'react';
+import { useEffect, useRef, useState, useSyncExternalStore, type ChangeEvent } from 'react';
 import type { Swiper as SwiperType } from 'swiper';
 import 'swiper/css';
 import 'swiper/css/free-mode';
@@ -109,17 +117,7 @@ function withMyStoryAdd(owners: StoryOwner[], me: MeResponse | null): StoryRing[
   ];
 }
 
-function unwrapOwners(raw: unknown): StoryOwner[] {
-  if (Array.isArray(raw)) return raw as StoryOwner[];
-  if (raw && typeof raw === 'object') {
-    const data = (raw as BffEnvelope<StoryOwner[]>).data;
-    if (Array.isArray(data)) return data;
-  }
-  return [];
-}
-
 export default function MainClient() {
-  const [loadFailed, setLoadFailed] = useState<{ error: unknown } | null>(null);
   const router = useRouter();
   const storySwiperRef = useRef<SwiperType | null>(null);
   const storyFileInputRef = useRef<HTMLInputElement>(null);
@@ -127,46 +125,38 @@ export default function MainClient() {
   const setStoryMedia = useStoryDraftStore((s) => s.setMedia);
   const [canStoryPrev, setCanStoryPrev] = useState(false);
   const [canStoryNext, setCanStoryNext] = useState(false);
-  const [feeds, setFeeds] = useState<FeedData[]>([]);
-  const [recommended, setRecommended] = useState<FeedData[]>([]);
-  const [storyUsers, setStoryUsers] = useState<StoryRing[]>([]);
-  const [ready, setReady] = useState(false);
-  const [myNickname, setMyNickname] = useState<string | null>(null);
+  const session = useSyncExternalStore(
+    subscribeMainFeedSession,
+    getMainFeedSession,
+    getMainFeedServerSnapshot,
+  );
+  const { feeds, recommended, ready, timelineCursor, recommendedCursor, loadingMore, moreError } =
+    session;
+  const timelineWithAds = insertFeedAdvertisements(feeds, session.advertisements);
+  const recommendedWithAds = insertFeedAdvertisements(
+    [...feeds, ...recommended],
+    session.advertisements,
+  ).slice(timelineWithAds.length);
+  const myNickname = session.me?.nickname ?? null;
+  const storyUsers = withMyStoryAdd(session.owners, session.me);
 
   useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const [feedsRes, ownersRes, meRes, recommendedRes] = await Promise.all([
-          bffGet<BffEnvelope<unknown>>(bffEndpoints.main.feeds, { size: 20 }),
-          bffGet<BffEnvelope<StoryOwner[]>>(bffEndpoints.main.storyOwners),
-          bffGet<BffEnvelope<MeResponse>>(bffEndpoints.auth.me),
-          bffGet<BffEnvelope<unknown>>(bffEndpoints.main.feedsRecommended, { limit: 10 }),
-        ]);
-        if (cancelled) return;
-
-        const owners = unwrapOwners(ownersRes.data ?? ownersRes);
-        const mapped = toFeedDataList(feedsRes.data ?? feedsRes);
-        setFeeds(mapped);
-        if (recommendedRes) {
-          setRecommended(toFeedDataList(recommendedRes.data ?? recommendedRes));
-        }
-
-        const me = meRes?.data ?? null;
-        setMyNickname(me?.nickname ?? null);
-        setStoryUsers(withMyStoryAdd(owners, me));
-      } catch (err) {
-        console.error('[main] BFF load failed', err);
-        if (!cancelled) setLoadFailed({ error: err });
-        if (!cancelled) setFeeds([]);
-      } finally {
-        if (!cancelled) setReady(true);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
+    void ensureMainFeedSession();
   }, []);
+
+  useEffect(() => {
+    if (!ready || session.error || readPendingFeedEditReturn()) return;
+    return restoreMainScroll(getMainScroll());
+  }, [ready, session.error, session.revision]);
+
+  useEffect(() => {
+    if (!ready || session.error) return;
+    const save = () => saveMainScroll(window.scrollY);
+    window.addEventListener('scroll', save, { passive: true });
+    return () => {
+      window.removeEventListener('scroll', save);
+    };
+  }, [ready, session.error]);
 
   if (!ready) {
     return <LogoLoading />;
@@ -191,13 +181,19 @@ export default function MainClient() {
     }
   };
 
-  if (loadFailed) return <PageLoadError error={loadFailed.error} />;
+  if (session.error)
+    return (
+      <>
+        <PageLoadError error={session.error} />
+        <FooterMenu />
+      </>
+    );
 
   return (
-    <div className={styles.shell}>
+    <div className={styles.shell} onClickCapture={() => saveMainScroll(window.scrollY)}>
       <LogoHeader hideOnDesktop />
 
-      <main className={styles.main}>
+      <main className={styles.main} aria-busy={session.loading}>
         <section className={styles.stories} aria-label="스토리">
           {storyUsers.length > 0 ? (
             <>
@@ -311,7 +307,7 @@ export default function MainClient() {
         />
 
         {myNickname ? <FirstActivityGuide nickname={myNickname} /> : null}
-        <FeedList feeds={feeds} />
+        <FeedList feeds={timelineWithAds} />
 
         {feeds.length === 0 ? (
           <div className={styles.feedEmpty}>
@@ -319,16 +315,24 @@ export default function MainClient() {
           </div>
         ) : null}
 
-        {recommended.length > 0 ? (
+        {timelineCursor == null && recommended.length > 0 ? (
           <>
             {feeds.length > 0 ? (
               <div className={styles.feedEnd}>
                 <p className={styles.recommendBtn}>추천게시글</p>
               </div>
             ) : null}
-            <FeedList feeds={recommended} label="추천 게시글" />
+            <FeedList feeds={recommendedWithAds} label="추천 게시글" />
           </>
         ) : null}
+        <InfiniteFeedFooter
+          hasMore={timelineCursor != null || recommendedCursor != null}
+          loading={loadingMore || session.loading}
+          error={moreError}
+          onLoadMore={() => {
+            void loadMoreMainFeeds();
+          }}
+        />
       </main>
 
       <FooterMenu />

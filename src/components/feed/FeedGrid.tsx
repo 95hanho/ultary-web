@@ -19,6 +19,8 @@ type FeedGridProps = {
   className?: string;
   emptyTitle?: string;
   emptyDescription?: string;
+  /** Called only for same-tab client navigation, before leaving the grid. */
+  onNavigate?: () => void;
 };
 
 /** 3열 게시글 썸네일 그리드 */
@@ -27,6 +29,7 @@ export function FeedGrid({
   className,
   emptyTitle = '게시물이 없어요',
   emptyDescription,
+  onNavigate,
 }: FeedGridProps) {
   if (posts.length === 0) {
     return <EmptyState title={emptyTitle} description={emptyDescription} />;
@@ -37,7 +40,12 @@ export function FeedGrid({
       {posts.map((post) => (
         <li key={post.id} className={styles.item}>
           {post.imageUrl && post.href ? (
-            <Link href={post.href} className={styles.link} aria-label="게시글 보기">
+            <Link
+              href={post.href}
+              className={styles.link}
+              aria-label="게시글 보기"
+              onNavigate={onNavigate}
+            >
               <MediaImage
                 src={post.imageUrl}
                 alt=""

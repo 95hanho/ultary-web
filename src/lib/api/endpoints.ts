@@ -64,6 +64,7 @@ export const bffEndpoints = {
     feeds: '/api/main/feeds',
     /** GET 메인 추천 게시글 ?limit= */
     feedsRecommended: '/api/main/feeds/recommended',
+    feedAdvertisements: '/api/main/feeds/advertisements',
     /** GET 검색 ?q=&type= */
     search: '/api/main/search',
     /** GET 태그 게시글 그리드 */
@@ -154,6 +155,8 @@ export const bffEndpoints = {
     detail: '/api/tags/:tagId',
     /** GET 태그 검색 ?q= */
     search: '/api/tags/search',
+    /** GET 작성·수정 해시태그 자동완성 ?q=&limit= */
+    suggest: '/api/tags/suggest',
     /** GET 내용 기반 태그 추천 ?q= */
     recommend: '/api/tags/recommend',
     /** POST 태그 등록 */
@@ -198,7 +201,6 @@ export const bffEndpoints = {
     /** DELETE 신고요청 취소. status=REQUESTED 만 */
     reportCancel: '/api/reports/:reportId',
   },
-
 
   dm: {
     /** GET 피드 공유 «메시지로 보내기» 대상 */
@@ -357,6 +359,7 @@ export const springEndpoints = {
     feeds: '/api/v1/main/feeds',
     /** GET 메인 추천 게시글 ?limit= */
     feedsRecommended: '/api/v1/main/feeds/recommended',
+    feedAdvertisements: '/api/v1/main/feeds/advertisements',
     /** GET */
     search: '/api/v1/main/search',
     /** GET 태그 게시글 그리드 ?limit= */
@@ -448,6 +451,8 @@ export const springEndpoints = {
     detail: '/api/v1/tags/:tagId',
     /** GET */
     search: '/api/v1/tags/search',
+    /** GET 작성·수정 해시태그 자동완성 */
+    suggest: '/api/v1/tags/suggest',
     /** GET */
     recommend: '/api/v1/tags/recommend',
     /** POST */
@@ -490,7 +495,6 @@ export const springEndpoints = {
     /** DELETE 신고요청 취소 */
     reportCancel: '/api/v1/reports/:reportId',
   },
-
 
   dm: {
     /** GET 피드 공유 대상 */

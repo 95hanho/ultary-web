@@ -1,7 +1,6 @@
-import { bffGet, bffPostJson } from '@/lib/api/bffFetch';
+import { bffPostJson } from '@/lib/api/bffFetch';
 import { bffEndpoints } from '@/lib/api/endpoints';
 import { isRecord } from '@/lib/api/error';
-import { listHashtagBodies, normalizeHashtagBody } from '@/lib/search/hashtag-input';
 import type { WriteDraftItem } from '@/stores/write-draft.store';
 import type { BffEnvelope } from '@/types/api';
 
@@ -52,61 +51,6 @@ async function uploadDataUrl(dataUrl: string, fileName: string, mimeType: string
   return fileId;
 }
 
-function readExactTagId(raw: unknown, hashtag: string): number | null {
-  const list = Array.isArray(raw)
-    ? raw
-    : isRecord(raw) && Array.isArray(raw.items)
-      ? raw.items
-      : isRecord(raw) && Array.isArray(raw.data)
-        ? raw.data
-        : [];
-  const key = normalizeHashtagBody(hashtag);
-  for (const item of list) {
-    if (!isRecord(item) || typeof item.hashtag !== 'string' || typeof item.tagId !== 'number') {
-      continue;
-    }
-    if (normalizeHashtagBody(item.hashtag) === key) return item.tagId;
-  }
-  return null;
-}
-
-/** 본문 해시태그 → tagId (없으면 생성) */
-export async function resolveCaptionTagIds(
-  caption: string,
-  existingTags: Array<{ tagId: number; hashtag: string }> = [],
-): Promise<number[]> {
-  const bodies = [
-    ...new Set(
-      listHashtagBodies(caption)
-        .map((b) => b.trim())
-        .filter(Boolean),
-    ),
-  ];
-  const ids: number[] = [];
-  for (const body of bodies) {
-    const searchRes = await bffGet<BffEnvelope<unknown>>(bffEndpoints.tags.search, {
-      q: body,
-      limit: 20,
-    });
-    let tagId = readExactTagId(searchRes.data ?? searchRes, body);
-    if (tagId == null)
-      tagId =
-        existingTags.find((tag) => normalizeHashtagBody(tag.hashtag) === normalizeHashtagBody(body))
-          ?.tagId ?? null;
-    if (tagId == null) {
-      const created = await bffPostJson<BffEnvelope<unknown>>(bffEndpoints.tags.root, {
-        hashtag: body,
-      });
-      tagId =
-        isRecord(created.data) && typeof created.data.tagId === 'number'
-          ? created.data.tagId
-          : null;
-    }
-    if (tagId != null) ids.push(tagId);
-  }
-  return ids;
-}
-
 function toPercent(ratio: number): number {
   const value = Number.isFinite(ratio) ? ratio * 100 : 0;
   return Math.min(100, Math.max(0, Math.round(value * 100) / 100));
@@ -151,7 +95,6 @@ export async function createFeedFromDraft(input: {
     });
   }
 
-  const tagIds = await resolveCaptionTagIds(caption);
   const pets = [...petMap.values()];
   if (pets.length > 0) {
     pets[0]!.isMain = true;
@@ -163,7 +106,6 @@ export async function createFeedFromDraft(input: {
     visibility,
     media,
     pets: pets.length > 0 ? pets : undefined,
-    tagIds: tagIds.length > 0 ? tagIds : undefined,
   };
 
   return bffPostJson<BffEnvelope<unknown>>(bffEndpoints.feeds.root, body);

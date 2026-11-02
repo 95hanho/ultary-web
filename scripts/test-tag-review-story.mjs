@@ -39,34 +39,6 @@ for (const [has, unviewed, expected] of [[false, false, 'none'], [true, false, '
   });
 }
 
-function captionFixture() {
-  const creates = [];
-  return { creates, ...load('lib/feed/createFeed.ts', {
-    ...common,
-    '@/lib/api/endpoints': { bffEndpoints: { tags: { search: '/search', root: '/tags' } } },
-    '@/lib/search/hashtag-input': {
-      listHashtagBodies: caption => [...caption.matchAll(/#(\w+)/g)].map(match => match[1]),
-      normalizeHashtagBody: body => body.toLowerCase(),
-    },
-    '@/lib/api/bffFetch': {
-      bffGet: async () => ({ data: [] }),
-      bffPostJson: async (_url, body) => { creates.push(body); throw new Error('TAG_NOT_APPROVED'); },
-    },
-  }) };
-}
-
-test('editing preserves an existing pending tag without trying to recreate it', async () => {
-  const f = captionFixture();
-  assert.equal((await f.resolveCaptionTagIds('#Revoked', [{ tagId: 17, hashtag: 'revoked' }]))[0], 17);
-  assert.equal(f.creates.length, 0);
-});
-
-test('new posts surface the refusal instead of silently dropping a pending tag', async () => {
-  const f = captionFixture();
-  await assert.rejects(f.resolveCaptionTagIds('#revoked'), /TAG_NOT_APPROVED/);
-  assert.equal(f.creates.length, 1);
-});
-
 test('reopening a tag explanation sees its latest plain-tag response after rejection', async () => {
   let approved = true;
   let calls = 0;

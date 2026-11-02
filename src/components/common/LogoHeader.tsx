@@ -1,4 +1,6 @@
+'use client';
 import clsx from 'clsx';
+import { handleMainHomeClick } from '@/lib/feed/main-session';
 import Image from 'next/image';
 import Link from 'next/link';
 import type { ReactNode } from 'react';
@@ -17,7 +19,7 @@ type LogoHeaderProps = {
 export function LogoHeader({ actions, className, hideOnDesktop = false }: LogoHeaderProps) {
   return (
     <header className={clsx(styles.header, hideOnDesktop && styles.hideOnDesktop, className)}>
-      <Link href="/" className={styles.logoLink} aria-label="메인">
+      <Link href="/" className={styles.logoLink} aria-label="메인" onClick={handleMainHomeClick}>
         <Image
           src={LogoIcon}
           alt="ULTARY"
