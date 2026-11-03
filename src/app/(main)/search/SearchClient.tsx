@@ -1,5 +1,6 @@
 'use client';
 import { nicknameTag } from '@/lib/nickname-tag';
+import { useSearchListKeyboard } from '@/lib/search/useSearchListKeyboard';
 import { PetNamesAndNicknameTag } from '@/components/common/PetNamesAndNicknameTag';
 import { useResettableState } from '@/lib/react/useResettableState';
 import { readRecommendedReturn, saveRecommendedReturn } from '@/lib/search/recommended-return';
@@ -178,6 +179,7 @@ function AccountRow({
         <Link
           href={myUltaryPath(account.nickname)}
           className={styles.accountText}
+          data-search-option
           onMouseDown={(event) => event.preventDefault()}
           onClick={(event) => {
             if (account.userNo == null) return;
@@ -213,6 +215,7 @@ function RecentTagRow({
       <button
         type="button"
         className={styles.recentTagBtn}
+        data-search-option
         onMouseDown={(event) => event.preventDefault()}
         onClick={() => onEnter(item)}
       >
@@ -231,6 +234,7 @@ export default function SearchClient() {
   const openModal = useModalStore((s) => s.open);
   const shellRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const onSearchListKeyDown = useSearchListKeyboard(inputRef);
   const searchParams = useSearchParams();
   const [phase, setPhase] = useState<SearchPhase>(searchParams.get('q') ? 'active' : 'idle');
   const [query, setQuery] = useState(searchParams.get('q') ?? '');
@@ -642,7 +646,7 @@ export default function SearchClient() {
   if (loadFailed) return <PageLoadError error={loadFailed.error} />;
 
   return (
-    <div className={styles.shell} ref={shellRef}>
+    <div className={styles.shell} ref={shellRef} onKeyDown={onSearchListKeyDown}>
       <header className={styles.header}>
         {phase === 'idle' ? (
           <button type="button" className={styles.searchBarIdle} onClick={openSearch}>

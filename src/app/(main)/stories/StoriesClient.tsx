@@ -1,5 +1,7 @@
 'use client';
 import { nicknameTag } from '@/lib/nickname-tag';
+import { onStoryImageReady } from '@/lib/story/image-ready';
+import { StoryImagePrefetcher } from '@/lib/story/image-prefetch';
 import { invalidateMainStoryOwners } from '@/lib/feed/main-session';
 import { PetNamesAndNicknameTag } from '@/components/common/PetNamesAndNicknameTag';
 import { PetProfileGroup } from '@/components/my-ultary/PetProfileGroup';
@@ -182,6 +184,14 @@ export default function StoriesClient({
   const [sendingReply, setSendingReply] = useState(false);
   const [sentNotice, setSentNotice] = useState(0);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const imageRef = useRef<HTMLImageElement>(null);
+  const imageTimerStartedRef = useRef(false);
+  const imagePrefetcherRef = useRef<StoryImagePrefetcher | null>(null);
+  const nextOwnerPreviewRef = useRef<{
+    userNo: number;
+    request: Promise<Story[]>;
+    imageUrl?: string;
+  } | null>(null);
   const rafRef = useRef<number | null>(null);
   const startRef = useRef(0);
   const elapsedRef = useRef(0);
@@ -206,6 +216,7 @@ export default function StoriesClient({
   const current = items[index] ?? null;
   const currentStoryId = current?.storyId;
   const currentKind = current?.kind;
+  const currentSrc = current?.src;
 
   const close = useCallback(() => {
     router.back();
@@ -311,6 +322,93 @@ export default function StoriesClient({
       cancelled = true;
     };
   }, []);
+
+  useEffect(
+    () => () => {
+      imagePrefetcherRef.current?.dispose();
+      nextOwnerPreviewRef.current = null;
+    },
+    [],
+  );
+
+  useEffect(() => {
+    if (loading || currentStoryId == null) return;
+    let cancelled = false;
+    const prefetcher = (imagePrefetcherRef.current ??= new StoryImagePrefetcher());
+    const warmNextImages = () => {
+      if (cancelled) return;
+      const upcoming = items
+        .slice(index + 1, index + 3)
+        .filter((item) => item.kind === 'image')
+        .map((item) => item.src);
+      // Near the end, prepare the actual next owner's first unviewed image too.
+      const queue = chainFrom ? unreadChainQueue(owners, chainFrom, userNo) : owners;
+      const ownerIndex = queue.findIndex((owner) => String(owner.userNo) === userNo);
+      const next =
+        !oneStory && index >= items.length - 2 && ownerIndex >= 0
+          ? queue[ownerIndex + 1]
+          : undefined;
+      const previousNextImage =
+        next && nextOwnerPreviewRef.current?.userNo === next.userNo
+          ? nextOwnerPreviewRef.current.imageUrl
+          : undefined;
+      prefetcher.update(previousNextImage ? [...upcoming, previousNextImage] : upcoming);
+      if (!next) return;
+      if (nextOwnerPreviewRef.current?.userNo !== next.userNo) {
+        nextOwnerPreviewRef.current = {
+          userNo: next.userNo,
+          request: bffGet<BffEnvelope<Story[]>>(
+            bffEndpoints.main.stories,
+            { userNo: next.userNo },
+            undefined,
+            { timeoutMs: 5000 },
+          )
+            .then((response) => unwrapList<Story>(response.data ?? response))
+            .catch(() => []),
+        };
+      }
+      void nextOwnerPreviewRef.current.request.then((list) => {
+        if (cancelled) return;
+        const nextStory = list[firstUnviewedIndex(list)];
+        const url =
+          nextStory?.mediaType === 'IMAGE'
+            ? (resolveFileDisplayUrl(nextStory.file) ??
+              resolveFileDisplayUrl(nextStory.thumbnailFile))
+            : null;
+        if (url) {
+          if (nextOwnerPreviewRef.current?.userNo === next.userNo)
+            nextOwnerPreviewRef.current.imageUrl = url;
+          prefetcher.update([...upcoming, url]);
+        }
+      });
+    };
+    if (currentKind === 'image') {
+      const image = imageRef.current;
+      const stopWaiting = image ? onStoryImageReady(image, warmNextImages) : undefined;
+      return () => {
+        cancelled = true;
+        stopWaiting?.();
+      };
+    }
+    const video = videoRef.current;
+    if (video?.readyState && video.readyState >= 2) warmNextImages();
+    else video?.addEventListener('loadeddata', warmNextImages, { once: true });
+    return () => {
+      cancelled = true;
+      video?.removeEventListener('loadeddata', warmNextImages);
+    };
+  }, [
+    loading,
+    currentStoryId,
+    currentKind,
+    currentSrc,
+    index,
+    items,
+    owners,
+    chainFrom,
+    oneStory,
+    userNo,
+  ]);
 
   /** 탭·클릭으로 버튼에 포커스가 남지 않게 한다. 답장 입력만 클릭으로 커서를 둔다. */
   useEffect(() => {
@@ -440,13 +538,16 @@ export default function StoriesClient({
 
   useEffect(() => {
     clearTick();
+    imageTimerStartedRef.current = false;
     setPaused(false);
     elapsedRef.current = 0;
     startRef.current = performance.now();
 
-    if (currentStoryId == null) return;
+    if (loading || currentStoryId == null) return;
 
     if (currentKind === 'image') {
+      const image = imageRef.current;
+      if (!image) return;
       const duration = STORY_IMAGE_DURATION_MS;
       const tick = (now: number) => {
         if (pausedRef.current) {
@@ -461,8 +562,17 @@ export default function StoriesClient({
         }
         rafRef.current = requestAnimationFrame(tick);
       };
-      rafRef.current = requestAnimationFrame(tick);
-      return () => clearTick();
+      const stopWaiting = onStoryImageReady(image, () => {
+        imageTimerStartedRef.current = true;
+        elapsedRef.current = 0;
+        startRef.current = performance.now();
+        rafRef.current = requestAnimationFrame(tick);
+      });
+      return () => {
+        stopWaiting();
+        imageTimerStartedRef.current = false;
+        clearTick();
+      };
     }
 
     const video = videoRef.current;
@@ -498,12 +608,23 @@ export default function StoriesClient({
       video.removeEventListener('timeupdate', onTime);
       video.removeEventListener('ended', onEnded);
     };
-  }, [currentStoryId, currentKind, finishOrNext, index, playId, setPaused, setProgress]);
+  }, [
+    currentStoryId,
+    currentKind,
+    currentSrc,
+    loading,
+    finishOrNext,
+    index,
+    playId,
+    setPaused,
+    setProgress,
+  ]);
 
   useEffect(() => {
     if (currentStoryId == null) return;
 
     if (currentKind === 'image') {
+      if (!imageTimerStartedRef.current) return;
       if (playbackPaused) {
         elapsedRef.current += performance.now() - startRef.current;
         return;
@@ -802,6 +923,7 @@ export default function StoriesClient({
 
           <StoryMedia
             item={current}
+            imageRef={imageRef}
             videoRef={videoRef}
             nickname={nickname}
             paused={paused}
@@ -1003,12 +1125,14 @@ function StoryOverlay({
 
 function StoryMedia({
   item,
+  imageRef,
   videoRef,
   nickname,
   paused,
   onShowTags,
 }: {
   item: StorySlide;
+  imageRef: RefObject<HTMLImageElement | null>;
   videoRef: RefObject<HTMLVideoElement | null>;
   nickname: string;
   paused: boolean;
@@ -1051,7 +1175,14 @@ function StoryMedia({
         />
       ) : (
         // eslint-disable-next-line @next/next/no-img-element
-        <img key={item.storyId} src={item.src} alt="" className={styles.media} draggable={false} />
+        <img
+          key={item.storyId}
+          ref={imageRef}
+          src={item.src}
+          alt=""
+          className={styles.media}
+          draggable={false}
+        />
       )}
       <StoryOverlay texts={item.texts} mentions={paused ? item.mentions : []} labels={labels} />
       {item.mentions.length > 0 ? (

@@ -213,7 +213,8 @@
   margin: 0;
   padding: 0;
 
-  &:hover {
+  &:hover,
+  &:has([data-search-option]:focus) {
     background: var(--brand-grass-100);
   }
 

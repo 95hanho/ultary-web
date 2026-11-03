@@ -969,6 +969,7 @@ export default function DmClient({ roomId, feedId, feedMediaId, storyId }: DmCli
           </p>
         ) : null}
         <AccountSearchList
+          keyboardNavigation
           items={peerList.items}
           status={peerList.status}
           query={peerQuery}

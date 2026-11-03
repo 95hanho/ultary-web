@@ -74,14 +74,6 @@
   object-fit: contain;
 }
 
-.multiBadge {
-  position: absolute;
-  top: 4px;
-  left: 4px;
-  display: flex;
-  line-height: 0;
-}
-
 .videoBadge {
   position: absolute;
   right: 0;
@@ -245,6 +237,10 @@
   padding: 0 5px 10px;
   overflow-y: auto;
   background: var(--brand-sky-100);
+
+  button:focus {
+    background: var(--brand-grass-100);
+  }
 }
 
 .suggestStatus {

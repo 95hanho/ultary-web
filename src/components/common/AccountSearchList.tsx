@@ -7,7 +7,8 @@ import { PageLoadError } from '@/components/common/PageLoadError';
 import { MediaImage } from '@/components/common/MediaImage';
 import { NO_PROFILE_SRC } from '@/lib/profileImage';
 import clsx from 'clsx';
-import { useId } from 'react';
+import { useId, useRef } from 'react';
+import { useSearchListKeyboard } from '@/lib/search/useSearchListKeyboard';
 import Image from 'next/image';
 import styles from './AccountSearchList.module.scss';
 
@@ -37,6 +38,7 @@ type Props<T extends AccountSearchItem> = {
   autoFocus?: boolean;
   showSearch?: boolean;
   emptyMessage?: string;
+  keyboardNavigation?: boolean;
 };
 
 /** Search + account list. Callers own data loading, ranking and selection behavior. */
@@ -56,7 +58,10 @@ export function AccountSearchList<T extends AccountSearchItem>({
   autoFocus = false,
   showSearch = true,
   emptyMessage,
+  keyboardNavigation = false,
 }: Props<T>) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const onListKeyDown = useSearchListKeyboard(inputRef);
   const selectionName = useId();
   const term = query.trim().replace(/^@+/, '').toLowerCase();
   const visible =
@@ -69,12 +74,16 @@ export function AccountSearchList<T extends AccountSearchItem>({
         );
 
   return (
-    <div className={styles.root}>
+    <div
+      className={styles.root}
+      onKeyDown={keyboardNavigation && showSearch ? onListKeyDown : undefined}
+    >
       {showSearch ? (
         <div className={styles.searchRow}>
           <label className={styles.searchBar}>
             <Image src="/images/icon/Search.svg" alt="" width={20} height={20} />
             <input
+              ref={inputRef}
               type="search"
               autoFocus={autoFocus}
               className={styles.searchInput}
@@ -130,6 +139,7 @@ export function AccountSearchList<T extends AccountSearchItem>({
                     <button
                       type="button"
                       className={styles.petAvatar}
+                      data-search-option={keyboardNavigation ? '' : undefined}
                       disabled={blocked}
                       aria-label={`${nicknameTag(item.nickname)} 선택`}
                       onClick={() => onSelect(item)}
@@ -197,6 +207,7 @@ export function AccountSearchList<T extends AccountSearchItem>({
                     <button
                       type="button"
                       className={styles.row}
+                      data-search-option={keyboardNavigation ? '' : undefined}
                       disabled={blocked}
                       onClick={() => onSelect(item)}
                     >

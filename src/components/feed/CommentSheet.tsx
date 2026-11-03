@@ -6,6 +6,7 @@ import { useHydrated } from '@/lib/react/useHydrated';
 import { Profile } from '@/components/my-ultary/Profile';
 import { PageLoadError } from '@/components/common/PageLoadError';
 import { AccountSearchList } from '@/components/common/AccountSearchList';
+import { useSearchListKeyboard } from '@/lib/search/useSearchListKeyboard';
 import { MentionInput } from '@/components/common/MentionInput';
 import { useRankedAccounts, type RankedAccount } from '@/lib/search/useRankedAccounts';
 import {
@@ -23,6 +24,7 @@ import { notifyAiContentBlocked } from '@/lib/ai/content-blocked';
 import { subscribeContentModerated } from '@/lib/ws/liveSocket';
 import { loadMyUserNo } from '@/lib/auth/myUserNo';
 import { canEditContent } from '@/lib/auth/contentEdit';
+import { saveCommentLike, patchCommentLike } from '@/lib/feed/comment-likes';
 import { clampFeedContent, FEED_CONTENT_MAX_LENGTH } from '@/lib/content/limits';
 import {
   createFeedComment,
@@ -39,6 +41,7 @@ import {
   openReportModal,
   cancelReport,
   canCancelReport,
+  hasActiveReport,
   type MyReport,
 } from '@/lib/report/openReport';
 import { useModalStore } from '@/stores/modal.store';
@@ -167,6 +170,7 @@ function CommentBody({
   composing,
   menuOpen,
   onToggleMenu,
+  onToggleLike,
   readOnly = false,
 }: {
   item: MockCommentReply;
@@ -177,12 +181,15 @@ function CommentBody({
   composing?: boolean;
   menuOpen?: boolean;
   onToggleMenu: (anchor: HTMLButtonElement) => void;
+  onToggleLike: () => Promise<void>;
   readOnly?: boolean;
 }) {
   const [expanded, setExpanded] = useState(false);
   const [needsMore, setNeedsMore] = useState(false);
-  const [liked, setLiked] = useState(Boolean(item.isLiked));
-  const [likeCount, setLikeCount] = useState(item.likeCount);
+  const liked = Boolean(item.isLiked);
+  const likeCount = item.likeCount;
+  const [likePending, setLikePending] = useState(false);
+  const likePendingRef = useRef(false);
   const textRef = useRef<HTMLParagraphElement>(null);
 
   useLayoutEffect(() => {
@@ -238,7 +245,7 @@ function CommentBody({
           {!expanded && needsMore ? (
             <span className={styles.moreFade}>
               <button type="button" className={styles.more} onClick={() => setExpanded(true)}>
-                ...더보기
+                더보기
               </button>
             </span>
           ) : null}
@@ -263,7 +270,7 @@ function CommentBody({
               >
                 <Ellipsis size={14} strokeWidth={2} aria-hidden />
               </button>
-              {item.myReport ? (
+              {hasActiveReport(item.myReport) ? (
                 <button
                   type="button"
                   className={clsx(styles.itemMoreBtn, styles.reportIndicator)}
@@ -285,9 +292,18 @@ function CommentBody({
           className={clsx(styles.likeBtn, liked && styles.likeBtnOn)}
           aria-label={`좋아요 ${likeCount}`}
           aria-pressed={liked}
-          onClick={() => {
-            setLiked((v) => !v);
-            setLikeCount((c) => (liked ? Math.max(0, c - 1) : c + 1));
+          disabled={likePending}
+          aria-busy={likePending}
+          onClick={async () => {
+            if (likePendingRef.current) return;
+            likePendingRef.current = true;
+            setLikePending(true);
+            try {
+              await onToggleLike();
+            } finally {
+              likePendingRef.current = false;
+              setLikePending(false);
+            }
           }}
         >
           <Heart
@@ -339,6 +355,7 @@ export function CommentSheet({
   const closedByPopRef = useRef(false);
   const ignorePopRef = useRef(false);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const onMentionListKeyDown = useSearchListKeyboard(inputRef, 'above');
   const listRef = useRef<HTMLDivElement>(null);
   const [focusDomId, setFocusDomId] = useResettableState(
     focusReplyId ? 'reply-' + focusReplyId : focusCommentId ? 'comment-' + focusCommentId : '',
@@ -435,6 +452,42 @@ export function CommentSheet({
   }, [feedId, open, moderationRefresh, sending, comments, setItems]);
   const [myUserNo, setMyUserNo] = useState<number | null>(null);
   const openModal = useModalStore((s) => s.open);
+  const pendingLikesRef = useRef(new Set<string>());
+  const toggleThreadLike = useCallback(
+    async (target: ThreadTarget) => {
+      if (readOnly) return;
+      const commentId = target.parentCommentId;
+      const replyId = target.kind === 'reply' ? target.id : undefined;
+      const key = `${feedId}:${commentId}:${replyId ?? 'comment'}`;
+      if (pendingLikesRef.current.has(key)) return;
+      const comment = items.find((item) => item.id === commentId);
+      const source = replyId ? comment?.replies.find((reply) => reply.id === replyId) : comment;
+      if (!source) return;
+      const previous = { isLiked: Boolean(source.isLiked), likeCount: source.likeCount };
+      const next = {
+        isLiked: !previous.isLiked,
+        likeCount: Math.max(0, previous.likeCount + (previous.isLiked ? -1 : 1)),
+      };
+      const identity = { commentId, replyId };
+      pendingLikesRef.current.add(key);
+      setItems((previousItems) => patchCommentLike(previousItems, identity, next));
+      try {
+        const saved = await saveCommentLike(feedId, identity, next.isLiked);
+        setItems((previousItems) => patchCommentLike(previousItems, identity, saved));
+      } catch {
+        setItems((previousItems) => patchCommentLike(previousItems, identity, previous));
+        openModal({
+          variant: 'alert',
+          title: '알림창',
+          content: '좋아요를 변경하지 못했습니다. 잠시 후 다시 시도해 주세요.',
+          showCloseButton: true,
+        });
+      } finally {
+        pendingLikesRef.current.delete(key);
+      }
+    },
+    [feedId, items, setItems, openModal, readOnly],
+  );
   const [menu, setMenu] = useResettableState<
     (ThreadTarget & { mine: boolean; anchor: DOMRect }) | null
   >(null, [open, comments, feedId, focusCommentId, focusReplyId, readOnly], open);
@@ -970,6 +1023,7 @@ export function CommentSheet({
             role="dialog"
             aria-modal="true"
             aria-label="댓글"
+            onKeyDown={onMentionListKeyDown}
             style={{
               transform: `translate(-50%, ${translateY})`,
               transition: dragging ? 'none' : undefined,
@@ -1010,6 +1064,13 @@ export function CommentSheet({
                         composingTarget.id === comment.id
                       }
                       menuOpen={menu?.kind === 'comment' && menu.id === comment.id}
+                      onToggleLike={() =>
+                        toggleThreadLike({
+                          kind: 'comment',
+                          id: comment.id,
+                          parentCommentId: comment.id,
+                        })
+                      }
                       onToggleMenu={(anchor) =>
                         toggleItemMenu(
                           { kind: 'comment', id: comment.id, parentCommentId: comment.id },
@@ -1023,6 +1084,13 @@ export function CommentSheet({
                         {comment.replies.map((reply) => (
                           <CommentBody
                             key={reply.id}
+                            onToggleLike={() =>
+                              toggleThreadLike({
+                                kind: 'reply',
+                                id: reply.id,
+                                parentCommentId: comment.id,
+                              })
+                            }
                             item={reply}
                             readOnly={readOnly}
                             compact
@@ -1057,6 +1125,7 @@ export function CommentSheet({
                   onMouseDown={(event) => event.preventDefault()}
                 >
                   <AccountSearchList
+                    keyboardNavigation
                     items={availableAccounts}
                     query={mention.term}
                     onQueryChange={() => undefined}
@@ -1131,7 +1200,7 @@ export function CommentSheet({
                     active={hasMentionMatch ? mention : null}
                     selectedUsers={draftMentions}
                     onKeyDown={(event) => {
-                      if (event.key !== 'Enter' || !event.shiftKey) return;
+                      if (event.key !== 'Enter' || event.shiftKey) return;
                       event.preventDefault();
                       if (draft.trim() && !sending) event.currentTarget.form?.requestSubmit();
                     }}

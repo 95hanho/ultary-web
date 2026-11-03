@@ -326,6 +326,16 @@
   color: rgba(255, 255, 255, 0.92);
 }
 
+.replyField:focus {
+  background: #fff;
+  color: var(--brand-black-700);
+
+  &::placeholder {
+    color: var(--brand-black-700);
+    opacity: 1;
+  }
+}
+
 .replyIcon {
   display: inline-flex;
   flex-shrink: 0;

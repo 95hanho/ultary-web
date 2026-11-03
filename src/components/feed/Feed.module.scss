@@ -395,12 +395,13 @@
   font-size: 14px;
   line-height: 1.45;
   word-break: break-word;
+  white-space: pre-wrap;
 }
 
 /** line-clamp 대신 max-height — 측정/표시가 안정적 */
 .captionClamped {
   overflow: hidden;
-  max-height: calc(1.45em * 3);
+  max-height: calc(1.45em * 5);
 }
 
 .captionNick {
@@ -431,23 +432,10 @@
   }
 }
 
-/** 3줄째 약 2/3 지점부터 ...더보기 */
+/** 5줄 본문 아래, 6번째 줄 시작에 더보기 */
 .moreFade {
-  position: absolute;
-  right: 8px;
-  bottom: 0;
-  z-index: 1;
   display: flex;
-  justify-content: flex-end;
-  align-items: flex-end;
-  height: 1.45em;
-  background: linear-gradient(
-    90deg,
-    transparent 10%,
-    var(--background) 24%,
-    var(--background) 100%
-  );
-  padding: 0 30px 0 25px;
+  justify-content: flex-start;
 }
 
 .moreBtn {

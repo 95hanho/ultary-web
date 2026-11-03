@@ -38,6 +38,7 @@ export function HashtagResultList({
           aria-selected={false}
         >
           <button
+            data-search-option
             type="button"
             className={clsx(styles.btn, variant === 'preview' ? styles.btnPreview : styles.btnPage)}
             onClick={() => onSelect(item.tag)}

@@ -53,6 +53,7 @@ function PhotoTagSearchContents({ mode, onSelect, onClose }: Omit<Props, 'open'>
       <div className={styles.inner}>
         <PageHeader title={mode === 'STORY_TAG' ? '언급 태그' : '사진 태그'} onBack={onClose} />
         <AccountSearchList
+          keyboardNavigation
           items={items}
           query={query}
           onQueryChange={setQuery}

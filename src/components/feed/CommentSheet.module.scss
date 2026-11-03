@@ -174,12 +174,13 @@
   font-weight: 400;
   line-height: 1.4;
   word-break: break-word;
+  white-space: pre-wrap;
 }
 
-/** line-clamp 대신 max-height — 3줄 끝 ...더보기 배치가 안정적 */
+/** 본문은 5줄까지만 표시하고 더보기 버튼은 다음 줄에 배치 */
 .textClamped {
   overflow: hidden;
-  max-height: calc(1.4em * 3);
+  max-height: calc(1.4em * 5);
 }
 
 .nick {
@@ -208,18 +209,10 @@
   }
 }
 
-/** 3줄째 끝에 ...더보기 */
+/** 5줄 본문 아래, 6번째 줄 시작에 더보기 */
 .moreFade {
-  position: absolute;
-  right: 0;
-  bottom: 0;
-  z-index: 1;
   display: flex;
-  justify-content: flex-end;
-  align-items: flex-end;
-  height: 1.4em;
-  padding-left: 28px;
-  background: linear-gradient(90deg, transparent 0%, #fff 28%, #fff 100%);
+  justify-content: flex-start;
 }
 
 .more {

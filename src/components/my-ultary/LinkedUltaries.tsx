@@ -12,6 +12,7 @@ import { bffGet, bffPostJson, bffDelete } from '@/lib/api/bffFetch';
 import { bffEndpoints } from '@/lib/api/endpoints';
 import { myUltaryPath } from '@/lib/mock/ultary-accounts';
 import { nicknameTag } from '@/lib/nickname-tag';
+import { useSearchListKeyboard } from '@/lib/search/useSearchListKeyboard';
 import { useModalStore } from '@/stores/modal.store';
 import type { BffEnvelope } from '@/types/api';
 import styles from './LinkedUltaries.module.scss';
@@ -211,6 +212,8 @@ function linkFailureReason(error: unknown): string {
   return '요청을 처리하지 못했습니다. 잠시 후 다시 시도해 주세요.';
 }
 function PublicUltarySearch({ onPick }: { onPick: (item: UltaryLink) => Promise<void> }) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const onListKeyDown = useSearchListKeyboard(inputRef);
   const [query, setQuery] = useState('');
   const [result, setResult] = useState<{ query: string; items: UltaryLink[] } | null>(null);
   const [error, setError] = useState('');
@@ -234,10 +237,11 @@ function PublicUltarySearch({ onPick }: { onPick: (item: UltaryLink) => Promise<
   }, [query]);
   const rows = result?.query === query ? result.items : [];
   return (
-    <div className={styles.search}>
+    <div className={styles.search} onKeyDown={onListKeyDown}>
       <div className={styles.searchBar}>
         <Search size={20} aria-hidden="true" />
         <input
+          ref={inputRef}
           type="search"
           aria-label="연결할 공개 울타리 검색"
           placeholder="검색"
@@ -270,6 +274,7 @@ function PublicUltarySearch({ onPick }: { onPick: (item: UltaryLink) => Promise<
             <button
               type="button"
               className={styles.accountInfo}
+              data-search-option
               disabled={busy}
               onClick={async () => {
                 setBusy(true);

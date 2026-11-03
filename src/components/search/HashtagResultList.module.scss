@@ -31,7 +31,8 @@
   padding: 10px 19px;
   border-radius: 4px;
 
-  &:hover {
+  &:hover,
+  &:focus {
     background: var(--brand-grass-100);
   }
 
@@ -45,7 +46,8 @@
   border-top: 1px solid var(--brand-gray-100);
   border-radius: 0;
 
-  &:hover {
+  &:hover,
+  &:focus {
     background: var(--brand-grass-100);
   }
 

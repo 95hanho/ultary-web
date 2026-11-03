@@ -85,7 +85,8 @@
   color: inherit;
   text-align: left;
   cursor: pointer;
-  &:hover:not(:disabled) {
+  &:hover:not(:disabled),
+  &:focus:not(:disabled) {
     background: var(--brand-grass-100);
   }
 
@@ -178,7 +179,8 @@
 .petRow {
   display: flex;
   align-items: center;
-  &:hover:not(:has(button:disabled)) {
+  &:hover:not(:has(button:disabled)),
+  &:has([data-search-option]:focus):not(:has(button:disabled)) {
     background: var(--brand-grass-100);
   }
   &:active:not(:has(button:disabled)) {

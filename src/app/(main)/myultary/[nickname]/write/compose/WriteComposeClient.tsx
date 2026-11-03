@@ -22,10 +22,9 @@ import { splitCaptionTags } from '@/lib/mock/tags';
 import { myUltaryPath } from '@/lib/mock/ultary-accounts';
 import { mapSearchTags } from '@/lib/search/accounts';
 import { useModalStore } from '@/stores/modal.store';
+import { ConfirmedHashtags } from '@/lib/search/confirmed-hashtags';
 import {
   appendHashtagIfAbsent,
-  atomicHashtagRangeForBackspace,
-  atomicHashtagRangeForDelete,
   captionHasHashtag,
   captionPlainLengthExcluding,
   getActiveHashtag,
@@ -48,12 +47,10 @@ import type { FeedVisibility } from '@/types/enums';
 import type { BffEnvelope } from '@/types/api';
 import clsx from 'clsx';
 import { ChevronRight, Play } from 'lucide-react';
-import Image from 'next/image';
 import { useParams, useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useRef, useState, useLayoutEffect } from 'react';
 import styles from './compose.module.scss';
 
-const MultiIcon = '/images/icon/multi.svg';
 const SUGGEST_LIMIT = 10;
 const SUGGEST_DELAY_MS = 400;
 const RECOMMEND_MIN_PLAIN = 20;
@@ -149,6 +146,12 @@ export default function WriteComposeClient({ editFeedId }: { editFeedId?: string
   const photoTagCount = items.reduce((sum, item) => sum + (item.petTags?.length ?? 0), 0);
   const backdropRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const suggestOverlayRef = useRef<HTMLDivElement>(null);
+  const suggestReturnSelectionRef = useRef({ start: 0, end: 0 });
+  const confirmedHashtagsRef = useRef(new ConfirmedHashtags(caption, isEditing));
+  useLayoutEffect(() => {
+    confirmedHashtagsRef.current.sync(caption, isEditing);
+  }, [caption, editingFeedId, isEditing]);
 
   const [activeTag, setActiveTag] = useState<ActiveHashtag | null>(null);
   const [suggestOpen, setSuggestOpen] = useState(false);
@@ -219,13 +222,19 @@ export default function WriteComposeClient({ editFeedId }: { editFeedId?: string
     (value: string, caret: number, beginTyping = false) => {
       const active = getActiveHashtag(value, caret);
       // 커서 이동은 새 검색을 시작하지 않는다. 현재 입력 중인 태그만 이어서 검색한다.
-      if (!active || (!beginTyping && activeTagRef.current?.start !== active.start)) {
+      if (
+        !active ||
+        confirmedHashtagsRef.current.isConfirmed(active) ||
+        (!beginTyping && activeTagRef.current?.start !== active.start)
+      ) {
+        activeTagRef.current = null;
         setActiveTag(null);
         setSuggestOpen(false);
         setSuggestItems([]);
         return;
       }
 
+      activeTagRef.current = active;
       setActiveTag(active);
       setSuggestOpen(true);
     },
@@ -233,9 +242,11 @@ export default function WriteComposeClient({ editFeedId }: { editFeedId?: string
   );
 
   const focusCaptionAt = useCallback(
-    (next: string, nextCaret: number) => {
+    (next: string, nextCaret: number, confirmStart?: number) => {
       const clamped = clampFeedContent(next);
       const caret = Math.min(nextCaret, clamped.length);
+      confirmedHashtagsRef.current.edit(clamped, caret, 'insertReplacementText');
+      if (confirmStart != null) confirmedHashtagsRef.current.confirmAt(confirmStart);
       setCaption(clamped);
       clearTagWarnIfValid(clamped);
       requestAnimationFrame(() => {
@@ -264,7 +275,7 @@ export default function WriteComposeClient({ editFeedId }: { editFeedId?: string
       setActiveTag(null);
       setSuggestItems([]);
       setSuggestStatus('typing');
-      focusCaptionAt(next, nextCaret);
+      focusCaptionAt(next, nextCaret, active.start);
     },
     [caption, focusCaptionAt, markExistingTag, setSuggestItems, setSuggestStatus],
   );
@@ -274,7 +285,8 @@ export default function WriteComposeClient({ editFeedId }: { editFeedId?: string
       const { next, caret, added } = appendHashtagIfAbsent(caption, item.tag);
       if (!added || next.length > FEED_CONTENT_MAX_LENGTH) return;
       if (item.tagId != null) markExistingTag(item.tag);
-      focusCaptionAt(next, caret);
+      const tag = item.tag.startsWith('#') ? item.tag : `#${item.tag}`;
+      focusCaptionAt(next, caret, next.lastIndexOf(tag));
     },
     [caption, focusCaptionAt, markExistingTag],
   );
@@ -435,11 +447,29 @@ export default function WriteComposeClient({ editFeedId }: { editFeedId?: string
     }
   };
 
-  const captionParts = splitCaptionTags(caption);
+  let captionPartEnd = 0;
+  const captionParts = splitCaptionTags(caption).map((part) => {
+    captionPartEnd += part.value.length;
+    // Keep the warning, but completed one-character tags use ordinary text styling.
+    if (
+      part.type === 'tag' &&
+      part.value.length === 2 &&
+      /\s/.test(caption[captionPartEnd] ?? '')
+    ) {
+      return { ...part, type: 'text' as const };
+    }
+    return part;
+  });
   const suggestQuery = activeTag?.raw ?? '';
   const showMinLengthHint = !tagWarn && activeTag?.term.length === 1;
   const showSuggestOverlay = suggestOpen;
   const visibleRecommend = recommendItems.filter((item) => !captionHasHashtag(caption, item.tag));
+  const captionWithoutActiveTag = activeTag
+    ? caption.slice(0, activeTag.start) + caption.slice(activeTag.end)
+    : caption;
+  const visibleSuggest = suggestItems.filter(
+    (item) => !captionHasHashtag(captionWithoutActiveTag, item.tag),
+  );
 
   if (editErrorMessage || visibilityError)
     return <PageLoadError error={editErrorMessage ? editError?.error : visibilityError?.error} />;
@@ -487,7 +517,7 @@ export default function WriteComposeClient({ editFeedId }: { editFeedId?: string
         <section className={styles.section} aria-label="사진">
           <h2 className={styles.label}>사진</h2>
           <div className={styles.photoRow}>
-            {items.map((item, i) => {
+            {items.map((item) => {
               const thumb =
                 item.kind === 'image' ? (item.croppedDataUrl ?? item.sourceUrl) : item.sourceUrl;
               return (
@@ -504,11 +534,6 @@ export default function WriteComposeClient({ editFeedId }: { editFeedId?: string
                       preload="metadata"
                     />
                   )}
-                  {items.length > 1 && i === 0 && item.kind === 'image' ? (
-                    <span className={styles.multiBadge} aria-hidden>
-                      <Image src={MultiIcon} alt="" width={15} height={14} />
-                    </span>
-                  ) : null}
                   {item.kind === 'video' ? (
                     <span className={styles.videoBadge} aria-hidden>
                       <Play size={12} fill="#fff" color="#fff" />
@@ -580,12 +605,22 @@ export default function WriteComposeClient({ editFeedId }: { editFeedId?: string
                   value={caption}
                   maxLength={FEED_CONTENT_MAX_LENGTH}
                   onChange={(e) => {
-                    const value = clampFeedContent(e.target.value);
-                    const caret = Math.min(e.target.selectionStart ?? value.length, value.length);
+                    const incoming = clampFeedContent(e.target.value);
+                    const changed = confirmedHashtagsRef.current.edit(
+                      incoming,
+                      Math.min(e.target.selectionStart ?? incoming.length, incoming.length),
+                      (e.nativeEvent as InputEvent).inputType,
+                    );
+                    const value = changed.next;
+                    const caret = changed.caret;
                     setCaption(value);
                     clearTagWarnIfValid(value);
                     const tagTextChanged = value.replace(/\s/g, '') !== caption.replace(/\s/g, '');
                     updateSuggest(value, caret, tagTextChanged);
+                    if (value !== incoming)
+                      requestAnimationFrame(() =>
+                        textareaRef.current?.setSelectionRange(caret, caret),
+                      );
                     requestAnimationFrame(syncBackdropScroll);
                   }}
                   onCompositionEnd={(e) => {
@@ -604,14 +639,23 @@ export default function WriteComposeClient({ editFeedId }: { editFeedId?: string
                     const start = el.selectionStart ?? value.length;
                     const end = el.selectionEnd ?? start;
 
-                    if ((e.key === 'Backspace' || e.key === 'Delete') && start === end) {
-                      const range =
-                        e.key === 'Backspace'
-                          ? atomicHashtagRangeForBackspace(value, start)
-                          : atomicHashtagRangeForDelete(value, start);
+                    if (e.key === 'ArrowDown' && suggestOpen && suggestStatus === 'ready') {
+                      const first =
+                        suggestOverlayRef.current?.querySelector<HTMLButtonElement>('button');
+                      if (first) {
+                        e.preventDefault();
+                        suggestReturnSelectionRef.current = { start, end };
+                        first.focus({ preventScroll: true });
+                        first.scrollIntoView({ block: 'nearest' });
+                        return;
+                      }
+                    }
+
+                    if (e.key === 'Backspace' || e.key === 'Delete') {
+                      const range = confirmedHashtagsRef.current.deletionRange(e.key, start, end);
                       if (range) {
                         e.preventDefault();
-                        const next = `${value.slice(0, range.start)}${value.slice(range.end)}`;
+                        const { next } = confirmedHashtagsRef.current.remove(range);
                         focusCaptionAt(next, range.start);
                         return;
                       }
@@ -625,6 +669,7 @@ export default function WriteComposeClient({ editFeedId }: { editFeedId?: string
                     }
                   }}
                   onKeyUp={(e) => {
+                    if (e.key === 'ArrowDown' && document.activeElement !== e.currentTarget) return;
                     const el = e.currentTarget;
                     updateSuggest(el.value, el.selectionStart ?? el.value.length);
                   }}
@@ -718,8 +763,34 @@ export default function WriteComposeClient({ editFeedId }: { editFeedId?: string
               </div>
 
               {showSuggestOverlay ? (
-                <div className={styles.suggestOverlay} aria-busy={suggestStatus === 'loading'}>
-                  {suggestStatus !== 'ready' || suggestItems.length === 0 ? (
+                <div
+                  ref={suggestOverlayRef}
+                  className={styles.suggestOverlay}
+                  aria-busy={suggestStatus === 'loading'}
+                  onKeyDown={(e) => {
+                    if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
+                    const buttons = Array.from(
+                      e.currentTarget.querySelectorAll<HTMLButtonElement>('button'),
+                    );
+                    const index = buttons.indexOf(e.target as HTMLButtonElement);
+                    if (index < 0) return;
+                    e.preventDefault();
+                    if (e.key === 'ArrowUp' && index === 0) {
+                      const field = textareaRef.current;
+                      const { start, end } = suggestReturnSelectionRef.current;
+                      field?.focus({ preventScroll: true });
+                      field?.setSelectionRange(start, end);
+                      return;
+                    }
+                    const next =
+                      buttons[
+                        Math.min(buttons.length - 1, index + (e.key === 'ArrowDown' ? 1 : -1))
+                      ];
+                    next.focus({ preventScroll: true });
+                    next.scrollIntoView({ block: 'nearest' });
+                  }}
+                >
+                  {suggestStatus !== 'ready' || visibleSuggest.length === 0 ? (
                     <p className={styles.suggestStatus} role="status" aria-live="polite">
                       {suggestStatus === 'typing'
                         ? '입력중...'
@@ -731,7 +802,7 @@ export default function WriteComposeClient({ editFeedId }: { editFeedId?: string
                     </p>
                   ) : null}
                   <HashtagResultList
-                    items={suggestItems}
+                    items={visibleSuggest}
                     highlightQuery={suggestQuery}
                     onSelect={(tag) => {
                       const hit = suggestItems.find((item) => item.tag === tag);

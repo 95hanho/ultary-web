@@ -42,7 +42,8 @@
   display: flex;
   align-items: center;
   min-width: 0;
-  &:hover {
+  &:hover,
+  &:has([data-search-option]:focus) {
     background: var(--brand-grass-100);
   }
   &:active {

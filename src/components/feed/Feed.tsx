@@ -28,6 +28,7 @@ import {
   openReportModal,
   cancelReport,
   canCancelReport,
+  hasActiveReport,
   type MyReport,
 } from '@/lib/report/openReport';
 import { NO_PROFILE_SRC } from '@/lib/profileImage';
@@ -1005,7 +1006,7 @@ export function Feed({
                   >
                     <Ellipsis size={25} strokeWidth={2} />
                   </button>
-                  {myReport ? (
+                  {hasActiveReport(myReport) ? (
                     <button
                       type="button"
                       className={clsx(styles.actionBtn, styles.reportIndicator)}
@@ -1153,7 +1154,7 @@ export function Feed({
             {!expanded && needsMore ? (
               <span className={styles.moreFade}>
                 <button type="button" className={styles.moreBtn} onClick={() => setExpanded(true)}>
-                  ...더보기
+                  더보기
                 </button>
               </span>
             ) : null}

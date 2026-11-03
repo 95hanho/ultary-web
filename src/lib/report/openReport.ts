@@ -27,6 +27,11 @@ export function canCancelReport(
   return report?.status === 'REQUESTED';
 }
 
+/** 비상 아이콘은 처리 중인 신고만 표시한다. 거절 등 종료된 이력은 제외한다. */
+export function hasActiveReport(report: MyReport | null | undefined): boolean {
+  return report?.status === 'REQUESTED' || report?.status === 'CONFIRMED';
+}
+
 export type ReportReason =
   | 'SPAM'
   | 'ABUSE'
