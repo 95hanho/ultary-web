@@ -10,6 +10,8 @@ export type StoryMediaType = 'IMAGE' | 'VIDEO';
  * 링 메타 + 유저 프로필. 스토리 미디어는 GET /main/stories?userNo=
  */
 export type StoryOwner = {
+  /** 조회 가능한 최신 스토리의 작성 시각. 같은 읽음 그룹 안에서 최신순 정렬. */
+  latestStoryAt?: string | null;
   subjectPets?: SubjectPet[];
   userNo: number;
   nickname: string;

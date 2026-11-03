@@ -1,5 +1,6 @@
 'use client';
 import { nicknameTag } from '@/lib/nickname-tag';
+import { orderMainStoryOwners } from '@/lib/story/main-story-order';
 import {
   ensureMainFeedSession,
   getMainFeedSession,
@@ -102,7 +103,7 @@ function ownersToRings(owners: StoryOwner[]): StoryRing[] {
 }
 
 function withMyStoryAdd(owners: StoryOwner[], me: MeResponse | null): StoryRing[] {
-  const rings = ownersToRings(owners);
+  const rings = ownersToRings(orderMainStoryOwners(owners, me?.userNo));
   if (!me) return rings;
   if (rings.some((ring) => ring.userNo === me.userNo)) return rings;
   return [
@@ -226,7 +227,12 @@ export default function MainClient() {
                 {storyUsers.map((user) => (
                   <SwiperSlide
                     key={user.mineAdd ? 'mine-add' : user.userNo}
-                    className={styles.storySlide}
+                    className={clsx(
+                      styles.storySlide,
+                      user.userNo === session.me?.userNo &&
+                        (user.mineAdd || user.story === 'unread') &&
+                        styles.storyOwnPriority,
+                    )}
                   >
                     <div className={styles.storyItem}>
                       {user.mineAdd ? (

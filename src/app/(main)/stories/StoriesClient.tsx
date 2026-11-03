@@ -1,5 +1,6 @@
 'use client';
 import { nicknameTag } from '@/lib/nickname-tag';
+import { invalidateMainStoryOwners } from '@/lib/feed/main-session';
 import { PetNamesAndNicknameTag } from '@/components/common/PetNamesAndNicknameTag';
 import { PetProfileGroup } from '@/components/my-ultary/PetProfileGroup';
 import type { SubjectPet } from '@/types/pet';
@@ -268,7 +269,8 @@ export default function StoriesClient({
         setOwners(ownerList);
 
         const first = list[0];
-        const nick = first?.authorNickname?.trim() || first?.nickname?.trim() || nicknameHint || 'ULTARY';
+        const nick =
+          first?.authorNickname?.trim() || first?.nickname?.trim() || nicknameHint || 'ULTARY';
         setNickname(nick);
         setProfileUrl(resolveFileDisplayUrl(first?.authorProfileFile) ?? FALLBACK_PROFILE);
 
@@ -337,6 +339,7 @@ export default function StoriesClient({
 
     void bffPostJson<BffEnvelope<Story>>(bffEndpoints.stories.view, { storyId })
       .then((res) => {
+        invalidateMainStoryOwners();
         if (likeTouchedRef.current.has(storyId)) return;
         const liked = res.data?.likedByMe;
         if (typeof liked !== 'boolean') return;

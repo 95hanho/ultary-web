@@ -148,6 +148,19 @@ test('browser refresh starts a new empty runtime and SSR never sees browser data
   assert.equal(f.getMainFeedServerSnapshot().feeds.length,0);
 });
 
+test('returning after reading stories refreshes only ring metadata and preserves feeds and scroll',async()=>{
+  const f=fixture();await f.ensureMainFeedSession();
+  f.saveMainScroll(2400);f.window.location.pathname='/stories';
+  f.invalidateMainStoryOwners();
+  assert.equal(f.calls.length,5);
+  f.window.location.pathname='/';
+  await Promise.all([f.ensureMainFeedSession(),f.ensureMainFeedSession()]);
+  assert.equal(f.calls.length,6);
+  assert.equal(f.calls.at(-1).url,'stories');
+  assert.equal(f.getMainScroll(),2400);
+  assert.equal(f.getMainFeedSession().feeds[0].id,'1');
+});
+
 test('home handles same-page normal clicks only, keeping modified and other-page links intact', async()=>{
   const f=fixture();await f.ensureMainFeedSession();let prevented=0;
   const event={button:0,metaKey:false,ctrlKey:false,shiftKey:false,altKey:false,preventDefault(){prevented++;}};

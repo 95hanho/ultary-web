@@ -20,6 +20,8 @@
 /** 스토리 안읽음 */
 .storyUnread {
   border-color: transparent;
+  border-width: var(--story-unread-border-width, 2px);
+  padding: calc(5px - var(--story-unread-border-width, 2px));
   background-image:
     linear-gradient(var(--background), var(--background)),
     linear-gradient(

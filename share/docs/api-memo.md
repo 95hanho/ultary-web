@@ -121,7 +121,7 @@ FE는 OAuth code를 Spring에 보내지 않는다. BFF가 code를 교환해 `pro
 | 최근 펫 태그 저장 | POST | `/api/main/pet-tags/recent` | `/api/v1/main/pet-tags/recent` | 구현 |
 | 최근 펫 태그 모두 지우기 | DELETE | `/api/main/pet-tags/recent` | `/api/v1/main/pet-tags/recent` | 구현 |
 
-> 스토리 소유자 목록 = 내 활성 스토리를 맨 앞에 두고, 이어서 내가 팔로우(`requester` ACCEPTED 또는 맞팔)한 유저 중 활성 스토리 보유자. 내 스토리가 없으면 팔로우만. `hasUnviewed`는 `ultary_story_view` 기준(안 읽은 링). 나를 제외한 나머지는 **미열람(`hasUnviewed=true`) 먼저**, 그다음 최신 스토리 순. 스토리 본문은 `GET /main/stories?userNo=`(본인 userNo도 가능).  
+> 스토리 소유자 목록 = 본인 및 내가 팔로우(`requester` ACCEPTED 또는 맞팔)한 활성 스토리 보유자. `hasUnviewed`는 `ultary_story_view` 기준이다. **내 미열람 스토리만 최우선**, 나머지는 **미열람 먼저 → 같은 그룹은 `latestStoryAt`(최신 스토리 작성 시각) 내림차순**이다. 내 스토리를 전부 읽었으면 일반 읽음 그룹에 포함한다. FE는 내 스토리가 없으면 맨 앞에 추가 칸을 만들고, 추가 칸/내 미열람 링에만 경계선을 표시한다. 스토리 본문은 `GET /main/stories?userNo=`(본인 userNo도 가능).
 > **프로필**: 항목마다 `profileFile` (`FileSummary | null`). 유저 전용 사진이 아니라, 그 유저의 활성 펫 중 사진이 있는 것 가운데 `priority`가 가장 높은 펫 사진. 없으면 `null`. 스토리 미디어(`file`)는 넣지 않음 — 링 탭 시 `GET /main/stories?userNo=`.  
 > **팔로우 스토리 조회** `GET /main/stories?userNo=`: 해당 유저 활성 스토리 배열(`created_at` ASC). **항목마다 `viewedByMe`**(스토리 단건 읽음, `ultary_story_view`)와 **`likedByMe`**(내 공감, 취소한 건 제외). FileSummary 포함. `GET /my-ultary/stories`, `POST /stories/{storyId}/view`도 같다.  
 > **FE 재생**: 배열은 시간순 유지. 시작 인덱스 = 첫 `viewedByMe === false` (없으면 `0` = 처음부터). 넘긴 뒤 `POST /stories/:storyId/view`로 읽음 기록.  

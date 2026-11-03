@@ -18,6 +18,7 @@
 }
 
 .stories {
+  --story-unread-border-width: 3px;
   position: relative;
 
   @media (min-width: 768px) {
@@ -51,7 +52,7 @@
   position: relative;
   width: auto !important;
 
-  &:first-child:not(:last-child)::after {
+  &.storyOwnPriority:not(:last-child)::after {
     position: absolute;
     top: 4px;
     right: 0;

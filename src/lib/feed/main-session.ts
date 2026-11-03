@@ -44,6 +44,8 @@ let state = EMPTY;
 let scrollY = 0;
 let initialRequest: Promise<void> | null = null;
 let pageRequest: Promise<void> | null = null;
+let storyOwnersDirty = false;
+let storyOwnerRequest: Promise<void> | null = null;
 const listeners = new Set<() => void>();
 const publish = (patch: Partial<MainSession>) => {
   state = { ...state, ...patch };
@@ -66,6 +68,7 @@ export function saveMainScroll(value: number) {
 
 async function fetchInitial() {
   publish({ loading: true, error: null, moreError: false });
+  storyOwnersDirty = false;
   try {
     // Keep the busy flag until every request settles, including an early failure.
     const results = await Promise.allSettled([
@@ -109,9 +112,34 @@ async function fetchInitial() {
 export function ensureMainFeedSession() {
   if (typeof window === 'undefined') return Promise.resolve();
   if (state.loading) return initialRequest ?? Promise.resolve();
-  if (state.ready) return Promise.resolve();
+  if (state.ready) return refreshMainStoryOwners();
   initialRequest = fetchInitial();
   return initialRequest;
+}
+
+/** 스토리 읽음 성공 후 메인으로 돌아오면 피드/스크롤은 유지하고 링 메타만 갱신한다. */
+export function invalidateMainStoryOwners() {
+  if (typeof window === 'undefined') return;
+  storyOwnersDirty = true;
+  if (window.location.pathname === '/') void refreshMainStoryOwners();
+}
+
+function refreshMainStoryOwners(): Promise<void> {
+  if (storyOwnerRequest) return storyOwnerRequest;
+  if (!storyOwnersDirty || !state.ready || state.loading) return Promise.resolve();
+  storyOwnersDirty = false;
+  storyOwnerRequest = bffGet<BffEnvelope<StoryOwner[]>>(bffEndpoints.main.storyOwners)
+    .then((response) => {
+      if (!Array.isArray(response.data)) throw Error('스토리 응답이 올바르지 않습니다.');
+      publish({ owners: response.data });
+    })
+    .catch(() => {
+      storyOwnersDirty = true;
+    })
+    .finally(() => {
+      storyOwnerRequest = null;
+    });
+  return storyOwnerRequest;
 }
 
 export function refreshMainFeedSession() {
