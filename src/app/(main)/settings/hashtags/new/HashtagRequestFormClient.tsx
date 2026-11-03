@@ -11,7 +11,7 @@ import { useEffect, useState } from 'react';
 import formStyles from '../../mypage/mypage.module.scss';
 import styles from '../hashtags.module.scss';
 
-const HASHTAG_RE = /^[A-Za-z0-9가-힣_]{1,30}$/;
+const HASHTAG_RE = /^[A-Za-z0-9가-힣_]{2,30}$/;
 
 /** 해시태그 설명 요청 작성 */
 export default function HashtagRequestFormClient() {
@@ -37,7 +37,7 @@ export default function HashtagRequestFormClient() {
     setFormError(null);
     const name = hashtag.trim().replace(/^#/, '');
     if (!HASHTAG_RE.test(name)) {
-      setFieldError('해시태그는 영문, 숫자, 한글, 언더바(_)만 사용할 수 있습니다. (1~30자, # 제외)');
+      setFieldError('해시태그는 영문, 숫자, 한글, 언더바(_)만 사용할 수 있습니다. (2~30자, # 제외)');
       return;
     }
     const nextTitle = title.trim();

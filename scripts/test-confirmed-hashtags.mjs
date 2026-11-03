@@ -13,6 +13,13 @@ const {ConfirmedHashtags}=load('confirmed-hashtags.ts',()=>input);
 const confirmed=(editor,value,caret)=>editor.isConfirmed(input.getActiveHashtag(value,caret));
 const range=value=>value&&[value.start,value.end];
 
+test('single-character hashtags remain ordinary editable text even after a space',()=>{
+ const editor=new ConfirmedHashtags('#글 ');
+ assert.equal(confirmed(editor,'#글 ',2),false);
+ assert.equal(editor.deletionRange('Backspace',2),null);
+ assert.equal(editor.edit('# ',1,'deleteContentBackward').next,'# ');
+});
+
 test('typing stays editable; a space confirms every caret position inside or at the end',()=>{
  const editor=new ConfirmedHashtags('');editor.edit('#고양이',4);
  assert.equal(confirmed(editor,'#고양이',4),false);

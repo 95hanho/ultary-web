@@ -256,7 +256,7 @@ FE는 OAuth code를 Spring에 보내지 않는다. BFF가 code를 교환해 `pro
 | 상업 태그 설명 요청 | POST | `/api/tags/:tagId/profile-requests` |
 | 내 태그 설명 요청 | GET | `/api/tags/profile-requests` |
 
-> `GET /tags/recommend?q=`는 게시글 작성 중 **내용(q)** 으로 해시태그를 최대 10개 추천한다. 사용 가능한 DB 후보 최대 100개의 이름·제목·설명을 AI에 전달해 관련 기존 태그 최대 5개와 일반 추천 최대 5개를 한 번에 선별한다. DB 태그 우선으로 정렬하고 대소문자 구분 없이 중복을 제거한다. 상세: `docs/hashtag-recommendations.md`. FE는 **이미 존재하는 태그**(선택된 `tagId`·본문의 기존 hashtag)를 뺀 본문만 `q`로 보내고, 태그 제외 글자 수 ≥ 20일 때 버튼으로 호출한다. Gemini가 추천하고, `#`·중복·빈 값·hashtag 규칙(1~30, 영문·숫자·한글·_)에 맞게 정리한다. DB에 같은 hashtag가 있으면 그 태그의 `tagId` 등을 채우고, 없으면 `tagId`만 null인 후보를 준다. Gemini 요청은 총 3회 시도하며 최종 실패 시 503 서비스 오류를 표시한다. 정상 빈 응답일 때만 DB 추천으로 보완한다. AI 장애로 게시글 작성은 막히지 않는다.
+> `GET /tags/recommend?q=`는 게시글 작성 중 **내용(q)** 으로 해시태그를 최대 10개 추천한다. 사용 가능한 DB 후보 최대 100개의 이름·제목·설명을 AI에 전달해 관련 기존 태그 최대 5개와 일반 추천 최대 5개를 한 번에 선별한다. DB 태그 우선으로 정렬하고 대소문자 구분 없이 중복을 제거한다. 상세: `docs/hashtag-recommendations.md`. FE는 **이미 존재하는 태그**(선택된 `tagId`·본문의 기존 hashtag)를 뺀 본문만 `q`로 보내고, 태그 제외 글자 수 ≥ 20일 때 버튼으로 호출한다. Gemini가 추천하고, `#`·중복·빈 값·hashtag 규칙(2~30, 영문·숫자·한글·_)에 맞게 정리한다. DB에 같은 hashtag가 있으면 그 태그의 `tagId` 등을 채우고, 없으면 `tagId`만 null인 후보를 준다. Gemini 요청은 총 3회 시도하며 최종 실패 시 503 서비스 오류를 표시한다. 정상 빈 응답일 때만 DB 추천으로 보완한다. AI 장애로 게시글 작성은 막히지 않는다.
 
 > `hashtag`는 생성 후 불변. `handle`은 선택·UNIQUE. handle 미설정(`handle_changed_at` NULL)이면 최초 설정은 언제든 가능. 생성 시 handle을 넣으면 그 시점부터 30일 쿨다운.
 

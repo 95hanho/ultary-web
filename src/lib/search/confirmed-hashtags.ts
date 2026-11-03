@@ -1,7 +1,7 @@
 import { isTagBoundaryBefore, type ActiveHashtag } from './hashtag-input';
 
 type Token = { start: number; end: number; raw: string };
-const valid = (token: Token) => /^#[0-9A-Za-z가-힣_]{1,30}$/.test(token.raw);
+const valid = (token: Token) => /^#[0-9A-Za-z가-힣_]{2,30}$/.test(token.raw);
 function tokens(value: string): Token[] {
   return [...value.matchAll(/#[0-9A-Za-z가-힣ㄱ-ㅎㅏ-ㅣ_]+/g)]
     .filter((match) => isTagBoundaryBefore(value, match.index!))

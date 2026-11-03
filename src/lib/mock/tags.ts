@@ -15,8 +15,12 @@ export type TagExplain = {
 };
 
 /** 캡션에서 해시태그 토큰 분리 */
-export function splitCaptionTags(caption: string): Array<{ type: 'text' | 'tag'; value: string }> {
-  const re = /(#[0-9A-Za-z가-힣_]+)/g;
+export function splitCaptionTags(
+  caption: string,
+  includeIncomplete = false,
+): Array<{ type: 'text' | 'tag'; value: string }> {
+  // Only editors highlight a bare # and Korean syllables still being composed.
+  const re = includeIncomplete ? /(#[0-9A-Za-z가-힣ㄱ-ㅎㅏ-ㅣ_]*)/g : /(#[0-9A-Za-z가-힣_]{2,})/g;
   const parts: Array<{ type: 'text' | 'tag'; value: string }> = [];
   let last = 0;
   let match: RegExpExecArray | null;

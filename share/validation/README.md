@@ -39,6 +39,6 @@ BFF 자체 사전 검사가 없으면 “BFF msg”는 원래 없고, **프록�
 | password | 8~100자, 영문·숫자·특수문자 각 1+ |
 | phone | 저장·조회 digits only `^01[0-9]{8,9}$`. 입력 하이픈/`+82` 허용 후 정규화 |
 | mention_id / handle | `^[A-Za-z0-9_]{1,30}$` |
-| hashtag | `#` 없이 `^[A-Za-z0-9가-힣_]{1,30}$` |
+| hashtag | `#` 없이 `^[A-Za-z0-9가-힣_]{2,30}$`; 본문의 한 글자 토큰은 일반 텍스트로 유지하며 태그 연결에서 제외 |
 
 변경 시: `rules.json` → Spring `*Rules.java` → BFF/FE 순.

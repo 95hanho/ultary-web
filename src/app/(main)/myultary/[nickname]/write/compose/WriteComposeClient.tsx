@@ -448,7 +448,7 @@ export default function WriteComposeClient({ editFeedId }: { editFeedId?: string
   };
 
   let captionPartEnd = 0;
-  const captionParts = splitCaptionTags(caption).map((part) => {
+  const captionParts = splitCaptionTags(caption, true).map((part) => {
     captionPartEnd += part.value.length;
     // Keep the warning, but completed one-character tags use ordinary text styling.
     if (
