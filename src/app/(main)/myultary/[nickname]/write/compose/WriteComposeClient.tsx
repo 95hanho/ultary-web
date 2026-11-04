@@ -56,6 +56,12 @@ const SUGGEST_DELAY_MS = 400;
 const RECOMMEND_MIN_PLAIN = 20;
 const RECOMMEND_LIMIT = 10;
 
+/** 구간을 네이티브 삭제로 지워 Ctrl+Z 실행 취소 스택에 남긴다. */
+function deleteTextareaRange(el: HTMLTextAreaElement, range: { start: number; end: number }) {
+  el.setSelectionRange(range.start, range.end);
+  return typeof document !== 'undefined' && document.execCommand('delete');
+}
+
 function submitFailureMessage(error: unknown) {
   if (isHttpError(error)) {
     if (isRecord(error.data)) {
@@ -153,6 +159,35 @@ export default function WriteComposeClient({ editFeedId }: { editFeedId?: string
     confirmedHashtagsRef.current.sync(caption, isEditing);
   }, [caption, editingFeedId, isEditing]);
 
+  // 확정 태그 통째 삭제를 네이티브 delete로 수행해 Ctrl+Z로 복구 가능하게 한다.
+  useLayoutEffect(() => {
+    const el = textareaRef.current;
+    if (!el) return;
+    const onBeforeInput = (event: InputEvent) => {
+      if (event.isComposing || !event.cancelable) return;
+      if (
+        event.inputType !== 'deleteContentBackward' &&
+        event.inputType !== 'deleteContentForward'
+      )
+        return;
+      const start = el.selectionStart ?? 0;
+      const end = el.selectionEnd ?? start;
+      const key = event.inputType === 'deleteContentBackward' ? 'Backspace' : 'Delete';
+      const range = confirmedHashtagsRef.current.deletionRange(key, start, end);
+      if (!range) return;
+      // 이미 통째 구간이 선택된 경우 브라우저 삭제를 그대로 둔다(실행 취소 유지).
+      if (start === range.start && end === range.end) return;
+      event.preventDefault();
+      if (!deleteTextareaRange(el, range)) {
+        const { next } = confirmedHashtagsRef.current.remove(range);
+        setCaption(clampFeedContent(next));
+        requestAnimationFrame(() => el.setSelectionRange(range.start, range.start));
+      }
+    };
+    el.addEventListener('beforeinput', onBeforeInput);
+    return () => el.removeEventListener('beforeinput', onBeforeInput);
+  }, [setCaption, items.length]);
+
   const [activeTag, setActiveTag] = useState<ActiveHashtag | null>(null);
   const [suggestOpen, setSuggestOpen] = useState(false);
   const [suggestItems, setSuggestItems] = useResettableState<MockHashtag[]>(
@@ -173,6 +208,7 @@ export default function WriteComposeClient({ editFeedId }: { editFeedId?: string
     editFeedId?: string;
   } | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [contentLimitHint, setContentLimitHint] = useState(false);
   const showLoading = submitting || loadingEdit;
   /** DB에 있는(선택된 tagId / 조회 확인된) 해시태그 본문 — 소문자, `#` 없음 */
   const [existingTagBodies, setExistingTagBodies] = useState<Set<string>>(() => new Set());
@@ -243,6 +279,8 @@ export default function WriteComposeClient({ editFeedId }: { editFeedId?: string
 
   const focusCaptionAt = useCallback(
     (next: string, nextCaret: number, confirmStart?: number) => {
+      if (next.length > FEED_CONTENT_MAX_LENGTH) setContentLimitHint(true);
+      else setContentLimitHint(false);
       const clamped = clampFeedContent(next);
       const caret = Math.min(nextCaret, clamped.length);
       confirmedHashtagsRef.current.edit(clamped, caret, 'insertReplacementText');
@@ -269,7 +307,10 @@ export default function WriteComposeClient({ editFeedId }: { editFeedId?: string
       if (!active) return;
 
       const { next, caret: nextCaret } = replaceActiveHashtag(caption, active, tag);
-      if (next.length > FEED_CONTENT_MAX_LENGTH) return;
+      if (next.length > FEED_CONTENT_MAX_LENGTH) {
+        setContentLimitHint(true);
+        return;
+      }
       if (tagId != null) markExistingTag(tag);
       setSuggestOpen(false);
       setActiveTag(null);
@@ -283,7 +324,11 @@ export default function WriteComposeClient({ editFeedId }: { editFeedId?: string
   const applyRecommendTag = useCallback(
     (item: RecommendTag) => {
       const { next, caret, added } = appendHashtagIfAbsent(caption, item.tag);
-      if (!added || next.length > FEED_CONTENT_MAX_LENGTH) return;
+      if (!added) return;
+      if (next.length > FEED_CONTENT_MAX_LENGTH) {
+        setContentLimitHint(true);
+        return;
+      }
       if (item.tagId != null) markExistingTag(item.tag);
       const tag = item.tag.startsWith('#') ? item.tag : `#${item.tag}`;
       focusCaptionAt(next, caret, next.lastIndexOf(tag));
@@ -575,7 +620,22 @@ export default function WriteComposeClient({ editFeedId }: { editFeedId?: string
 
         <section className={styles.section} aria-label="내용">
           <h2 className={styles.label}>
-            내용({caption.length}/{FEED_CONTENT_MAX_LENGTH})
+            <span>
+              내용(
+              <span
+                className={
+                  caption.length >= FEED_CONTENT_MAX_LENGTH ? styles.contentCountMax : undefined
+                }
+              >
+                {caption.length}/{FEED_CONTENT_MAX_LENGTH}
+              </span>
+              )
+            </span>
+            {contentLimitHint ? (
+              <span className={styles.contentLimitHint} role="status">
+                * 내용은 최대 {FEED_CONTENT_MAX_LENGTH}자까지 입력할 수 있습니다.
+              </span>
+            ) : null}
           </h2>
           <div className={styles.contentBody}>
             <div className={styles.textareaWrap}>
@@ -603,9 +663,14 @@ export default function WriteComposeClient({ editFeedId }: { editFeedId?: string
                   ref={textareaRef}
                   className={styles.textarea}
                   value={caption}
-                  maxLength={FEED_CONTENT_MAX_LENGTH}
                   onChange={(e) => {
-                    const incoming = clampFeedContent(e.target.value);
+                    const raw = e.target.value;
+                    const composing = (e.nativeEvent as InputEvent).isComposing;
+                    if (!composing) {
+                      if (raw.length > FEED_CONTENT_MAX_LENGTH) setContentLimitHint(true);
+                      else setContentLimitHint(false);
+                    }
+                    const incoming = clampFeedContent(raw);
                     const changed = confirmedHashtagsRef.current.edit(
                       incoming,
                       Math.min(e.target.selectionStart ?? incoming.length, incoming.length),
@@ -647,16 +712,6 @@ export default function WriteComposeClient({ editFeedId }: { editFeedId?: string
                         suggestReturnSelectionRef.current = { start, end };
                         first.focus({ preventScroll: true });
                         first.scrollIntoView({ block: 'nearest' });
-                        return;
-                      }
-                    }
-
-                    if (e.key === 'Backspace' || e.key === 'Delete') {
-                      const range = confirmedHashtagsRef.current.deletionRange(e.key, start, end);
-                      if (range) {
-                        e.preventDefault();
-                        const { next } = confirmedHashtagsRef.current.remove(range);
-                        focusCaptionAt(next, range.start);
                         return;
                       }
                     }

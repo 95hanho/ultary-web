@@ -44,6 +44,21 @@
 .label {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
+  gap: 0 8px;
+}
+
+.contentCountMax {
+  color: var(--brand-red-500);
+}
+
+.contentLimitHint {
+  margin: 0;
+  color: var(--brand-red-500);
+  font-size: 12px;
+  font-weight: 400;
+  letter-spacing: -0.02em;
+  line-height: 1.35;
 }
 
 .tagLabel {

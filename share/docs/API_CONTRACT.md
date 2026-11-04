@@ -62,9 +62,9 @@
 | `POST /main/pet-tags/recent` | `{ petId }` | 멘션을 고를 때 저장. 같은 펫은 `used_at`만 갱신. `POST /main/search/recent`와 무관 |
 | `DELETE /main/pet-tags/recent` | data null | 내 최근 펫 태그 전부 삭제 |
 | `GET /feeds/{id}/comments` · `.../replies` | `authorProfileFile` | 작성자의 대표 펫 사진 `FileSummary`. 없으면 `null`. 인라인 `replies`에도 동일 |
-| `POST /feeds` | 게시글 단건 | content 최대 100자. AI 검사 통과 후 저장. 400 AI_CONTENT_BLOCKED 또는 503 AI_CHECK_UNAVAILABLE이면 미저장·독립 검사 로그 보관. 상세 ai-manual-review-and-phone-demo.md |
+| `POST /feeds` | 게시글 단건 | content 최대 500자. AI 검사 통과 후 저장. 400 AI_CONTENT_BLOCKED 또는 503 AI_CHECK_UNAVAILABLE이면 미저장·독립 검사 로그 보관. 상세 ai-manual-review-and-phone-demo.md |
 | `PATCH /feeds/{feedId}` | 게시글 단건 | 작성자 전용. content/clearContent/visibility 및 mediaTags(기존 사진 ID별 mentions 교체), tagIds(본문 해시태그 연결 교체). 원본 미디어 교체 없음. 상세는 [feed-edit.md](feed-edit.md) |
-| `PATCH /feeds/{feedId}` | 게시글 단건 | content 최대 100자. 작성과 같이 저장 전 동기 검사. 실패하면 원본 유지 |
+| `PATCH /feeds/{feedId}` | 게시글 단건 | content 최대 500자. 작성과 같이 저장 전 동기 검사. 실패하면 원본 유지 |
 | 댓글·답글 작성/수정 | — | content 최대 100자. 즉시 저장·공개하고 DB 작업자가 비동기 검사. 유해 시 숨김/마지막 승인 본문 복구 후 AI_MODERATION 알림. AI 장애는 FAILED 로그·재시도이며 콘텐츠 유지 |
 | `GET /tags/recommend` | `TagResponse[]` | 게시글 내용(q) 기반 해시태그 최대 5. 총 3회 시도 후 실패 시 503 서비스 오류 안내. 정상 빈 결과만 DB 추천으로 보완 |
 | `GET /pets` | `priority` | 작을수록 우선. 목록은 이 순서, 같으면 petId. 유저 프로필 사진은 그중 사진 있는 첫 펫. **로그인한 나의 펫만** |

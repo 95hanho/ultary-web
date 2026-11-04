@@ -1,4 +1,5 @@
--- schema_version: 40
+-- schema_version: 41
+-- v41: 게시글(피드) content 최대 500자. 댓글·답글 100자 유지 (039_feed_content_max_500.sql)
 -- v40: 관리자 시연 이력 구분·중복 방지 (038_admin_action_log_samples.sql)
 -- v39: 관리자 처리 이력 (037_admin_action_log.sql)
 -- v34: bounded refresh retry recovery and token replacement lineage
@@ -304,7 +305,7 @@ CREATE TABLE `ultary_user_block` (
 CREATE TABLE `ultary_feed` (
   `feed_id` INT(11) NOT NULL AUTO_INCREMENT,
   `user_no` INT(11) NOT NULL COMMENT '피드 작성자',
-  `content` VARCHAR(100) NULL DEFAULT NULL COMMENT '본문. 해시태그 텍스트 포함 최대 100자',
+  `content` VARCHAR(500) NULL DEFAULT NULL COMMENT '본문. 해시태그 텍스트 포함 최대 500자',
   `visibility` ENUM('PUBLIC','NEIGHBORS','PRIVATE') NOT NULL DEFAULT 'PUBLIC' COMMENT 'PUBLIC: 전체 공개, NEIGHBORS: 팔로우 관계 공개, PRIVATE: 나만 보기',
   `like_count` INT(11) NOT NULL DEFAULT 0,
   `comment_count` INT(11) NOT NULL DEFAULT 0,
@@ -699,7 +700,7 @@ CREATE TABLE `ultary_ai_moderation_state` (
   `target_id` INT(11) NOT NULL,
   `latest_version` BIGINT NOT NULL DEFAULT 0,
   `approved_version` BIGINT NOT NULL DEFAULT 0,
-  `approved_content` VARCHAR(100) NULL,
+  `approved_content` VARCHAR(500) NULL,
   `has_approved` TINYINT(1) NOT NULL DEFAULT 0,
   PRIMARY KEY (`target_type`, `target_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_general_ci;
@@ -715,7 +716,7 @@ CREATE TABLE `ultary_ai_moderation_job` (
   `user_no` INT(11) NOT NULL,
   `content_version` BIGINT NOT NULL,
   `operation` VARCHAR(10) NOT NULL,
-  `content` VARCHAR(100) NULL,
+  `content` VARCHAR(500) NULL,
   `status` VARCHAR(20) NOT NULL DEFAULT 'PENDING',
   `attempt_count` INT NOT NULL DEFAULT 0,
   `next_attempt_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,

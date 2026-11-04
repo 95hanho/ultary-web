@@ -210,7 +210,7 @@ FE는 OAuth code를 Spring에 보내지 않는다. BFF가 code를 교환해 `pro
 > Spring: `GET /api/v1/feeds/{feedId}` — **PUBLIC은 비로그인 허용**. 상세는 [`spring-auth-api.md`](./spring-auth-api.md).
 > 삭제 권한: 작성자 또는 `feed_pet.role=COLLABORATOR` 펫의 보호자. `deleted_by_user_no`에 실제 삭제자 기록.
 > 등록 시 `media` 1개 이상 필수. PATCH는 content·clearContent·visibility와 mediaTags(기존 사진별 펫 태그), tagIds(본문 해시태그)를 지원한다. 원본 미디어/순서는 바꿀 수 없다. 내 피드 메뉴의 게시글 수정은 작성 화면을 재사용하며 사진 태그·본문만 편집한다. 상세 계약: [feed-edit.md](feed-edit.md).
-> 본문·댓글·답글 `content`는 해시태그 텍스트 포함 **최대 100자**.
+> 게시글 본문 `content`는 해시태그 텍스트 포함 **최대 500자**. 댓글·답글은 **최대 100자**.
 > `PRIVATE`는 작성자만 조회. `NEIGHBORS`는 ACCEPTED 팔로우 관계만 조회.
 | 좋아요 | POST | `/api/feeds/:feedId/like` |
 | 좋아요 취소 | DELETE | `/api/feeds/:feedId/like` |

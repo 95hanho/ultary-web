@@ -1,5 +1,12 @@
 # share CHANGELOG
 
+## 2026-11-04 게시글 본문 500자
+
+- 게시글(피드) `content` 최대 **500자** (해시태그 텍스트 포함). 댓글·답글은 **100자** 유지
+- DB: `ultary_feed.content`, 모더레이션 스냅샷(`approved_content`·job `content`) VARCHAR(500)
+- 마이그레이션: `039_feed_content_max_500.sql` (schema v41)
+- API: `CreateFeedRequest` / `UpdateFeedRequest` `@Size(max=500)`
+
 ## 2026-11-03 한 글자 해시태그 일반 텍스트 처리
 
 - 게시글 작성·수정에서 `#글`, `#a`, `#1` 등 한 글자 토큰은 본문에 그대로 저장하되 태그 생성·연결에서 제외한다. 호환용 tagIds와 승인 본문 복구에서도 한 글자 태그 연결을 제외한다.
