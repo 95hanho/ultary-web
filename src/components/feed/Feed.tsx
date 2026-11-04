@@ -11,6 +11,7 @@ import { MediaImage } from '@/components/common/MediaImage';
 import type { StoryStatus } from '@/components/my-ultary/Profile';
 import { PetProfileGroup } from '@/components/my-ultary/PetProfileGroup';
 import { PetNamesAndNicknameTag } from '@/components/common/PetNamesAndNicknameTag';
+import { StoryOpenButton } from '@/components/story/StoryOpenButton';
 import type { SubjectPet } from '@/types/pet';
 import { bffDelete, bffGet, bffPostJson } from '@/lib/api/bffFetch';
 import { subscribeContentModerated } from '@/lib/ws/liveSocket';
@@ -675,7 +676,7 @@ export function Feed({
           {showAuthor ? (
             <>
               {storyHref ? (
-                <Link
+                <StoryOpenButton
                   href={storyHref}
                   className={styles.profileLink}
                   aria-label={`${nicknameTag(nickname)} 스토리`}
@@ -686,7 +687,7 @@ export function Feed({
                     size={41}
                     story={storyRing}
                   />
-                </Link>
+                </StoryOpenButton>
               ) : (
                 <PetProfileGroup
                   pets={subjectPets}

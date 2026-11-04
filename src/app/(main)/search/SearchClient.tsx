@@ -28,6 +28,7 @@ import { formatTagPostCount, type MockHashtag, type SearchAccount } from '@/lib/
 import { useModalStore } from '@/stores/modal.store';
 import clsx from 'clsx';
 import { Profile, type StoryStatus } from '@/components/my-ultary/Profile';
+import { StoryOpenButton } from '@/components/story/StoryOpenButton';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -155,18 +156,15 @@ function AccountRow({
       <div className={styles.accountInfo}>
         <div className={styles.accountImageArea}>
           {storyHref ? (
-            <Link
+            <StoryOpenButton
               href={storyHref}
               className={styles.accountImageWrap}
               aria-label={`${nicknameTag(account.nickname)} 스토리 보기`}
               onMouseDown={(event) => event.preventDefault()}
-              onClick={(event) => {
-                event.preventDefault();
-                onEnter(account, storyHref);
-              }}
+              onOpen={() => onEnter(account, storyHref)}
             >
               {profile}
-            </Link>
+            </StoryOpenButton>
           ) : (
             <span
               className={styles.accountImageWrap}

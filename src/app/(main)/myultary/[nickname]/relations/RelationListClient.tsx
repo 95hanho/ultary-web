@@ -9,6 +9,7 @@ import { EmptyState } from '@/components/common/EmptyState';
 import { FooterMenu } from '@/components/common/FooterMenu';
 import { PageHeader } from '@/components/common/PageHeader';
 import { Profile, type StoryStatus } from '@/components/my-ultary/Profile';
+import { StoryOpenButton } from '@/components/story/StoryOpenButton';
 import { bffDelete, bffGet, bffPostJson } from '@/lib/api/bffFetch';
 import { bffEndpoints } from '@/lib/api/endpoints';
 import { isHttpError, isRecord } from '@/lib/api/error';
@@ -252,13 +253,13 @@ export default function RelationListClient({
                               {row.story === 'none' ? (
                                 <span className={styles.accountImageWrap}>{profile}</span>
                               ) : (
-                                <Link
+                                <StoryOpenButton
                                   href={`/stories?${new URLSearchParams({ userNo: String(row.userNo), nickname: row.nickname, single: '1' }).toString()}`}
                                   className={styles.accountImageWrap}
                                   aria-label={`${nicknameTag(row.nickname)} 스토리 보기`}
                                 >
                                   {profile}
-                                </Link>
+                                </StoryOpenButton>
                               )}
                               <span className={styles.accountText}>
                                 <Link
