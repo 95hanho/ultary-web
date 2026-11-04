@@ -968,7 +968,6 @@ export function Feed({
                   onClick={() => {
                     openModal({
                       variant: 'action',
-                      title: '공유',
                       items: [
                         {
                           label: '링크 복사',
