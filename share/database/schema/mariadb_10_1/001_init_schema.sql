@@ -1,4 +1,5 @@
--- schema_version: 41
+-- schema_version: 42
+-- v42: 사용자·AI 텍스트 테이블 utf8mb4 (이모지). 040_utf8mb4_user_content.sql
 -- v41: 게시글(피드) content 최대 500자. 댓글·답글 100자 유지 (039_feed_content_max_500.sql)
 -- v40: 관리자 시연 이력 구분·중복 방지 (038_admin_action_log_samples.sql)
 -- v39: 관리자 처리 이력 (037_admin_action_log.sql)
@@ -33,7 +34,7 @@
 -- v8: ultary_file 출처 컬럼 (source_type/author_name/source_url/license_url/copyright_notice)
 -- ULTARY MariaDB 10.1.13 Schema
 -- Engine: InnoDB
--- Charset / Collation: utf8 / utf8_general_ci
+-- Charset / Collation: 사용자·AI 텍스트 테이블 utf8mb4 / utf8mb4_general_ci; 그 외 다수 테이블은 utf8 / utf8_general_ci (040). SET NAMES utf8mb4
 -- Delete policy: 서비스 데이터는 기본적으로 is_deleted/status 값으로 소프트 삭제 관리
 -- Auth note:
 --   - 일반 사용자 login_id 없음 (소셜 우선, 이후 email/phone + password 로그인)
@@ -48,7 +49,7 @@
 --       · purpose=USER 는 설명 없는 일반 태그. purpose=COMMERCIAL 은 제목·소개·링크·이미지
 --       · 상업 설명은 ultary_tag_profile_request 가 APPROVED 된 뒤에만 태그 조회에 보인다
 --   - 닉네임 허용: 영문·숫자·한글. 한글만 2~5자, 영문·숫자만 4~10자. 혼합 시 한글1자=2, 영문·숫자1자=1, 가중치 합 4~10 (한글 최대 5자)
---   - mention_id / tag.handle 허용: 영문·숫자·언더바 (^[A-Za-z0-9_]{1,30}$), UNIQUE, utf8_general_ci라 대소문자 동일 취급
+--   - mention_id / tag.handle 허용: 영문·숫자·언더바 (^[A-Za-z0-9_]{1,30}$), UNIQUE, utf8mb4_general_ci라 대소문자 동일 취급
 --   - 최근 검색: 들어간 유저 울타리 또는 태그 피드. ultary_user_search_history (user|tag 각 1행)
 --   - 최근 펫 태그: 스토리 @·사진 태그에서 고른 펫. ultary_user_pet_tag_history (user_no, pet_id) 1행. 검색 기록과 섞지 않음
 --   - 피드 삭제: 작성자(user_no) 또는 COLLABORATOR 펫 보호자. deleted_by_user_no에 실제 삭제자 기록
@@ -87,7 +88,7 @@
 --   v19: ultary_feed_pin, ultary_feed_save
 --   v20: 회원 정지 SUSPENDED, suspended_at
 
-SET NAMES utf8;
+SET NAMES utf8mb4;
 SET FOREIGN_KEY_CHECKS = 0;
 
 DROP TABLE IF EXISTS `ultary_admin_action_log`;
@@ -158,7 +159,7 @@ CREATE TABLE `ultary_user` (
   KEY `IDX_ultary_user_phone` (`phone`) USING BTREE,
   KEY `IDX_ultary_user_is_default_nickname` (`is_default_nickname`) USING BTREE,
   KEY `IDX_ultary_user_withdrawal_status` (`withdrawal_status`) USING BTREE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_general_ci COMMENT='사용자 계정 및 보호자 프로필';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='사용자 계정 및 보호자 프로필';
 
 CREATE TABLE `ultary_user_social` (
   `user_social_id` INT(11) NOT NULL AUTO_INCREMENT,
@@ -266,7 +267,7 @@ CREATE TABLE `ultary_pet` (
   KEY `IDX_ultary_pet_user_priority` (`user_no`, `priority`, `pet_id`) USING BTREE,
   KEY `IDX_ultary_pet_profile_file_id` (`profile_file_id`) USING BTREE,
   KEY `IDX_ultary_pet_is_deleted` (`is_deleted`) USING BTREE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_general_ci COMMENT='사용자가 등록한 반려동물 프로필 (@mention_id)';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='사용자가 등록한 반려동물 프로필 (@mention_id)';
 
 CREATE TABLE `ultary_neighbor` (
   `neighbor_id` INT(11) NOT NULL AUTO_INCREMENT,
@@ -320,7 +321,7 @@ CREATE TABLE `ultary_feed` (
   KEY `IDX_ultary_feed_visibility_created` (`visibility`, `created_at`) USING BTREE,
   KEY `IDX_ultary_feed_is_deleted_created` (`is_deleted`, `created_at`) USING BTREE,
   KEY `IDX_ultary_feed_deleted_by_user_no` (`deleted_by_user_no`) USING BTREE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_general_ci COMMENT='반려동물 일상 피드';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='반려동물 일상 피드';
 
 CREATE TABLE `ultary_feed_pet` (
   `feed_pet_id` INT(11) NOT NULL AUTO_INCREMENT,
@@ -395,7 +396,7 @@ CREATE TABLE `ultary_feed_comment` (
   PRIMARY KEY (`feed_comment_id`) USING BTREE,
   KEY `IDX_ultary_feed_comment_feed_created` (`feed_id`, `created_at`) USING BTREE,
   KEY `IDX_ultary_feed_comment_user_no` (`user_no`) USING BTREE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_general_ci COMMENT='피드 댓글';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='피드 댓글';
 
 CREATE TABLE `ultary_feed_reply` (
   `feed_reply_id` INT(11) NOT NULL AUTO_INCREMENT,
@@ -410,7 +411,7 @@ CREATE TABLE `ultary_feed_reply` (
   PRIMARY KEY (`feed_reply_id`) USING BTREE,
   KEY `IDX_ultary_feed_reply_comment_created` (`feed_comment_id`, `created_at`) USING BTREE,
   KEY `IDX_ultary_feed_reply_user_no` (`user_no`) USING BTREE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_general_ci COMMENT='피드 댓글의 답글';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='피드 댓글의 답글';
 
 CREATE TABLE `ultary_feed_comment_like` (
   `feed_comment_like_id` INT(11) NOT NULL AUTO_INCREMENT,
@@ -495,7 +496,7 @@ CREATE TABLE `ultary_tag` (
   KEY `IDX_ultary_tag_hashtag` (`hashtag`) USING BTREE,
   KEY `IDX_ultary_tag_created_by_user_no` (`created_by_user_no`) USING BTREE,
   KEY `IDX_ultary_tag_is_deleted` (`is_deleted`) USING BTREE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_general_ci COMMENT='해시태그/상품·소개 태그 (#hashtag 불변, 선택 handle)';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='해시태그/상품·소개 태그 (#hashtag 불변, 선택 handle)';
 
 CREATE TABLE `ultary_feed_tag` (
   `feed_tag_id` INT(11) NOT NULL AUTO_INCREMENT,
@@ -538,7 +539,7 @@ CREATE TABLE `ultary_tag_profile_request` (
   PRIMARY KEY (`tag_profile_request_id`) USING BTREE,
   KEY `IDX_ultary_tag_profile_request_tag_status` (`tag_id`, `status`) USING BTREE,
   KEY `IDX_ultary_tag_profile_request_requester` (`requester_user_no`, `status`) USING BTREE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_general_ci COMMENT='상업 태그 설명 승인 요청. 승인 전에는 태그 조회에 설명이 안 나온다';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='상업 태그 설명 승인 요청. 승인 전에는 태그 조회에 설명이 안 나온다';
 
 CREATE TABLE `ultary_tag_profile_request_image` (
   `tag_profile_request_image_id` INT(11) NOT NULL AUTO_INCREMENT,
@@ -606,7 +607,7 @@ CREATE TABLE `ultary_notification` (
   KEY `IDX_ultary_notification_reply_id` (`feed_reply_id`) USING BTREE,
   KEY `IDX_ultary_notification_story_id` (`story_id`) USING BTREE,
   KEY `IDX_ultary_notification_neighbor_id` (`neighbor_id`) USING BTREE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_general_ci COMMENT='팔로우 신청, 좋아요, 댓글·답글, 언급, 태그, 스토리 공감. 같은 대상은 1행으로 집계';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='팔로우 신청, 좋아요, 댓글·답글, 언급, 태그, 스토리 공감. 같은 대상은 1행으로 집계';
 
 CREATE TABLE `ultary_notification_setting` (
   `user_no` INT(11) NOT NULL COMMENT '설정 주인. 행이 없으면 알림 전부 켜짐',
@@ -669,7 +670,7 @@ CREATE TABLE `ultary_dm_message` (
   KEY `IDX_ultary_dm_message_feed` (`feed_id`) USING BTREE,
   KEY `IDX_ultary_dm_message_feed_media` (`feed_media_id`) USING BTREE,
   KEY `IDX_ultary_dm_message_story` (`story_id`) USING BTREE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_general_ci COMMENT='DM 메시지. 글, 게시글 사진, 스토리 사진';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='DM 메시지. 글, 게시글 사진, 스토리 사진';
 
 CREATE TABLE `ultary_report` (
   `report_id` INT(11) NOT NULL AUTO_INCREMENT,
@@ -703,7 +704,7 @@ CREATE TABLE `ultary_ai_moderation_state` (
   `approved_content` VARCHAR(500) NULL,
   `has_approved` TINYINT(1) NOT NULL DEFAULT 0,
   PRIMARY KEY (`target_type`, `target_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 CREATE TABLE `ultary_ai_moderation_job` (
   `admin_review_status` VARCHAR(10) NOT NULL DEFAULT 'PENDING',
@@ -731,7 +732,7 @@ CREATE TABLE `ultary_ai_moderation_job` (
   UNIQUE KEY `UK_ai_moderation_version` (`target_type`, `target_id`, `content_version`),
   KEY `IDX_ai_moderation_poll` (`status`, `next_attempt_at`, `lease_until`),
   KEY `IDX_ai_moderation_user` (`user_no`, `created_at`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 CREATE TABLE `ultary_ai_request_log` (
   `ai_request_id` INT(11) NOT NULL AUTO_INCREMENT,
@@ -761,7 +762,7 @@ CREATE TABLE `ultary_ai_request_log` (
   KEY `IDX_ultary_ai_target_feed_id` (`target_feed_id`) USING BTREE,
   KEY `IDX_ultary_ai_target_pet_id` (`target_pet_id`) USING BTREE,
   KEY `IDX_ultary_ai_feature_status` (`feature_type`, `status`) USING BTREE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_general_ci COMMENT='AI 문구 추천, 해시태그 추천, 프로필 소개, alt text 등 요청 이력';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='AI 문구 추천, 해시태그 추천, 프로필 소개, alt text 등 요청 이력';
 
 CREATE TABLE `ultary_story` (
   `story_id` INT(11) NOT NULL AUTO_INCREMENT,
@@ -780,7 +781,7 @@ CREATE TABLE `ultary_story` (
   KEY `IDX_ultary_story_expires_deleted` (`expires_at`, `is_deleted`) USING BTREE,
   KEY `IDX_ultary_story_file_id` (`file_id`) USING BTREE,
   KEY `IDX_ultary_story_thumbnail_file_id` (`thumbnail_file_id`) USING BTREE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_general_ci COMMENT='24시간 스토리 (사진/짧은 영상)';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='24시간 스토리 (사진/짧은 영상)';
 
 CREATE TABLE `ultary_story_view` (
   `story_view_id` INT(11) NOT NULL AUTO_INCREMENT,
@@ -807,7 +808,7 @@ CREATE TABLE `ultary_story_text` (
   `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`story_text_id`) USING BTREE,
   KEY `IDX_ultary_story_text_story` (`story_id`, `sort_order`) USING BTREE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_general_ci COMMENT='스토리 사진 위 글자';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='스토리 사진 위 글자';
 
 CREATE TABLE `ultary_story_mention` (
   `story_mention_id` INT(11) NOT NULL AUTO_INCREMENT,

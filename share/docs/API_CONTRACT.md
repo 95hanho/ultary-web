@@ -37,12 +37,13 @@
 | 필드 | 설명 |
 |------|------|
 | `fileId` | `ultary_file.file_id` |
-| `filePath` | 상대(`images/…`) 또는 CDN 절대 URL |
+| `filePath` | 상대(`images/feed/…` 등 purpose 하위) 또는 CDN 절대 URL |
 | `mimeType` / `extension` | 표시·타입 판별 |
 | `sourceType` | OWNED \| UNSPLASH \| AI \| ETC |
 | `authorName` / `sourceUrl` / `licenseUrl` / `copyrightNotice` | 출처 표기(없으면 null) |
 
-쓰기 요청(업로드·피드/스토리 등록)은 기존처럼 **fileId만** 보낸다.
+쓰기 요청(피드/스토리 등록)은 기존처럼 **fileId만** 보낸다.  
+`POST /files` 업로드 multipart는 `file` + 선택 `mediaType` + **`purpose`**(FEED|STORY|PET|TAG, 기본 FEED). 디스크 경로는 `images|videos/{purpose}/…` (uploadDir 설정 값 자체는 불변).
 
 ### Story · 읽음 (FE)
 

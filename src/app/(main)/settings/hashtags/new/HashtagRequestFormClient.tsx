@@ -207,6 +207,7 @@ async function uploadImage(dataUrl: string, fileName: string) {
   const blob = await res.blob();
   const form = new FormData();
   form.append('file', new File([blob], fileName.trim() || 'tag.png', { type: blob.type || 'image/png' }));
+  form.append('purpose', 'TAG');
   const uploadRes = await fetch(bffEndpoints.files.root, {
     method: 'POST',
     body: form,

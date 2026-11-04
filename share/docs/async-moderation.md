@@ -35,7 +35,7 @@
 
 ## 이력과 알림
 
-- `ultary_ai_request_log`에 작업 ID·대상 종류/ID·버전·시도 번호·소요 시간·HTTP 상태·실패 코드/원인을 보존한다.
+- `ultary_ai_request_log`에 작업 ID·대상 종류/ID·버전·시도 번호·소요 시간·HTTP 상태·실패 코드/원인을 보존한다. `inspection_content`·프롬프트·결과 등 검사 문구와 피드/댓글 본문 스냅샷은 schema **v42**부터 utf8mb4라 이모지를 저장할 수 있다. utf8(3바이트) DB에 이모지가 들어오면 로그 INSERT가 실패하고 게시글 동기 검사는 `AI_CHECK_UNAVAILABLE`로 막힐 수 있다.
 - 각 시도 로그는 REQUIRES_NEW 트랜잭션으로 저장한다. 콘텐츠/후속 조치 롤백으로 장애 기록이 사라지지 않는다.
 - API 키와 제공자 응답 원문은 로그에 넣지 않는다. 작업 테이블의 최대 500자 본문 스냅샷은 검사·복구용이며 진단 로그와 구분한다.
 - 조치·작업 완료·알림 저장은 같은 트랜잭션이다. 중복 완료 호출은 조치·개수·알림을 중복 반영하지 않는다.
@@ -80,7 +80,7 @@
 - `logging.level.[org.mybatis.spring.SqlSessionUtils]=INFO`, `logging.level.[org.mybatis.spring.transaction.SpringManagedTransaction]=INFO`로 이 두 로거의 반복 DEBUG만 줄인다. WARN/ERROR 및 다른 로거는 유지한다. 설정 반영에는 Backend 재시작이 필요하다.
 - 실제 로컬 설정에서 두 항목이 누락되어 반복 출력이 재발한 경우를 보완했다. `MyBatisSessionLoggingConfig`는 ApplicationReadyEvent마다 이 두 로거만 INFO로 맞추며 DevTools 자동 재시작에도 적용한다. 매퍼 SQL 로거와 실제 장애 기록은 유지한다.
 
-- 신규 DB: `001_init_schema.sql` v38. 기존 DB는 해당 버전 이후 migration을 순서대로 적용한다. v37→v38은 `032_ai_inspection_content.sql`.
+- 신규 DB: `001_init_schema.sql` **v42**. 기존 DB는 해당 버전 이후 migration을 순서대로 적용한다. v37→v38은 `032_ai_inspection_content.sql`. 이모지 저장은 v41→v42 `040_utf8mb4_user_content.sql`.
 - `ai.moderation.worker-enabled` 기본 true, `poll-ms` 기본 1000, `initial-delay-ms` 기본 5000.
 - 테스트에서는 worker-enabled=false로 실제 사용자 작업 소비와 Gemini 호출을 막는다.
 - 실패 작업 확인: `SELECT job_id,target_type,target_id,content_version,attempt_count,last_error_code,last_error FROM ultary_ai_moderation_job WHERE status='FAILED' ORDER BY job_id DESC;`

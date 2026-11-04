@@ -213,6 +213,7 @@ export default function StoryUpClient() {
         'file',
         new File([blob], uploadName, { type: blob.type || 'application/octet-stream' }),
       );
+      form.append('purpose', 'STORY');
       const uploadRes = await fetch(bffEndpoints.files.root, {
         method: 'POST',
         body: form,

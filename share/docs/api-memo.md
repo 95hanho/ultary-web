@@ -147,7 +147,7 @@ FE는 OAuth code를 Spring에 보내지 않는다. BFF가 code를 교환해 `pro
 > **목록**: 모달을 열면 `GET /main/pet-tags/recent`. `items` 최대 20, `usedAt` 내림차순. 커서 없음. 항목은 `petId`, `mentionId`, `name`, `userNo`(보호자), `ownerNickname`, `profileFile`(그 펫 사진, 없으면 null), `usedAt`. 비활성·삭제 펫, 탈퇴 보호자, 차단(내가 막음/상대가 막음)은 목록에서 뺀다.  
 > **저장**: 멘션을 고를 때 `POST /main/pet-tags/recent` `{ "petId" }`. 같은 펫은 새 행 없이 `used_at`만 갱신. 없는 펫·비활성 펫 404, 차단 403.  
 > **모두 지우기**: `DELETE /main/pet-tags/recent`. 내 행을 전부 삭제한다. 목록에 안 나오던 펫도 포함. 응답 `data`는 null.  
-> **미디어 URL**: 피드·스토리 상세·프로필 등 읽기 응답에 `fileId`와 함께 `FileSummary` 임베드. `filePath`는 상대경로(`images/…`) 또는 CDN 절대 URL. `/main/stories/owners`는 스토리 미디어 없이 **`profileFile`만** 임베드. `/main/feeds` 항목은 게시글 `media[].file`과 함께 작성자 **`authorProfileFile`**.  
+> **미디어 URL**: 피드·스토리 상세·프로필 등 읽기 응답에 `fileId`와 함께 `FileSummary` 임베드. `filePath`는 상대경로(`images/feed/…` 등 purpose 하위) 또는 CDN 절대 URL. `/main/stories/owners`는 스토리 미디어 없이 **`profileFile`만** 임베드. `/main/feeds` 항목은 게시글 `media[].file`과 함께 작성자 **`authorProfileFile`**.  
 > HTTP: `requests/story.http`, `requests/main.http`
 
 ---
@@ -521,7 +521,7 @@ HTTP: `requests/test.http`
 - 코드 상수: `src/lib/api/endpoints.ts` (`bffEndpoints` / `springEndpoints`)
 - BFF 스켈레톤: `src/app/api/**/route.ts`
 - REST Client 틀: `http/bff.http` (프론트) · Spring: `requests/*.http`
-- DB 스키마: `share/database/schema/mariadb_10_1/001_init_schema.sql` (**schema_version 32**)
+- DB 스키마: `share/database/schema/mariadb_10_1/001_init_schema.sql` (**schema_version 42**; 사용자·AI 텍스트 utf8mb4는 `040_utf8mb4_user_content.sql`)
   - 기존 DB v7→v8: `002_file_source_attribution.sql`
   - 기존 DB v8→v9: `003_comment_reply_like.sql`
   - 기존 DB v9→v10: `004_search_history_user_only.sql` (최근 검색 = 들어간 유저 울타리만)
@@ -550,7 +550,7 @@ HTTP: `requests/test.http`
 - 개발 데이터: `share/database/seed/README.md`
   - 옛 스키마·펫 태그·CDN 주소를 사용하는 시드 5개는 제거했다. 현재 DB에 재실행하지 않는다.
   - 현재 시연 데이터는 2026-10-29 CDN 개편에 맞춰 관리한다. 새 DB로 옮길 때는 비공개 백업을 사용한다.
-  - 일반 업로드 파일은 `images/…`, `videos/…` (UPLOAD_DIR 상대경로).
+  - 일반 업로드 파일은 `images/{purpose}/…`, `videos/{purpose}/…` (UPLOAD_DIR 상대경로). `purpose`=feed|story|pet|tag.
 - 입력 검사 공통 스펙: `share/validation/` (`rules.json`)
 
 ### 응답 임베드: FileSummary
@@ -587,6 +587,9 @@ HTTP: `requests/test.http`
 - `filePath`가 `http(s)://` 이면 FE가 **그대로** `<img src>` (CDN).  
 - 상대경로면 `GET /api/v1/files/{fileId}/content` (또는 BFF 프록시). CDN 절대경로에 `/content` 호출은 하지 않음.  
 - 업로드·단건 메타는 계속 `POST/GET /api/v1/files`.
+- `POST /api/v1/files` multipart: `file` 필수, `mediaType`=IMAGE|VIDEO|AUTO(기본 AUTO), **`purpose`**=FEED|STORY|PET|TAG(기본 FEED).
+  - 저장 경로: `images|videos/{purpose소문자}/{uuid}.ext` (yml `uploadDir`/`multipart.location` 변경 없음).
+  - FE: 게시글→FEED, 스토리→STORY, 펫 프로필→PET, 링크태그·상업 태그 요청 이미지→TAG.
 
 ### Spring 구현 진행 (BE)
 
@@ -605,7 +608,7 @@ HTTP: `requests/test.http`
 | 1-17 | AI (Gemini) | `GET /tags/recommend` Gemini+DB fallback. 게시글 작성/수정 사전 동기 검사, 댓글·답글 DB 기반 비동기 검사. 로그 `FEED_CAPTION`/`COMMENT_FILTER`/`HASHTAG` |
 | 다음 | — | |
 
-파일 업로드 상대경로: `images/{uuid}.ext`, `videos/{uuid}.ext` (`UPLOAD_DIR`).  
+파일 업로드 상대경로: `images/{purpose}/{uuid}.ext`, `videos/{purpose}/{uuid}.ext` (`UPLOAD_DIR`, purpose=feed|story|pet|tag).  
 시드 CDN·임베드 요약은 위 **FileSummary** 절 참고.
 
 ## 관리자 AI 호출 로그 (2026-10-20)

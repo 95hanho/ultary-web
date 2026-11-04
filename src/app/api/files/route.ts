@@ -9,7 +9,7 @@ import {
 } from '@/lib/api/bffRoute';
 import { springGet, springPostMultipart } from '@/lib/api/springFetch';
 
-/** BFF /api/files — POST multipart 업로드 */
+/** BFF /api/files — POST multipart 업로드 (file + optional mediaType + purpose FEED|STORY|PET|TAG) */
 export async function POST(request: NextRequest) {
   console.log('[API] 파일 업로드');
   try {

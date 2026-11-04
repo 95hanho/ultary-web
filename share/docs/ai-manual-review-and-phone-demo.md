@@ -28,6 +28,7 @@
 - 유지는 승인 기준 본문으로 저장한다. 삭제는 소프트 삭제하며 기존 댓글 수·알림 정리와 실시간 갱신을 수행한다. 목록·상세 모두 삭제조치 후 유지/확인 대기로 변경할 수 있다. 이 작업으로 삭제한 원문은 최신 버전·작성자·본문·부모가 유효하고 다른 신고/오류의 삭제조치가 없을 때 복구한다. 댓글 수는 실제 복구 시 한 번만 증가시키고 스레드 알림을 동기화하며 실시간 복구를 알린다. 확인 대기로 변경해도 자동 검사 작업은 SKIPPED로 유지한다. 보관된 오류 로그는 유지한다.
 - 메뉴 오류 수는 관리자 처리 완료(유지/삭제조치) 작업을 제외한다. 목록에는 처리 완료 행도 회색으로 남겨 이력을 볼 수 있다.
 - DB v38 `032_ai_inspection_content.sql`: ultary_ai_request_log.inspection_content 추가. 사전 검사한 미저장 초안도 본문을 보관한다.
+- DB v42 `040_utf8mb4_user_content.sql`: 검사 로그·피드/댓글 본문 등 사용자·AI 텍스트 테이블을 utf8mb4로 전환. utf8(3바이트)면 이모지 로그 INSERT가 실패해 동기 게시가 `AI_CHECK_UNAVAILABLE`로 막힐 수 있다.
 - DB v37 `031_ai_manual_review.sql`: 작업의 admin_review_status/admin_reviewed_at/admin_reviewed_by 추가 및 기존 거절 태그 상태 보정.
 
 ## 휴대폰 데모

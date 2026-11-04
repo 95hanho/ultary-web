@@ -20,7 +20,7 @@ const nextConfig: NextConfig = {
   // 개발 모드에서 상단 프로그레스 바 숨기기
   devIndicators: false,
   // CDN 절대 URL + Spring이 /uploads 로 여는 업로드 파일.
-  // 상대경로 업로드(images/…)는 /api/files/{id}/content 이고 MediaImage가 처리한다.
+  // 상대경로 업로드(images/feed/… 등)는 /api/files/{id}/content 이고 MediaImage가 처리한다.
   images: {
     remotePatterns: [
       {

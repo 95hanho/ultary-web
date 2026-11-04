@@ -1,5 +1,19 @@
 # share CHANGELOG
 
+## 2026-11-04 업로드 purpose 폴더 분리
+
+- `POST /api/v1/files`에 multipart `purpose`=FEED|STORY|PET|TAG 추가 (기본 FEED). yml `uploadDir`/`multipart.location`은 그대로 두고 코드에서 `images|videos/{purpose}/` 하위에 저장
+- FE: 게시글 FEED, 스토리 STORY, 펫 프로필 PET, 링크태그 요청 TAG
+- 스키마에 purpose 컬럼은 두지 않음(경로로 구분). 비CDN(상대경로) 로컬 업로드 행·연관 피드 정리와 함께 적용
+
+## 2026-11-04 사용자·AI 텍스트 utf8mb4
+
+- 이모지(4바이트, 예: 🐾) 저장을 위해 사용자·AI 텍스트 테이블을 **utf8mb4 / utf8mb4_general_ci**로 전환
+- 대상: `ultary_ai_request_log`, `ultary_ai_moderation_state`, `ultary_ai_moderation_job`, `ultary_feed`, `ultary_feed_comment`, `ultary_feed_reply`, `ultary_dm_message`, `ultary_user`, `ultary_pet`, `ultary_story`, `ultary_story_text`, `ultary_tag`, `ultary_tag_profile_request`, `ultary_notification`
+- 제외 예: `ultary_admin` — `login_id` VARCHAR(200) UNIQUE는 MariaDB 10.1 인덱스 767바이트 한도(utf8mb4 191자)를 넘어 CONVERT 실패
+- 마이그레이션: `040_utf8mb4_user_content.sql` (schema **v42**). `001_init_schema.sql`·`SET NAMES utf8mb4` 반영
+- 기존 DB는 040을 적용해야 이모지 게시/검사 로그가 통과한다. 운영 ALTER는 배포 창에서만
+
 ## 2026-11-04 게시글 본문 500자
 
 - 게시글(피드) `content` 최대 **500자** (해시태그 텍스트 포함). 댓글·답글은 **100자** 유지

@@ -37,6 +37,7 @@ async function uploadDataUrl(dataUrl: string, fileName: string, mimeType: string
       type: blob.type || mimeType || 'application/octet-stream',
     }),
   );
+  form.append('purpose', 'FEED');
   const uploadRes = await fetch(bffEndpoints.files.root, {
     method: 'POST',
     body: form,

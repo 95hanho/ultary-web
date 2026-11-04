@@ -7,7 +7,7 @@ import type { FileSourceType } from './enums';
  */
 export type FileSummary = {
   fileId: number;
-  /** 상대경로(`images/…`) 또는 CDN 절대 URL */
+  /** 상대경로(`images/feed/…` 등 purpose 하위) 또는 CDN 절대 URL */
   filePath: string;
   mimeType: string | null;
   extension: string | null;
@@ -36,6 +36,9 @@ export type FileMeta = {
   uploadedByAdminNo: number | null;
   createdAt: DateTimeString;
 } & SoftDelete;
+
+/** POST /files multipart `purpose` — 저장 폴더 images|videos/{purpose}/ */
+export type FileUploadPurpose = 'FEED' | 'STORY' | 'PET' | 'TAG';
 
 /** 피드 media[] 항목 (읽기 응답) */
 export type FeedMediaFileEmbed = {

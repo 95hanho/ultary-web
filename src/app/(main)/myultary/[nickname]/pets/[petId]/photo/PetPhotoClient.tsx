@@ -36,6 +36,7 @@ export default function PetPhotoClient() {
     const form = new FormData();
     const name = fileName.trim() || 'pet-profile.png';
     form.append('file', new File([blob], name, { type: blob.type || 'image/png' }));
+    form.append('purpose', 'PET');
     const res = await fetch(bffEndpoints.files.root, {
       method: 'POST',
       body: form,
