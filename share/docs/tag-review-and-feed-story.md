@@ -1,5 +1,32 @@
 # 태그 요청 상태와 피드 작성자 스토리
 
+## 대기 요청 취소(소프트 삭제)
+
+- 신청자 `DELETE /api/v1/tags/profile-requests/{requestId}`: 요청자 본인 + `PENDING`(관리자 승인·거절 이력 없음)만 가능.
+- **요청 행은 유지**한다. `ultary_tag`만 `is_deleted=1`, `deleted_at=NOW()`로 소프트 삭제한다. 요청 hard DELETE·purpose/profile 초기화는 하지 않는다.
+- 노출:
+  - `GET /tags/profile-requests`(설정 `/settings/hashtags`) — 삭제된 태그 요청 **제외**
+  - 관리자 대기 배지 `pendingTagRequestCount` — **제외**
+  - `GET /admin/tags/profile-requests` — **포함** + 응답 `isDeleted`
+- 승인·거절된 요청에 대한 「삭제요청」 API는 없다. FE도 해당 버튼을 두지 않는다.
+
+## 관리자 목록 · `isDeleted` · 정렬
+
+- 항목 `isDeleted`(boolean) = `ultary_tag.is_deleted`. true면 상태 변경 select 대신 「삭제됨」 표시, 행은 승인건과 같이 settled 스타일.
+- 정렬: `GREATEST(요청일 created_at, 확인일 reviewed_at, 삭제일 tag.deleted_at)` DESC. 커서도 동일 활동 시각. 유저 내 목록은 요청일 기준 유지.
+- 거절 UX: 인라인 거절 메시지 박스가 잘리는 문제를 피하려고 공통 confirm 모달(사유 textarea)로 처리한다.
+
+## 동일 해시태그 제목 구분
+
+- hashtag 중복 허용. `GET /tags/suggest`·메인 검색 태그 항목에 `title`(없으면 null)을 넣어 동일 이름을 구분한다.
+- FE suggest/검색 히트는 `#태그명` 옆에 제목을 표시하고, 선택은 `tagId` 단위로 한다.
+
+## 설정 해시태그 요청 UI
+
+- `/settings/hashtags`: PENDING일 때만 ⋯ 메뉴(수정·삭제). 승인/거절 행에는 ⋯ 없음.
+- 수정 경로 `/settings/hashtags/[requestId]/edit`: 사진·해시태그는 표시만, 제목·소개·링크만 수정. 기존 `imageFileIds`를 다시 보내 이미지가 지워지지 않게 한다(`POST /tags/:tagId/profile-requests`).
+- 삭제: confirm → `DELETE /api/tags/profile-requests/:requestId`(BFF 동일 경로).
+
 ## 관리자 태그 요청
 
 - 승인·거절된 요청은 오른쪽 상태 선택창의 대기 옵션으로 되돌린다. 별도 대기 전환 버튼은 두지 않는다. 상세 화면은 `requestId`를 전달해 선택한 요청을 처리한다.

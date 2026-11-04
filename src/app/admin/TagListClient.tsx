@@ -103,7 +103,13 @@ export default function TagListClient() {
               return (
               <tr
                 key={item.requestId}
-                className={item.status === 'APPROVED' ? styles.settled : item.status === 'REJECTED' ? styles.tagRejected : undefined}
+                className={
+                  item.isDeleted || item.status === 'APPROVED'
+                    ? styles.settled
+                    : item.status === 'REJECTED'
+                      ? styles.tagRejected
+                      : undefined
+                }
               >
                 <td className={styles.tableNumber}>{total != null ? total - page * pageSize - index : '–'}</td>
                 <td>
@@ -136,9 +142,20 @@ export default function TagListClient() {
                 <td className={styles.tableDate}>{item.createdAt ? formatWhen(item.createdAt) : '–'}</td>
                 <td className={styles.tableDate}>{item.reviewedAt ? formatWhen(item.reviewedAt) : '–'}</td>
                 <td className={styles.tableActions}>
-                  <TagStatusControl item={item} onChange={(next) =>
-                    setTags((values) => values.map((value) => value.requestId === next.requestId ? next : value))
-                  } />
+                  {item.isDeleted ? (
+                    <span className={styles.deletedStatus}>삭제됨</span>
+                  ) : (
+                    <TagStatusControl
+                      item={item}
+                      onChange={(next) =>
+                        setTags((values) =>
+                          values.map((value) =>
+                            value.requestId === next.requestId ? next : value,
+                          ),
+                        )
+                      }
+                    />
+                  )}
                 </td>
               </tr>
               );

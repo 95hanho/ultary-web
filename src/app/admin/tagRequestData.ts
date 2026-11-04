@@ -4,6 +4,8 @@ export type TagRequest = {
   requestId: number;
   tagId: number | null;
   hashtag: string;
+  /** 태그 소프트 삭제 여부 (관리자 목록) */
+  isDeleted: boolean;
   feedCount: number;
   title: string;
   content: string;
@@ -27,6 +29,7 @@ export function readTagRequest(item: Record<string, unknown>): TagRequest | null
     requestId: item.requestId,
     tagId: typeof item.tagId === 'number' ? item.tagId : null,
     hashtag,
+    isDeleted: item.isDeleted === true,
     feedCount: typeof item.feedCount === 'number' ? item.feedCount : 0,
     title: textOf(item.title),
     content: textOf(item.content),

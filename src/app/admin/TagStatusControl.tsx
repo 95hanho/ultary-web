@@ -1,20 +1,27 @@
 'use client';
-import { useRef, useState } from 'react';
+
 import { FullScreenLoading } from '@/components/common/FullScreenLoading';
 import { bffPostJson } from '@/lib/api/bffFetch';
 import { bffEndpoints } from '@/lib/api/endpoints';
 import { isHttpError, isRecord } from '@/lib/api/error';
 import { useModalStore } from '@/stores/modal.store';
 import type { BffEnvelope } from '@/types/api';
+import { useRef, useState, type MutableRefObject } from 'react';
 import { readTagRequest, type TagRequest } from './tagRequestData';
 import styles from './admin.module.scss';
-const TAG_STATUS: Record<string, string> = { PENDING: '대기', REJECTED: '거절', APPROVED: '승인' };
+
+const TAG_STATUS: Record<string, string> = {
+  PENDING: '대기',
+  REJECTED: '거절',
+  APPROVED: '승인',
+};
 const MESSAGE_MAX = 500;
 const STATUS_OPTIONS = [
   { value: 'PENDING', label: '대기' },
   { value: 'REJECTED', label: '거절' },
   { value: 'APPROVED', label: '승인' },
 ];
+
 export default function TagStatusControl({
   item,
   onChange,
@@ -23,13 +30,11 @@ export default function TagStatusControl({
   onChange: (item: TagRequest) => void;
 }) {
   const busy = useRef(false);
+  const rejectMessageRef = useRef(item.rejectMessage);
   const [submitting, setSubmitting] = useState(false);
   const [choice, setChoice] = useState<string | null>(null);
-  const [message, setMessage] = useState('');
   const canAct = item.tagId != null;
-  const trimmed = message.trim();
   const selectValue = choice ?? item.status;
-  const rejecting = canAct && selectValue === 'REJECTED' && item.status !== 'REJECTED';
 
   const notify = (text: string) => {
     useModalStore.getState().open({
@@ -38,11 +43,6 @@ export default function TagStatusControl({
       content: text,
       showCloseButton: true,
     });
-  };
-
-  const cancelReject = () => {
-    setChoice(null);
-    setMessage('');
   };
 
   const run = async (next: 'APPROVED' | 'PENDING') => {
@@ -58,7 +58,6 @@ export default function TagStatusControl({
       window.dispatchEvent(new Event('admin-status-changed'));
       onChange(mergeResult(item, res.data, { status: next, rejectMessage: '' }));
       setChoice(null);
-      setMessage('');
     } catch (err) {
       console.error('[admin] tag status', err);
       setChoice(null);
@@ -69,18 +68,11 @@ export default function TagStatusControl({
     }
   };
 
-  const reject = async () => {
+  const reject = async (rejectMessage: string) => {
     if (!canAct || item.tagId == null || busy.current) return;
-    if (!trimmed) {
-      notify('거절 메시지를 입력해 주세요.');
-      return;
-    }
-    if (trimmed.length > MESSAGE_MAX) {
-      notify('거절 메시지는 500자 이하여야 합니다.');
-      return;
-    }
     busy.current = true;
     setSubmitting(true);
+    setChoice('REJECTED');
     try {
       const res = await bffPostJson<
         BffEnvelope<unknown>,
@@ -88,14 +80,14 @@ export default function TagStatusControl({
       >(bffEndpoints.admin.tagReject, {
         tagId: item.tagId,
         requestId: item.requestId,
-        rejectMessage: trimmed,
+        rejectMessage,
       });
       window.dispatchEvent(new Event('admin-status-changed'));
-      onChange(mergeResult(item, res.data, { status: 'REJECTED', rejectMessage: trimmed }));
+      onChange(mergeResult(item, res.data, { status: 'REJECTED', rejectMessage }));
       setChoice(null);
-      setMessage('');
     } catch (err) {
       console.error('[admin] tag reject', err);
+      setChoice(null);
       notify(actionError(err));
     } finally {
       busy.current = false;
@@ -103,19 +95,48 @@ export default function TagStatusControl({
     }
   };
 
+  const openRejectModal = () => {
+    rejectMessageRef.current = item.rejectMessage;
+    useModalStore.getState().open({
+      variant: 'confirm',
+      title: '거절 메시지',
+      showCloseButton: true,
+      content: (
+        <RejectMessageForm
+          initial={item.rejectMessage}
+          maxLength={MESSAGE_MAX}
+          valueRef={rejectMessageRef}
+        />
+      ),
+      okButton: {
+        label: '거절',
+        tone: 'danger',
+        onClick: () => {
+          const trimmed = rejectMessageRef.current.trim();
+          if (!trimmed) {
+            queueMicrotask(() => notify('거절 메시지를 입력해 주세요.'));
+            return;
+          }
+          if (trimmed.length > MESSAGE_MAX) {
+            queueMicrotask(() => notify('거절 메시지는 500자 이하여야 합니다.'));
+            return;
+          }
+          void reject(trimmed);
+        },
+      },
+      cancelButton: { label: '취소', tone: 'default' },
+    });
+  };
+
   const onStatus = (next: string) => {
     if (busy.current) return;
     if (next === 'REJECTED') {
-      if (item.status === 'REJECTED') {
-        setChoice(null);
-        return;
-      }
-      setChoice('REJECTED');
-      setMessage(item.rejectMessage);
+      if (item.status === 'REJECTED') return;
+      openRejectModal();
       return;
     }
     if (next === item.status) {
-      cancelReject();
+      setChoice(null);
       return;
     }
     if (next === 'APPROVED' || next === 'PENDING') void run(next);
@@ -123,7 +144,10 @@ export default function TagStatusControl({
 
   return (
     <div className={styles.listStatusControl}>
-      <FullScreenLoading open={submitting} label="태그 요청 상태를 변경하고 있습니다. 잠시만 기다려 주세요." />
+      <FullScreenLoading
+        open={submitting}
+        label="태그 요청 상태를 변경하고 있습니다. 잠시만 기다려 주세요."
+      />
       {canAct ? (
         <select
           className={styles.statusSelect}
@@ -144,38 +168,48 @@ export default function TagStatusControl({
             </option>
           ))}
         </select>
-      ) : null}{' '}
-      {rejecting ? (
-        <div className={styles.messageField}>
-          <span className={styles.messageLabel}>거절 메시지</span>
-          <textarea
-            className={styles.messageInput}
-            value={message}
-            maxLength={MESSAGE_MAX}
-            rows={4}
-            required
-            placeholder="거절 사유를 입력해 주세요"
-            onChange={(event) => setMessage(event.target.value)}
-          />
-          <span className={styles.messageCount}>
-            {trimmed.length}/{MESSAGE_MAX}
-          </span>
-          <div className={styles.messageActions}>
-            <button type="button" className={styles.backButton} onClick={cancelReject}>
-              취소
-            </button>
-            <button type="button" className={styles.rejectButton} onClick={() => void reject()}>
-              거절
-            </button>
-          </div>
-        </div>
-      ) : null}
-      {!canAct ? (
+      ) : (
         <p className={styles.detailNote}>태그 번호가 없어 상태를 바꿀 수 없습니다.</p>
-      ) : null}
+      )}
     </div>
   );
 }
+
+function RejectMessageForm({
+  initial,
+  maxLength,
+  valueRef,
+}: {
+  initial: string;
+  maxLength: number;
+  valueRef: MutableRefObject<string>;
+}) {
+  const [value, setValue] = useState(initial);
+  valueRef.current = value;
+  const count = value.trim().length;
+
+  return (
+    <div className={styles.messageField}>
+      <label className={styles.messageLabel} htmlFor="admin-tag-reject-message">
+        거절 사유
+      </label>
+      <textarea
+        id="admin-tag-reject-message"
+        className={styles.messageInput}
+        value={value}
+        maxLength={maxLength}
+        rows={5}
+        required
+        placeholder="거절 사유를 입력해 주세요"
+        onChange={(event) => setValue(event.target.value)}
+      />
+      <span className={styles.messageCount}>
+        {count}/{maxLength}
+      </span>
+    </div>
+  );
+}
+
 function statusOptions(current: string) {
   if (STATUS_OPTIONS.some((option) => option.value === current)) return STATUS_OPTIONS;
   return [{ value: current, label: TAG_STATUS[current] ?? current }, ...STATUS_OPTIONS];

@@ -132,19 +132,23 @@ export type SearchTagHit = {
   /** `#` 포함 */
   tag: string;
   postCount: number;
+  /** 상업 설명 제목. 동일 hashtag 구분용 */
+  title?: string;
 };
 
-/** GET /main/search?type=TAG 의 tags */
+/** GET /main/search?type=TAG · GET /tags/suggest */
 export function mapSearchTags(raw: unknown): SearchTagHit[] {
   return listFrom(raw, ['tags'])
     .map((item) => {
       if (!isRecord(item) || typeof item.tagId !== 'number') return null;
       const hashtag = typeof item.hashtag === 'string' ? item.hashtag.trim().replace(/^#/, '') : '';
       if (!hashtag) return null;
+      const title = typeof item.title === 'string' ? item.title.trim() : '';
       return {
         tagId: item.tagId,
         tag: `#${hashtag}`,
         postCount: typeof item.feedCount === 'number' ? item.feedCount : 0,
+        ...(title ? { title } : {}),
       };
     })
     .filter((tag): tag is SearchTagHit => tag != null);

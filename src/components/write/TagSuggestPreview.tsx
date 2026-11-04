@@ -101,7 +101,11 @@ export function TagSuggestPreview({
       </div>
       {items.length > 0 ? (
         <div className={styles.list}>
-          <HashtagResultList items={items} onSelect={onSelect} variant="preview" />
+          <HashtagResultList
+            items={items}
+            onSelect={(item) => onSelect(item.tag)}
+            variant="preview"
+          />
         </div>
       ) : null}
     </div>,

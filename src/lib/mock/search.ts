@@ -26,6 +26,8 @@ export type MockHashtag = {
   tag: string;
   postCount: number;
   tagId?: number;
+  /** 상업 설명 제목. 동일 hashtag 구분용 */
+  title?: string;
 };
 
 const PROFILE = '/images/mock/profile.jpg';

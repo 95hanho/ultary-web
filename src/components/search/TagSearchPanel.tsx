@@ -3,7 +3,7 @@ import { useResettableState } from '@/lib/react/useResettableState';
 import { useHydrated } from '@/lib/react/useHydrated';
 
 import { FooterMenu } from '@/components/common/FooterMenu';
-import { filterMockHashtags } from '@/lib/mock/search';
+import { filterMockHashtags, type MockHashtag } from '@/lib/mock/search';
 import Image from 'next/image';
 import { useEffect, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
@@ -95,7 +95,11 @@ export function TagSearchPanel({
             </p>
           ) : null}
           {term.trim().length >= 2 ? (
-            <HashtagResultList items={results} onSelect={onSelect} variant="page" />
+            <HashtagResultList
+              items={results}
+              onSelect={(item: MockHashtag) => onSelect(item.tag)}
+              variant="page"
+            />
           ) : null}
         </main>
 

@@ -102,9 +102,11 @@
 | `GET /dm/share-targets` | `items` | 공유 대상. `mode` SHARE/DM/STORY_TAG/FEED_TAG, `q` 닉네임·펫태그 검색(제한 전), `priorityOrder` 앞 3순위 순열. 1~9순위·상세는 [공유 대상](share-targets.md). `userNo`, `nickname`, `petTags`(@ 없음), `pets`(petId·mentionId), `profileFile`, `dmRoomId`, `following`, `followedBy`, `group`, `activeAt` |
 | `GET /tags/{tagId}` | 태그 | `purpose`는 `USER` 또는 `COMMERCIAL`. `title`·`content`·`link`·`images`는 `profileStatus=APPROVED`일 때만. 요청자만 `profileRequest` |
 | `POST /tags/{tagId}/profile-requests` | 요청 1개 | 상업 태그에 넣을 설명. 관리자 승인 후에만 태그 조회에 나온다 |
-| `GET /tags/profile-requests` | 배열 | 내가 넣은 태그 설명 요청. `status`를 비우면 전부 |
-| `GET /admin/menu-counts` | `pendingTagRequestCount`, `requestedReportCount`, `failedAiRequestCount` | 메뉴 뱃지. 태그 설명 요청 `PENDING`, 대상 회원/작성자가 정지되지 않은 신고 `REQUESTED`·`CONFIRMED` 합, AI 호출 로그 `FAILED` 건수. 정지 회원의 태그 요청은 세지 않는다. AI는 같은 작업의 실패를 1건으로 세며 관리자 처리 완료 작업은 제외한다. 목록은 없다. 없으면 0 |
-| `GET /admin/tags/profile-requests` | `items`, `nextCursorRequestId`, `totalCount` | 상업 태그 설명 요청. `status`를 비우면 전부, 최신순. `totalCount`는 그 `status`의 전체 건수. 커서와 `limit`는 세지 않는다. 정지 회원의 요청은 목록과 건수에서 뺀다. 다음은 `cursorRequestId` |
+| `GET /tags/profile-requests` | 배열 | 내가 넣은 태그 설명 요청. `status`를 비우면 전부. 삭제된 태그 요청은 제외 |
+| `DELETE /tags/profile-requests/{requestId}` | 없음 | 요청자 + `PENDING`(검토 이력 없음)만. 요청 행 유지, 태그만 소프트 삭제 |
+| `GET /tags/suggest` | 배열 | 작성·수정 자동완성. `tagId`, `hashtag`, `title`(없으면 null), `feedCount`. 동일 hashtag는 제목으로 구분 |
+| `GET /admin/menu-counts` | `pendingTagRequestCount`, `requestedReportCount`, `failedAiRequestCount` | 메뉴 뱃지. 태그 설명 요청 `PENDING`(삭제 태그 제외), 대상 회원/작성자가 정지되지 않은 신고 `REQUESTED`·`CONFIRMED` 합, AI 호출 로그 `FAILED` 건수. 정지 회원의 태그 요청은 세지 않는다. AI는 같은 작업의 실패를 1건으로 세며 관리자 처리 완료 작업은 제외한다. 목록은 없다. 없으면 0 |
+| `GET /admin/tags/profile-requests` | `items`, `nextCursorRequestId`, `totalCount` | 상업 태그 설명 요청. `status`를 비우면 전부. 삭제된 태그 요청 포함 + `isDeleted`. 정렬·커서는 활동 시각(`GREATEST(created_at, reviewed_at, tag.deleted_at)`) DESC. `totalCount`는 그 `status`의 전체 건수. 커서와 `limit`는 세지 않는다. 정지 회원의 요청은 목록과 건수에서 뺀다. 다음은 `cursorRequestId` |
 | `GET /admin/reports` | `items`, `nextCursorReportId`, `totalCount` | 신고 목록. `status`를 비우면 전부, 신고요청·확인이 먼저(대상이 정지인 건 제외), 그다음 나머지. 같은 묶음은 최신순. `totalCount`는 그 `status`의 전체 건수. 커서와 `limit`는 세지 않는다. `reporterUserNo`·`reporterNickname`은 신고 회원. `targetUserNo`·`targetNickname`은 대상 회원(회원 신고는 그 회원, 글·댓글·답글은 작성자). 글·댓글·답글은 `targetContent`(30자, 넘으면 `...`). `targetSuspended`는 그 회원이 정지인지. 다음은 `cursorReportId` |
 | `GET /admin/reports/{reportId}` | 신고 1개 | 목록 항목과 같다. `targetUserNo`·`targetNickname`·`targetSuspended` 포함. 없으면 404 |
 | `POST /admin/reports/{reportId}/confirm` · `reject` · `delete-content` · `suspend` | 신고 1개 | 어떤 상태에서든 다시 조치. 정지→다른 상태면 회원 정지 해제, 삭제조치→다른 상태면 글·댓글·답글 복구. 같은 대상에 같은 상태 신고가 더 있으면 유지. `delete-content`는 글·댓글·답글, `suspend`는 회원만 |

@@ -859,10 +859,7 @@ export default function WriteComposeClient({ editFeedId }: { editFeedId?: string
                   <HashtagResultList
                     items={visibleSuggest}
                     highlightQuery={suggestQuery}
-                    onSelect={(tag) => {
-                      const hit = suggestItems.find((item) => item.tag === tag);
-                      applyTag(tag, hit?.tagId);
-                    }}
+                    onSelect={(item) => applyTag(item.tag, item.tagId)}
                     variant="page"
                   />
                 </div>

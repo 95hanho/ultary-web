@@ -29,6 +29,7 @@ export const MEMBER_PAGE_PATHS = [
   "/settings/hashtags",
   "/settings/hashtags/crop",
   "/settings/hashtags/new",
+  "/settings/hashtags/[requestId]/edit",
   "/settings/mypage",
   "/settings/mypage/edit",
   "/settings/mypage/password",

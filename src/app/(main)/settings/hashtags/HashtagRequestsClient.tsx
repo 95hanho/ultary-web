@@ -5,19 +5,20 @@ import { PageLoadError } from '@/components/common/PageLoadError';
 import { FooterMenu } from '@/components/common/FooterMenu';
 import { MediaImage } from '@/components/common/MediaImage';
 import { PageHeader } from '@/components/common/PageHeader';
-import { bffGet } from '@/lib/api/bffFetch';
+import { bffDelete, bffGet } from '@/lib/api/bffFetch';
 import { bffEndpoints } from '@/lib/api/endpoints';
-import { isRecord } from '@/lib/api/error';
+import { isHttpError, isRecord } from '@/lib/api/error';
 import { resolveFileDisplayUrl } from '@/lib/api/fileUrl';
 import { readFileAsDataUrl } from '@/lib/pending-pet-photo';
+import { useModalStore } from '@/stores/modal.store';
 import { useTagRequestDraft } from '@/stores/tag-request-draft.store';
 import type { BffEnvelope } from '@/types/api';
-import { Plus } from 'lucide-react';
+import { Ellipsis, Pencil, Plus, Trash2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState, type ChangeEvent } from 'react';
 import styles from './hashtags.module.scss';
 
-type TagRequest = {
+export type TagRequest = {
   requestId: number;
   tagId: number;
   hashtag: string;
@@ -25,6 +26,7 @@ type TagRequest = {
   content: string;
   link: string;
   imageUrl: string;
+  imageFileIds: number[];
   status: string;
   rejectMessage: string;
   createdAt: string;
@@ -41,10 +43,13 @@ const STATUS_LABEL: Record<string, string> = {
 export default function HashtagRequestsClient() {
   const [loadFailed, setLoadFailed] = useState<{ error: unknown } | null>(null);
   const router = useRouter();
+  const openModal = useModalStore((s) => s.open);
   const fileRef = useRef<HTMLInputElement>(null);
   const setSource = useTagRequestDraft((s) => s.setSource);
   const [items, setItems] = useState<TagRequest[]>([]);
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
+  const [menuRequestId, setMenuRequestId] = useState<number | null>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -70,6 +75,27 @@ export default function HashtagRequestsClient() {
     };
   }, []);
 
+  useEffect(() => {
+    if (menuRequestId == null) return;
+    const onPointer = (event: MouseEvent | TouchEvent) => {
+      const target = event.target;
+      if (!(target instanceof Node)) return;
+      if (menuRef.current?.contains(target)) return;
+      setMenuRequestId(null);
+    };
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setMenuRequestId(null);
+    };
+    document.addEventListener('mousedown', onPointer);
+    document.addEventListener('touchstart', onPointer);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onPointer);
+      document.removeEventListener('touchstart', onPointer);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [menuRequestId]);
+
   async function onFile(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     event.target.value = '';
@@ -81,6 +107,40 @@ export default function HashtagRequestsClient() {
     } catch (err) {
       console.error('[hashtag-requests] file', err);
     }
+  }
+
+  function askDelete(item: TagRequest) {
+    setMenuRequestId(null);
+    openModal({
+      variant: 'confirm',
+      title: '알림창',
+      content: '이 해시태그 요청을 삭제할까요?',
+      showCloseButton: true,
+      okButton: {
+        label: '삭제',
+        tone: 'danger',
+        onClick: () => {
+          void (async () => {
+            try {
+              await bffDelete<unknown>(bffEndpoints.tags.profileRequestById, {
+                requestId: item.requestId,
+              });
+              setItems((prev) => prev.filter((row) => row.requestId !== item.requestId));
+            } catch (err) {
+              console.error('[hashtag-requests] delete', err);
+              openModal({
+                variant: 'alert',
+                title: '알림창',
+                content: pickErrorMessage(err, '요청을 삭제하지 못했습니다.'),
+                showCloseButton: true,
+                okButton: { label: '확인', tone: 'primary' },
+                cancelButton: { hidden: true },
+              });
+            }
+          })();
+        },
+      },
+    });
   }
 
   if (loadFailed) return <PageLoadError error={loadFailed.error} />;
@@ -116,33 +176,102 @@ export default function HashtagRequestsClient() {
           <p className={styles.status}>요청한 해시태그가 없습니다.</p>
         ) : null}
         <ul className={styles.list}>
-          {items.map((item) => (
-            <li key={item.requestId} className={styles.card}>
-              <span className={styles.thumb}>
-                {item.imageUrl ? (
-                  <MediaImage src={item.imageUrl} alt="" width={72} height={72} className={styles.thumbImg} />
-                ) : (
-                  <span className={styles.thumbEmpty}>사진 없음</span>
-                )}
-              </span>
-              <span className={styles.body}>
-                <span className={styles.top}>
-                  <strong className={styles.hash}>#{item.hashtag}</strong>
-                  <span className={statusClass(item.status)}>{STATUS_LABEL[item.status] ?? item.status}</span>
+          {items.map((item) => {
+            const pending = item.status === 'PENDING';
+            const menuOpen = menuRequestId === item.requestId;
+            return (
+              <li key={item.requestId} className={styles.card}>
+                <span className={styles.thumb}>
+                  {item.imageUrl ? (
+                    <MediaImage
+                      src={item.imageUrl}
+                      alt=""
+                      width={72}
+                      height={72}
+                      className={styles.thumbImg}
+                    />
+                  ) : (
+                    <span className={styles.thumbEmpty}>사진 없음</span>
+                  )}
                 </span>
-                {item.title ? <span className={styles.title}>{item.title}</span> : null}
-                {item.content ? <span className={styles.content}>{item.content}</span> : null}
-                {item.link ? <span className={styles.link}>{item.link}</span> : null}
-                {item.rejectMessage ? (
-                  <span className={styles.reject}>사유 : {item.rejectMessage}</span>
-                ) : null}
-                <span className={styles.time}>
-                  요청 {formatWhen(item.createdAt)}
-                  {item.reviewedAt ? ` · 검토 ${formatWhen(item.reviewedAt)}` : ''}
+                <span className={styles.body}>
+                  <span className={styles.top}>
+                    <strong className={styles.hash}>#{item.hashtag}</strong>
+                    <span className={statusClass(item.status)}>
+                      {STATUS_LABEL[item.status] ?? item.status}
+                    </span>
+                  </span>
+                  {item.title ? <span className={styles.title}>{item.title}</span> : null}
+                  {item.content ? <span className={styles.content}>{item.content}</span> : null}
+                  {item.link ? (
+                    <a
+                      className={styles.link}
+                      href={item.link}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      {item.link}
+                    </a>
+                  ) : null}
+                  {item.rejectMessage ? (
+                    <span className={styles.reject}>사유 : {item.rejectMessage}</span>
+                  ) : null}
+                  <span className={styles.cardFooter}>
+                    <span className={styles.time}>
+                      요청 {formatWhen(item.createdAt)}
+                      {item.reviewedAt ? ` · 검토 ${formatWhen(item.reviewedAt)}` : ''}
+                    </span>
+                    {pending ? (
+                      <div className={styles.moreWrap} ref={menuOpen ? menuRef : undefined}>
+                        <button
+                          type="button"
+                          className={styles.moreBtn}
+                          aria-label="더보기"
+                          aria-expanded={menuOpen}
+                          onClick={() =>
+                            setMenuRequestId((id) =>
+                              id === item.requestId ? null : item.requestId,
+                            )
+                          }
+                        >
+                          <Ellipsis size={22} strokeWidth={2} />
+                        </button>
+                        {menuOpen ? (
+                          <div className={styles.moreMenu} role="menu">
+                            <button
+                              type="button"
+                              className={styles.moreItem}
+                              role="menuitem"
+                              onClick={() => {
+                                setMenuRequestId(null);
+                                router.push(`/settings/hashtags/${item.requestId}/edit`);
+                              }}
+                            >
+                              <span className={styles.moreIcon}>
+                                <Pencil size={20} strokeWidth={1.75} />
+                              </span>
+                              <span className={styles.moreLabel}>수정</span>
+                            </button>
+                            <button
+                              type="button"
+                              className={styles.moreItem}
+                              role="menuitem"
+                              onClick={() => askDelete(item)}
+                            >
+                              <span className={styles.moreIcon}>
+                                <Trash2 size={20} strokeWidth={1.75} />
+                              </span>
+                              <span className={styles.moreLabel}>삭제</span>
+                            </button>
+                          </div>
+                        ) : null}
+                      </div>
+                    ) : null}
+                  </span>
                 </span>
-              </span>
-            </li>
-          ))}
+              </li>
+            );
+          })}
         </ul>
       </main>
       <FooterMenu />
@@ -164,7 +293,7 @@ function formatWhen(iso: string) {
   return `${date.getMonth() + 1}월 ${date.getDate()}일 ${hh}:${mm}`;
 }
 
-function readRequests(raw: unknown): TagRequest[] {
+export function readRequests(raw: unknown): TagRequest[] {
   const list = Array.isArray(raw) ? raw : isRecord(raw) && Array.isArray(raw.items) ? raw.items : [];
   return list.flatMap((item) => {
     if (!isRecord(item) || typeof item.requestId !== 'number') return [];
@@ -179,6 +308,7 @@ function readRequests(raw: unknown): TagRequest[] {
         content: textOf(item.content),
         link: textOf(item.link),
         imageUrl: firstImage(item.images),
+        imageFileIds: readImageFileIds(item.imageFileIds, item.images),
         status: typeof item.status === 'string' ? item.status : '',
         rejectMessage: textOf(item.rejectMessage),
         createdAt: textOf(item.createdAt),
@@ -192,6 +322,18 @@ function textOf(value: unknown) {
   return typeof value === 'string' ? value.trim() : '';
 }
 
+function readImageFileIds(rawIds: unknown, rawImages: unknown) {
+  if (Array.isArray(rawIds)) {
+    return rawIds.filter((id): id is number => typeof id === 'number' && Number.isFinite(id));
+  }
+  if (!Array.isArray(rawImages)) return [];
+  return rawImages.flatMap((image) => {
+    if (!isRecord(image)) return [];
+    const fileId = typeof image.fileId === 'number' ? image.fileId : Number(image.fileId);
+    return Number.isFinite(fileId) ? [fileId] : [];
+  });
+}
+
 function firstImage(raw: unknown) {
   if (!Array.isArray(raw)) return '';
   for (const image of raw) {
@@ -202,4 +344,15 @@ function firstImage(raw: unknown) {
     if (url) return url;
   }
   return '';
+}
+
+function pickErrorMessage(err: unknown, fallback: string) {
+  if (isHttpError(err) && isRecord(err.data)) {
+    const detail = err.data.detail;
+    const message = err.data.message;
+    if (typeof detail === 'string' && detail.trim()) return detail;
+    if (typeof message === 'string' && message.trim()) return message;
+  }
+  if (err instanceof Error && err.message) return err.message;
+  return fallback;
 }

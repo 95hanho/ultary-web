@@ -7,7 +7,7 @@ import styles from './HashtagResultList.module.scss';
 
 type HashtagResultListProps = {
   items: MockHashtag[];
-  onSelect: (tag: string) => void;
+  onSelect: (item: MockHashtag) => void;
   /** 검색어와 겹치는 부분을 grass로 칠한다 */
   highlightQuery?: string;
   variant?: 'page' | 'preview';
@@ -32,7 +32,7 @@ export function HashtagResultList({
     >
       {items.map((item) => (
         <li
-          key={item.tagId ?? item.tag}
+          key={item.tagId ?? `${item.tag}:${item.title ?? ''}`}
           className={styles.item}
           role="option"
           aria-selected={false}
@@ -41,16 +41,23 @@ export function HashtagResultList({
             data-search-option
             type="button"
             className={clsx(styles.btn, variant === 'preview' ? styles.btnPreview : styles.btnPage)}
-            onClick={() => onSelect(item.tag)}
+            onClick={() => onSelect(item)}
             onMouseDown={(e) => e.preventDefault()}
           >
-            <span
-              className={clsx(
-                styles.tag,
-                variant === 'preview' ? styles.tagPreview : styles.tagPage,
-              )}
-            >
-              {highlightMatch(item.tag, highlightQuery, styles.hit)}
+            <span className={styles.main}>
+              <span
+                className={clsx(
+                  styles.tag,
+                  variant === 'preview' ? styles.tagPreview : styles.tagPage,
+                )}
+              >
+                {highlightMatch(item.tag, highlightQuery, styles.hit)}
+              </span>
+              {item.title ? (
+                <span className={styles.title} title={item.title}>
+                  {item.title}
+                </span>
+              ) : null}
             </span>
             <span className={styles.postCount}>{formatTagPostCount(item.postCount)}</span>
           </button>

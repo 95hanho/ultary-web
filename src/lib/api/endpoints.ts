@@ -163,6 +163,8 @@ export const bffEndpoints = {
     root: '/api/tags',
     /** GET 내가 넣은 상업 태그 설명 요청 */
     profileRequests: '/api/tags/profile-requests',
+    /** DELETE 내 태그 설명 요청 취소 ? PENDING만 */
+    profileRequestById: '/api/tags/profile-requests/:requestId',
     /** POST 상업 태그 설명 요청 */
     profileRequest: '/api/tags/:tagId/profile-requests',
   },
@@ -459,6 +461,8 @@ export const springEndpoints = {
     root: '/api/v1/tags',
     /** GET 내가 넣은 상업 태그 설명 요청 */
     profileRequests: '/api/v1/tags/profile-requests',
+    /** DELETE 내 태그 설명 요청 취소 ? PENDING만 */
+    profileRequestById: '/api/v1/tags/profile-requests/:requestId',
     /** POST 상업 태그 설명 요청 */
     profileRequest: '/api/v1/tags/:tagId/profile-requests',
   },

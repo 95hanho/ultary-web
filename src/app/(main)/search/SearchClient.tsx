@@ -630,11 +630,10 @@ export default function SearchClient() {
     setSubmitTick((tick) => tick + 1);
   };
 
-  const openHashtag = (tag: string) => {
-    const hit = tagResults.find((item) => item.tag === tag);
-    if (hit?.tagId == null) return;
+  const openHashtag = (item: { tagId?: number }) => {
+    if (item.tagId == null) return;
     replaceSearchUrl(searchListPath(true, query, committed));
-    router.push(`/search/tags/${hit.tagId}`);
+    router.push(`/search/tags/${item.tagId}`);
   };
 
   const nickHighlight = parsed.mode === 'plain' ? parsed.term : '';

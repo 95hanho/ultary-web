@@ -1216,6 +1216,14 @@
   }
 }
 
+.deletedStatus {
+  color: var(--brand-red-600);
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.35;
+  white-space: nowrap;
+}
+
 .tagRejected {
   background: var(--brand-red-100);
 }

@@ -1,5 +1,12 @@
 # share CHANGELOG
 
+## 2026-11-04 태그 요청 취소·관리자 isDeleted·suggest title
+
+- 대기 중 설명 요청 취소 `DELETE /tags/profile-requests/{requestId}`: 요청자+PENDING만. 요청 행 유지, 태그만 소프트 삭제. 설정 목록·대기 배지에서는 제외, 관리자 목록에는 `isDeleted`로 포함
+- 관리자 목록 정렬·커서를 활동 시각(`GREATEST(created_at, reviewed_at, tag.deleted_at)`) DESC로 통일
+- `GET /tags/suggest`·메인 검색 태그 항목에 `title` 추가(동일 hashtag 구분). 스키마 마이그레이션 없음
+- FE: 설정 ⋯ 수정/삭제·수정 페이지, 관리자 「삭제됨」·거절 모달, suggest 제목 표시. `share/frontend`·`share/backend` 인수인계 README는 docs로 이전 후 제거
+
 ## 2026-11-04 업로드 purpose 폴더 분리
 
 - `POST /api/v1/files`에 multipart `purpose`=FEED|STORY|PET|TAG 추가 (기본 FEED). yml `uploadDir`/`multipart.location`은 그대로 두고 코드에서 `images|videos/{purpose}/` 하위에 저장

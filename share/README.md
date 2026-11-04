@@ -36,6 +36,8 @@ share/
 
 경로·시각 폴더로 버전 나누지 않는다. git 히스토리 + `CHANGELOG.md`(날짜·시분)가 버전이다.
 
+미커밋 인수인계용 `frontend/`·`backend/` README는 쓰지 않는다. 작업 메모는 `docs/`·CHANGELOG로 바로 적고, 양 레포 `share/`는 해시 일치(MISMATCH 0)를 유지한다.
+
 ### 이 레포(ultary-web) 문서 구분
 
 | 위치 | 범위 |

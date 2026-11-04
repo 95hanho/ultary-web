@@ -170,6 +170,7 @@ share `API_CONTRACT` / `api-memo` 참고. 피드·스토리 상세·프로필·�
 | GET | `/api/tags/search?q=` | `/api/v1/tags/search` | ✅ | 🚧 |
 | GET | `/api/tags/recommend?q=` | `/api/v1/tags/recommend` | ✅ | 🚧 |
 | GET | `/api/tags/profile-requests` | `/api/v1/tags/profile-requests` | ✅ | ✅ |
+| DELETE | `/api/tags/profile-requests/:requestId` | `/api/v1/tags/profile-requests/:requestId` | ✅ | ✅ |
 | POST | `/api/tags/:tagId/profile-requests` | `/api/v1/tags/:tagId/profile-requests` | ✅ | ✅ |
 
 ---
