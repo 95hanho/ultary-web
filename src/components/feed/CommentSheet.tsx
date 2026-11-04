@@ -4,6 +4,7 @@ import { useResettableState } from '@/lib/react/useResettableState';
 import { useHydrated } from '@/lib/react/useHydrated';
 
 import { Profile } from '@/components/my-ultary/Profile';
+import { StoryOpenButton } from '@/components/story/StoryOpenButton';
 import { PageLoadError } from '@/components/common/PageLoadError';
 import { AccountSearchList } from '@/components/common/AccountSearchList';
 import { useSearchListKeyboard } from '@/lib/search/useSearchListKeyboard';
@@ -217,13 +218,13 @@ function CommentBody({
       )}
     >
       {!readOnly && item.story && item.story !== 'none' && item.userNo != null ? (
-        <Link
+        <StoryOpenButton
           href={`/stories?${new URLSearchParams({ userNo: String(item.userNo), nickname: item.nickname, single: '1' }).toString()}`}
           className={clsx(styles.avatarWrap, compact && styles.avatarWrapSm)}
           aria-label={`${nicknameTag(item.nickname)} 스토리`}
         >
           <Profile imageUrl={item.profileUrl} size={compact ? 32 : 40} story={item.story} />
-        </Link>
+        </StoryOpenButton>
       ) : (
         <span className={clsx(styles.avatarWrap, compact && styles.avatarWrapSm)}>
           <Profile imageUrl={item.profileUrl} size={compact ? 32 : 40} story="none" />

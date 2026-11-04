@@ -12,6 +12,7 @@ import { FooterMenu } from '@/components/common/FooterMenu';
 import { MediaImage } from '@/components/common/MediaImage';
 import { PageHeader } from '@/components/common/PageHeader';
 import { Profile, type StoryStatus } from '@/components/my-ultary/Profile';
+import { StoryOpenButton } from '@/components/story/StoryOpenButton';
 import { bffGet, bffPostJson } from '@/lib/api/bffFetch';
 import { bffEndpoints } from '@/lib/api/endpoints';
 import { isHttpError, isRecord } from '@/lib/api/error';
@@ -330,13 +331,13 @@ function ShareCard({ share }: { share: DmShareCard }) {
       {share.type === 'FEED' ? (
         <span className={styles.shareAuthor}>
           {share.authorStory !== 'none' && share.ownerUserNo ? (
-            <Link
+            <StoryOpenButton
               href={ownerStoryHref}
               className={styles.shareAuthorAvatar}
               aria-label={`${nicknameTag(share.authorNickname)} 스토리 보기`}
             >
               {avatar}
-            </Link>
+            </StoryOpenButton>
           ) : (
             <span className={styles.shareAuthorAvatar}>{avatar}</span>
           )}
@@ -830,13 +831,13 @@ export default function DmClient({ roomId, feedId, feedMediaId, storyId }: DmCli
           title={
             <span className={styles.threadPeer}>
               {peerStory !== 'none' && active.peerUserNo ? (
-                <Link
+                <StoryOpenButton
                   href={`/stories?${new URLSearchParams({ userNo: active.peerUserNo, nickname: peerNickname, single: '1' }).toString()}`}
                   className={styles.threadPeerAvatar}
                   aria-label={`${nicknameTag(peerNickname)} 스토리 보기`}
                 >
                   {avatar}
-                </Link>
+                </StoryOpenButton>
               ) : (
                 <span className={styles.threadPeerAvatar}>{avatar}</span>
               )}

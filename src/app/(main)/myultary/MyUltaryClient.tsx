@@ -15,6 +15,7 @@ import { LogoHeader } from '@/components/common/LogoHeader';
 import { LogoLoading } from '@/components/common/LogoLoading';
 import { FeedGrid, type FeedGridItem } from '@/components/feed/FeedGrid';
 import { Profile } from '@/components/my-ultary/Profile';
+import { StoryOpenButton } from '@/components/story/StoryOpenButton';
 import { bffEndpoints } from '@/lib/api/endpoints';
 import { bffDelete, bffGet, bffPatchJson, bffPostJson } from '@/lib/api/bffFetch';
 import { isHttpError, isRecord } from '@/lib/api/error';
@@ -1211,7 +1212,7 @@ export default function MyUltaryClient({ nickname, guestData }: MyUltaryClientPr
         {postsLocked ? null : (
           <nav className={styles.sideTabs} aria-label="콘텐츠 메뉴">
             {profile?.userNo != null && storyStatus !== 'none' ? (
-              <Link
+              <StoryOpenButton
                 href={`/stories?${new URLSearchParams({
                   userNo: String(profile.userNo),
                   nickname: profile.nickname,
@@ -1219,9 +1220,10 @@ export default function MyUltaryClient({ nickname, guestData }: MyUltaryClientPr
                 }).toString()}`}
                 className={clsx(styles.sideTabBtn, getStoryTabClass(storyStatus))}
                 aria-label="스토리"
+                resetChrome={false}
               >
                 <Image src={getStoryIcon(storyStatus)} alt="" width={20} height={20} />
-              </Link>
+              </StoryOpenButton>
             ) : (
               <span
                 className={clsx(styles.sideTabBtn, getStoryTabClass(storyStatus))}

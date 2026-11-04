@@ -25,6 +25,7 @@ import { FeedList } from '@/components/feed/FeedList';
 import { InfiniteFeedFooter } from '@/components/feed/InfiniteFeedFooter';
 import { FirstActivityGuide } from '@/components/feed/FirstActivityGuide';
 import { Profile, type StoryStatus } from '@/components/my-ultary/Profile';
+import { StoryOpenButton } from '@/components/story/StoryOpenButton';
 import { resolveFileDisplayUrl } from '@/lib/api/fileUrl';
 import { myUltaryPath } from '@/lib/mock/ultary-accounts';
 import { readFileAsDataUrl } from '@/lib/pending-pet-photo';
@@ -248,7 +249,7 @@ export default function MainClient() {
                           </span>
                         </button>
                       ) : (
-                        <Link
+                        <StoryOpenButton
                           href={storyHref(user)}
                           aria-label={`${nicknameTag(user.nickname)} 스토리`}
                         >
@@ -259,7 +260,7 @@ export default function MainClient() {
                             story={user.story}
                             layout="stack"
                           />
-                        </Link>
+                        </StoryOpenButton>
                       )}
                       <Link href={myUltaryPath(user.nickname)} className={styles.storyNickname}>
                         <PetNamesAndNicknameTag
