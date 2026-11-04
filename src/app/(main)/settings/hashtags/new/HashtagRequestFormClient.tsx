@@ -6,12 +6,27 @@ import { bffEndpoints } from '@/lib/api/endpoints';
 import { isHttpError, isRecord } from '@/lib/api/error';
 import { useTagRequestDraft } from '@/stores/tag-request-draft.store';
 import type { BffEnvelope } from '@/types/api';
+import clsx from 'clsx';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import formStyles from '../../mypage/mypage.module.scss';
 import styles from '../hashtags.module.scss';
 
 const HASHTAG_RE = /^[A-Za-z0-9가-힣_]{2,30}$/;
+
+type FieldErrors = {
+  hashtag: string | null;
+  title: string | null;
+  content: string | null;
+  link: string | null;
+};
+
+const EMPTY_ERRORS: FieldErrors = {
+  hashtag: null,
+  title: null,
+  content: null,
+  link: null,
+};
 
 /** 해시태그 설명 요청 작성 */
 export default function HashtagRequestFormClient() {
@@ -22,7 +37,7 @@ export default function HashtagRequestFormClient() {
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [link, setLink] = useState('');
-  const [fieldError, setFieldError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>(EMPTY_ERRORS);
   const [formError, setFormError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 
@@ -36,35 +51,41 @@ export default function HashtagRequestFormClient() {
     if (pending) return;
     setFormError(null);
     const name = hashtag.trim().replace(/^#/, '');
-    if (!HASHTAG_RE.test(name)) {
-      setFieldError('해시태그는 영문, 숫자, 한글, 언더바(_)만 사용할 수 있습니다. (2~30자, # 제외)');
-      return;
-    }
     const nextTitle = title.trim();
     const nextContent = content.trim();
     const nextLink = link.trim();
-    const photo = draft?.croppedDataUrl;
-    if (!nextTitle && !nextContent && !nextLink && !photo) {
-      setFieldError('제목, 소개, 링크, 사진 중 하나를 입력해 주세요.');
+    const nextErrors: FieldErrors = { ...EMPTY_ERRORS };
+
+    if (!name) {
+      nextErrors.hashtag = '해시태그를 입력해 주세요.';
+    } else if (/\s/.test(name)) {
+      nextErrors.hashtag = '해시태그는 공백이 들어갈 수 없습니다.';
+    } else if (!HASHTAG_RE.test(name)) {
+      nextErrors.hashtag =
+        '해시태그는 영문, 숫자, 한글, 언더바(_)만 사용할 수 있습니다. (2~30자, # 제외)';
+    }
+    if (!nextTitle) nextErrors.title = '제목을 입력해 주세요.';
+    if (!nextContent) nextErrors.content = '소개를 입력해 주세요.';
+    if (!nextLink) nextErrors.link = '링크를 입력해 주세요.';
+
+    if (nextErrors.hashtag || nextErrors.title || nextErrors.content || nextErrors.link) {
+      setFieldErrors(nextErrors);
       return;
     }
-    setFieldError(null);
+
+    setFieldErrors(EMPTY_ERRORS);
     setPending(true);
     try {
+      const photo = draft?.croppedDataUrl;
       const imageFileIds = photo ? [await uploadImage(photo, draft?.fileName ?? 'tag.png')] : [];
       const tagId = await resolveTagId(name);
-      const body: {
-        tagId: number;
-        title?: string;
-        content?: string;
-        link?: string;
-        imageFileIds?: number[];
-      } = { tagId };
-      if (nextTitle) body.title = nextTitle;
-      if (nextContent) body.content = nextContent;
-      if (nextLink) body.link = nextLink;
-      if (imageFileIds.length > 0) body.imageFileIds = imageFileIds;
-      await bffPostJson<BffEnvelope<unknown>>(bffEndpoints.tags.profileRequest, body);
+      await bffPostJson<BffEnvelope<unknown>>(bffEndpoints.tags.profileRequest, {
+        tagId,
+        title: nextTitle,
+        content: nextContent,
+        link: nextLink,
+        ...(imageFileIds.length > 0 ? { imageFileIds } : {}),
+      });
       clear();
       router.replace('/settings/hashtags');
     } catch (err) {
@@ -113,19 +134,26 @@ export default function HashtagRequestFormClient() {
         <label className={formStyles.field}>
           <span className={formStyles.label}>해시태그</span>
           <div className={formStyles.inputWrap}>
-            <input
-              type="text"
-              value={hashtag}
-              maxLength={31}
-              onChange={(event) => {
-                setHashtag(event.target.value.replace(/^#/, ''));
-                setFieldError(null);
-              }}
-              placeholder="해시태그를 입력해주세요."
-              className={formStyles.input}
-            />
+            <div className={styles.hashtagInputShell}>
+              <span className={styles.hashtagPrefix} aria-hidden>
+                #
+              </span>
+              <input
+                type="text"
+                value={hashtag}
+                maxLength={30}
+                onChange={(event) => {
+                  setHashtag(event.target.value.replace(/^#/, ''));
+                  setFieldErrors((prev) => ({ ...prev, hashtag: null }));
+                }}
+                placeholder="해시태그를 입력해주세요."
+                className={clsx(formStyles.input, styles.hashtagInput)}
+              />
+            </div>
             <p className={formStyles.fieldNote}>* 만든 뒤에는 해시태그를 바꿀 수 없습니다.</p>
-            {fieldError ? <p className={formStyles.fieldError}>* {fieldError}</p> : null}
+            {fieldErrors.hashtag ? (
+              <p className={formStyles.fieldError}>* {fieldErrors.hashtag}</p>
+            ) : null}
           </div>
         </label>
 
@@ -136,10 +164,16 @@ export default function HashtagRequestFormClient() {
               type="text"
               value={title}
               maxLength={100}
-              onChange={(event) => setTitle(event.target.value)}
+              onChange={(event) => {
+                setTitle(event.target.value);
+                setFieldErrors((prev) => ({ ...prev, title: null }));
+              }}
               placeholder="제목을 입력해주세요."
               className={formStyles.input}
             />
+            {fieldErrors.title ? (
+              <p className={formStyles.fieldError}>* {fieldErrors.title}</p>
+            ) : null}
           </div>
         </label>
 
@@ -149,10 +183,16 @@ export default function HashtagRequestFormClient() {
             <textarea
               value={content}
               maxLength={500}
-              onChange={(event) => setContent(event.target.value)}
+              onChange={(event) => {
+                setContent(event.target.value);
+                setFieldErrors((prev) => ({ ...prev, content: null }));
+              }}
               placeholder="소개를 입력해주세요."
               className={`${formStyles.input} ${styles.textarea}`}
             />
+            {fieldErrors.content ? (
+              <p className={formStyles.fieldError}>* {fieldErrors.content}</p>
+            ) : null}
           </div>
         </label>
 
@@ -163,11 +203,15 @@ export default function HashtagRequestFormClient() {
               type="url"
               value={link}
               maxLength={200}
-              onChange={(event) => setLink(event.target.value)}
+              onChange={(event) => {
+                setLink(event.target.value);
+                setFieldErrors((prev) => ({ ...prev, link: null }));
+              }}
               placeholder="https://"
               className={formStyles.input}
             />
             <p className={formStyles.fieldNote}>* 관리자가 승인해야 태그에 공개됩니다.</p>
+            {fieldErrors.link ? <p className={formStyles.fieldError}>* {fieldErrors.link}</p> : null}
           </div>
         </label>
       </div>
