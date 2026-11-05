@@ -1,4 +1,4 @@
-# share — FE / BFF / Spring 공통
+﻿# share — FE / BFF / Spring 공통
 
 이 폴더가 **공유 스펙의 최신본(SoT)** 이다.  
 ultary-web · ultary-api 모두 여기 내용을 미러링한다. 규칙이 바뀌면 **먼저 여기 수정 → 각 레포 반영**.
@@ -36,7 +36,8 @@ share/
 
 경로·시각 폴더로 버전 나누지 않는다. git 히스토리 + `CHANGELOG.md`(날짜·시분)가 버전이다.
 
-미커밋 인수인계용 `frontend/`·`backend/` README는 쓰지 않는다. 작업 메모는 `docs/`·CHANGELOG로 바로 적고, 양 레포 `share/`는 해시 일치(MISMATCH 0)를 유지한다.
+미커밋 인수인계는 임시 `FRONT.md`(web)·`BACK.md`(api)만 쓴다. (`FROND.md`·`frontend/`·`backend/` 금지.)  
+「share 정리」·커밋 전에 내용을 `docs/`·CHANGELOG로 옮기고 해당 파일을 삭제한다. 양 레포 `share/`는 해시 일치(MISMATCH 0)를 유지한다.
 
 ### 이 레포(ultary-web) 문서 구분
 

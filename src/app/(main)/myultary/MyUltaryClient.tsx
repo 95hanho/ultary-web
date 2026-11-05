@@ -206,6 +206,7 @@ export default function MyUltaryClient({ nickname, guestData }: MyUltaryClientPr
     [profile?.userNo, profile?.myReport],
   );
   const [blockingAccount, setBlockingAccount] = useState(false);
+  const [petPhotoPreviewUrl, setPetPhotoPreviewUrl] = useState<string | null>(null);
 
   const [relationBusy, setRelationBusy] = useState(false);
   const petMenuRef = useRef<HTMLDivElement>(null);
@@ -244,6 +245,20 @@ export default function MyUltaryClient({ nickname, guestData }: MyUltaryClientPr
     const len = input.value.length;
     input.setSelectionRange(len, len);
   }, [editingBio]);
+
+  useEffect(() => {
+    if (!petPhotoPreviewUrl) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setPetPhotoPreviewUrl(null);
+    };
+    document.addEventListener('keydown', onKey);
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      document.body.style.overflow = prev;
+    };
+  }, [petPhotoPreviewUrl]);
 
   const finishEditBio = () => {
     const next = bio.trim();
@@ -1138,8 +1153,14 @@ export default function MyUltaryClient({ nickname, guestData }: MyUltaryClientPr
                           <button
                             type="button"
                             className={styles.petDetailSelect}
-                            onClick={() => handlePetSelect(selectedPet.id)}
-                            aria-label={`${selectedPet.name} 선택 해제`}
+                            onClick={() =>
+                              setPetPhotoPreviewUrl(
+                                selectedPet.imageUrl.trim()
+                                  ? selectedPet.imageUrl
+                                  : NO_PROFILE_SRC,
+                              )
+                            }
+                            aria-label={`${selectedPet.name} 프로필 사진 보기`}
                             tabIndex={activePetView === 'detail' ? 0 : -1}
                           >
                             <Profile imageUrl={selectedPet.imageUrl} size={88} />
@@ -1408,6 +1429,25 @@ export default function MyUltaryClient({ nickname, guestData }: MyUltaryClientPr
                 ) : null}
               </div>
             </>,
+            document.body,
+          )
+        : null}
+      {petPhotoPreviewUrl
+        ? createPortal(
+            <button
+              type="button"
+              className={styles.petPhotoPreviewDim}
+              aria-label="프로필 사진 닫기"
+              onClick={() => setPetPhotoPreviewUrl(null)}
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={petPhotoPreviewUrl}
+                alt=""
+                className={styles.petPhotoPreviewImg}
+                draggable={false}
+              />
+            </button>,
             document.body,
           )
         : null}

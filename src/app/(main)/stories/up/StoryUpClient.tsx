@@ -4,16 +4,16 @@ import { SubjectPetPicker } from '@/components/common/SubjectPetPicker';
 import { FooterMenu } from '@/components/common/FooterMenu';
 import { PageHeader } from '@/components/common/PageHeader';
 import { PhotoTagAccountSearch } from '@/components/search/PhotoTagAccountSearch';
-import { bffPostJson } from '@/lib/api/bffFetch';
+import { bffPostJson, bffPutJson } from '@/lib/api/bffFetch';
 import { bffEndpoints } from '@/lib/api/endpoints';
 import { isRecord } from '@/lib/api/error';
 import { toStoryOverlayPayload } from '@/lib/story/publish';
 import { confirmResetStoryEdit } from '@/lib/write/confirm-leave';
 import { useModalStore } from '@/stores/modal.store';
 import type { BffEnvelope } from '@/types/api';
-import { useStoryDraftStore, type StoryTextBox } from '@/stores/story-draft.store';
+import { useStoryDraftStore, type StoryPetTag, type StoryTextBox } from '@/stores/story-draft.store';
 import clsx from 'clsx';
-import { ALargeSmall, X } from 'lucide-react';
+import { ALargeSmall, GripVertical, X } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import {
   useEffect,
@@ -67,13 +67,16 @@ export default function StoryUpClient() {
   const subjectPetIds = useStoryDraftStore((s) => s.subjectPetIds);
   const setSubjectPetIds = useStoryDraftStore((s) => s.setSubjectPetIds);
   const petTags = useStoryDraftStore((s) => s.petTags);
+  const editingStoryId = useStoryDraftStore((s) => s.editingStoryId);
   const upsertText = useStoryDraftStore((s) => s.upsertText);
   const removeText = useStoryDraftStore((s) => s.removeText);
   const addPetTag = useStoryDraftStore((s) => s.addPetTag);
   const removePetTag = useStoryDraftStore((s) => s.removePetTag);
+  const movePetTag = useStoryDraftStore((s) => s.movePetTag);
   const clear = useStoryDraftStore((s) => s.clear);
   const clearEdits = useStoryDraftStore((s) => s.clearEdits);
   const openModal = useModalStore((s) => s.open);
+  const isEditing = editingStoryId != null;
 
   const displayUrl = kind === 'image' ? (croppedDataUrl ?? sourceUrl) : sourceUrl;
 
@@ -89,6 +92,7 @@ export default function StoryUpClient() {
   const textToolsRef = useRef<HTMLDivElement>(null);
   const activeTextIdRef = useRef<string | null>(null);
   const dragSession = useRef<{
+    kind: 'text' | 'pet';
     id: string;
     startClientX: number;
     startClientY: number;
@@ -161,14 +165,16 @@ export default function StoryUpClient() {
       if (rect.width <= 0 || rect.height <= 0) return;
       const dx = (e.clientX - session.startClientX) / rect.width;
       const dy = (e.clientY - session.startClientY) / rect.height;
+      const nextX = Math.min(1, Math.max(0, session.originX + dx));
+      const nextY = Math.min(1, Math.max(0, session.originY + dy));
+      suppressStageClick.current = true;
+      if (session.kind === 'pet') {
+        movePetTag(session.id, nextX, nextY);
+        return;
+      }
       const box = useStoryDraftStore.getState().texts.find((t) => t.id === session.id);
       if (!box) return;
-      suppressStageClick.current = true;
-      upsertText({
-        ...box,
-        x: Math.min(1, Math.max(0, session.originX + dx)),
-        y: Math.min(1, Math.max(0, session.originY + dy)),
-      });
+      upsertText({ ...box, x: nextX, y: nextY });
     };
 
     const onUp = () => {
@@ -183,10 +189,23 @@ export default function StoryUpClient() {
       window.removeEventListener('pointerup', onUp);
       window.removeEventListener('pointercancel', onUp);
     };
-  }, [upsertText]);
+  }, [movePetTag, upsertText]);
 
   const handleBack = () => {
     const draft = useStoryDraftStore.getState();
+    if (draft.editingStoryId != null) {
+      const leave = () => {
+        clear();
+        router.back();
+      };
+      const hasEdit = draft.texts.length > 0 || draft.petTags.length > 0;
+      if (!hasEdit) {
+        leave();
+        return;
+      }
+      confirmResetStoryEdit(leave);
+      return;
+    }
     const hasEdit = draft.texts.length > 0 || draft.petTags.length > 0;
     if (!hasEdit) {
       router.push('/stories/up/crop');
@@ -204,37 +223,49 @@ export default function StoryUpClient() {
     const overlay = toStoryOverlayPayload(draft.texts, draft.petTags);
     setSubmitting(true);
     try {
-      const mediaRes = await fetch(displayUrl);
-      const blob = await mediaRes.blob();
       const mediaType = kind === 'video' ? 'VIDEO' : 'IMAGE';
-      const uploadName = fileName.trim() || (mediaType === 'VIDEO' ? 'story.mp4' : 'story.png');
-      const form = new FormData();
-      form.append(
-        'file',
-        new File([blob], uploadName, { type: blob.type || 'application/octet-stream' }),
-      );
-      form.append('purpose', 'STORY');
-      const uploadRes = await fetch(bffEndpoints.files.root, {
-        method: 'POST',
-        body: form,
-        credentials: 'include',
-      });
-      const uploadJson = (await uploadRes.json().catch(() => null)) as BffEnvelope<unknown> | null;
-      const fileId =
-        isRecord(uploadJson?.data) && typeof uploadJson.data.fileId === 'number'
-          ? uploadJson.data.fileId
-          : null;
-      if (!uploadRes.ok || !uploadJson?.success || fileId == null) {
-        throw new Error('story file upload failed');
+      let fileId = draft.existingFileId;
+      if (fileId == null) {
+        const mediaRes = await fetch(displayUrl);
+        const blob = await mediaRes.blob();
+        const uploadName = fileName.trim() || (mediaType === 'VIDEO' ? 'story.mp4' : 'story.png');
+        const form = new FormData();
+        form.append(
+          'file',
+          new File([blob], uploadName, { type: blob.type || 'application/octet-stream' }),
+        );
+        form.append('purpose', 'STORY');
+        const uploadRes = await fetch(bffEndpoints.files.root, {
+          method: 'POST',
+          body: form,
+          credentials: 'include',
+        });
+        const uploadJson = (await uploadRes.json().catch(() => null)) as BffEnvelope<unknown> | null;
+        fileId =
+          isRecord(uploadJson?.data) && typeof uploadJson.data.fileId === 'number'
+            ? uploadJson.data.fileId
+            : null;
+        if (!uploadRes.ok || !uploadJson?.success || fileId == null) {
+          throw new Error('story file upload failed');
+        }
       }
 
-      await bffPostJson(bffEndpoints.myUltary.stories, {
+      const payload = {
         fileId,
         subjectPetIds: draft.subjectPetIds,
         mediaType,
         texts: overlay.texts,
         mentions: overlay.mentions,
-      });
+      };
+
+      if (draft.editingStoryId != null) {
+        await bffPutJson(bffEndpoints.myUltary.story, {
+          storyId: draft.editingStoryId,
+          ...payload,
+        });
+      } else {
+        await bffPostJson(bffEndpoints.myUltary.stories, payload);
+      }
       clear();
       router.push('/');
     } catch (err) {
@@ -242,7 +273,9 @@ export default function StoryUpClient() {
       openModal({
         variant: 'alert',
         title: '알림창',
-        content: '스토리를 올리지 못했습니다. 다시 시도해 주세요.',
+        content: isEditing
+          ? '스토리를 수정하지 못했습니다. 다시 시도해 주세요.'
+          : '스토리를 올리지 못했습니다. 다시 시도해 주세요.',
         showCloseButton: true,
       });
     } finally {
@@ -326,11 +359,25 @@ export default function StoryUpClient() {
     setColorOpen(false);
     setSizeOpen(false);
     dragSession.current = {
+      kind: 'text',
       id: box.id,
       startClientX: e.clientX,
       startClientY: e.clientY,
       originX: box.x,
       originY: box.y,
+    };
+  };
+
+  const startPetTagDrag = (tag: StoryPetTag, e: PointerEvent<HTMLElement>) => {
+    e.stopPropagation();
+    e.preventDefault();
+    dragSession.current = {
+      kind: 'pet',
+      id: tag.id,
+      startClientX: e.clientX,
+      startClientY: e.clientY,
+      originX: tag.x,
+      originY: tag.y,
     };
   };
 
@@ -362,10 +409,10 @@ export default function StoryUpClient() {
   return (
     <div className={styles.shell}>
       <PageHeader
-        title="스토리 업"
+        title={isEditing ? '스토리 수정' : '스토리 업'}
         onBack={handleBack}
         onSubmit={() => void handleSubmit()}
-        submitLabel="게시"
+        submitLabel={isEditing ? '완료' : '게시'}
         submitDisabled={submitting}
       />
 
@@ -397,19 +444,31 @@ export default function StoryUpClient() {
               )}
 
               {petTags.map((tag) => (
-                <button
+                <div
                   key={tag.id}
-                  type="button"
                   className={styles.petTagBox}
                   style={{ left: `${tag.x * 100}%`, top: `${tag.y * 100}%` }}
-                  aria-label={`${tag.petName} 삭제`}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    removePetTag(tag.id);
-                  }}
+                  aria-label={`${tag.petName} 태그 이동`}
+                  onClick={(e) => e.stopPropagation()}
+                  onPointerDown={(e) => startPetTagDrag(tag, e)}
                 >
-                  {tag.petName}
-                </button>
+                  <span className={styles.petTagDrag} aria-hidden>
+                    <GripVertical size={14} strokeWidth={2.4} />
+                  </span>
+                  <span className={styles.petTagName}>{tag.petName}</span>
+                  <button
+                    type="button"
+                    className={styles.petTagDelete}
+                    aria-label={`${tag.petName} 태그 삭제`}
+                    onPointerDown={(e) => e.stopPropagation()}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      removePetTag(tag.id);
+                    }}
+                  >
+                    <X size={12} strokeWidth={2.5} aria-hidden />
+                  </button>
+                </div>
               ))}
 
               {texts.map((box) => {

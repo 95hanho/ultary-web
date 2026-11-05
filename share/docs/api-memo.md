@@ -165,12 +165,14 @@ FE는 OAuth code를 Spring에 보내지 않는다. BFF가 code를 교환해 `pro
 | 소개글 변경 | PATCH | `/api/my-ultary/bio` | `/api/v1/my-ultary/bio` | 구현 |
 | 내 스토리 목록 | GET | `/api/my-ultary/stories` | `/api/v1/my-ultary/stories` | 구현 |
 | 스토리 등록 | POST | `/api/my-ultary/stories` | `/api/v1/my-ultary/stories` | 구현 |
+| 스토리 수정 | PUT | `/api/my-ultary/stories/:storyId` | `/api/v1/my-ultary/stories/:storyId` | 구현 |
 | 스토리 삭제 | DELETE | `/api/my-ultary/stories/:storyId` | `/api/v1/my-ultary/stories/:storyId` | 구현 |
 | 스토리 읽음 | POST | `/api/stories/:storyId/view` | `/api/v1/stories/:storyId/view` | 구현 |
 
 > 팔로우 = 내가 팔로우(`requester` ACCEPTED, 또는 맞팔 `followed_back`). 팔로워 = 상대가 나를 팔로우(`receiver` ACCEPTED, 또는 맞팔). 울타리 숫자는 `followCount`, `followerCount`.  
 > 스토리: IMAGE\|VIDEO, `expires_at = created_at + 24h`. 읽음은 **스토리 단건** (`ultary_story_view`: `story_id`+`viewer_user_no`). 본인 스토리도 `POST /stories/{storyId}/view`로 기록한다. 목록·읽음 응답에 `viewedByMe`, `likedByMe`.  
-> **스토리 위 글자·멘션**: `POST /my-ultary/stories`의 `texts`, `mentions`. 조회(`GET /my-ultary/stories`, `GET /main/stories`)에도 같은 배열. `texts[]`: `content`(200자), `fontSize`(12\|16\|20\|24, 기본 16), `bold`, `underline`, `strikethrough`, `color`(`#RRGGBB`), `posX`/`posY`(0~100). `mentions[]`: `petId`(활성 펫), `posX`/`posY`. 응답 멘션은 `mentionId`, `petName` 포함. 후보 검색은 `GET /main/search?type=PET&q=` (닉네임·mention_id·펫 이름). 고른 펫은 `POST /main/pet-tags/recent`. 각 최대 20개. 배열 순서가 위아래.  
+> **스토리 위 글자·멘션**: `POST`·`PUT /my-ultary/stories`의 `texts`, `mentions`. 조회(`GET /my-ultary/stories`, `GET /main/stories`)에도 같은 배열. `texts[]`: `content`(200자), `fontSize`(12\|16\|20\|24, 기본 16), `bold`, `underline`, `strikethrough`, `color`(`#RRGGBB`), `posX`/`posY`(0~100). `mentions[]`: `petId`(활성 펫), `posX`/`posY`. 응답 멘션은 `mentionId`, `petName` 포함. 후보 검색은 `GET /main/search?type=PET&q=` (닉네임·mention_id·펫 이름). 고른 펫은 `POST /main/pet-tags/recent`. 각 최대 20개. 배열 순서가 위아래.
+> **스토리 수정** `PUT /my-ultary/stories/:storyId`: 본문은 등록과 동일(`fileId`, `mediaType`, `subjectPetIds`, `texts`, `mentions`, `caption` 등). 본인 활성 스토리만. `texts`·`mentions`·`subjectPetIds`는 요청 값으로 교체. `createdAt`/`expiresAt`은 유지.  
 > **스토리 버튼**: `hasStory`, `hasUnviewed`. 기준은 조회한 나. `hasStory=false`면 없음, `hasUnviewed=true`면 안읽음, 스토리는 있는데 `hasUnviewed=false`면 다 읽음. 다른 사람 울타리(`GET /users/{userNo}/ultary`)도 같은 두 필드.  
 > tagged-feeds: 다른 사람이 내 펫을 `COLLABORATOR`로 넣거나 사진에 `@` 멘션한 글. 내가 쓴 글은 제외.  
 > **프로필 사진**: `profileFile`은 유저 컬럼이 아니다. 활성 펫 중 사진이 있는 것 가운데 `priority`가 가장 높은 펫. `PATCH /my-ultary/profile-image`는 제거. 사진은 `PATCH /pets/{petId}`의 `profileFileId`, 순서는 `priority`.  
@@ -339,7 +341,7 @@ FE는 OAuth code를 Spring에 보내지 않는다. BFF가 code를 교환해 `pro
 > 1:1. 같은 두 사람은 방 1개(`pair_key`). 팔로우 또는 팔로워(`ACCEPTED`)만 만들고 보낼 수 있다. 차단이면 `USER_BLOCKED`.
 > **대화 상대 고르기**는 울타리 목록과 같다. `GET /users/{내 userNo}/neighbors?type=FOLLOW`(팔로우), `type=FOLLOWER`(팔로워). 항목의 `userNo`로 `POST /dm/rooms` `{ targetUserNo }`.
 > **피드 공유 «메시지로 보내기»**는 `GET /dm/share-targets`. 한 사람은 가장 높은 우선순위에 한 번만. 기본 30, 최대 50, 쿼리 `limit`, `q`(닉네임·펫태그 부분 검색, 대소문자·앞 @ 무시). 검색 후 정렬·개수 제한. 탈퇴·양방향 차단·자기 자신 제외. 한 달은 지금으로부터 1개월.
-> `mode`는 SHARE(기본), DM, STORY_TAG, FEED_TAG, COMMENT_MENTION. 팔로우 중인 사용자 우선이며 화면별 언급 이력 순위와 DM+언급 혼합 최신순은 [공유 대상 계약](share-targets.md)을 따른다. 사진·스토리 본인은 맨 마지막 group=99.
+> `mode`는 SHARE(기본), DM, STORY_TAG, FEED_TAG, COMMENT_MENTION. 팔로우 중인 사용자 우선이며 화면별 언급 이력 순위와 DM+언급 혼합 최신순은 [공유 대상 계약](share-targets.md)을 따른다. STORY_TAG 본인은 맨 마지막 group=99. FEED_TAG는 본인 계정·본인 펫 제외.
 
 > 항목: `userNo`, `nickname`, `petTags`(활성 펫 mentionId, @ 없음, priority 순), `profileFile`, `dmRoomId`, `following`, `followedBy`, `group`, `activeAt`. 태그 상대는 펫 보호자. 만료된 스토리 이력은 포함하되 삭제한 콘텐츠·펫은 제외. 보내기 권한은 기존 정책 유지. [상세](share-targets.md).
 > 목록 `items`(기본 30, 최대 50). 최신 메시지 순. `peerUserNo`, `peerNickname`, `profileFile`(대표 펫 사진, 없으면 null), `lastMessage`, `lastMessageAt`, `unreadCount`, `following`, `followedBy`. `following`은 내가 상대를 팔로우 중, `followedBy`는 상대가 나를 팔로우 중. `ACCEPTED`만 true. 신청 중·없으면 false. 둘 다 false면 팔로우 관계가 아니다. 방이 남아 있어도 관계가 끊기면 둘 다 false. 글이 있으면 그 글, 공유만 있으면 «게시글을 공유했습니다» / «스토리를 공유했습니다». 나간 방, 탈퇴·차단 상대는 빠진다.

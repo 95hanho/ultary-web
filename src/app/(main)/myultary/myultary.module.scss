@@ -621,6 +621,29 @@
   cursor: pointer;
 }
 
+.petPhotoPreviewDim {
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  padding: 15px;
+  border: 0;
+  background: rgba(0, 0, 0, 0.72);
+  cursor: pointer;
+}
+
+.petPhotoPreviewImg {
+  display: block;
+  width: min(calc(100vw - 30px), 520px);
+  max-height: calc(100vh - 30px);
+  object-fit: contain;
+  pointer-events: none;
+  user-select: none;
+}
+
 .clearPetSelection {
   border: 0;
   padding: 4px 0;

@@ -64,9 +64,9 @@
   z-index: 3;
   display: inline-flex;
   align-items: center;
-  justify-content: center;
+  gap: 2px;
   max-width: calc(100% - 16px);
-  padding: 5px;
+  padding: 4px 6px 4px 2px;
   border: 0;
   border-radius: 7px;
   background: rgba(0, 0, 0, 0.3);
@@ -76,7 +76,53 @@
   line-height: 1.2;
   white-space: nowrap;
   transform: translate(-50%, -50%);
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+
+  &:active {
+    cursor: grabbing;
+  }
+}
+
+.petTagDrag {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  color: #fff;
+  pointer-events: none;
+}
+
+.petTagName {
+  min-width: 0;
+  overflow: hidden;
+  padding-right: 2px;
+  text-overflow: ellipsis;
+}
+
+.petTagDelete {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  z-index: 4;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.65);
+  color: #fff;
   cursor: pointer;
+
+  &:active {
+    transform: scale(0.92);
+  }
 }
 
 .textBox {

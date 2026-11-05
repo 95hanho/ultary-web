@@ -19,9 +19,15 @@ import { myUltaryPath } from '@/lib/mock/ultary-accounts';
 import { NO_PROFILE_SRC } from '@/lib/profileImage';
 import { STORY_IMAGE_DURATION_MS } from '@/lib/mock/stories';
 import { resolveFeedPetLabels, type FeedPetLabel } from '@/lib/feed/petLabels';
+import { useModalStore } from '@/stores/modal.store';
+import {
+  useStoryDraftStore,
+  type StoryPetTag,
+  type StoryTextBox,
+} from '@/stores/story-draft.store';
 import type { BffEnvelope, MeResponse } from '@/types/api';
 import type { Story, StoryLikeResponse, StoryMention, StoryOwner, StoryText } from '@/types/story';
-import { Heart, Pause, Play, Send, User, X } from 'lucide-react';
+import { Ellipsis, Heart, Pause, Pencil, Play, Send, Trash2, User, X } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
@@ -41,6 +47,7 @@ type StorySlide = {
   subjectNames: string[];
   subjectProfile?: string | null;
   storyId: number;
+  fileId: number;
   userNo: number;
   kind: 'image' | 'video';
   src: string;
@@ -84,6 +91,35 @@ function firstUnviewedIndex(stories: { viewedByMe?: boolean }[]): number {
   return i >= 0 ? i : 0;
 }
 
+function percentToUnit(value: number | undefined): number {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return 0.5;
+  return Math.min(1, Math.max(0, value > 1 ? value / 100 : value));
+}
+
+function textsToDraft(texts: StoryText[]): StoryTextBox[] {
+  return texts.slice(0, 2).map((box, i) => ({
+    id: `txt-edit-${i}-${Date.now()}`,
+    x: percentToUnit(box.posX),
+    y: percentToUnit(box.posY),
+    text: box.content ?? '',
+    bold: Boolean(box.bold),
+    underline: Boolean(box.underline),
+    strike: Boolean(box.strikethrough),
+    color: box.color || '#ffffff',
+    fontSize: box.fontSize || 16,
+  }));
+}
+
+function mentionsToDraft(mentions: StoryMention[]): StoryPetTag[] {
+  return mentions.map((tag, i) => ({
+    id: tag.mentionId ?? `st-edit-${i}-${Date.now()}`,
+    petId: tag.petId,
+    petName: tag.petName?.trim() || `pet-${tag.petId}`,
+    x: percentToUnit(tag.posX),
+    y: percentToUnit(tag.posY),
+  }));
+}
+
 function toSlide(story: Story): StorySlide {
   const src =
     resolveFileDisplayUrl(story.file) ??
@@ -94,6 +130,7 @@ function toSlide(story: Story): StorySlide {
     subjectPets: story.subjectPets ?? [],
     subjectNames: (story.subjectPets ?? []).map((pet) => pet.name),
     storyId: story.storyId,
+    fileId: story.fileId,
     userNo: story.userNo,
     kind: story.mediaType === 'VIDEO' ? 'video' : 'image',
     src,
@@ -177,8 +214,13 @@ export default function StoriesClient({
     items[index]?.kind,
   ]);
   const [likePressed, setLikePressed] = useState(false);
-  const playbackPaused = paused || likePressed;
+  const [moreOpen, setMoreOpen] = useState(false);
+  const [deletePending, setDeletePending] = useState(false);
+  const playbackPaused = paused || likePressed || moreOpen;
   const [meUserNo, setMeUserNo] = useState<number | null>(null);
+  const openModal = useModalStore((s) => s.open);
+  const beginEditing = useStoryDraftStore((s) => s.beginEditing);
+  const moreWrapRef = useRef<HTMLDivElement>(null);
   const [reply, setReply] = useResettableState('', [items[index]?.storyId]);
   const [replyError, setReplyError] = useResettableState('', [items[index]?.storyId]);
   const [sendingReply, setSendingReply] = useState(false);
@@ -227,6 +269,83 @@ export default function StoriesClient({
     markedViewRef.current.clear();
     router.back();
   }, [router]);
+
+  useEffect(() => {
+    setMoreOpen(false);
+  }, [currentStoryId]);
+
+  useEffect(() => {
+    if (!moreOpen) return;
+    const onPointerDown = (event: PointerEvent) => {
+      const wrap = moreWrapRef.current;
+      if (!wrap || wrap.contains(event.target as Node)) return;
+      setMoreOpen(false);
+    };
+    document.addEventListener('pointerdown', onPointerDown);
+    return () => document.removeEventListener('pointerdown', onPointerDown);
+  }, [moreOpen]);
+
+  const startEditCurrent = useCallback(() => {
+    const slide = items[index];
+    if (!slide) return;
+    setMoreOpen(false);
+    beginEditing({
+      storyId: slide.storyId,
+      fileId: slide.fileId,
+      sourceUrl: slide.src,
+      kind: slide.kind,
+      fileName: slide.kind === 'video' ? 'story.mp4' : 'story.png',
+      subjectPetIds: slide.subjectPets.map((pet) => pet.petId).filter((id) => typeof id === 'number'),
+      texts: textsToDraft(slide.texts),
+      petTags: mentionsToDraft(slide.mentions),
+    });
+    router.push('/stories/up');
+  }, [beginEditing, index, items, router]);
+
+  const askDeleteCurrent = useCallback(() => {
+    const slide = items[index];
+    if (!slide || deletePending) return;
+    setMoreOpen(false);
+    openModal({
+      variant: 'confirm',
+      title: '알림창',
+      content: '이 스토리를 삭제할까요?',
+      showCloseButton: true,
+      okButton: {
+        label: '삭제',
+        tone: 'danger',
+        onClick: () => {
+          void (async () => {
+            setDeletePending(true);
+            try {
+              await bffDelete(bffEndpoints.myUltary.story, { storyId: slide.storyId });
+              invalidateMainStoryOwners();
+              setItems((prev) => {
+                const next = prev.filter((item) => item.storyId !== slide.storyId);
+                if (next.length === 0) {
+                  router.back();
+                  return next;
+                }
+                setIndex((i) => Math.min(i, next.length - 1));
+                setPlayId((n) => n + 1);
+                return next;
+              });
+            } catch (err) {
+              console.error('[stories] delete failed', err);
+              openModal({
+                variant: 'alert',
+                title: '알림창',
+                content: '스토리를 삭제하지 못했습니다.',
+                showCloseButton: true,
+              });
+            } finally {
+              setDeletePending(false);
+            }
+          })();
+        },
+      },
+    });
+  }, [deletePending, index, items, openModal, router]);
 
   const oneStory = Boolean(onlyStoryId) || singleUser;
   const chainFrom = oneStory || !unreadChain ? '' : fromUserNo || userNo;
@@ -870,18 +989,49 @@ export default function StoriesClient({
               />
             </Link>
             <div className={styles.actions}>
-              {/* 더보기. 메뉴가 정해지면 다시 연다.
-              <button
-                type="button"
-                className={styles.iconBtn}
-                aria-label="더보기"
-                onClick={() => {
-                  console.log('[stories] more');
-                }}
-              >
-                <Ellipsis size={28} strokeWidth={2.25} />
-              </button>
-              */}
+              {meUserNo != null && current.userNo === meUserNo ? (
+                <div className={styles.moreWrap} ref={moreWrapRef}>
+                  <button
+                    type="button"
+                    className={styles.iconBtn}
+                    aria-label="더보기"
+                    aria-expanded={moreOpen}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setMoreOpen((open) => !open);
+                    }}
+                  >
+                    <Ellipsis size={28} strokeWidth={2.25} />
+                  </button>
+                  {moreOpen ? (
+                    <div className={styles.moreMenu} role="menu">
+                      <button
+                        type="button"
+                        className={styles.moreItem}
+                        role="menuitem"
+                        onClick={startEditCurrent}
+                      >
+                        <span className={styles.moreIcon}>
+                          <Pencil size={22} strokeWidth={1.75} />
+                        </span>
+                        <span className={styles.moreLabel}>수정</span>
+                      </button>
+                      <button
+                        type="button"
+                        className={styles.moreItem}
+                        role="menuitem"
+                        disabled={deletePending}
+                        onClick={askDeleteCurrent}
+                      >
+                        <span className={styles.moreIcon}>
+                          <Trash2 size={22} strokeWidth={1.75} />
+                        </span>
+                        <span className={styles.moreLabel}>삭제</span>
+                      </button>
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
               <button
                 type="button"
                 className={styles.iconBtn}

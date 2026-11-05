@@ -53,6 +53,7 @@ type WriteDraftState = {
   setCaption: (caption: string) => void;
   addPetTag: (itemId: string, tag: Omit<WritePhotoPetTag, 'id'> & { id?: string }) => void;
   removePetTag: (itemId: string, tagId: string) => void;
+  movePetTag: (itemId: string, tagId: string, x: number, y: number) => void;
   clear: () => void;
 };
 
@@ -105,6 +106,25 @@ export const useWriteDraftStore = create<WriteDraftState>((set) => ({
         item.id !== itemId
           ? item
           : { ...item, petTags: (item.petTags ?? []).filter((t) => t.id !== tagId) },
+      ),
+    })),
+  movePetTag: (itemId, tagId, x, y) =>
+    set((state) => ({
+      items: state.items.map((item) =>
+        item.id !== itemId
+          ? item
+          : {
+              ...item,
+              petTags: (item.petTags ?? []).map((tag) =>
+                tag.id === tagId
+                  ? {
+                      ...tag,
+                      x: Math.min(1, Math.max(0, x)),
+                      y: Math.min(1, Math.max(0, y)),
+                    }
+                  : tag,
+              ),
+            },
       ),
     })),
   clear: () =>

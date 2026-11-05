@@ -1,5 +1,6 @@
 'use client';
 
+import { PasswordInput } from '@/components/common/PasswordInput';
 import { useModalStore } from '@/stores/modal.store';
 import { nicknameTag } from '@/lib/nickname-tag';
 import type { AccountSelection, LoginRequest } from '@/types/api';
@@ -153,8 +154,7 @@ export default function LoginClient({ initialError, signupComplete = false }: Pr
                 className={styles.input}
                 disabled={pending}
               />
-              <input
-                type="password"
+              <PasswordInput
                 name="password"
                 value={password}
                 onChange={(e) => {
@@ -163,7 +163,7 @@ export default function LoginClient({ initialError, signupComplete = false }: Pr
                 }}
                 placeholder="비밀번호를 입력해주세요."
                 autoComplete="off"
-                className={styles.input}
+                inputClassName={styles.input}
                 disabled={pending}
               />
             </div>

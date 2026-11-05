@@ -9,6 +9,7 @@ import { handleMainHomeClick } from '@/lib/feed/main-session';
 import { resolveFileDisplayUrl } from '@/lib/api/fileUrl';
 import { fetchDmUnread, getDmUnreadBadge, subscribeDmUnread } from '@/lib/dm/unreadBadge';
 import { MY_NICKNAME, myUltaryPath } from '@/lib/mock/ultary-accounts';
+import { nicknameTag } from '@/lib/nickname-tag';
 import {
   fetchUnreadCount,
   getUnreadBadge,
@@ -484,7 +485,7 @@ export function FooterMenu() {
           prefetch={false}
           href={myPath}
           className={clsx(styles.item, isMyUltary && styles.itemCurrent)}
-          aria-label="울타리"
+          aria-label={`${nicknameTag(nickname)} 울타리`}
           aria-current={isMyUltary ? 'page' : undefined}
           onClick={guardNav(myPath)}
         >
@@ -495,7 +496,10 @@ export function FooterMenu() {
             height={35}
             className={clsx(styles.myUltaryAvatar, isMyUltary && styles.myUltaryAvatarActive)}
           />
-          <span className={styles.label}>울타리</span>
+          <span className={clsx(styles.label, styles.myUltaryLabelStack)}>
+            <span className={styles.myUltaryNick}>{nicknameTag(nickname)}</span>
+            <span>울타리</span>
+          </span>
         </Link>
       </div>
 

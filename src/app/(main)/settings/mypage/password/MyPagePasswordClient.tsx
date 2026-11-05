@@ -3,6 +3,7 @@
 import { PageLoadError } from '@/components/common/PageLoadError';
 
 import { PageHeader } from '@/components/common/PageHeader';
+import { PasswordInput } from '@/components/common/PasswordInput';
 import { bffGet, bffPutJson } from '@/lib/api/bffFetch';
 import { bffEndpoints } from '@/lib/api/endpoints';
 import { isHttpError } from '@/lib/api/error';
@@ -137,9 +138,8 @@ export default function MyPagePasswordClient() {
           <label className={styles.field}>
             <span className={styles.label}>현재 비밀번호</span>
             <div className={styles.inputWrap}>
-              <input
+              <PasswordInput
                 ref={currentRef}
-                type="password"
                 value={currentPassword}
                 onChange={(e) => {
                   setCurrentPassword(e.target.value);
@@ -147,7 +147,7 @@ export default function MyPagePasswordClient() {
                 }}
                 placeholder="비밀번호를 입력해주세요."
                 autoComplete="current-password"
-                className={styles.input}
+                inputClassName={styles.input}
               />
               <FieldHint message={errors.currentPassword} />
             </div>
@@ -157,9 +157,8 @@ export default function MyPagePasswordClient() {
         <label className={styles.field}>
           <span className={styles.label}>비밀번호</span>
           <div className={styles.inputWrap}>
-            <input
+            <PasswordInput
               ref={passwordRef}
-              type="password"
               value={password}
               onChange={(e) => {
                 setPassword(e.target.value);
@@ -167,7 +166,7 @@ export default function MyPagePasswordClient() {
               }}
               placeholder="비밀번호를 입력해주세요."
               autoComplete="new-password"
-              className={styles.input}
+              inputClassName={styles.input}
             />
             <FieldHint message={errors.password} />
           </div>

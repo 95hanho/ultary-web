@@ -25,6 +25,10 @@ export type StoryPetTag = {
 type StoryDraftState = {
   subjectPetIds: number[];
   setSubjectPetIds: (ids: number[]) => void;
+  /** 수정 중인 스토리. 없으면 신규 등록 */
+  editingStoryId: number | null;
+  /** 수정 시 미디어를 안 바꿨으면 재업로드 없이 이 fileId 사용 */
+  existingFileId: number | null;
   sourceUrl: string | null;
   /** 이미지 크롭 결과 */
   croppedDataUrl: string | null;
@@ -36,18 +40,31 @@ type StoryDraftState = {
   petTags: StoryPetTag[];
   setMedia: (payload: { sourceUrl: string; kind: 'image' | 'video'; fileName: string }) => void;
   setCrop: (croppedDataUrl: string, cropRect: NormalizedCrop | null) => void;
+  beginEditing: (payload: {
+    storyId: number;
+    fileId: number;
+    sourceUrl: string;
+    kind: 'image' | 'video';
+    fileName: string;
+    subjectPetIds: number[];
+    texts: StoryTextBox[];
+    petTags: StoryPetTag[];
+  }) => void;
   clearEdits: () => void;
   setTexts: (texts: StoryTextBox[]) => void;
   upsertText: (box: StoryTextBox) => void;
   removeText: (id: string) => void;
   addPetTag: (tag: Omit<StoryPetTag, 'id'> & { id?: string }) => void;
   removePetTag: (id: string) => void;
+  movePetTag: (id: string, x: number, y: number) => void;
   clear: () => void;
 };
 
 export const useStoryDraftStore = create<StoryDraftState>((set) => ({
   subjectPetIds: [],
   setSubjectPetIds: (subjectPetIds) => set({ subjectPetIds }),
+  editingStoryId: null,
+  existingFileId: null,
   sourceUrl: null,
   croppedDataUrl: null,
   cropRect: null,
@@ -56,17 +73,46 @@ export const useStoryDraftStore = create<StoryDraftState>((set) => ({
   texts: [],
   petTags: [],
   setMedia: ({ sourceUrl, kind, fileName }) =>
-    set({
-      subjectPetIds: [],
+    set((state) => ({
+      subjectPetIds: state.editingStoryId ? state.subjectPetIds : [],
+      editingStoryId: state.editingStoryId,
+      existingFileId: null,
       sourceUrl,
       kind,
       fileName,
       croppedDataUrl: null,
       cropRect: null,
-      texts: [],
-      petTags: [],
+      texts: state.editingStoryId ? state.texts : [],
+      petTags: state.editingStoryId ? state.petTags : [],
+    })),
+  setCrop: (croppedDataUrl, cropRect) =>
+    set((state) => ({
+      croppedDataUrl,
+      cropRect,
+      existingFileId: state.editingStoryId ? null : state.existingFileId,
+    })),
+  beginEditing: ({
+    storyId,
+    fileId,
+    sourceUrl,
+    kind,
+    fileName,
+    subjectPetIds,
+    texts,
+    petTags,
+  }) =>
+    set({
+      editingStoryId: storyId,
+      existingFileId: fileId,
+      sourceUrl,
+      croppedDataUrl: kind === 'image' ? sourceUrl : null,
+      cropRect: null,
+      kind,
+      fileName,
+      subjectPetIds,
+      texts,
+      petTags,
     }),
-  setCrop: (croppedDataUrl, cropRect) => set({ croppedDataUrl, cropRect }),
   clearEdits: () => set({ texts: [], petTags: [] }),
   setTexts: (texts) => set({ texts }),
   upsertText: (box) =>
@@ -92,9 +138,23 @@ export const useStoryDraftStore = create<StoryDraftState>((set) => ({
       ],
     })),
   removePetTag: (id) => set((state) => ({ petTags: state.petTags.filter((t) => t.id !== id) })),
+  movePetTag: (id, x, y) =>
+    set((state) => ({
+      petTags: state.petTags.map((tag) =>
+        tag.id === id
+          ? {
+              ...tag,
+              x: Math.min(1, Math.max(0, x)),
+              y: Math.min(1, Math.max(0, y)),
+            }
+          : tag,
+      ),
+    })),
   clear: () =>
     set({
       subjectPetIds: [],
+      editingStoryId: null,
+      existingFileId: null,
       sourceUrl: null,
       croppedDataUrl: null,
       cropRect: null,

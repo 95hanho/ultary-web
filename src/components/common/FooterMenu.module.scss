@@ -288,6 +288,30 @@
     font-weight: 700;
   }
 
+  .myUltaryLabelStack {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1px;
+    line-height: 1.15;
+    text-align: center;
+  }
+
+  .myUltaryNick {
+    max-width: 7.5em;
+    overflow: hidden;
+    color: var(--brand-gray-300);
+    font-size: 11px;
+    font-weight: 400;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .itemCurrent .myUltaryNick {
+    font-weight: 400;
+  }
+
   .iconWrap,
   .item img,
   .plus img,

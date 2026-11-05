@@ -1,5 +1,12 @@
 # share CHANGELOG
 
+## 2026-11-05 스토리 수정·FEED_TAG 본인 제외
+
+- `PUT /my-ultary/stories/:storyId`: 등록과 동일 본문. 본인 활성 스토리만. `texts`·`mentions`·`subjectPetIds`는 요청 값으로 교체. `createdAt`/`expiresAt` 유지(만료 시계 리셋 없음)
+- `GET /dm/share-targets?mode=FEED_TAG`: 본인 계정·본인 펫을 검색·목록에서 제외. `STORY_TAG`만 본인을 맨 마지막 group=99에 포함
+- FE: 스토리 보기 ⋯ 수정·삭제(BFF PUT/DELETE), `PasswordInput`, 울타리 펫 사진 라이트박스, PC FooterMenu `@nick`/`울타리`, 게시글·스토리업 사진 태그 드래그 UX
+- 임시 인수인계 `FRONT.md`/`BACK.md`(오타 `FROND.md` 포함)는 docs·CHANGELOG로 이전 후 삭제
+
 ## 2026-11-04 태그 요청 취소·관리자 isDeleted·suggest title
 
 - 대기 중 설명 요청 취소 `DELETE /tags/profile-requests/{requestId}`: 요청자+PENDING만. 요청 행 유지, 태그만 소프트 삭제. 설정 목록·대기 배지에서는 제외, 관리자 목록에는 `isDeleted`로 포함

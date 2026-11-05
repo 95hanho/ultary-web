@@ -1,0 +1,17 @@
+---
+description: 「작업내용 정리해줘」→ share/FRONT.md 미커밋 FE 인수인계
+alwaysApply: true
+---
+
+# 작업내용 → share/FRONT.md
+
+사용자가 **「작업내용 정리해줘」**(또는 동일 의도: 작업 정리·인수인계·FRONT 정리)라고 하면:
+
+1. `git status` / `git diff --stat`으로 **미커밋** FE/BFF 변경을 기준으로 잡는다.
+2. **`share/FRONT.md`에 바로 쓴다.** (새 경로·다른 파일로 묻지 않는다. `FROND.md` 오타 금지.)
+3. 내용은 공통 agent가 보고 커밋할 수 있게: 무엇을 했는지, 주요 경로, BE/공유 맞출 점, 미커밋 파일 목록.
+4. 기존 `FRONT.md`가 있으면 **현재 워킹트리 기준으로 덮어쓴다.**
+5. `share/`를 고쳤으면 `share-sync` 규칙대로 **ultary-api `share/`와 해시 일치**까지 맞춘다.
+6. 커밋·푸시·`FRONT.md` 삭제는 **사용자가 직접** 한다. 정리만 하고 삭제/커밋하지 않는다.
+
+형식은 기존 `FRONT.md` 톤을 따른다 (제목·작성 시점·섹션·파일 목록·BE 표).

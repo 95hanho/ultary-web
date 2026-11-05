@@ -4,9 +4,10 @@ import { FooterMenu } from '@/components/common/FooterMenu';
 import { PageHeader } from '@/components/common/PageHeader';
 import { PhotoTagAccountSearch } from '@/components/search/PhotoTagAccountSearch';
 import { myUltaryPath } from '@/lib/mock/ultary-accounts';
-import { useWriteDraftStore } from '@/stores/write-draft.store';
+import { useWriteDraftStore, type WritePhotoPetTag } from '@/stores/write-draft.store';
+import { GripVertical, X } from 'lucide-react';
 import { useParams, useRouter } from 'next/navigation';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import styles from './tags.module.scss';
 
 /** 게시글 작성 — 사진 태그 (크롭 결과 위에 펫언급 배치) */
@@ -21,11 +22,21 @@ export default function WritePhotoTagsClient() {
   const items = useWriteDraftStore((s) => s.items);
   const addPetTag = useWriteDraftStore((s) => s.addPetTag);
   const removePetTag = useWriteDraftStore((s) => s.removePetTag);
+  const movePetTag = useWriteDraftStore((s) => s.movePetTag);
 
   const [index, setIndex] = useState(0);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [draggingTagId, setDraggingTagId] = useState<string | null>(null);
   const pendingPoint = useRef<{ x: number; y: number } | null>(null);
+  const suppressStageClick = useRef(false);
   const stageRef = useRef<HTMLDivElement>(null);
+  const dragSession = useRef<{
+    tagId: string;
+    startClientX: number;
+    startClientY: number;
+    originX: number;
+    originY: number;
+  } | null>(null);
 
   const total = items.length;
   const current = items[index] ?? null;
@@ -36,6 +47,34 @@ export default function WritePhotoTagsClient() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    const onMove = (event: PointerEvent) => {
+      const session = dragSession.current;
+      const stage = stageRef.current;
+      const item = useWriteDraftStore.getState().items[index];
+      if (!session || !stage || !item) return;
+      const rect = stage.getBoundingClientRect();
+      if (rect.width <= 0 || rect.height <= 0) return;
+      const dx = (event.clientX - session.startClientX) / rect.width;
+      const dy = (event.clientY - session.startClientY) / rect.height;
+      movePetTag(item.id, session.tagId, session.originX + dx, session.originY + dy);
+    };
+    const onUp = () => {
+      if (!dragSession.current) return;
+      dragSession.current = null;
+      suppressStageClick.current = true;
+      setDraggingTagId(null);
+    };
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+    window.addEventListener('pointercancel', onUp);
+    return () => {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      window.removeEventListener('pointercancel', onUp);
+    };
+  }, [index, movePetTag]);
 
   if (index >= total && total > 0) setIndex(total - 1);
 
@@ -77,6 +116,20 @@ export default function WritePhotoTagsClient() {
     setSearchOpen(false);
   };
 
+  const startTagDrag = (tag: WritePhotoPetTag, event: ReactPointerEvent<HTMLElement>) => {
+    event.stopPropagation();
+    event.preventDefault();
+    dragSession.current = {
+      tagId: tag.id,
+      startClientX: event.clientX,
+      startClientY: event.clientY,
+      originX: tag.x,
+      originY: tag.y,
+    };
+    setDraggingTagId(tag.id);
+    event.currentTarget.setPointerCapture?.(event.pointerId);
+  };
+
   if (!current || total === 0) {
     return (
       <div className={styles.shell}>
@@ -110,6 +163,10 @@ export default function WritePhotoTagsClient() {
           tabIndex={0}
           aria-label="사진 태그 위치 선택"
           onClick={(e) => {
+            if (draggingTagId || suppressStageClick.current) {
+              suppressStageClick.current = false;
+              return;
+            }
             openSearchAt(e.clientX, e.clientY);
           }}
           onKeyDown={(e) => {
@@ -134,19 +191,31 @@ export default function WritePhotoTagsClient() {
             />
           )}
           {tags.map((tag) => (
-            <button
+            <div
               key={tag.id}
-              type="button"
               className={styles.petTagBox}
               style={{ left: `${tag.x * 100}%`, top: `${tag.y * 100}%` }}
-              aria-label={`${tag.petName} 태그 삭제`}
-              onClick={(e) => {
-                e.stopPropagation();
-                removePetTag(current.id, tag.id);
-              }}
+              aria-label={`${tag.petName} 태그 이동`}
+              onClick={(e) => e.stopPropagation()}
+              onPointerDown={(e) => startTagDrag(tag, e)}
             >
-              {tag.petName}
-            </button>
+              <span className={styles.petTagDrag} aria-hidden>
+                <GripVertical size={14} strokeWidth={2.4} />
+              </span>
+              <span className={styles.petTagName}>{tag.petName}</span>
+              <button
+                type="button"
+                className={styles.petTagDelete}
+                aria-label={`${tag.petName} 태그 삭제`}
+                onPointerDown={(e) => e.stopPropagation()}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  removePetTag(current.id, tag.id);
+                }}
+              >
+                <X size={12} strokeWidth={2.5} aria-hidden />
+              </button>
+            </div>
           ))}
         </div>
       </main>
