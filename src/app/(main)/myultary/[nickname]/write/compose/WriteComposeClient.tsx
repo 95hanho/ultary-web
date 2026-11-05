@@ -48,8 +48,23 @@ import type { BffEnvelope } from '@/types/api';
 import clsx from 'clsx';
 import { ChevronRight, Play } from 'lucide-react';
 import { useParams, useRouter } from 'next/navigation';
-import { useCallback, useEffect, useMemo, useRef, useState, useLayoutEffect } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useLayoutEffect,
+  type PointerEvent as ReactPointerEvent,
+} from 'react';
 import styles from './compose.module.scss';
+
+type PhotoDragSession = {
+  id: string;
+  startClientX: number;
+  startClientY: number;
+  moved: boolean;
+};
 
 const SUGGEST_LIMIT = 10;
 const SUGGEST_DELAY_MS = 400;
@@ -88,6 +103,7 @@ export default function WriteComposeClient({ editFeedId }: { editFeedId?: string
   const subjectPetIds = useWriteDraftStore((s) => s.subjectPetIds);
   const setSubjectPetIds = useWriteDraftStore((s) => s.setSubjectPetIds);
   const items = useWriteDraftStore((s) => s.items);
+  const reorderItems = useWriteDraftStore((s) => s.reorderItems);
   const visibility = useWriteDraftStore((s) => s.visibility);
   const setVisibility = useWriteDraftStore((s) => s.setVisibility);
   const [visibilityError, setVisibilityError] = useState<{ error: unknown } | null>(null);
@@ -209,7 +225,78 @@ export default function WriteComposeClient({ editFeedId }: { editFeedId?: string
   } | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [contentLimitHint, setContentLimitHint] = useState(false);
+  const [draggingPhotoId, setDraggingPhotoId] = useState<string | null>(null);
+  const photoDragRef = useRef<PhotoDragSession | null>(null);
+  const photoItemRefs = useRef<Map<string, HTMLDivElement>>(new Map());
+  const itemsRef = useRef(items);
   const showLoading = submitting || loadingEdit;
+
+  useLayoutEffect(() => {
+    itemsRef.current = items;
+  });
+
+  useEffect(() => {
+    if (!draggingPhotoId) return;
+    const prevUserSelect = document.body.style.userSelect;
+    const prevCursor = document.body.style.cursor;
+    document.body.style.userSelect = 'none';
+    document.body.style.cursor = 'grabbing';
+
+    const onMove = (event: PointerEvent) => {
+      const session = photoDragRef.current;
+      if (!session) return;
+      const list = itemsRef.current;
+      const from = list.findIndex((item) => item.id === session.id);
+      if (from < 0) return;
+      const moved =
+        session.moved ||
+        Math.abs(event.clientX - session.startClientX) > 4 ||
+        Math.abs(event.clientY - session.startClientY) > 4;
+      photoDragRef.current = { ...session, moved };
+      if (!moved) return;
+
+      let insertAt = list.length - 1;
+      for (let i = 0; i < list.length; i += 1) {
+        const el = photoItemRefs.current.get(list[i]!.id);
+        if (!el) continue;
+        const rect = el.getBoundingClientRect();
+        if (event.clientX < rect.left + rect.width / 2) {
+          insertAt = i;
+          break;
+        }
+        insertAt = i;
+      }
+      if (insertAt !== from) reorderItems(from, insertAt);
+    };
+
+    const onUp = () => {
+      photoDragRef.current = null;
+      setDraggingPhotoId(null);
+    };
+
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+    window.addEventListener('pointercancel', onUp);
+    return () => {
+      document.body.style.userSelect = prevUserSelect;
+      document.body.style.cursor = prevCursor;
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      window.removeEventListener('pointercancel', onUp);
+    };
+  }, [draggingPhotoId, reorderItems]);
+
+  const startPhotoDrag = (itemId: string, event: ReactPointerEvent<HTMLDivElement>) => {
+    if (submitting || items.length < 2) return;
+    event.preventDefault();
+    photoDragRef.current = {
+      id: itemId,
+      startClientX: event.clientX,
+      startClientY: event.clientY,
+      moved: false,
+    };
+    setDraggingPhotoId(itemId);
+  };
   /** DB에 있는(선택된 tagId / 조회 확인된) 해시태그 본문 — 소문자, `#` 없음 */
   const [existingTagBodies, setExistingTagBodies] = useState<Set<string>>(() => new Set());
   const activeTagRef = useRef<ActiveHashtag | null>(null);
@@ -566,10 +653,22 @@ export default function WriteComposeClient({ editFeedId }: { editFeedId?: string
               const thumb =
                 item.kind === 'image' ? (item.croppedDataUrl ?? item.sourceUrl) : item.sourceUrl;
               return (
-                <div key={item.id} className={styles.photoThumb}>
+                <div
+                  key={item.id}
+                  ref={(el) => {
+                    if (el) photoItemRefs.current.set(item.id, el);
+                    else photoItemRefs.current.delete(item.id);
+                  }}
+                  className={clsx(
+                    styles.photoThumb,
+                    items.length > 1 && styles.photoThumbDraggable,
+                    draggingPhotoId === item.id && styles.photoThumbDragging,
+                  )}
+                  onPointerDown={(e) => startPhotoDrag(item.id, e)}
+                >
                   {item.kind === 'image' ? (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={thumb} alt="" className={styles.photoImg} />
+                    <img src={thumb} alt="" className={styles.photoImg} draggable={false} />
                   ) : (
                     <video
                       className={styles.photoImg}
@@ -577,6 +676,7 @@ export default function WriteComposeClient({ editFeedId }: { editFeedId?: string
                       muted
                       playsInline
                       preload="metadata"
+                      draggable={false}
                     />
                   )}
                   {item.kind === 'video' ? (

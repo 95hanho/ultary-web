@@ -124,6 +124,12 @@ export function invalidateMainStoryOwners() {
   if (window.location.pathname === '/') void refreshMainStoryOwners();
 }
 
+/** 닉네임태그 등 me 필드만 갱신 (피드 목록은 유지) */
+export function patchMainSessionMe(me: MeResponse) {
+  if (typeof window === 'undefined') return;
+  publish({ me: state.me ? { ...state.me, ...me } : me });
+}
+
 function refreshMainStoryOwners(): Promise<void> {
   if (storyOwnerRequest) return storyOwnerRequest;
   if (!storyOwnersDirty || !state.ready || state.loading) return Promise.resolve();

@@ -80,6 +80,22 @@
   overflow: hidden;
   border-radius: 7px;
   background: rgba(0, 0, 0, 0.3);
+  user-select: none;
+}
+
+.photoThumbDraggable {
+  cursor: grab;
+  touch-action: none;
+
+  &:active {
+    cursor: grabbing;
+  }
+}
+
+.photoThumbDragging {
+  opacity: 0.72;
+  cursor: grabbing;
+  box-shadow: 0 0 0 2px var(--brand-grass-500);
 }
 
 .photoImg {
@@ -87,6 +103,7 @@
   width: 100%;
   height: 100%;
   object-fit: contain;
+  pointer-events: none;
 }
 
 .videoBadge {

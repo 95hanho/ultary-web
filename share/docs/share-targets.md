@@ -24,14 +24,14 @@ API: GET /api/v1/dm/share-targets, BFF: GET /api/dm/share-targets.
 
 공통 후순위: 나를 스토리에 태그 → 나를 피드에 태그 → 최근 내가 팔로우 → 최근 나를 팔로우 → 나머지 팔로우 → 나머지 팔로워. 위의 팔로우 여부 분리가 이 활동 순위보다 항상 우선한다.
 
-응답 group은 화면 내 활동 그룹 번호다. COMMENT_MENTION은 1~11, DM/SHARE는 1~10, 사진·스토리는 1~9, STORY_TAG에서 본인은 맨 마지막 group=99다. FEED_TAG는 본인 계정·본인 펫을 후보에서 제외한다. 팔로우 여부가 group보다 먼저 정렬되므로 응답 전체의 group 번호는 단조 증가하지 않을 수 있다.
+응답 group은 화면 내 활동 그룹 번호다. COMMENT_MENTION은 1~11, DM/SHARE는 1~10, 사진·스토리는 1~9. FEED_TAG·STORY_TAG는 본인 계정·본인 펫을 후보에서 제외한다. 팔로우 여부가 group보다 먼저 정렬되므로 응답 전체의 group 번호는 단조 증가하지 않을 수 있다.
 
 ## 후보와 검색
 
 - limit 기본 30, 최대 50. q는 닉네임/활성 펫 mentionId 부분 검색이며 앞 @·양끝 공백·대소문자를 무시한다. 검색 후 정렬·limit을 적용한다.
 - 차단 관계 양방향, 탈퇴/정지 사용자, 삭제된 콘텐츠·펫은 제외한다. 오래된 DM/태그/언급만 있고 팔로우 관계도 없는 사용자는 제외한다.
 - 언급 이력은 ultary_feed_comment_mention의 mentioned_user_no와 작성자를 연결한다. 부모 댓글/게시글이 삭제된 답글도 이력에서 제외한다. 유지된 언급은 수정 시 최초 연결 시각을 보존하고, 삭제된 언급은 추천 이력에서도 제거한다.
-- COMMENT_MENTION은 언급을 허용한 사용자만 추천한다. 사진·스토리는 활성 펫이 있고 태그를 허용한 사용자만 표시한다. STORY_TAG는 본인 펫을 마지막에 포함하고, FEED_TAG(게시글 작성·수정 사진 태그)는 본인 계정·본인 펫을 검색·목록에서 제외한다.
+- COMMENT_MENTION은 언급을 허용한 사용자만 추천한다. 사진·스토리(FEED_TAG·STORY_TAG)는 활성 펫이 있고 태그를 허용한 사용자만 표시하며, 본인 계정·본인 펫은 검색·목록에서 제외한다.
 - 기존 priorityOrder=DM,OWN_STORY_TAG,OWN_FEED_TAG 계약은 세 값 순열로 유지한다. 내부적으로 DM 뒤에 언급 그룹을 붙이며, 태그 모드의 DM은 DM+언급 혼합 그룹이다. COMMENT_MENTION은 언급 그룹을 가장 앞에 둔다.
 - 항목은 userNo, nickname, petTags, pets, profileFile, dmRoomId, following, followedBy, group, activeAt. petTags에는 @가 없고 활성 펫 priority 순서다.
 - AccountSearchList는 항목 순서를 유지한다. showSearch=false이면 검색창 없이 목록만 표시한다. 전송 권한·태그 선택 권한의 기존 정책은 유지한다.

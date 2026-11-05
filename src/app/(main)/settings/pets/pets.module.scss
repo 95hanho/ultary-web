@@ -83,6 +83,14 @@
   border-top: 1px solid var(--brand-gray-100);
 }
 
+.limitHint {
+  margin: 0;
+  padding: 10px 16px 0;
+  color: var(--brand-red-500);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
 .item {
   display: flex;
   align-items: center;
@@ -365,7 +373,6 @@
 }
 
 .deleteBtn {
-  border: 1px solid var(--brand-gray-600);
   background: var(--brand-gray-300);
   color: #fff;
   cursor: pointer;
@@ -398,7 +405,7 @@
 .submitBtn {
   padding: 5px 10px;
   border: 0;
-  border-radius: 2px;
+  border-radius: 6px;
   background: var(--brand-grass-500);
   color: #fff;
   font-size: 14px;

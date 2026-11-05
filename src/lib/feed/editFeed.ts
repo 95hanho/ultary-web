@@ -90,6 +90,10 @@ export async function updateFeedFromDraft(
       }),
     };
   });
+  const mediaOrder = items.map((item) => {
+    if (item.feedMediaId == null) throw new Error('원본 사진 정보를 확인할 수 없습니다.');
+    return item.feedMediaId;
+  });
   const response = await bffPatchJson<BffEnvelope<FeedDetailResponse>>(bffEndpoints.feeds.detail, {
     feedId,
     visibility,
@@ -97,6 +101,8 @@ export async function updateFeedFromDraft(
     content: caption.trim(),
     clearContent: !caption.trim(),
     mediaTags,
+    /** 기존 feedMediaId 전체 순열. 인덱스 = sortOrder. BE 미반영 시 순서 변경이 저장되지 않음 */
+    mediaOrder,
   });
   if (response.data) updateMainFeed(response.data);
   return response;

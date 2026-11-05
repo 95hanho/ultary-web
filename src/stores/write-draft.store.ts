@@ -4,7 +4,7 @@ import { create } from 'zustand';
 
 export type WriteDraftItem = {
   id: string;
-  /** Existing slot in edit mode. Original files/order cannot be changed. */
+  /** Existing slot in edit mode. File stays fixed; display order can change. */
   feedMediaId?: number;
   kind: 'image' | 'video';
   fileName: string;
@@ -48,6 +48,8 @@ type WriteDraftState = {
   /** 사진 설정에서 보고 있던 장. 작성 화면에서 돌아오면 이 장부터 */
   cropIndex: number;
   setItems: (items: WriteDraftItem[]) => void;
+  /** 작성/수정 화면에서 사진 썸네일 순서 변경. editingFeedId 유지 */
+  reorderItems: (fromIndex: number, toIndex: number) => void;
   setCropIndex: (cropIndex: number) => void;
   updateCrop: (id: string, croppedDataUrl: string, cropRect: NormalizedCrop | null) => void;
   setCaption: (caption: string) => void;
@@ -78,6 +80,23 @@ export const useWriteDraftStore = create<WriteDraftState>((set) => ({
       visibility: state.editingFeedId ? 'PUBLIC' : state.visibility,
       caption: state.editingFeedId ? '' : state.caption,
     })),
+  reorderItems: (fromIndex, toIndex) =>
+    set((state) => {
+      if (
+        fromIndex === toIndex ||
+        fromIndex < 0 ||
+        toIndex < 0 ||
+        fromIndex >= state.items.length ||
+        toIndex >= state.items.length
+      ) {
+        return state;
+      }
+      const next = [...state.items];
+      const [moved] = next.splice(fromIndex, 1);
+      if (!moved) return state;
+      next.splice(toIndex, 0, moved);
+      return { items: next };
+    }),
   setCropIndex: (cropIndex) => set({ cropIndex }),
   updateCrop: (id, croppedDataUrl, cropRect) =>
     set((state) => ({

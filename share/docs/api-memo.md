@@ -193,6 +193,7 @@ FE는 OAuth code를 Spring에 보내지 않는다. BFF가 code를 교환해 `pro
 | 반려동물 삭제 | DELETE | `/api/pets/:petId` |
 
 > `name`은 생성 후 불변. 사진 `@` 멘션·공동작성은 승인/거절 없음. 멘션된 피드는 `GET /api/my-ultary/tagged-feeds`, 삭제는 작성자 또는 COLLABORATOR 펫 보호자.  
+> **삭제**: `ultary_pet` 소프트 삭제만. `feed_pet`/`content_pet`/멘션 행은 유지. 목록·`subjectPets`에서는 빠지지만 단독 피드/스토리 본문은 숨기지 않는다. 원복은 `is_deleted=0`, `deleted_at=NULL`.  
 > **priority**: 작을수록 우선, 1이 가장 높음. `GET /pets`는 이 순서(같으면 petId). 생략하고 등록하면 맨 뒤(`MAX+1`).  
 > **프로필 사진 교체**: `POST /files`로 새 파일을 만든 뒤 `PATCH /pets/{petId}`의 `profileFileId`로 연결. 빠지는 이전 파일은 `is_deleted=1`, `deleted_at` 설정. 다른 펫·피드·스토리·태그 이미지가 같은 파일을 쓰면 그 행은 유지. `removeProfileFile=true`도 같다.  
 > `GET /pets`는 **로그인한 나의** 펫만 반환한다. 다른 사람 펫 목록은 `GET /users/{userNo}/pets`.  
@@ -211,7 +212,7 @@ FE는 OAuth code를 Spring에 보내지 않는다. BFF가 code를 교환해 `pro
 
 > Spring: `GET /api/v1/feeds/{feedId}` — **PUBLIC은 비로그인 허용**. 상세는 [`spring-auth-api.md`](./spring-auth-api.md).
 > 삭제 권한: 작성자 또는 `feed_pet.role=COLLABORATOR` 펫의 보호자. `deleted_by_user_no`에 실제 삭제자 기록.
-> 등록 시 `media` 1개 이상 필수. PATCH는 content·clearContent·visibility와 mediaTags(기존 사진별 펫 태그), tagIds(본문 해시태그)를 지원한다. 원본 미디어/순서는 바꿀 수 없다. 내 피드 메뉴의 게시글 수정은 작성 화면을 재사용하며 사진 태그·본문만 편집한다. 상세 계약: [feed-edit.md](feed-edit.md).
+> 등록 시 `media` 1개 이상 필수. PATCH는 content·clearContent·visibility와 mediaTags(기존 사진별 펫 태그), mediaOrder(기존 feedMediaId 순열로 sortOrder 재부여), tagIds(본문 해시태그)를 지원한다. 원본 파일·미디어 타입은 바꿀 수 없고, 순서만 `mediaOrder`로 바꿀 수 있다. 내 피드 메뉴의 게시글 수정은 작성 화면을 재사용하며 사진 태그·본문·미디어 순서를 편집한다. 상세 계약: [feed-edit.md](feed-edit.md).
 > 게시글 본문 `content`는 해시태그 텍스트 포함 **최대 500자**. 댓글·답글은 **최대 100자**.
 > `PRIVATE`는 작성자만 조회. `NEIGHBORS`는 ACCEPTED 팔로우 관계만 조회.
 | 좋아요 | POST | `/api/feeds/:feedId/like` |
@@ -341,7 +342,7 @@ FE는 OAuth code를 Spring에 보내지 않는다. BFF가 code를 교환해 `pro
 > 1:1. 같은 두 사람은 방 1개(`pair_key`). 팔로우 또는 팔로워(`ACCEPTED`)만 만들고 보낼 수 있다. 차단이면 `USER_BLOCKED`.
 > **대화 상대 고르기**는 울타리 목록과 같다. `GET /users/{내 userNo}/neighbors?type=FOLLOW`(팔로우), `type=FOLLOWER`(팔로워). 항목의 `userNo`로 `POST /dm/rooms` `{ targetUserNo }`.
 > **피드 공유 «메시지로 보내기»**는 `GET /dm/share-targets`. 한 사람은 가장 높은 우선순위에 한 번만. 기본 30, 최대 50, 쿼리 `limit`, `q`(닉네임·펫태그 부분 검색, 대소문자·앞 @ 무시). 검색 후 정렬·개수 제한. 탈퇴·양방향 차단·자기 자신 제외. 한 달은 지금으로부터 1개월.
-> `mode`는 SHARE(기본), DM, STORY_TAG, FEED_TAG, COMMENT_MENTION. 팔로우 중인 사용자 우선이며 화면별 언급 이력 순위와 DM+언급 혼합 최신순은 [공유 대상 계약](share-targets.md)을 따른다. STORY_TAG 본인은 맨 마지막 group=99. FEED_TAG는 본인 계정·본인 펫 제외.
+> `mode`는 SHARE(기본), DM, STORY_TAG, FEED_TAG, COMMENT_MENTION. 팔로우 중인 사용자 우선이며 화면별 언급 이력 순위와 DM+언급 혼합 최신순은 [공유 대상 계약](share-targets.md)을 따른다. FEED_TAG·STORY_TAG는 본인 계정·본인 펫 제외.
 
 > 항목: `userNo`, `nickname`, `petTags`(활성 펫 mentionId, @ 없음, priority 순), `profileFile`, `dmRoomId`, `following`, `followedBy`, `group`, `activeAt`. 태그 상대는 펫 보호자. 만료된 스토리 이력은 포함하되 삭제한 콘텐츠·펫은 제외. 보내기 권한은 기존 정책 유지. [상세](share-targets.md).
 > 목록 `items`(기본 30, 최대 50). 최신 메시지 순. `peerUserNo`, `peerNickname`, `profileFile`(대표 펫 사진, 없으면 null), `lastMessage`, `lastMessageAt`, `unreadCount`, `following`, `followedBy`. `following`은 내가 상대를 팔로우 중, `followedBy`는 상대가 나를 팔로우 중. `ACCEPTED`만 true. 신청 중·없으면 false. 둘 다 false면 팔로우 관계가 아니다. 방이 남아 있어도 관계가 끊기면 둘 다 false. 글이 있으면 그 글, 공유만 있으면 «게시글을 공유했습니다» / «스토리를 공유했습니다». 나간 방, 탈퇴·차단 상대는 빠진다.

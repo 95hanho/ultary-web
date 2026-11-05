@@ -1,5 +1,13 @@
 # share CHANGELOG
 
+## 2026-11-05 게시글 mediaOrder·STORY_TAG 본인 제외
+
+- `PATCH /feeds/{feedId}`: `mediaOrder`(활성 feedMediaId 전체 순열)로 `sortOrder` 재부여. 생략/null이면 유지. 누락·중복·타 글 ID → 400. 원본 `fileId`·`mediaType` 불변
+- `GET /dm/share-targets`: FEED_TAG뿐 아니라 STORY_TAG도 본인 계정·본인 펫 제외
+- `DELETE /pets/{id}`: 펫 소프트 삭제. `feed_pet`/`content_pet`/멘션 행은 유지. 목록·`subjectPets`에서는 빠지지만 단독 피드/스토리 본문은 숨기지 않음
+- FE: compose 사진 순서 드래그·`mediaOrder` PATCH, 펫 3마리 한도 안내, 펫이름 hover/active, 닉네임 변경 후 `refreshMyProfile`
+- 임시 인수인계 `FRONT.md`/`BACK.md`(오타 `FROND.md` 포함)는 docs·CHANGELOG로 이전 후 삭제
+
 ## 2026-11-05 스토리 수정·FEED_TAG 본인 제외
 
 - `PUT /my-ultary/stories/:storyId`: 등록과 동일 본문. 본인 활성 스토리만. `texts`·`mentions`·`subjectPetIds`는 요청 값으로 교체. `createdAt`/`expiresAt` 유지(만료 시계 리셋 없음)

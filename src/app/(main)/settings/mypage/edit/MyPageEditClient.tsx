@@ -8,6 +8,7 @@ import { MyPageEditDevTools } from '@/components/dev/MyPageEditDevTools';
 import { bffGet, bffPatchJson, bffPostJson } from '@/lib/api/bffFetch';
 import { bffEndpoints } from '@/lib/api/endpoints';
 import { isHttpError } from '@/lib/api/error';
+import { refreshMyProfile } from '@/lib/auth/refreshMyProfile';
 import {
   filterCode,
   filterEmail,
@@ -362,6 +363,11 @@ export default function MyPageEditClient() {
         }
         if (nameChanged || emailChanged || regionChanged || phoneChanged) {
           await bffPatchJson(bffEndpoints.auth.updateMe, profileBody);
+        }
+        try {
+          await refreshMyProfile();
+        } catch (err) {
+          console.error('[mypage-edit] refresh me after save', err);
         }
         router.push('/settings/mypage');
         router.refresh();

@@ -141,6 +141,7 @@ export default function PetsManageClient() {
   const [pets, setPets] = useState<ManagedPet[]>([]);
   const [loading, setLoading] = useState(true);
   const [listError, setListError] = useState('');
+  const [limitHint, setLimitHint] = useState(false);
   const [formError, setFormError] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [drag, setDrag] = useState<DragSession | null>(null);
@@ -297,8 +298,16 @@ export default function PetsManageClient() {
     };
   }, [drag, persistOrder]);
 
+  useEffect(() => {
+    if (pets.length < 3) setLimitHint(false);
+  }, [pets.length]);
+
   const openCreate = () => {
-    if (pets.length >= 3) return;
+    if (pets.length >= 3) {
+      setLimitHint(true);
+      return;
+    }
+    setLimitHint(false);
     setFormMode('create');
     setEditingId(null);
     setForm(emptyForm());
@@ -514,7 +523,7 @@ export default function PetsManageClient() {
 
       <main className={styles.main}>
         <div className={styles.toolbar}>
-          <button type="button" className={styles.addBtn} onClick={openCreate} disabled={pets.length >= 3} title={pets.length >= 3 ? '계정당 최대 3마리까지 등록할 수 있습니다.' : undefined}>
+          <button type="button" className={styles.addBtn} onClick={openCreate}>
             <Plus size={18} strokeWidth={2.6} aria-hidden />
             추가
           </button>
@@ -547,6 +556,11 @@ export default function PetsManageClient() {
             );
           })}
         </div>
+        {limitHint ? (
+          <p className={styles.limitHint} role="alert">
+            * 반려동물은 최대 3마리까지 등록할 수 있습니다.
+          </p>
+        ) : null}
       </main>
 
       <FooterMenu />

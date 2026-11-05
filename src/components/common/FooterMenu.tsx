@@ -113,6 +113,19 @@ let cachedAvatarSrc: string | null = null;
 let cachedNickname: string | null = null;
 const profileRefreshListeners = new Set<() => void>();
 
+/** 푸터에 캐시된 내 닉네임태그 (없으면 null) */
+export function getCachedMyNickname() {
+  return cachedNickname;
+}
+
+/** me 응답으로 푸터 캐시를 갱신하고 열린 FooterMenu에 반영한다. */
+export function applyFooterProfile(me: Pick<MeResponse, 'nickname' | 'profileFile'>) {
+  cachedAvatarSrc = resolveFileDisplayUrl(me.profileFile) ?? NO_PROFILE_SRC;
+  const nextName = me.nickname?.trim();
+  if (nextName) cachedNickname = nextName;
+  for (const refresh of profileRefreshListeners) refresh();
+}
+
 /** 대표 반려동물 변경 후 캐시를 비우고 현재 메뉴의 프로필을 다시 조회한다. */
 export function refreshFooterProfile() {
   cachedAvatarSrc = null;
@@ -209,6 +222,10 @@ export function FooterMenu() {
   useEffect(() => {
     let cancelled = false;
     let requestId = 0;
+    const applyCached = () => {
+      if (cachedAvatarSrc) setAvatarSrc(cachedAvatarSrc);
+      if (cachedNickname) setNickname(cachedNickname);
+    };
     const refresh = async () => {
       const currentRequest = ++requestId;
       try {
@@ -226,9 +243,13 @@ export function FooterMenu() {
         console.error('[footer] me profile failed', err);
       }
     };
-    const onRefresh = () => void refresh();
+    const onRefresh = () => {
+      if (cachedAvatarSrc && cachedNickname) applyCached();
+      else void refresh();
+    };
     profileRefreshListeners.add(onRefresh);
-    if (!cachedAvatarSrc || !cachedNickname) void refresh();
+    if (cachedAvatarSrc && cachedNickname) applyCached();
+    else void refresh();
     return () => {
       cancelled = true;
       profileRefreshListeners.delete(onRefresh);
