@@ -110,10 +110,11 @@ export function DevTestDock({ groups, adminAuthed = null }: Props) {
   const adminLoggedOut = onAdminPage && adminAuthed === false;
   const mounted = useHydrated();
   const [collapsed, setCollapsed] = useResettableState(() => {
+    // Default OPEN: missing key / first load → expanded. Only 'true' means closed.
     try {
-      return !mounted || window.localStorage.getItem(COLLAPSED_STORAGE_KEY) !== 'false';
+      return mounted && window.localStorage.getItem(COLLAPSED_STORAGE_KEY) === 'true';
     } catch {
-      return true;
+      return false;
     }
   }, [mounted]);
   const [busyId, setBusyId] = useState<string | null>(null);
