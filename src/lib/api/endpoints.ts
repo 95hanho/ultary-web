@@ -251,6 +251,8 @@ export const bffEndpoints = {
   admin: {
     users: '/api/admin/users',
     user: '/api/admin/users/:userNo',
+    userTimeline: '/api/admin/users/:userNo/timeline',
+    userTimelineAction: '/api/admin/users/:userNo/timeline/actions',
     userSuspend: '/api/admin/users/:userNo/suspend',
     userUnsuspend: '/api/admin/users/:userNo/unsuspend',
     actions: '/api/admin/actions',
@@ -305,6 +307,11 @@ export const bffEndpoints = {
     detail: '/api/files/:fileId',
     /** GET 바이너리 프록시 (상대 filePath용 · CDN은 호출 금지) */
     content: '/api/files/:fileId/content',
+  },
+
+  public: {
+    /** GET 닉네임태그 해석. 직전(7일)이면 현재 닉네임 + redirected */
+    resolveNickname: '/api/public/nicknames/:nickname',
   },
 } as const;
 
@@ -546,6 +553,8 @@ export const springEndpoints = {
   admin: {
     users: '/api/v1/admin/users',
     user: '/api/v1/admin/users/:userNo',
+    userTimeline: '/api/v1/admin/users/:userNo/timeline',
+    userTimelineAction: '/api/v1/admin/users/:userNo/timeline/actions',
     userSuspend: '/api/v1/admin/users/:userNo/suspend',
     userUnsuspend: '/api/v1/admin/users/:userNo/unsuspend',
     actions: '/api/v1/admin/actions',
@@ -599,6 +608,11 @@ export const springEndpoints = {
     detail: '/api/v1/files/:fileId',
     /** GET 바이너리 — 상대 filePath만. CDN 절대 URL에는 호출하지 않음 */
     content: '/api/v1/files/:fileId/content',
+  },
+
+  public: {
+    /** GET 닉네임태그 해석. 직전(7일)이면 현재 닉네임 + redirected */
+    resolveNickname: '/api/v1/public/nicknames/:nickname',
   },
 } as const;
 

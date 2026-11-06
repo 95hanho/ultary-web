@@ -170,6 +170,10 @@
     border: 1px solid var(--brand-gray-200);
     border-radius: 6px;
     font-size: 13px;
+    &:focus,
+    &:not(:placeholder-shown) {
+      background: #fff;
+    }
   }
 }
 .memberLink {
@@ -189,6 +193,11 @@
   p { margin: 6px 0 0; }
 }
 .memberSectionTitle { margin: 28px 0 12px; font-size: 20px; }
+.sectionMoreWrap {
+  display: flex;
+  justify-content: center;
+  margin-top: 12px;
+}
 .adminPetList {
   display: flex;
   flex-wrap: wrap;
@@ -197,6 +206,64 @@
   list-style: none;
   li { display: flex; align-items: center; gap: 10px; }
   p { margin: 4px 0 0; font-size: 13px; }
+}
+.adminTimelineList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+  li {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--brand-gray-200);
+  }
+  button { flex-shrink: 0; }
+}
+.adminTimelineMain { min-width: 0; flex: 1; }
+.adminTimelineMeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  margin-bottom: 8px;
+  font-size: 13px;
+  color: var(--brand-black-700);
+  span { color: var(--brand-gray-500); }
+}
+.adminTimelineBody {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+.adminTimelineThumbs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.adminTimelineText {
+  min-width: 0;
+  p { margin: 0 0 4px; font-size: 14px; }
+}
+.adminTimelinePets { color: var(--brand-black-700); }
+.adminTimelineAction {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+  flex-shrink: 0;
+  max-width: 220px;
+  text-align: right;
+}
+.adminTimelineHint {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--brand-gray-500);
 }
 .memberTableScroll { width: 100%; overflow-x: auto; }
 

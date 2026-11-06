@@ -191,6 +191,8 @@ export type MeResponse = {
   nickname: string;
   defaultNickname: boolean;
   hasPassword: boolean;
+  /** 관리자 비밀번호 초기화 후 true. 변경 성공할 때까지 유지 */
+  mustChangePassword?: boolean;
   /** 구글 소셜 연동 여부 */
   googleLinked: boolean;
   /** 카카오 소셜 연동 여부 */

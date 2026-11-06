@@ -5,7 +5,6 @@ import { httpErrorStatus } from '@/lib/api/error';
 
 import { bffPostJson } from '@/lib/api/bffFetch';
 import { bffEndpoints } from '@/lib/api/endpoints';
-import { useModalStore } from '@/stores/modal.store';
 import type { BffEnvelope } from '@/types/api';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
@@ -18,6 +17,7 @@ import {
   memberLabel,
   type ReportItem,
 } from './adminData';
+import { notifyAdminMutationError } from './adminMutationError';
 import { badgeClass } from './adminListUi';
 import styles from './admin.module.scss';
 import ReportFeedPreview from './ReportFeedPreview';
@@ -59,12 +59,7 @@ export default function ReportDetailClient({ reportId }: { reportId: number }) {
           if (cancelled) return;
           setItem(found);
           setState('ready');
-          useModalStore.getState().open({
-            variant: 'alert',
-            title: '알림창',
-            content: actionError(err),
-            showCloseButton: true,
-          });
+          notifyAdminMutationError(err, actionError(err));
         }
       } catch (err) {
         console.error('[admin] report detail', err);

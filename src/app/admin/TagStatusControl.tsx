@@ -7,6 +7,7 @@ import { isHttpError, isRecord } from '@/lib/api/error';
 import { useModalStore } from '@/stores/modal.store';
 import type { BffEnvelope } from '@/types/api';
 import { useRef, useState, type MutableRefObject } from 'react';
+import { adminMutationErrorMessage, notifyAdminMutationError } from './adminMutationError';
 import { readTagRequest, type TagRequest } from './tagRequestData';
 import styles from './admin.module.scss';
 
@@ -61,7 +62,7 @@ export default function TagStatusControl({
     } catch (err) {
       console.error('[admin] tag status', err);
       setChoice(null);
-      notify(actionError(err));
+      notifyAdminMutationError(err, actionError(err));
     } finally {
       busy.current = false;
       setSubmitting(false);
@@ -88,7 +89,7 @@ export default function TagStatusControl({
     } catch (err) {
       console.error('[admin] tag reject', err);
       setChoice(null);
-      notify(actionError(err));
+      notifyAdminMutationError(err, actionError(err));
     } finally {
       busy.current = false;
       setSubmitting(false);
@@ -229,7 +230,6 @@ function actionError(err: unknown) {
   if (isHttpError(err)) {
     if (err.message === 'TAG_PROFILE_REQUEST_NOT_FOUND') return '요청을 찾지 못했습니다.';
     if (err.message.includes('500')) return '거절 메시지는 500자 이하여야 합니다.';
-    if (err.message.trim()) return err.message;
   }
-  return '처리하지 못했습니다.';
+  return adminMutationErrorMessage(err);
 }

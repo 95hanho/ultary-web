@@ -20,6 +20,7 @@ export function ModalHost() {
   const cancelButton = useModalStore((s) => s.cancelButton);
   const showCloseButton = useModalStore((s) => s.showCloseButton);
   const closeOnDimClick = useModalStore((s) => s.closeOnDimClick);
+  const closeOnEscape = useModalStore((s) => s.closeOnEscape);
   const close = useModalStore((s) => s.close);
   const confirmOk = useModalStore((s) => s.confirmOk);
   const confirmCancel = useModalStore((s) => s.confirmCancel);
@@ -27,7 +28,7 @@ export function ModalHost() {
   useEffect(() => {
     if (!isOpen) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') close();
+      if (e.key === 'Escape' && closeOnEscape) close();
     };
     document.addEventListener('keydown', onKey);
     const prev = document.body.style.overflow;
@@ -36,7 +37,7 @@ export function ModalHost() {
       document.removeEventListener('keydown', onKey);
       document.body.style.overflow = prev;
     };
-  }, [isOpen, close]);
+  }, [isOpen, close, closeOnEscape]);
 
   if (!mounted || !isOpen) return null;
 

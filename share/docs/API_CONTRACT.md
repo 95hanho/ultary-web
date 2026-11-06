@@ -20,7 +20,7 @@
 
 ## 응답
 
-관리자 회원 관리·처리 이력: `GET /api/v1/admin/users`, `GET /api/v1/admin/users/{userNo}`, `GET /api/v1/admin/actions`. 정지/해제는 기존 POST 경로를 유지하고 사유를 저장한다. 목록은 `page`(0부터)·`size`, `{items,totalCount,page,pageSize}`를 사용한다. 상세 권한·마스킹·기록 범위는 [회원 관리 문서](admin-management.md)를 참고한다.
+관리자 회원 관리·처리 이력: `GET /api/v1/admin/users`, `GET /api/v1/admin/users/{userNo}`, `GET /api/v1/admin/users/{userNo}/timeline`, `POST /api/v1/admin/users/{userNo}/timeline/actions`, `GET /api/v1/admin/actions`. 정지/해제는 기존 POST 경로를 유지하고 사유를 저장한다. 목록은 `page`(0부터)·`size`, `{items,totalCount,page,pageSize}`를 사용한다. 상세·타임라인 조치·마스킹·기록 범위는 [회원 관리 문서](admin-management.md)를 참고한다.
 
 관리자 AI 오류 로그: `GET /api/v1/admin/ai/logs`, `GET /api/v1/admin/ai/logs/{aiRequestId}`. BFF는 `/api/admin/ai/logs` 및 하위 ID 경로. 관리자 인증·필터·페이지 규약은 [비동기 모더레이션 문서](async-moderation.md#관리자-ai-로그-조회) 참조.
 
@@ -85,8 +85,13 @@
 | `POST /stories/{storyId}/view` | 스토리 단건 (`viewedByMe`, `likedByMe`) | 해당 `storyId`만 INSERT IGNORE. **본인 스토리도 기록** |
 | `POST /stories/{storyId}/like` · `DELETE` | `likeCount`, `likedByMe` | 스토리 공감. 본인 또는 ACCEPTED 팔로우 관계만. 취소는 소프트 삭제 |
 | `GET /users/blocks` | 배열 | 내가 차단한 사용자. `nickname`, `profileFile`(대표 펫 사진, 없으면 null), `blockedAt`. 해제는 `DELETE /users/{userNo}/block` |
-| `GET /auth/me` | `name`, `googleLinked`, `kakaoLinked` 등 | 내 회원정보. `name`이 null이면 회원정보 수정에서 최초 등록 가능 |
+| `GET /auth/me` | `name`, `googleLinked`, `kakaoLinked`, `mustChangePassword` 등 | 내 회원정보. `mustChangePassword`는 관리자 비밀번호 초기화 후 true. `name`이 null이면 회원정보 수정에서 최초 등록 가능 |
+| `PUT /auth/password/me` | void | 로그인 중 변경. 성공 시 `must_change_password=0`. 강제 변경 중이면 현재 비밀번호 생략 가능 |
 | `PATCH /auth/me` | `MeResponse` | 닉네임 제외. `name`은 비어 있을 때만 최초 등록(최대 20자). 이미 있으면 `NAME_ALREADY_SET` |
+| `PATCH /auth/me/nickname` | `MeResponse` | 변경 시 `previous_nickname`에 직전값 저장·`nickname_changed_at=NOW()`. 변경 쿨다운 30일. 중복은 현재 닉네임 + **7일 이내** 직전 닉네임 |
+| `GET /auth/nickname/check` | `{ available }` | 가입·변경 전 중복. 7일 이내 `previous_nickname`도 점유 |
+| `GET /public/nicknames/{nickname}` | `{ nickname, requestedNickname, redirected }` | 공개. 현재 또는 변경 후 7일 이내 직전 → 현재 닉네임. `redirected=true`면 FE가 `/myultary/{current}/…`로 이동. 만료·미존재 404 |
+| `GET /public/ultaries/{nickname}` | 공개 울타리 | 닉네임 해석은 위와 동일. 응답 `nickname`은 항상 현재. 비공개 계정은 404 |
 | `GET /auth/social/google` · `/kakao` | 리다이렉트 | BFF OAuth 시작. `intent=link&returnUrl=/settings/mypage`면 로그인 유지 연동. 생략·`login`이면 소셜 로그인 |
 | `GET /auth/social/google/callback` · `/kakao/callback` | 리다이렉트 | `intent=link` → Spring `POST /social/link` 후 `?linked=`. 아니면 `POST /social/login` |
 | `POST /auth/social/link` | `MeResponse` | Bearer. Body는 소셜 로그인과 같음. `SOCIAL_ALREADY_LINKED`·`SOCIAL_ACCOUNT_IN_USE` |
@@ -106,12 +111,18 @@
 | `GET /tags/profile-requests` | 배열 | 내가 넣은 태그 설명 요청. `status`를 비우면 전부. 삭제된 태그 요청은 제외 |
 | `DELETE /tags/profile-requests/{requestId}` | 없음 | 요청자 + `PENDING`(검토 이력 없음)만. 요청 행 유지, 태그만 소프트 삭제 |
 | `GET /tags/suggest` | 배열 | 작성·수정 자동완성. `tagId`, `hashtag`, `title`(없으면 null), `feedCount`. 동일 hashtag는 제목으로 구분 |
+| `POST /admin/auth/login` · `refresh` | `TokenResponse` + `role` | 관리자. `role`=`SUPER`\|`OPERATOR`. 로그인·재발급·로그아웃은 OPERATOR도 가능 |
+| 관리자 권한 | `ultary_admin.role` | GET `/admin/**`는 SUPER·OPERATOR. 비-GET 조작(태그/회원/신고/AI review 등)은 **SUPER만**. OPERATOR면 `403` `FORBIDDEN`. auth 경로 제외 |
 | `GET /admin/menu-counts` | `pendingTagRequestCount`, `requestedReportCount`, `failedAiRequestCount` | 메뉴 뱃지. 태그 설명 요청 `PENDING`(삭제 태그 제외), 대상 회원/작성자가 정지되지 않은 신고 `REQUESTED`·`CONFIRMED` 합, AI 호출 로그 `FAILED` 건수. 정지 회원의 태그 요청은 세지 않는다. AI는 같은 작업의 실패를 1건으로 세며 관리자 처리 완료 작업은 제외한다. 목록은 없다. 없으면 0 |
 | `GET /admin/tags/profile-requests` | `items`, `nextCursorRequestId`, `totalCount` | 상업 태그 설명 요청. `status`를 비우면 전부. 삭제된 태그 요청 포함 + `isDeleted`. 정렬·커서는 활동 시각(`GREATEST(created_at, reviewed_at, tag.deleted_at)`) DESC. `totalCount`는 그 `status`의 전체 건수. 커서와 `limit`는 세지 않는다. 정지 회원의 요청은 목록과 건수에서 뺀다. 다음은 `cursorRequestId` |
 | `GET /admin/reports` | `items`, `nextCursorReportId`, `totalCount` | 신고 목록. `status`를 비우면 전부, 신고요청·확인이 먼저(대상이 정지인 건 제외), 그다음 나머지. 같은 묶음은 최신순. `totalCount`는 그 `status`의 전체 건수. 커서와 `limit`는 세지 않는다. `reporterUserNo`·`reporterNickname`은 신고 회원. `targetUserNo`·`targetNickname`은 대상 회원(회원 신고는 그 회원, 글·댓글·답글은 작성자). 글·댓글·답글은 `targetContent`(30자, 넘으면 `...`). `targetSuspended`는 그 회원이 정지인지. 다음은 `cursorReportId` |
 | `GET /admin/reports/{reportId}` | 신고 1개 | 목록 항목과 같다. `targetUserNo`·`targetNickname`·`targetSuspended` 포함. 없으면 404 |
-| `POST /admin/reports/{reportId}/confirm` · `reject` · `delete-content` · `suspend` | 신고 1개 | 어떤 상태에서든 다시 조치. 정지→다른 상태면 회원 정지 해제, 삭제조치→다른 상태면 글·댓글·답글 복구. 같은 대상에 같은 상태 신고가 더 있으면 유지. `delete-content`는 글·댓글·답글, `suspend`는 회원만 |
-| `POST /admin/tags/{tagId}/approve` · `reject` · `pending` | 요청 1개 | 최신 요청을 승인·거절·대기로 바꾼다. 승인·거절된 요청도 다시 바꿀 수 있다. 승인하면 그 설명이 태그에 공개된다. 거절 Body `rejectMessage`는 신청자 목록의 `rejectMessage`로 남는다. `pending`은 본문 없음 |
+| `POST /admin/reports/{reportId}/confirm` · `reject` · `delete-content` · `suspend` | 신고 1개 | **SUPER만**. 어떤 상태에서든 다시 조치. 정지→다른 상태면 회원 정지 해제, 삭제조치→다른 상태면 글·댓글·답글 복구. 같은 대상에 같은 상태 신고가 더 있으면 유지. `delete-content`는 글·댓글·답글, `suspend`는 회원만 |
+| `POST /admin/tags/{tagId}/approve` · `reject` · `pending` | 요청 1개 | **SUPER만**. 최신 요청을 승인·거절·대기로 바꾼다. 승인·거절된 요청도 다시 바꿀 수 있다. 승인하면 그 설명이 태그에 공개된다. 거절 Body `rejectMessage`는 신청자 목록의 `rejectMessage`로 남는다. `pending`은 본문 없음 |
+| `POST /admin/users/{userNo}/suspend` · `unsuspend` | 회원 | **SUPER만** |
+| `GET /admin/users/{userNo}/timeline` | `{ items }` | 주요 타임라인. 삭제 스토리/피드/펫·비밀번호/닉네임 변경·탈퇴(6종). 해시태그 요청 제외 |
+| `POST /admin/users/{userNo}/timeline/actions` | `{ type, id, temporaryPassword? }` | **SUPER만**. type+id로 삭제 취소·비밀번호 초기화·쿨다운 해제·탈퇴 취소·해시 거절. 비밀번호 초기화만 `temporaryPassword` |
+| `POST /admin/ai/logs/{aiRequestId}/review` | AI 로그 | **SUPER만** |
 | `GET /dm/rooms` | `items` | 내 대화방. `peerUserNo`, `peerNickname`, `profileFile`, `lastMessage`, `lastMessageAt`, `unreadCount`, `following`, `followedBy` |
 | `POST /dm/rooms` | 방 1개 | `{ targetUserNo }`. 팔로우 또는 팔로워만. 있으면 그 방을 다시 연다. 응답에 `following`, `followedBy` |
 | `GET /dm/rooms/{roomId}/messages` | `items`, `nextCursorMessageId`, `peerLastReadMessageId`, `following`, `followedBy` | 오래된 순. 조회하면 읽음. `following`·`followedBy`는 그 방 상대와 나. 둘 다 false면 팔로우 관계가 아님 |

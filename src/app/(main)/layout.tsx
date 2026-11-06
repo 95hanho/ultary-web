@@ -1,4 +1,5 @@
 import { getAccessToken, getRefreshToken } from '@/lib/auth/cookies';
+import { MustChangePasswordGate } from '@/components/auth/MustChangePasswordGate';
 import { LiveSocket } from '@/components/ws/LiveSocket';
 import { FeedEditReturnRestorer } from '@/components/feed/FeedEditReturnRestorer';
 
@@ -11,6 +12,7 @@ export default async function MainLayout({
   return (
     <div className="relative z-10 flex min-h-full flex-1 flex-col">
       {loggedIn ? <LiveSocket /> : null}
+      {loggedIn ? <MustChangePasswordGate /> : null}
       <FeedEditReturnRestorer />
       {children}
     </div>

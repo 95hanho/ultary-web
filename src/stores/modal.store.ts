@@ -34,6 +34,8 @@ export type ModalOpenOptions = {
   showCloseButton?: boolean;
   /** 딤 클릭 시 닫기 — 기본 true */
   closeOnDimClick?: boolean;
+  /** Escape 로 닫기 — 기본 true */
+  closeOnEscape?: boolean;
   /** 닫힐 때 (X / 딤 / close() 공통) */
   onClose?: () => void;
 };
@@ -48,6 +50,7 @@ type ModalState = {
   cancelButton: ModalButtonConfig;
   showCloseButton: boolean;
   closeOnDimClick: boolean;
+  closeOnEscape: boolean;
   onCloseCallback: (() => void) | null;
   open: (options: ModalOpenOptions) => void;
   close: () => void;
@@ -79,6 +82,7 @@ export const useModalStore = create<ModalState>((set, get) => ({
   cancelButton: { ...defaultCancel },
   showCloseButton: false,
   closeOnDimClick: true,
+  closeOnEscape: true,
   onCloseCallback: null,
 
   open: (options) => {
@@ -101,6 +105,7 @@ export const useModalStore = create<ModalState>((set, get) => ({
       },
       showCloseButton: options.showCloseButton ?? variant !== 'action',
       closeOnDimClick: options.closeOnDimClick ?? true,
+      closeOnEscape: options.closeOnEscape ?? true,
       onCloseCallback: options.onClose ?? null,
     });
   },

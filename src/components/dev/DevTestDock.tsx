@@ -48,6 +48,8 @@ export type DevTestGroup = {
 
 type Props = {
   groups: DevTestGroup[];
+  /** /admin 레이아웃이 넘긴 관리자 세션. null이면 아직 모름 */
+  adminAuthed?: boolean | null;
 };
 
 /** 로컬 시드 계정. 로그인 페이지 테스트 로그인에서만 쓴다. */
@@ -56,6 +58,12 @@ const TEST_LOGINS = [
   { nickname: 'nari_owner', phone: '01033334444' },
   { nickname: 'walker', phone: '01055556666' },
   { nickname: 'waiting', phone: '01077778888' },
+] as const;
+
+/** 현재 DB `ultary_admin` ACTIVE 계정. /admin 테스트 로그인용. */
+const ADMIN_TEST_LOGINS = [
+  { loginId: 'operator', name: '조회 전용' },
+  { loginId: 'admin', name: '관리자 · 전체' },
 ] as const;
 
 const TEST_LOGIN_PASSWORD = 'Test1234!';
@@ -94,9 +102,12 @@ function formatClock(ms: number) {
  * 우하단 fixed · 숨기기면 우측으로 접히고 ◀ 로 다시 펼침.
  * 액세스 토큰 예상 만료는 항상 보이고, 페이지 버튼은 그 아래에 붙는다.
  */
-export function DevTestDock({ groups }: Props) {
+export function DevTestDock({ groups, adminAuthed = null }: Props) {
   const pathname = usePathname();
   const onLoginPage = pathname === '/login' || pathname.startsWith('/login/');
+  const onAdminPage = pathname === '/admin' || pathname.startsWith('/admin/');
+  const adminLoggedIn = onAdminPage && adminAuthed === true;
+  const adminLoggedOut = onAdminPage && adminAuthed === false;
   const mounted = useHydrated();
   const [collapsed, setCollapsed] = useResettableState(() => {
     try {
@@ -114,13 +125,12 @@ export function DevTestDock({ groups }: Props) {
   const [viaRefresh, setViaRefresh] = useState(false);
   const [refreshFresh, setRefreshFresh] = useState(false);
   const [testLoginOpen, setTestLoginOpen] = useState(false);
-  const [testLoginPick, setTestLoginPick] = useState('');
   const seenIssuedRef = useRef<number | null>(null);
   /** r토큰을 지운 뒤, 다음 재발급이 오면 그 알림을 지운다 */
   const refreshClearedRef = useRef(false);
 
   useEffect(() => {
-    if (!mounted || !ENABLE_DEV_TOOLS) return;
+    if (!mounted || !ENABLE_DEV_TOOLS || onAdminPage) return;
     const tick = () => {
       const expires = Number(readCookie(DEV_ACCESS_EXPIRES_AT_COOKIE));
       const issued = Number(readCookie(DEV_ACCESS_ISSUED_AT_COOKIE));
@@ -148,7 +158,7 @@ export function DevTestDock({ groups }: Props) {
     tick();
     const id = window.setInterval(tick, 1000);
     return () => window.clearInterval(id);
-  }, [mounted]);
+  }, [mounted, onAdminPage]);
 
   useEffect(() => {
     if (!refreshFresh) return;
@@ -156,9 +166,12 @@ export function DevTestDock({ groups }: Props) {
     return () => window.clearTimeout(id);
   }, [refreshFresh]);
 
+  useEffect(() => {
+    setTestLoginOpen(false);
+  }, [onAdminPage, onLoginPage]);
+
   if (!ENABLE_DEV_TOOLS) return null;
   if (!mounted) return null;
-  if (pathname === '/admin' || pathname.startsWith('/admin/')) return null;
 
   const remain = expiresAt == null ? null : expiresAt - now;
 
@@ -217,133 +230,167 @@ export function DevTestDock({ groups }: Props) {
             </button>
           </div>
           <div className={styles.status}>
-            <span
-              className={clsx(styles.timer, remain != null && remain <= 0 && styles.timerExpired)}
-            >
-              {remain == null
-                ? '로그인이 필요합니다'
-                : remain <= 0
-                  ? '인증 갱신 대기'
-                  : `인증 유효 시간 ${formatRemain(remain)}`}
-            </span>
-            {expiresAt != null && remain != null ? (
-              <p className={styles.meta}>
-                {remain <= 0
-                  ? '다음 요청 시 인증을 갱신합니다'
-                  : `${formatClock(expiresAt)}까지 유효`}
-              </p>
-            ) : (
-              <p className={styles.meta}>테스트로그인으로 체험해보세요</p>
-            )}
-            {viaRefresh && issuedAt != null ? (
-              <p className={clsx(styles.refreshNote, refreshFresh && styles.refreshFresh)}>
-                {formatClock(issuedAt)} 재발급
-              </p>
-            ) : null}
-            {process.env.NODE_ENV !== 'production' ? (
+            {onAdminPage ? (
               <>
-                <button
-                  type="button"
-                  className={clsx(styles.actionBtn, styles.statusAction)}
-                  disabled={Boolean(busyId)}
-                  onClick={() =>
-                    void run({
-                      id: 'reset-refresh-token',
-                      label: 'r토큰 초기화',
-                      onClick: async () => {
-                        const res = await bffDelete<BffEnvelope<{ revokedCount?: number }>>(
-                          bffEndpoints.test.tokens,
-                        );
-                        refreshClearedRef.current = true;
-                        const count = res.data?.revokedCount;
-                        return typeof count === 'number'
-                          ? `r토큰 ${count}개 폐기`
-                          : 'r토큰을 폐기했습니다';
-                      },
-                    })
-                  }
-                >
-                  {busyId === 'reset-refresh-token' ? '…' : 'r토큰 초기화'}
-                </button>
-                <button
-                  type="button"
-                  className={clsx(styles.actionBtn, styles.statusAction)}
-                  disabled={Boolean(busyId)}
-                  onClick={() =>
-                    void run({
-                      id: 'reset-access-token',
-                      label: 'a토큰 초기화',
-                      onClick: async () => {
-                        await bffPostJson(bffEndpoints.test.accessTokenReset, {});
-                        refreshClearedRef.current = true;
-                        return 'a토큰을 지웠습니다';
-                      },
-                    })
-                  }
-                >
-                  {busyId === 'reset-access-token' ? '…' : 'a토큰 초기화'}
-                </button>
+                <span className={styles.timer}>관리자 테스트</span>
+                <p className={styles.meta}>
+                  {adminLoggedIn
+                    ? '로그아웃으로 세션을 종료할 수 있습니다'
+                    : '테스트로그인으로 체험해보세요'}
+                </p>
               </>
-            ) : null}
-            {onLoginPage ? (
+            ) : (
               <>
-                <button
-                  type="button"
-                  className={clsx(
-                    styles.actionBtn,
-                    styles.statusAction,
-                    testLoginOpen && styles.testLoginCancel,
-                  )}
-                  disabled={Boolean(busyId)}
-                  onClick={() => {
-                    if (testLoginOpen) {
-                      setTestLoginOpen(false);
-                      setTestLoginPick('');
-                      return;
-                    }
-                    setTestLoginOpen(true);
-                  }}
+                <span
+                  className={clsx(styles.timer, remain != null && remain <= 0 && styles.timerExpired)}
                 >
-                  {busyId === 'test-login' ? '…' : testLoginOpen ? '선택취소' : '테스트로그인'}
-                </button>
-                {testLoginOpen ? (
-                  <select
-                    className={styles.testLoginSelect}
-                    aria-label="테스트 로그인 닉네임태그"
-                    value={testLoginPick}
-                    disabled={Boolean(busyId)}
-                    onChange={(event) => {
-                      const phone = event.target.value;
-                      setTestLoginPick('');
-                      if (!phone) return;
-                      const account = TEST_LOGINS.find((item) => item.phone === phone);
-                      if (!account) return;
-                      setTestLoginOpen(false);
-                      void run({
-                        id: 'test-login',
-                        label: '테스트로그인',
-                        onClick: async () => {
-                          await bffPostJson(
-                            bffEndpoints.auth.login,
-                            toLoginRequest(account.phone, TEST_LOGIN_PASSWORD),
-                          );
-                          // 일반 로그인과 동일하게 이전 계정의 모듈 캐시와 소켓을 초기화한다.
-                          window.location.replace('/');
-                          return `${nicknameTag(account.nickname)} 로그인`;
-                        },
-                      });
-                    }}
-                  >
-                    <option value="">-로그인 닉네임태그 선택-</option>
-                    {TEST_LOGINS.map((account) => (
-                      <option key={account.phone} value={account.phone}>
-                        {nicknameTag(account.nickname)}
-                      </option>
-                    ))}
-                  </select>
+                  {remain == null
+                    ? '로그인이 필요합니다'
+                    : remain <= 0
+                      ? '인증 갱신 대기'
+                      : `인증 유효 시간 ${formatRemain(remain)}`}
+                </span>
+                {expiresAt != null && remain != null ? (
+                  <p className={styles.meta}>
+                    {remain <= 0
+                      ? '다음 요청 시 인증을 갱신합니다'
+                      : `${formatClock(expiresAt)}까지 유효`}
+                  </p>
+                ) : (
+                  <p className={styles.meta}>테스트로그인으로 체험해보세요</p>
+                )}
+                {viaRefresh && issuedAt != null ? (
+                  <p className={clsx(styles.refreshNote, refreshFresh && styles.refreshFresh)}>
+                    {formatClock(issuedAt)} 재발급
+                  </p>
+                ) : null}
+                {process.env.NODE_ENV !== 'production' ? (
+                  <>
+                    <button
+                      type="button"
+                      className={clsx(styles.actionBtn, styles.statusAction)}
+                      disabled={Boolean(busyId)}
+                      onClick={() =>
+                        void run({
+                          id: 'reset-refresh-token',
+                          label: 'r토큰 초기화',
+                          onClick: async () => {
+                            const res = await bffDelete<BffEnvelope<{ revokedCount?: number }>>(
+                              bffEndpoints.test.tokens,
+                            );
+                            refreshClearedRef.current = true;
+                            const count = res.data?.revokedCount;
+                            return typeof count === 'number'
+                              ? `r토큰 ${count}개 폐기`
+                              : 'r토큰을 폐기했습니다';
+                          },
+                        })
+                      }
+                    >
+                      {busyId === 'reset-refresh-token' ? '…' : 'r토큰 초기화'}
+                    </button>
+                    <button
+                      type="button"
+                      className={clsx(styles.actionBtn, styles.statusAction)}
+                      disabled={Boolean(busyId)}
+                      onClick={() =>
+                        void run({
+                          id: 'reset-access-token',
+                          label: 'a토큰 초기화',
+                          onClick: async () => {
+                            await bffPostJson(bffEndpoints.test.accessTokenReset, {});
+                            refreshClearedRef.current = true;
+                            return 'a토큰을 지웠습니다';
+                          },
+                        })
+                      }
+                    >
+                      {busyId === 'reset-access-token' ? '…' : 'a토큰 초기화'}
+                    </button>
+                  </>
                 ) : null}
               </>
-            ) : (
+            )}
+            {adminLoggedOut || onLoginPage ? (
+              testLoginOpen ? (
+                <div className={clsx(styles.testLoginBox, styles.statusAction)}>
+                  <button
+                    type="button"
+                    className={clsx(styles.actionBtn, styles.testLoginCancel)}
+                    disabled={Boolean(busyId)}
+                    onClick={() => setTestLoginOpen(false)}
+                  >
+                    선택취소
+                  </button>
+                  <div className={styles.testLoginList} role="listbox" aria-label="테스트 로그인 계정">
+                    {adminLoggedOut
+                      ? ADMIN_TEST_LOGINS.map((account) => (
+                          <button
+                            key={account.loginId}
+                            type="button"
+                            role="option"
+                            className={styles.testLoginAccount}
+                            disabled={Boolean(busyId)}
+                            onClick={() => {
+                              setTestLoginOpen(false);
+                              void run({
+                                id: 'admin-test-login',
+                                label: '테스트로그인',
+                                onClick: async () => {
+                                  await bffPostJson(bffEndpoints.admin.login, {
+                                    loginId: account.loginId,
+                                    password: TEST_LOGIN_PASSWORD,
+                                  });
+                                  window.location.replace('/admin');
+                                  return `${account.name} 로그인`;
+                                },
+                              });
+                            }}
+                          >
+                            {account.name}
+                          </button>
+                        ))
+                      : TEST_LOGINS.map((account) => (
+                          <button
+                            key={account.phone}
+                            type="button"
+                            role="option"
+                            className={styles.testLoginAccount}
+                            disabled={Boolean(busyId)}
+                            onClick={() => {
+                              setTestLoginOpen(false);
+                              void run({
+                                id: 'test-login',
+                                label: '테스트로그인',
+                                onClick: async () => {
+                                  await bffPostJson(
+                                    bffEndpoints.auth.login,
+                                    toLoginRequest(account.phone, TEST_LOGIN_PASSWORD),
+                                  );
+                                  // 일반 로그인과 동일하게 이전 계정의 모듈 캐시와 소켓을 초기화한다.
+                                  window.location.replace('/');
+                                  return `${nicknameTag(account.nickname)} 로그인`;
+                                },
+                              });
+                            }}
+                          >
+                            {nicknameTag(account.nickname)}
+                          </button>
+                        ))}
+                  </div>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  className={clsx(styles.actionBtn, styles.statusAction)}
+                  disabled={Boolean(busyId)}
+                  onClick={() => setTestLoginOpen(true)}
+                >
+                  테스트로그인
+                </button>
+              )
+            ) : null}
+            {adminLoggedIn || (!onAdminPage && !onLoginPage) ? (
               <button
                 type="button"
                 className={clsx(styles.actionBtn, styles.statusAction)}
@@ -353,6 +400,15 @@ export function DevTestDock({ groups }: Props) {
                     id: 'logout',
                     label: '로그아웃',
                     onClick: async () => {
+                      if (onAdminPage) {
+                        try {
+                          await bffPostJson(bffEndpoints.admin.logout, {});
+                        } catch (err) {
+                          console.error('[DevTestDock] admin logout', err);
+                        }
+                        window.location.replace('/admin');
+                        return '관리자 로그아웃';
+                      }
                       try {
                         await bffPostJson(bffEndpoints.auth.logout, {});
                       } catch (err) {
@@ -366,26 +422,28 @@ export function DevTestDock({ groups }: Props) {
               >
                 {busyId === 'logout' ? '…' : '로그아웃'}
               </button>
-            )}
+            ) : null}
           </div>
-          {groups.map((group) => (
-            <div key={group.id}>
-              <p className={styles.groupTitle}>{group.title}</p>
-              <div className={styles.actions}>
-                {group.actions.map((action) => (
-                  <button
-                    key={action.id}
-                    type="button"
-                    className={styles.actionBtn}
-                    disabled={Boolean(busyId) || action.disabled}
-                    onClick={() => void run(action)}
-                  >
-                    {busyId === action.id ? '…' : action.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-          ))}
+          {!onAdminPage
+            ? groups.map((group) => (
+                <div key={group.id}>
+                  <p className={styles.groupTitle}>{group.title}</p>
+                  <div className={styles.actions}>
+                    {group.actions.map((action) => (
+                      <button
+                        key={action.id}
+                        type="button"
+                        className={styles.actionBtn}
+                        disabled={Boolean(busyId) || action.disabled}
+                        onClick={() => void run(action)}
+                      >
+                        {busyId === action.id ? '…' : action.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ))
+            : null}
           {message ? (
             <p className={clsx(styles.message, messageOk && styles.messageOk)}>{message}</p>
           ) : null}

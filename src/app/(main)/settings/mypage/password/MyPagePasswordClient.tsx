@@ -37,9 +37,11 @@ function FieldHint({ message }: { message?: string }) {
 /** 설정 > 마이페이지 > 비밀번호 변경. PUT /auth/password/me */
 export default function MyPagePasswordClient() {
   const [loadFailed, setLoadFailed] = useState<{ error: unknown } | null>(null);
+  const [ready, setReady] = useState(false);
   const router = useRouter();
   const [pending, startTransition] = useTransition();
-  const [hasPassword, setHasPassword] = useState(true);
+  const [hasPassword, setHasPassword] = useState(false);
+  const [mustChangePassword, setMustChangePassword] = useState(false);
   const [currentPassword, setCurrentPassword] = useState('');
   const [password, setPassword] = useState('');
   const [passwordConfirm, setPasswordConfirm] = useState('');
@@ -49,14 +51,23 @@ export default function MyPagePasswordClient() {
   const currentRef = useRef<HTMLInputElement>(null);
   const passwordRef = useRef<HTMLInputElement>(null);
   const confirmRef = useRef<HTMLInputElement>(null);
+  /** 강제 변경 시 현재 비밀번호 입력 생략(임시 비밀번호로 이미 로그인) */
+  const requireCurrent = ready && hasPassword && !mustChangePassword;
 
   useEffect(() => {
     let cancelled = false;
     void bffGet<BffEnvelope<MeResponse>>(bffEndpoints.auth.me)
       .then((res) => {
-        if (!cancelled && res.data) setHasPassword(res.data.hasPassword);
+        if (cancelled) return;
+        if (res.data) {
+          setHasPassword(Boolean(res.data.hasPassword));
+          setMustChangePassword(Boolean(res.data.mustChangePassword));
+        }
+        setReady(true);
       })
-      .catch((err: unknown) => { if (!cancelled) setLoadFailed({ error: err }); });
+      .catch((err: unknown) => {
+        if (!cancelled) setLoadFailed({ error: err });
+      });
     return () => {
       cancelled = true;
     };
@@ -72,10 +83,10 @@ export default function MyPagePasswordClient() {
   }
 
   function submitPassword() {
-    if (pending) return;
+    if (!ready || pending) return;
     setFormError(null);
     const next: FieldErrors = {};
-    if (hasPassword && !currentPassword) {
+    if (requireCurrent && !currentPassword) {
       next.currentPassword = '현재 비밀번호를 입력해주세요.';
     }
 
@@ -102,7 +113,7 @@ export default function MyPagePasswordClient() {
     }
 
     const body: ChangeMyPasswordRequest = { newPassword: password };
-    if (hasPassword) body.currentPassword = currentPassword;
+    if (requireCurrent) body.currentPassword = currentPassword;
 
     startTransition(async () => {
       try {
@@ -130,66 +141,84 @@ export default function MyPagePasswordClient() {
 
   return (
     <div className={styles.shell}>
-      <PageHeader backMode="history" title="비밀번호 변경" backHref="/settings/mypage" onSubmit={submitPassword} />
+      <PageHeader
+        backMode="history"
+        title="비밀번호 변경"
+        backHref="/settings/mypage"
+        onSubmit={ready ? submitPassword : undefined}
+      />
 
       <div className={styles.form}>
-        {formError ? <p className={styles.errorBanner}>{formError}</p> : null}
-        {hasPassword ? (
-          <label className={styles.field}>
-            <span className={styles.label}>현재 비밀번호</span>
-            <div className={styles.inputWrap}>
-              <PasswordInput
-                ref={currentRef}
-                value={currentPassword}
-                onChange={(e) => {
-                  setCurrentPassword(e.target.value);
-                  clearError('currentPassword');
-                }}
-                placeholder="비밀번호를 입력해주세요."
-                autoComplete="current-password"
-                inputClassName={styles.input}
-              />
-              <FieldHint message={errors.currentPassword} />
-            </div>
-          </label>
-        ) : null}
+        {!ready ? (
+          <p className={styles.fieldNote} role="status">
+            불러오는 중…
+          </p>
+        ) : (
+          <>
+            {formError ? <p className={styles.errorBanner}>{formError}</p> : null}
+            {mustChangePassword ? (
+              <p className={styles.errorBanner} role="status">
+                관리자가 비밀번호를 초기화했습니다. 새 비밀번호를 설정해 주세요.
+              </p>
+            ) : null}
+            {requireCurrent ? (
+              <label className={styles.field}>
+                <span className={styles.label}>현재 비밀번호</span>
+                <div className={styles.inputWrap}>
+                  <PasswordInput
+                    ref={currentRef}
+                    value={currentPassword}
+                    onChange={(e) => {
+                      setCurrentPassword(e.target.value);
+                      clearError('currentPassword');
+                    }}
+                    placeholder="비밀번호를 입력해주세요."
+                    autoComplete="current-password"
+                    inputClassName={styles.input}
+                  />
+                  <FieldHint message={errors.currentPassword} />
+                </div>
+              </label>
+            ) : null}
 
-        <label className={styles.field}>
-          <span className={styles.label}>비밀번호</span>
-          <div className={styles.inputWrap}>
-            <PasswordInput
-              ref={passwordRef}
-              value={password}
-              onChange={(e) => {
-                setPassword(e.target.value);
-                clearError('password');
-              }}
-              placeholder="비밀번호를 입력해주세요."
-              autoComplete="new-password"
-              inputClassName={styles.input}
-            />
-            <FieldHint message={errors.password} />
-          </div>
-        </label>
+            <label className={styles.field}>
+              <span className={styles.label}>비밀번호</span>
+              <div className={styles.inputWrap}>
+                <PasswordInput
+                  ref={passwordRef}
+                  value={password}
+                  onChange={(e) => {
+                    setPassword(e.target.value);
+                    clearError('password');
+                  }}
+                  placeholder="비밀번호를 입력해주세요."
+                  autoComplete="new-password"
+                  inputClassName={styles.input}
+                />
+                <FieldHint message={errors.password} />
+              </div>
+            </label>
 
-        <label className={styles.field}>
-          <span className={styles.label}>비밀번호 확인</span>
-          <div className={styles.inputWrap}>
-            <input
-              ref={confirmRef}
-              type="password"
-              value={passwordConfirm}
-              onChange={(e) => {
-                setPasswordConfirm(e.target.value);
-                clearError('passwordConfirm');
-              }}
-              placeholder="비밀번호를 다시 입력해주세요."
-              autoComplete="new-password"
-              className={styles.input}
-            />
-            <FieldHint message={errors.passwordConfirm} />
-          </div>
-        </label>
+            <label className={styles.field}>
+              <span className={styles.label}>비밀번호 확인</span>
+              <div className={styles.inputWrap}>
+                <input
+                  ref={confirmRef}
+                  type="password"
+                  value={passwordConfirm}
+                  onChange={(e) => {
+                    setPasswordConfirm(e.target.value);
+                    clearError('passwordConfirm');
+                  }}
+                  placeholder="비밀번호를 다시 입력해주세요."
+                  autoComplete="new-password"
+                  className={styles.input}
+                />
+                <FieldHint message={errors.passwordConfirm} />
+              </div>
+            </label>
+          </>
+        )}
       </div>
     </div>
   );

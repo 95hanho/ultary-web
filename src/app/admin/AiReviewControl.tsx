@@ -3,10 +3,9 @@ import { useRef, useState } from 'react';
 import { FullScreenLoading } from '@/components/common/FullScreenLoading';
 import { bffPostJson } from '@/lib/api/bffFetch';
 import { bffEndpoints } from '@/lib/api/endpoints';
-import { isHttpError } from '@/lib/api/error';
-import { useModalStore } from '@/stores/modal.store';
 import type { BffEnvelope } from '@/types/api';
 import type { AiLog } from './aiLogData';
+import { notifyAdminMutationError } from './adminMutationError';
 import styles from './admin.module.scss';
 export default function AiReviewControl({
   item,
@@ -29,14 +28,7 @@ export default function AiReviewControl({
       window.dispatchEvent(new Event('admin-status-changed'));
       if (response.data) onChange(response.data);
     } catch (error) {
-      useModalStore
-        .getState()
-        .open({
-          variant: 'alert',
-          title: '알림창',
-          content: isHttpError(error) ? error.message : '처리하지 못했습니다.',
-          showCloseButton: true,
-        });
+      notifyAdminMutationError(error);
     } finally {
       busy.current = false;
       setSaving(false);

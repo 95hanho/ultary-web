@@ -43,6 +43,40 @@ export type AdminUserDetail = {
     createdAt: string;
   }[];
 };
+
+export type AdminTimelineItem = {
+  type:
+    | 'STORY_DELETED'
+    | 'FEED_DELETED'
+    | 'PASSWORD_CHANGED'
+    | 'NICKNAME_CHANGED'
+    | 'PET_DELETED'
+    | 'ACCOUNT_WITHDRAWN'
+    | string;
+  id: number;
+  occurredAt: string;
+  message: string | null;
+  petNames: string[];
+  contentPreview: string | null;
+  files: FileSummary[];
+  action: string;
+  actionLabel: string;
+};
+
+export type AdminTimelineActionResult = {
+  type: string;
+  id: number;
+  temporaryPassword?: string | null;
+};
+
+export const TIMELINE_TYPE_LABEL: Record<string, string> = {
+  STORY_DELETED: '스토리 삭제',
+  FEED_DELETED: '피드 삭제',
+  PASSWORD_CHANGED: '비밀번호 변경',
+  NICKNAME_CHANGED: '닉네임태그 변경',
+  PET_DELETED: '반려동물 삭제',
+  ACCOUNT_WITHDRAWN: '회원탈퇴',
+};
 export type AdminAction = {
   actionLogId: number;
   adminNo: number;
@@ -70,6 +104,9 @@ export const ACTION_KIND: Record<string, string> = {
   TAG: '태그',
   REPORT: '신고',
   AI_REVIEW: 'AI 조치',
+  STORY: '스토리',
+  FEED: '게시글',
+  PET: '반려동물',
 };
 export const ACTION_NAME: Record<string, string> = {
   USER_SUSPENDED: '회원 정지',
@@ -82,6 +119,12 @@ export const ACTION_NAME: Record<string, string> = {
   REPORT_CONFIRMED: '신고 확인',
   REPORT_REJECTED: '신고 거절',
   AI_REVIEW: 'AI 오류 조치',
+  STORY_RESTORED: '스토리 삭제 취소',
+  FEED_RESTORED: '게시글 삭제 취소',
+  PET_RESTORED: '반려동물 삭제 취소',
+  PASSWORD_RESET: '비밀번호 초기화',
+  NICKNAME_COOLDOWN_CLEARED: '닉네임 변경 제한 초기화',
+  WITHDRAWAL_CANCELLED: '탈퇴 취소',
 };
 export const ACTION_STATUS: Record<string, string> = {
   ...USER_STATUS,

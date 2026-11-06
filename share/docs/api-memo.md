@@ -27,7 +27,8 @@ BFF: `/api/...` · Spring: `/api/v1/...`
 | 내 회원정보 조회 | GET | `/api/auth/me` | `/api/v1/auth/me` |
 | 회원정보 변경 (닉네임 제외) | PATCH | `/api/auth/me` | `/api/v1/auth/me` |
 | 닉네임 변경 가능 여부 | GET | `/api/auth/me/nickname/change-availability` | `/api/v1/auth/me/nickname/change-availability` |
-| 닉네임 변경 (생성·변경 후 30일 쿨다운) | PATCH | `/api/auth/me/nickname` | `/api/v1/auth/me/nickname` |
+| 닉네임 변경 (생성·변경 후 30일 쿨다운) | PATCH | `/api/auth/me/nickname` | `/api/v1/auth/me/nickname` | 변경 시 `previous_nickname`에 직전값 저장. 중복 확인은 현재 닉네임 + **7일 이내** 직전 닉네임 |
+| 닉네임태그 해석 (공개) | GET | `/api/public/nicknames/:nickname` | `/api/v1/public/nicknames/{nickname}` | 현재 또는 변경 후 7일 이내 직전 → `{ nickname(현재), requestedNickname, redirected }`. 없으면 404. FE `/myultary/{old}/*` 리다이렉트용 |
 | 회원탈퇴 | DELETE | `/api/auth/me` | `/api/v1/auth/me` |
 | 회원가입 | POST | `/api/auth/signup` | `/api/v1/auth/signup` | `phoneAuthCompleteToken`, `password`, `nickname`, `name`, `email`, `regionSido`, `regionSigungu`. 지역은 비워도 된다 |
 | 휴대폰 인증 | POST | `/api/auth/phone` | `/api/v1/auth/phone` | 발송 전에 번호 중복. `purpose` 생략·`SIGNUP`은 가입된 번호 거절. `PROFILE`은 Bearer 필수, 내 번호만 허용. `PASSWORD`는 재설정이라 가입된 번호로 발송 |
@@ -42,7 +43,7 @@ BFF: `/api/...` · Spring: `/api/v1/...`
 | 소셜 계정 연동 | POST | `/api/auth/social/link` | `/api/v1/auth/social/link` |
 | 소셜 계정 연동 해제 | DELETE | `/api/auth/social/unlink` | `/api/v1/auth/social/unlink` |
 
-`GET /auth/me`·`PATCH /auth/me`·닉네임 변경·`POST /auth/social/link`·`DELETE /auth/social/unlink` 응답에 `googleLinked`, `kakaoLinked`가 있다. 연동돼 있으면 true다.
+`GET /auth/me`·`PATCH /auth/me`·닉네임 변경·`POST /auth/social/link`·`DELETE /auth/social/unlink` 응답에 `googleLinked`, `kakaoLinked`가 있다. 연동돼 있으면 true다. `GET /auth/me` 등에 **`mustChangePassword`**(boolean): 관리자 비밀번호 초기화 후면 true. FE는 메인 레이아웃에서 닫을 수 없는 모달로 `/settings/mypage/password`로 보낸다. `PUT /auth/password/me` 또는 `PUT /auth/password` 성공 시 0으로 풀린다. 강제 변경 중에는 현재 비밀번호 재입력을 요구하지 않는다(임시 비밀번호로 이미 로그인한 상태).
 
 #### 마이페이지 SNS 연동 (로그인 유지)
 
@@ -84,6 +85,7 @@ FE는 OAuth code를 Spring에 보내지 않는다. BFF가 code를 교환해 `pro
 `defaultNickname === true` → UI에서 「닉네임을 변경해주세요.」(마이울타리 안내 / 마이페이지에서 변경)
 
 닉네임: 영문·숫자·한글. 한글만 2~5자, 영문·숫자만 4~10자. 혼합 시 한글 1자=2·영문·숫자 1자=1, 가중치 합 4~10(한글 최대 5자).
+변경 후 **30일** 재변경 불가(`nickname_changed_at`). 직전 닉네임은 `previous_nickname`에 두고, 변경 시각 기준 **7일**간 타인이 쓸 수 없으며 `/myultary/{이전}`은 현재 닉네임 URL로 리다이렉트한다. 7일이 지나면 선점·리다이렉트가 끝난다(컬럼 값은 남아도 무시).
 
 로그인 `phone`: DB·조회는 digits only(`^01[0-9]{8,9}$`). 요청에 하이픈/공백/`+82`가 있어도 서버에서 정규화. HTTP 예시는 항상 `"01011112222"`(JSON 문자열).
 
@@ -465,7 +467,7 @@ FE는 OAuth code를 Spring에 보내지 않는다. BFF가 code를 교환해 `pro
 
 ## 12. 관리자
 
-회원 관리(`/admin/users`)·처리 이력(`/admin/actions`) 화면, 목록·상세·정지/해제 API, 관리자 조치의 트랜잭션 기록은 [회원 관리·처리 이력](admin-management.md)에 정리한다. 회원 관리는 첫 메뉴, 이력은 관리자 메인 일반 메뉴 아래와 사이드바 로그아웃 위에 배치한다.
+회원 관리(`/admin/users`)·처리 이력(`/admin/actions`) 화면, 목록·상세·주요 타임라인·정지/해제 API, 관리자 조치의 트랜잭션 기록은 [회원 관리·처리 이력](admin-management.md)에 정리한다. 회원 관리는 첫 메뉴, 이력은 관리자 메인 일반 메뉴 아래와 사이드바 로그아웃 위에 배치한다.
 
 | 기능 | Method | BFF | Spring |
 |------|--------|-----|--------|
@@ -477,6 +479,8 @@ FE는 OAuth code를 Spring에 보내지 않는다. BFF가 code를 교환해 `pro
 | 상업 태그 설명 승인 | POST | `/api/admin/tags/:tagId/approve` | `/api/v1/admin/tags/:tagId/approve` |
 | 상업 태그 설명 거절 | POST | `/api/admin/tags/:tagId/reject` | `/api/v1/admin/tags/:tagId/reject` |
 | 상업 태그 설명 대기 | POST | `/api/admin/tags/:tagId/pending` | `/api/v1/admin/tags/:tagId/pending` |
+| 회원 주요 타임라인 | GET | `/api/admin/users/:userNo/timeline` | `/api/v1/admin/users/:userNo/timeline` |
+| 회원 타임라인 조치 | POST | `/api/admin/users/:userNo/timeline/actions` | `/api/v1/admin/users/:userNo/timeline/actions` |
 | 회원 정지 | POST | `/api/admin/users/:userNo/suspend` | `/api/v1/admin/users/:userNo/suspend` |
 | 회원 정지 해제 | POST | `/api/admin/users/:userNo/unsuspend` | `/api/v1/admin/users/:userNo/unsuspend` |
 | 신고 목록 | GET | `/api/admin/reports?status=&limit=` | `/api/v1/admin/reports` |
@@ -486,11 +490,11 @@ FE는 OAuth code를 Spring에 보내지 않는다. BFF가 code를 교환해 `pro
 | 신고 확인 | POST | `/api/admin/reports/:reportId/confirm` | `/api/v1/admin/reports/:reportId/confirm` |
 | 신고 거절 | POST | `/api/admin/reports/:reportId/reject` | `/api/v1/admin/reports/:reportId/reject` |
 
-관리자 계정은 가입 API가 없다. `ultary_admin`에 직접 넣는다. `password`는 `POST /api/v1/test/password/encode`(local)의 `encodedPassword`(`{bcrypt}$2a$10$...`)다.
+관리자 계정은 가입 API가 없다. `ultary_admin`에 직접 넣는다. `password`는 `POST /api/v1/test/password/encode`(local)의 `encodedPassword`(`{bcrypt}$2a$10$...`)다. `role`은 `SUPER` | `OPERATOR`(기본 `OPERATOR`). **조회(GET)는 둘 다**, **조작(비-GET: 승인·거절·정지·신고 조치·AI 검토 등)은 `SUPER`만**. `OPERATOR`가 조작하면 `403` `FORBIDDEN`. 로그인·재발급·로그아웃은 `OPERATOR`도 가능.
 
-로그인 `POST /api/v1/admin/auth/login`. Body `loginId`, `password`. 응답은 회원과 같다. `accessToken`, `refreshToken`, `tokenType`, `expiresIn`(30분). 액세스 JWT는 관리자 비밀키로 서명하고 만료는 쿠키보다 30초 길다. 리프레시는 `ultary_token.owner_type=ADMIN`. 회원 토큰과 쿠키를 따로 두면 같은 브라우저에서도 겹치지 않는다. 아이디·비밀번호가 틀리면 `401` `ADMIN_LOGIN_FAILED`. 정지 계정은 `403` `ACCOUNT_SUSPENDED`.
+로그인 `POST /api/v1/admin/auth/login`. Body `loginId`, `password`. 응답은 회원과 같고, 추가로 `role`(`SUPER`|`OPERATOR`). `accessToken`, `refreshToken`, `tokenType`, `expiresIn`(30분). 액세스 JWT는 관리자 비밀키로 서명하고 만료는 쿠키보다 30초 길다. JWT claim에 role은 없고 요청마다 DB에서 읽는다. 리프레시는 `ultary_token.owner_type=ADMIN`. 회원 토큰과 쿠키를 따로 두면 같은 브라우저에서도 겹치지 않는다. 아이디·비밀번호가 틀리면 `401` `ADMIN_LOGIN_FAILED`. 정지 계정은 `403` `ACCOUNT_SUSPENDED`.
 
-재발급 `POST /api/v1/admin/auth/refresh`. Body `refreshToken`. 회원 리프레시 토큰은 `401` `INVALID_TOKEN`. 로그아웃 `POST /api/v1/admin/auth/logout`도 Body `refreshToken`을 사용하며 Bearer는 필요 없다. 서명·소유자 검증 후 해당 관리자 **로그인 세션만** 폐기한다. 다른 기기와 회원 세션은 유지한다. 회원 로그아웃도 동일한 규칙이다. 상세: [`auth-session.md`](./auth-session.md).
+재발급 `POST /api/v1/admin/auth/refresh`. Body `refreshToken`. 응답에도 `role` 포함. 회원 리프레시 토큰은 `401` `INVALID_TOKEN`. 로그아웃 `POST /api/v1/admin/auth/logout`도 Body `refreshToken`을 사용하며 Bearer는 필요 없다. 서명·소유자 검증 후 해당 관리자 **로그인 세션만** 폐기한다. 다른 기기와 회원 세션은 유지한다. 회원 로그아웃도 동일한 규칙이다. 상세: [`auth-session.md`](./auth-session.md).
 
 `/api/v1/admin` 아래 나머지 API는 관리자 액세스 토큰만 받는다. 회원 Bearer는 `401`이다.
 
@@ -499,6 +503,8 @@ FE는 OAuth code를 Spring에 보내지 않는다. BFF가 code를 교환해 `pro
 상업 태그 설명 요청 목록은 `status`를 비우면 `PENDING`·`APPROVED`·`REJECTED` 전부다. 넣으면 그 상태만. **삭제된 태그 요청도 포함**하며 항목에 `isDeleted`(boolean, `ultary_tag.is_deleted`)를 준다. 정렬은 최신 `createdAt`이 아니라 **활동 시각** `GREATEST(요청일 created_at, 확인일 reviewed_at, 삭제일 tag.deleted_at)` DESC(NULL은 해당 시각으로 대체해 무시)이고 커서도 같은 활동 시각 기준이다. `limit` 기본 30 최대 50. 응답은 `items`, `nextCursorRequestId`, `totalCount`. 다음 페이지는 `cursorRequestId`에 직전 `nextCursorRequestId`를 넣는다. 없으면 끝이고 `nextCursorRequestId`는 null이다. 페이지 번호는 응답에 없다. 한 페이지 건수는 화면 높이에 따라 바뀌고 최대 50이다. `totalCount`는 그 요청의 `status`와 같은 조건의 전체 건수다. `cursorRequestId`와 `limit`는 이 수에 영향을 주지 않는다. `status`를 비우면 `PENDING`·`APPROVED`·`REJECTED` 전체 건수다. 태그 화면은 대기 요청을 먼저 보여 준 뒤 나머지를 이어서 보여 준다. 분모로 쓰는 값은 `status`를 비운 전체 `totalCount`다. `status=PENDING` 응답의 `totalCount`는 대기 건수다. 항목은 사용자 요청과 같고, 요청한 회원 닉네임 `requesterNickname`, **`isDeleted`**가 있다. `isDeleted === true`이면 FE는 상태 변경 select 대신 「삭제됨」을 표시한다. 요청한 회원이 정지면 관리자 목록과 `totalCount`, 메뉴 뱃지 `pendingTagRequestCount`에서 뺀다. 그 회원의 내 요청 목록은 그대로다. `POST /admin/tags/{tagId}/approve`, `reject`, `pending`은 그 태그의 최신 설명 요청 상태를 바꾼다. 대기뿐 아니라 승인·거절된 요청도 다시 승인·거절·대기로 바꿀 수 있다. 요청이 없으면 `404` `TAG_PROFILE_REQUEST_NOT_FOUND`. `approve`는 제목·소개·링크·이미지로 공개 설명을 바꾸고 `rejectMessage`는 null이다. 이후 태그 조회에 설명이 나온다. `reject`의 Body `rejectMessage`는 500자 이하이고, 비우거나 본문을 빼면 null로 저장한다. 신청자는 내 요청 목록과 태그 조회의 `profileRequest.rejectMessage`에서 본다. 이미 공개된 설명은 그대로 두고, 한 번도 승인되지 않았으면 `profileStatus=REJECTED`라 설명이 안 나온다. `pending`은 본문이 없다. 요청을 `PENDING`으로 두고 `rejectMessage`와 `reviewedAt`은 null이다. 지금 공개 중이면 `profileStatus=PENDING`으로 바꿔 설명을 숨긴다. 거절된 요청을 대기로 돌릴 때, 이전에 공개된 설명이 남아 있으면 그 설명은 그대로 둔다. 응답은 그 요청이다.
 
 회원 정지는 `withdrawal_status=SUSPENDED`, `suspended_at=지금`. 리프레시 토큰은 폐기한다. 응답 `data`는 `userNo`, `withdrawalStatus`, `suspendedAt`. 없는 회원 `404` `USER_NOT_FOUND`. 이미 정지면 `409` `ACCOUNT_ALREADY_SUSPENDED`. 탈퇴 계정이면 `409` `CANNOT_SUSPEND_WITHDRAWN`. 해제는 `ACTIVE`로 되돌리고 `suspended_at`을 비운다. 정지가 아니면 `409` `ACCOUNT_NOT_SUSPENDED`. 신고 조치로 정지를 걸었다가 그 신고를 다른 상태로 바꾸면, 같은 회원에 정지 상태인 다른 신고가 없을 때 정지를 푼다. 직접 건 정지는 `POST /admin/users/{userNo}/unsuspend`로도 푼다.
+
+회원 상세 「주요 타임라인」 `GET /admin/users/{userNo}/timeline` → `{ items }`. 이벤트 `type`: `STORY_DELETED`·`FEED_DELETED`·`PASSWORD_CHANGED`·`NICKNAME_CHANGED`·`PET_DELETED`·`ACCOUNT_WITHDRAWN`(해시태그 요청 제외). 최신순 최대 50. 조치 `POST .../timeline/actions` Body `{ type, id, reason? }`(**SUPER**). 비밀번호 초기화만 응답 `temporaryPassword`(평문 1회)·리프레시 전부 폐기·`must_change_password=1`. 탈퇴 취소는 소셜 연동을 복구하지 않는다. 스키마 `password_changed_at`(v44)·`must_change_password`(v45). 상세는 [admin-management.md](admin-management.md).
 
 신고 목록은 `status`를 비우면 `REQUESTED`·`CONFIRMED`·`DELETED`·`REJECTED`·`SUSPENDED` 전부다. 신고요청·확인이 먼저 나오고, 그다음 삭제조치·거절·정지다. 다만 신고 대상 회원이 정지면(`targetSuspended=true`) 요청·확인이어도 앞쪽 묶음에 넣지 않는다. 같은 묶음 안에서는 최신 `createdAt` 순이다. 넣으면 그 상태만, 최신순이다. `limit` 기본 30 최대 50. 응답은 `items`, `nextCursorReportId`, `totalCount`. 다음 페이지는 `cursorReportId`에 직전 `nextCursorReportId`를 넣는다. 없으면 끝이고 `nextCursorReportId`는 null이다. 페이지 번호는 응답에 없다. 한 페이지 건수는 화면 높이에 따라 바뀌고 최대 50이다. `totalCount`는 그 요청의 `status`와 같은 조건의 전체 건수다. `cursorReportId`와 `limit`는 이 수에 영향을 주지 않는다. `status`를 비우면 다섯 상태 전체 건수다. 항목은 `reportId`, `reporterUserNo`, `reporterNickname`, `targetType`, `targetUserNo`, `targetFeedId`, `targetCommentId`, `targetReplyId`, `reason`, `targetNickname`, `targetContent`, `targetSuspended`, `status`, `createdAt`, `processedAt`. `reporterUserNo`·`reporterNickname`은 신고 회원이다. `targetUserNo`·`targetNickname`은 대상 회원이다. 회원 신고는 그 회원, 글·댓글·답글 신고는 작성자다. `targetSuspended`는 그 회원이 정지인지다. `withdrawal_status=SUSPENDED`일 때만 true다. 상세 `GET /admin/reports/{reportId}`도 목록과 같은 항목이다. 없으면 `404` `REPORT_NOT_FOUND`. `targetContent`는 게시글·댓글·답글 본문이다. 30자까지 주고, 더 길면 30자 뒤에 `...`을 붙인다. 해당 없는 종류는 null이다. `status`는 `REQUESTED` 신고요청, `CONFIRMED` 확인, `DELETED` 삭제조치, `REJECTED` 거절, `SUSPENDED` 정지. 어떤 상태에서든 다시 조치할 수 있다. `confirm`은 `CONFIRMED`로 바꾼다. `CONFIRMED`가 되면 신고자는 취소할 수 없다. `delete-content`는 `FEED`·`COMMENT`·`REPLY`만. 대상을 소프트 삭제하고 상태를 `DELETED`로 둔다. 이미 삭제된 대상이면 상태만 바꾼다. 삭제조치에서 다른 상태로 바꾸면, 같은 대상에 삭제조치인 다른 신고가 없을 때 글·댓글·답글을 복구한다. `suspend`는 `USER` 신고만. 그 회원을 정지하고 상태를 `SUSPENDED`로 둔다. 이미 정지면 상태만 바꾼다. 정지에서 다른 상태로 바꾸면, 같은 회원에 정지인 다른 신고가 없을 때 정지를 푼다. 대상 종류가 다르면 `400` `REPORT_ACTION_MISMATCH`. `reject`는 `REJECTED`. 없으면 `404` `REPORT_NOT_FOUND`.
 
@@ -525,7 +531,7 @@ HTTP: `requests/test.http`
 - 코드 상수: `src/lib/api/endpoints.ts` (`bffEndpoints` / `springEndpoints`)
 - BFF 스켈레톤: `src/app/api/**/route.ts`
 - REST Client 틀: `http/bff.http` (프론트) · Spring: `requests/*.http`
-- DB 스키마: `share/database/schema/mariadb_10_1/001_init_schema.sql` (**schema_version 43**; 게시글 `allow_comment`는 `041_feed_allow_comment.sql`, utf8mb4는 `040_utf8mb4_user_content.sql`)
+- DB 스키마: `share/database/schema/mariadb_10_1/001_init_schema.sql` (**schema_version 46**; `previous_nickname`은 `044_user_previous_nickname.sql`, `must_change_password`는 `043`, `password_changed_at`는 `042`, 게시글 `allow_comment`는 `041`, utf8mb4는 `040`)
   - 기존 DB v7→v8: `002_file_source_attribution.sql`
   - 기존 DB v8→v9: `003_comment_reply_like.sql`
   - 기존 DB v9→v10: `004_search_history_user_only.sql` (최근 검색 = 들어간 유저 울타리만)

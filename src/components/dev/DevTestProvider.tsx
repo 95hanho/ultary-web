@@ -16,12 +16,14 @@ import {
 
 type DevTestApi = {
   setGroup: (id: string, group: { title: string; actions: DevTestAction[] } | null) => void;
+  setAdminAuthed: (authed: boolean | null) => void;
 };
 
 const DevTestContext = createContext<DevTestApi | null>(null);
 
 export function DevTestProvider({ children }: { children: ReactNode }) {
   const [groups, setGroups] = useState<Record<string, DevTestGroup>>({});
+  const [adminAuthed, setAdminAuthed] = useState<boolean | null>(null);
   const setGroup = useCallback<DevTestApi['setGroup']>((id, group) => {
     setGroups((prev) => {
       if (!group) {
@@ -33,15 +35,25 @@ export function DevTestProvider({ children }: { children: ReactNode }) {
       return { ...prev, [id]: { id, title: group.title, actions: group.actions } };
     });
   }, []);
-  const api = useMemo(() => ({ setGroup }), [setGroup]);
+  const api = useMemo(() => ({ setGroup, setAdminAuthed }), [setGroup]);
   const list = Object.values(groups);
 
   return (
     <DevTestContext.Provider value={api}>
       {children}
-      {ENABLE_DEV_TOOLS ? <DevTestDock groups={list} /> : null}
+      {ENABLE_DEV_TOOLS ? <DevTestDock groups={list} adminAuthed={adminAuthed} /> : null}
     </DevTestContext.Provider>
   );
+}
+
+/** /admin 레이아웃이 서버에서 판정한 관리자 세션을 체험 도크에 넘긴다. */
+export function useDevAdminSession(authed: boolean) {
+  const ctx = useContext(DevTestContext);
+  useLayoutEffect(() => {
+    if (!ctx || !ENABLE_DEV_TOOLS) return;
+    ctx.setAdminAuthed(authed);
+    return () => ctx.setAdminAuthed(null);
+  }, [ctx, authed]);
 }
 
 /** DEV 도구 설정이 켜진 경우에만 현재 페이지의 개발 버튼을 공통 패널에 붙인다. */

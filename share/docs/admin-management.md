@@ -3,7 +3,9 @@
 ## 화면과 메뉴
 
 - `/admin/users`: 관리자 메뉴의 첫 항목. 대표 펫 프로필(45px, 스토리 표시 없음), 회원번호, 닉네임태그, 반려동물 이름, 정상/정지/탈퇴 상태, 가입일, 활성 펫·게시글 수, 받은 신고 수를 보여준다. 반려동물은 닉네임태그와 상태 사이에 관리 순서(priority, pet_id)로 쉼표 구분하여 나열한다. 없는 경우 `–`로 표시한다.
-- `/admin/users/{userNo}`: 마스킹한 연락처·이메일, SNS 연결 여부, 등록 펫, 최근 게시글/받은 신고(각 최대 20개)를 표시한다. 비밀번호·토큰·소셜 제공자 식별자를 조회 응답에 포함하지 않는다.
+- `/admin/users/{userNo}`: 마스킹한 연락처·이메일, SNS 연결 여부, 등록 펫, **주요 타임라인**(등록 펫과 최근 게시글 사이), 최근 게시글/받은 신고를 표시한다. 화면은 각 목록을 5개씩 보여주고 더보기로 5개씩 펼친다. API 상세 응답의 `feeds`/`reports`는 현재 각 최대 20개라, 더보기도 그 한도 안에서만 동작한다. 비밀번호·토큰·소셜 제공자 식별자를 조회 응답에 포함하지 않는다.
+- **주요 타임라인**: 전용 DB 테이블이 아니라 소프트 삭제·쿨다운·탈퇴 등 **조치 가능한 상태만** 조회해 최신순으로 모은다(최대 50). 해시태그 설명 요청은 포함하지 않는다(관리자 태그 화면에서 처리). 조치 성공 후 같은 조건으로 다시 조회하면 해당 행은 빠진다(삭제 복구·탈퇴 취소·쿨다운 해제·비밀번호 초기화 후 `password_changed_at` 비움). 행마다 미리보기와 우측 조치 버튼, 확인 모달 후 SUPER만 실행. 썸네일은 `/admin/users/{userNo}/files/{fileId}/content`.
+- **BE 메모(선택)**: 게시글·받은 신고가 20개를 넘는 회원까지 이어서 보려면 `GET /api/v1/admin/users/{userNo}/feeds`, `.../reports`처럼 `page`/`size`(또는 cursor) 페이징 API가 필요하다. 지금 FE 더보기는 상세에 이미 온 배열만 자른다.
 - 목록·상세에서 정지/해제를 할 수 있다. 화면에서 사유 입력과 확인 모달을 거친다. 탈퇴 회원은 조치 버튼을 표시하지 않으며, 기존 정지/해제 API도 탈퇴 회원 복원을 허용하지 않는다.
 - `/admin/actions`: 관리자 첫 화면에서는 일반 메뉴 아래 36px 간격, 목록 사이드바에서는 로그아웃 바로 위 하단에 표시한다. 관리자·처리 대상 검색과 대상 종류 필터를 제공한다.
 - 기존 태그·신고·AI 메뉴의 숫자 표시는 유지한다. 별도 운영 현황 화면이나 회원 관리용 처리 대기 건수는 추가하지 않는다.
@@ -16,13 +18,28 @@
 |---|---|---|
 | GET | `/api/v1/admin/users?q=&status=&page=&size=` | 닉네임태그·활성 반려동물 이름 부분 검색·회원번호 일치 검색, 상태 필터 |
 | GET | `/api/v1/admin/users/{userNo}` | 회원 상세 |
+| GET | `/api/v1/admin/users/{userNo}/timeline` | 주요 타임라인 `{ items }` |
+| POST | `/api/v1/admin/users/{userNo}/timeline/actions` | 타임라인 조치, JSON `{ "type", "id", "reason?" }` |
 | POST | `/api/v1/admin/users/{userNo}/suspend` | 정지, JSON `{ "reason": "사유" }` |
 | POST | `/api/v1/admin/users/{userNo}/unsuspend` | 정지 해제, JSON `{ "reason": "사유" }` |
-| GET | `/api/v1/admin/users/{userNo}/files/{fileId}/content` | 해당 회원의 활성 펫 프로필 파일만 허용, private/no-store |
+| GET | `/api/v1/admin/users/{userNo}/files/{fileId}/content` | 해당 회원 타임라인·펫 프로필 관련 파일, private/no-store |
 | GET | `/api/v1/admin/actions?q=&targetType=&page=&size=` | 관리자 처리 이력 |
 
+### 주요 타임라인 이벤트·조치
+
+| type | 출처 | 버튼 | 조치 |
+|---|---|---|---|
+| `STORY_DELETED` | `ultary_story` soft-delete | 삭제 취소 | `is_deleted` 복구(`expires_at` 유지) |
+| `FEED_DELETED` | `ultary_feed` soft-delete **and** ≥1 `ultary_feed_media` | 삭제 취소 | `FeedService.restoreByAdmin`. 미디어 없는 피드는 타임라인에 올리지 않는다(하드 삭제 정리 대상). |
+| `PASSWORD_CHANGED` | `password_changed_at IS NOT NULL`(회원 변경만 기록) | 비밀번호 초기화 | 임시 비밀번호 발급·해시 저장·리프레시 폐기·`password_changed_at=NULL`·**`must_change_password=1`**. 응답 `temporaryPassword` 1회. 회원은 다음 로그인 후 `/settings/mypage/password`에서 변경해야 하며, 성공 시 플래그 해제 |
+| `NICKNAME_CHANGED` | 기본 닉네임 아님 + **쿨다운 30일 이내**만 | 변경 제한 초기화 | `nickname_changed_at`을 31일 전으로 → 다음 GET에서 제외. 닉네임 문자열은 불변 |
+| `PET_DELETED` | `ultary_pet` soft-delete | 삭제 취소 | `is_deleted` 복구 |
+| `ACCOUNT_WITHDRAWN` | `WITHDRAWN` + `withdrawal_completed_at` | 탈퇴 취소 | `ACTIVE`로 복구, completed/suspended 시각 비움. 탈퇴 시 지운 소셜 연동은 복구하지 않음(재연동 필요) |
+
+- 비밀번호 초기화: `PasswordRules`를 만족하는 12자 임시 비밀번호를 서버가 생성한다. 관리자 화면에만 한 번 보여 주고 DB에는 bcrypt만 저장한다. 강제 재설정 플래그 컬럼은 두지 않는다(임시 비밀번호 전달 + 기존 `/auth/password` 흐름으로 변경).
+- 스키마: `042_user_password_changed_at.sql` (**v44**). 가입 시 `password_changed_at`은 NULL. 회원 비밀번호 변경·관리자 초기화 때만 NOW(). 과거 변경은 소급하지 않는다.
 - 회원 상태: `ALL`(기본), `ACTIVE`, `SUSPENDED`, `WITHDRAWN`.
-- 이력 대상: `ALL`(기본), `USER`, `TAG`, `REPORT`, `AI_REVIEW`.
+- 이력 대상: `ALL`(기본), `USER`, `TAG`, `REPORT`, `AI_REVIEW`, `STORY`, `FEED`, `PET`.
 - `page`는 0부터 시작한다. `size` 기본 10, 범위 1~50. 두 목록 응답은 `{items,totalCount,page,pageSize}`이며 검색·필터가 목록과 전체 건수에 동일하게 적용된다.
 - 회원은 회원번호 내림차순, 이력은 처리일시·처리이력번호 내림차순이다. 화면은 기존 공통 Pager와 높이에 맞는 페이지 크기를 사용한다. 반려동물 이름이 여러 개 일치해도 EXISTS 검색으로 회원/전체 건수가 중복되지 않는다.
 - 회원 목록/상세의 `petNames`는 삭제되지 않은 펫의 이름 배열이다. 목록에서는 펫 이름을 일괄 조회하며 회원별 추가 쿼리를 만들지 않는다.

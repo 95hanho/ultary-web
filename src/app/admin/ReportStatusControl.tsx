@@ -2,9 +2,9 @@
 import { useRef, useState } from 'react';
 import { FullScreenLoading } from '@/components/common/FullScreenLoading';
 import { bffPostJson } from '@/lib/api/bffFetch';
-import { useModalStore } from '@/stores/modal.store';
 import type { BffEnvelope } from '@/types/api';
 import type { ReportItem } from './adminData';
+import { notifyAdminMutationError } from './adminMutationError';
 import { ACTION_URL, actionOptions, mergeReport, actionError } from './reportStatusActions';
 import styles from './admin.module.scss';
 export default function ReportStatusControl({
@@ -27,14 +27,7 @@ export default function ReportStatusControl({
       window.dispatchEvent(new Event('admin-status-changed'));
       onChange(mergeReport(item, response.data, next));
     } catch (error) {
-      useModalStore
-        .getState()
-        .open({
-          variant: 'alert',
-          title: '알림창',
-          content: actionError(error),
-          showCloseButton: true,
-        });
+      notifyAdminMutationError(error, actionError(error));
     } finally {
       busy.current = false;
       setSaving(false);

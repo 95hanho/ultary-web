@@ -1,5 +1,6 @@
 import { bffEndpoints } from '@/lib/api/endpoints';
 import { isHttpError, isRecord } from '@/lib/api/error';
+import { adminMutationErrorMessage } from './adminMutationError';
 import { REPORT_STATUS, type ReportItem } from './adminData';
 const CONTENT_TYPE = new Set(['FEED', 'COMMENT', 'REPLY']);
 export const ACTION_URL: Record<string, string> = {
@@ -51,8 +52,7 @@ export function actionError(err: unknown) {
   if (code === 'REPORT_NOT_FOUND') return '신고를 찾지 못했습니다.';
   if (code === 'REPORT_ALREADY_CLOSED') return '이미 처리된 신고입니다.';
   if (code === 'REPORT_ACTION_MISMATCH') return '이 신고에는 할 수 없는 처리입니다.';
-  if (isHttpError(err) && err.message.trim()) return err.message;
-  return '처리하지 못했습니다.';
+  return adminMutationErrorMessage(err);
 }
 
 function errorCode(err: unknown) {

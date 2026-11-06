@@ -11,11 +11,16 @@ import { NO_PROFILE_SRC } from '@/lib/profileImage';
 import { REPORT_REASON, REPORT_STATUS, formatWhen } from './adminData';
 import { USER_STATUS, type AdminUserDetail } from './adminManagementData';
 import UserStatusControl from './UserStatusControl';
+import UserTimelineSection from './UserTimelineSection';
 import { adminProfileUrl } from './adminProfileUrl';
 import styles from './admin.module.scss';
 
+const PREVIEW_STEP = 5;
+
 export default function UserDetailClient({ userNo }: { userNo: number }) {
   const [refresh, setRefresh] = useState(0);
+  const [feedVisible, setFeedVisible] = useState(PREVIEW_STEP);
+  const [reportVisible, setReportVisible] = useState(PREVIEW_STEP);
   const [loaded, setLoaded] = useState<{
     key: string;
     data?: AdminUserDetail;
@@ -27,7 +32,11 @@ export default function UserDetailClient({ userNo }: { userNo: number }) {
     bffGet<BffEnvelope<AdminUserDetail>>(bffEndpoints.admin.user, { userNo })
       .then((res) => {
         if (!res.data) throw new Error('회원 정보가 없습니다.');
-        if (!cancelled) setLoaded({ key, data: res.data });
+        if (!cancelled) {
+          setFeedVisible(PREVIEW_STEP);
+          setReportVisible(PREVIEW_STEP);
+          setLoaded({ key, data: res.data });
+        }
       })
       .catch((error: unknown) => {
         if (!cancelled) setLoaded({ key, error: { value: error } });
@@ -39,6 +48,10 @@ export default function UserDetailClient({ userNo }: { userNo: number }) {
   const current = loaded?.key === key ? loaded : null;
   const detail = current?.data;
   const user = detail?.user;
+  const visibleFeeds = detail?.feeds.slice(0, feedVisible) ?? [];
+  const visibleReports = detail?.reports.slice(0, reportVisible) ?? [];
+  const canShowMoreFeeds = Boolean(detail && feedVisible < detail.feeds.length);
+  const canShowMoreReports = Boolean(detail && reportVisible < detail.reports.length);
   return (
     <section className={styles.detail}>
       <div className={styles.detailScroll}>
@@ -127,7 +140,8 @@ export default function UserDetailClient({ userNo }: { userNo: number }) {
               ))}
             </ul>
             {!detail.pets.length ? <p>등록된 펫이 없습니다.</p> : null}
-            <h2 className={styles.memberSectionTitle}>최근 게시글 (최대 20개)</h2>
+            <UserTimelineSection userNo={userNo} />
+            <h2 className={styles.memberSectionTitle}>최근 게시글</h2>
             <div className={styles.memberTableScroll}>
               <table className={styles.dataTable}>
                 <thead>
@@ -140,7 +154,7 @@ export default function UserDetailClient({ userNo }: { userNo: number }) {
                   </tr>
                 </thead>
                 <tbody>
-                  {detail.feeds.map((feed) => (
+                  {visibleFeeds.map((feed) => (
                     <tr key={feed.feedId}>
                       <td>{feed.feedId}</td>
                       <td>{feed.content || '내용 없음'}</td>
@@ -156,8 +170,19 @@ export default function UserDetailClient({ userNo }: { userNo: number }) {
                 </tbody>
               </table>
             </div>
+            {canShowMoreFeeds ? (
+              <div className={styles.sectionMoreWrap}>
+                <button
+                  type="button"
+                  className={styles.pageButton}
+                  onClick={() => setFeedVisible((n) => n + PREVIEW_STEP)}
+                >
+                  더보기
+                </button>
+              </div>
+            ) : null}
             {!detail.feeds.length ? <p>게시글이 없습니다.</p> : null}
-            <h2 className={styles.memberSectionTitle}>최근 받은 신고 (최대 20개)</h2>
+            <h2 className={styles.memberSectionTitle}>최근 받은 신고</h2>
             <div className={styles.memberTableScroll}>
               <table className={styles.dataTable}>
                 <thead>
@@ -170,7 +195,7 @@ export default function UserDetailClient({ userNo }: { userNo: number }) {
                   </tr>
                 </thead>
                 <tbody>
-                  {detail.reports.map((report) => (
+                  {visibleReports.map((report) => (
                     <tr key={report.reportId}>
                       <td>
                         <Link
@@ -193,6 +218,17 @@ export default function UserDetailClient({ userNo }: { userNo: number }) {
                 </tbody>
               </table>
             </div>
+            {canShowMoreReports ? (
+              <div className={styles.sectionMoreWrap}>
+                <button
+                  type="button"
+                  className={styles.pageButton}
+                  onClick={() => setReportVisible((n) => n + PREVIEW_STEP)}
+                >
+                  더보기
+                </button>
+              </div>
+            ) : null}
             {!detail.reports.length ? <p>받은 신고가 없습니다.</p> : null}
           </>
         ) : null}

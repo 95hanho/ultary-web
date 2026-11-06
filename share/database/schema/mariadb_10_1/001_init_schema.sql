@@ -1,4 +1,7 @@
--- schema_version: 43
+-- schema_version: 46
+-- v46: ultary_user.previous_nickname (변경 후 7일 선점 방지·구 URL 리다이렉트) (044_user_previous_nickname.sql)
+-- v45: ultary_user.must_change_password (관리자 비밀번호 초기화 후 강제 변경) (043_user_must_change_password.sql)
+-- v44: ultary_user.password_changed_at (관리자 주요 타임라인·비밀번호 변경 시각) (042_user_password_changed_at.sql)
 -- v43: 게시글별 allow_comment. privacy의 neighbor_request·allow_comment 제거 (041_feed_allow_comment.sql)
 -- v42: 사용자·AI 텍스트 테이블 utf8mb4 (이모지). 040_utf8mb4_user_content.sql
 -- v41: 게시글(피드) content 최대 500자. 댓글·답글 100자 유지 (039_feed_content_max_500.sql)
@@ -140,9 +143,12 @@ SET FOREIGN_KEY_CHECKS = 1;
 CREATE TABLE `ultary_user` (
   `user_no` INT(11) NOT NULL AUTO_INCREMENT,
   `password` VARCHAR(200) NULL DEFAULT NULL COMMENT 'BCrypt 해시. 소셜만 사용 시 NULL, 이후 설정 가능',
+  `password_changed_at` DATETIME NULL DEFAULT NULL COMMENT '회원 비밀번호 마지막 변경 시각. 가입·관리자 초기화 시 NULL. 회원 변경 시 NOW()',
+  `must_change_password` TINYINT(1) NOT NULL DEFAULT 0 COMMENT '1=관리자 초기화 후 비밀번호 변경 필요. 회원 비밀번호 변경 성공 시 0',
   `name` VARCHAR(20) NULL DEFAULT NULL,
   `nickname` VARCHAR(30) NOT NULL COMMENT '표시 이름. 한글 2~5 / 영문·숫자 4~10 / 혼합은 한글1=2·영문·숫자1=1 가중치 합 4~10. 소셜 가입 시 google|kakao + 랜덤영문(총 10자)',
   `nickname_changed_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '닉네임 마지막 변경(또는 최초 부여) 시각. 생성 직후부터 30일간 재변경 불가',
+  `previous_nickname` VARCHAR(30) NULL DEFAULT NULL COMMENT '직전 닉네임태그. 변경 시 이전 값 저장. nickname_changed_at 기준 7일간 중복·리다이렉트에만 사용',
   `is_default_nickname` TINYINT(1) NOT NULL DEFAULT 1 COMMENT '1=자동 생성 닉네임(변경 유도 대상), 0=사용자가 직접 변경함',
   `email` VARCHAR(50) NULL DEFAULT NULL COMMENT '소셜에서 전달되거나 이후 등록. 비밀번호 로그인 식별자로 사용 가능',
   `phone` VARCHAR(20) NULL DEFAULT NULL COMMENT '본인인증 후 등록. 비밀번호 로그인 식별자로 사용 가능',
@@ -158,6 +164,7 @@ CREATE TABLE `ultary_user` (
   UNIQUE KEY `UK_ultary_user_nickname` (`nickname`) USING BTREE,
   KEY `IDX_ultary_user_email` (`email`) USING BTREE,
   KEY `IDX_ultary_user_phone` (`phone`) USING BTREE,
+  KEY `IDX_ultary_user_previous_nickname` (`previous_nickname`) USING BTREE,
   KEY `IDX_ultary_user_is_default_nickname` (`is_default_nickname`) USING BTREE,
   KEY `IDX_ultary_user_withdrawal_status` (`withdrawal_status`) USING BTREE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='사용자 계정 및 보호자 프로필';

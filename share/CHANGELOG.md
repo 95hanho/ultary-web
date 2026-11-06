@@ -1,5 +1,27 @@
 # share CHANGELOG
 
+## 2026-11-06 닉네임태그 직전값·7일 선점·구 URL 리다이렉트
+
+- `ultary_user.previous_nickname`(schema **v46**, `044_user_previous_nickname.sql`). `PATCH /auth/me/nickname` 시 기존 닉네임을 저장하고 `nickname`·`nickname_changed_at` 갱신
+- 중복 확인·가입·소셜 자동생성: 현재 닉네임뿐 아니라 **변경 후 7일 이내** `previous_nickname`도 점유로 본다 (`NICKNAME_DUPLICATED`)
+- `GET /api/v1/public/nicknames/{nickname}` → `{ nickname, requestedNickname, redirected }`. 직전 닉네임(7일)이면 현재 닉네임 + `redirected:true`. 만료·미존재는 404
+- `GET /api/v1/public/ultaries/{nickname}`도 동일 해석(응답 `nickname`은 항상 현재). FE `/myultary/[nickname]/*`는 해석 후 현재 닉네임 URL로 308/replace (하위 경로 유지)
+- 변경 빈도 쿨다운은 기존 30일 유지. 직전 닉네임 선점·리다이렉트만 7일
+
+## 2026-11-06 관리자 비밀번호 초기화 후 강제 변경
+
+- `ultary_user.must_change_password`(schema **v45**, `043_user_must_change_password.sql`). 관리자 타임라인 비밀번호 초기화 시 1, `PUT /auth/password`·`/password/me` 성공 시 0
+- `GET /auth/me`에 `mustChangePassword`. FE `(main)` 레이아웃 `MustChangePasswordGate`: 닫을 수 없는 모달 → `/settings/mypage/password`. 강제 변경 시 현재 비밀번호 입력 생략
+- 임시 비밀번호는 관리자 응답 `temporaryPassword`로 1회 표시(기존). 회원은 그 값으로 로그인한 뒤 새 비밀번호 설정
+
+## 2026-11-06 관리자 회원 「주요 타임라인」
+
+- `/admin/users/{userNo}`에 등록 펫과 최근 게시글 사이 **주요 타임라인** 섹션. 삭제 스토리/피드/펫·비밀번호·닉네임태그·탈퇴(6종) + 행별 조치(삭제 취소·비밀번호 초기화·변경 제한 초기화·탈퇴 취소). 해시태그 요청은 타임라인에 올리지 않음(관리자 태그 화면)
+- API: `GET/POST /api/v1/admin/users/{userNo}/timeline` · `.../timeline/actions`. BFF `/api/admin/...`. 파일 컨텐츠는 펫·스토리·피드·해시요청 썸네일 허용
+- 비밀번호 초기화: 임시 비밀번호 발급·bcrypt 저장·리프레시 폐기·응답 `temporaryPassword` 1회. 강제재설정 플래그 없음
+- 마이그레이션 `042_user_password_changed_at.sql` (schema **v44**). 가입 시 NULL, 변경·초기화만 기록
+- 스토리·펫 관리자 복구 매퍼 추가. 피드 복구·태그 거절은 기존 헬퍼 재사용
+
 ## 2026-11-06 게시글별 allowComment·privacy 정리·펫삭제 노출
 
 - 계정 `user_privacy.allow_comment` → 게시글 `ultary_feed.allow_comment`. `POST`/`PATCH /feeds`에 `allowComment`(등록 생략 시 true, 수정 생략 시 유지). Feed 응답 포함(레거시·미설정 true). `false`면 작성자 외 댓글·답글 `403` `COMMENT_NOT_ALLOWED`
