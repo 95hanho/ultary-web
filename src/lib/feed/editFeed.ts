@@ -66,6 +66,7 @@ export async function loadFeedEditDraft(feedId: string) {
     caption: feed.content ?? '',
     visibility: feed.visibility,
     subjectPetIds: (feed.subjectPets ?? []).map((pet) => pet.petId),
+    allowComment: feed.allowComment !== false,
   };
 }
 
@@ -75,6 +76,7 @@ export async function updateFeedFromDraft(
   items: WriteDraftItem[],
   visibility: FeedVisibility,
   subjectPetIds?: number[],
+  allowComment = true,
 ) {
   const mediaTags = items.map((item) => {
     if (item.feedMediaId == null) throw new Error('원본 사진 정보를 확인할 수 없습니다.');
@@ -98,6 +100,7 @@ export async function updateFeedFromDraft(
     feedId,
     visibility,
     subjectPetIds,
+    allowComment,
     content: caption.trim(),
     clearContent: !caption.trim(),
     mediaTags,

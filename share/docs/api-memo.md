@@ -193,7 +193,7 @@ FE는 OAuth code를 Spring에 보내지 않는다. BFF가 code를 교환해 `pro
 | 반려동물 삭제 | DELETE | `/api/pets/:petId` |
 
 > `name`은 생성 후 불변. 사진 `@` 멘션·공동작성은 승인/거절 없음. 멘션된 피드는 `GET /api/my-ultary/tagged-feeds`, 삭제는 작성자 또는 COLLABORATOR 펫 보호자.  
-> **삭제**: `ultary_pet` 소프트 삭제만. `feed_pet`/`content_pet`/멘션 행은 유지. 목록·`subjectPets`에서는 빠지지만 단독 피드/스토리 본문은 숨기지 않는다. 원복은 `is_deleted=0`, `deleted_at=NULL`.  
+> **삭제**: `ultary_pet` 소프트 삭제만. `feed_pet`/`content_pet`/멘션 행은 DB에 유지. **단독** 피드·스토리는 목록·상세·저장·고정·울타리 등 **조회에서 제외**(없는 글). 단독 = `subjectPets`(펫선택)가 있고 전부 삭제, 또는 펫선택 없이 사진/`@`·공동작성만 있고 그게 전부 삭제. 펫선택은 삭제됐는데 태그·사진 `@`만 남아 있어도 숨긴다. **비단독**(펫선택에 살아 있는 펫이 남음)은 글은 유지하고 삭제 펫만 `subjectPets`·`pets`·멘션 표시에서 제외. 활동 기록 행은 남고 상세는 없는 글. 원복은 `is_deleted=0`, `deleted_at=NULL`.  
 > **priority**: 작을수록 우선, 1이 가장 높음. `GET /pets`는 이 순서(같으면 petId). 생략하고 등록하면 맨 뒤(`MAX+1`).  
 > **프로필 사진 교체**: `POST /files`로 새 파일을 만든 뒤 `PATCH /pets/{petId}`의 `profileFileId`로 연결. 빠지는 이전 파일은 `is_deleted=1`, `deleted_at` 설정. 다른 펫·피드·스토리·태그 이미지가 같은 파일을 쓰면 그 행은 유지. `removeProfileFile=true`도 같다.  
 > `GET /pets`는 **로그인한 나의** 펫만 반환한다. 다른 사람 펫 목록은 `GET /users/{userNo}/pets`.  
@@ -212,8 +212,8 @@ FE는 OAuth code를 Spring에 보내지 않는다. BFF가 code를 교환해 `pro
 
 > Spring: `GET /api/v1/feeds/{feedId}` — **PUBLIC은 비로그인 허용**. 상세는 [`spring-auth-api.md`](./spring-auth-api.md).
 > 삭제 권한: 작성자 또는 `feed_pet.role=COLLABORATOR` 펫의 보호자. `deleted_by_user_no`에 실제 삭제자 기록.
-> 등록 시 `media` 1개 이상 필수. PATCH는 content·clearContent·visibility와 mediaTags(기존 사진별 펫 태그), mediaOrder(기존 feedMediaId 순열로 sortOrder 재부여), tagIds(본문 해시태그)를 지원한다. 원본 파일·미디어 타입은 바꿀 수 없고, 순서만 `mediaOrder`로 바꿀 수 있다. 내 피드 메뉴의 게시글 수정은 작성 화면을 재사용하며 사진 태그·본문·미디어 순서를 편집한다. 상세 계약: [feed-edit.md](feed-edit.md).
-> 게시글 본문 `content`는 해시태그 텍스트 포함 **최대 500자**. 댓글·답글은 **최대 100자**.
+> 등록 시 `media` 1개 이상 필수. `allowComment`는 생략 시 `true`. PATCH는 content·clearContent·visibility·allowComment와 mediaTags(기존 사진별 펫 태그), mediaOrder(기존 feedMediaId 순열로 sortOrder 재부여), tagIds(본문 해시태그)를 지원한다. `allowComment` 생략 시 기존 값 유지. 원본 파일·미디어 타입은 바꿀 수 없고, 순서만 `mediaOrder`로 바꿀 수 있다. 내 피드 메뉴의 게시글 수정은 작성 화면을 재사용하며 사진 태그·본문·미디어 순서를 편집한다. 상세 계약: [feed-edit.md](feed-edit.md).
+> 게시글 본문 `content`는 해시태그 텍스트 포함 **최대 500자**. 댓글·답글은 **최대 100자**. Feed 응답에 `allowComment` 포함(레거시·미설정 `true`). `false`면 작성자 외 댓글·답글 `403` `COMMENT_NOT_ALLOWED`.
 > `PRIVATE`는 작성자만 조회. `NEIGHBORS`는 ACCEPTED 팔로우 관계만 조회.
 | 좋아요 | POST | `/api/feeds/:feedId/like` |
 | 좋아요 취소 | DELETE | `/api/feeds/:feedId/like` |
@@ -299,7 +299,7 @@ FE는 OAuth code를 Spring에 보내지 않는다. BFF가 code를 교환해 `pro
 > 목록의 `hasStory`는 현재 조회자가 볼 수 있는 스토리 유무, `hasUnviewed`는 그중 미열람 스토리 유무다. 접근할 수 없거나 스토리가 없으면 둘 다 false. 프로필 클릭은 `/stories?userNo=...&nickname=...&single=1`로 해당 사용자의 스토리만 재생한다.
 > `pair_key` = `minUserNo:maxUserNo` (한 쌍에 관계 행 1개).  
 > 목록 항목에 `petTags`(펫 `mentionId`, `@` 없음, `priority` 순, 없으면 `[]`)와 `following`(로그인한 내가 그 유저를 팔로우 중이면 true). 버튼은 `neighborId` 유무가 아니라 `following`으로 나눈다. `false`면 팔로우, `true`면 팔로우 끊기.  
-> 상대가 공개 계정이면 `POST /users/{userNo}/neighbors/request`는 바로 `ACCEPTED`다. 신청한 사람만 팔로우하고 `followedBack=false`. 비공개 계정이면 `PENDING`이고, 상대가 수락하면 `ACCEPTED`이면서 `followedBack=true`(수락한 사람도 신청한 사람을 팔로우). 둘 다 상대에게 알림이 간다. 맞팔 전용 상태값은 없다. `followed_back=1`이 서로 팔로우다. 상대만 나를 팔로우한 상태(`following=false`, `followedBy=true`)에서 다시 신청하면 새 행 없이 맞팔로 바로 연결한다. 이미 내가 팔로우 중이면 `409` `NEIGHBOR_ALREADY_EXISTS`. 상대가 신청을 꺼 두면 `403` `NEIGHBOR_REQUEST_CLOSED`. 맞팔에서 `DELETE /neighbors/{neighborId}`는 호출한 사람의 팔로우만 끊고, 상대 팔로우는 남긴다. 한 방향뿐이면 행을 지운다.  
+> 상대가 공개 계정이면 `POST /users/{userNo}/neighbors/request`는 바로 `ACCEPTED`다. 신청한 사람만 팔로우하고 `followedBack=false`. 비공개 계정이면 `PENDING`이고, 상대가 수락하면 `ACCEPTED`이면서 `followedBack=true`(수락한 사람도 신청한 사람을 팔로우). 둘 다 상대에게 알림이 간다. 맞팔 전용 상태값은 없다. `followed_back=1`이 서로 팔로우다. 상대만 나를 팔로우한 상태(`following=false`, `followedBy=true`)에서 다시 신청하면 새 행 없이 맞팔로 바로 연결한다. 이미 내가 팔로우 중이면 `409` `NEIGHBOR_ALREADY_EXISTS`. 맞팔에서 `DELETE /neighbors/{neighborId}`는 호출한 사람의 팔로우만 끊고, 상대 팔로우는 남긴다. 한 방향뿐이면 행을 지운다.  
 > 울타리 `relationStatus`는 한 방향이라도 연결되면 `ACCEPTED`. 방향은 `following`, `followedBy`. `privateAccount`는 비공개 계정. 본인이 아니고 `privateAccount=true`이며 `following=false`이면 게시글·고정·태그 그리드는 빈 배열이고, `hasStory`도 false다. `feedCount`는 그대로다. 맞팔은 `following=true`다. 상대만 나를 팔로우한 ACCEPTED는 글을 열지 않는다.  
 > `relationStatus`: `NONE` \| `PENDING_SENT` \| `PENDING_RECEIVED` \| `ACCEPTED` \| `REJECTED` \| `BLOCKED`.  
 > **스토리 버튼**: 응답에 `hasStory`, `hasUnviewed`. 그 사람의 활성 스토리를 **내가** 안 읽은 게 있으면 `hasUnviewed=true`. 없으면 다 읽음, 스토리 자체가 없으면 `hasStory=false`. 내 울타리와 같은 규칙.  
@@ -451,15 +451,13 @@ FE는 OAuth code를 Spring에 보내지 않는다. BFF가 code를 교환해 `pro
 | `tagStory` | 스토리 태그 | `STORY_TAG` |
 | `storyReact` | 스토리 공감 | `STORY_LIKE` |
 
-**공개 범위** `GET`/`PATCH /settings/privacy`. 행이 없으면 비공개 계정 꺼짐, `feedVisibility=PUBLIC`, `storyVisibility=NEIGHBORS`, 팔로우 신청·댓글·멘션·태그 켜짐. PATCH는 넣은 필드만. `feedVisibility`·`storyVisibility`는 `PUBLIC` | `NEIGHBORS` | `PRIVATE`. `NEIGHBORS`는 팔로우 관계(한쪽이라도 수락)만.
+**공개 범위** `GET`/`PATCH /settings/privacy`. 행이 없으면 비공개 계정 꺼짐, `feedVisibility=PUBLIC`, `storyVisibility=NEIGHBORS`, 멘션·태그 켜짐. PATCH는 넣은 필드만. `feedVisibility`·`storyVisibility`는 `PUBLIC` | `NEIGHBORS` | `PRIVATE`. `NEIGHBORS`는 팔로우 관계(한쪽이라도 수락)만. 게시글 댓글 허용은 계정 설정이 아니라 `POST`/`PATCH /feeds`의 `allowComment`(게시글 단위).
 
 | 필드 | 화면 | 적용 |
 |------|------|------|
 | `privateAccount` | 비공개 계정 | 켜면 전체 공개 게시글·스토리는 조회자가 그 계정을 팔로우할 때만. 상대만 팔로우한 경우는 제외. 저장된 기본값은 그대로 |
 | `feedVisibility` | 게시글 기본 공개 범위 | 글을 쓸 때 공개 범위를 비우면 이 값 |
 | `storyVisibility` | 스토리 공개 범위 | `PRIVATE`는 본인만. `PUBLIC`는 팔로우 관계가 아니어도 본다 |
-| `neighborRequest` | 팔로우 신청 받기 | 끄면 신청 `403` `NEIGHBOR_REQUEST_CLOSED` |
-| `allowComment` | 게시글 댓글 허용 | 끄면 남의 댓글·답글 `403` `COMMENT_NOT_ALLOWED`. 본인 글은 가능 |
 | `allowMention` | 멘션 허용 | 끄면 댓글·답글에서 그 사람·그 펫 멘션 `403` `MENTION_NOT_ALLOWED` |
 | `allowTag` | 태그 허용 | 끄면 게시글·스토리에서 그 펫 태그 `403` `TAG_NOT_ALLOWED` |
 
@@ -527,7 +525,7 @@ HTTP: `requests/test.http`
 - 코드 상수: `src/lib/api/endpoints.ts` (`bffEndpoints` / `springEndpoints`)
 - BFF 스켈레톤: `src/app/api/**/route.ts`
 - REST Client 틀: `http/bff.http` (프론트) · Spring: `requests/*.http`
-- DB 스키마: `share/database/schema/mariadb_10_1/001_init_schema.sql` (**schema_version 42**; 사용자·AI 텍스트 utf8mb4는 `040_utf8mb4_user_content.sql`)
+- DB 스키마: `share/database/schema/mariadb_10_1/001_init_schema.sql` (**schema_version 43**; 게시글 `allow_comment`는 `041_feed_allow_comment.sql`, utf8mb4는 `040_utf8mb4_user_content.sql`)
   - 기존 DB v7→v8: `002_file_source_attribution.sql`
   - 기존 DB v8→v9: `003_comment_reply_like.sql`
   - 기존 DB v9→v10: `004_search_history_user_only.sql` (최근 검색 = 들어간 유저 울타리만)

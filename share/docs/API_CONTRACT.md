@@ -63,10 +63,11 @@
 | `POST /main/pet-tags/recent` | `{ petId }` | 멘션을 고를 때 저장. 같은 펫은 `used_at`만 갱신. `POST /main/search/recent`와 무관 |
 | `DELETE /main/pet-tags/recent` | data null | 내 최근 펫 태그 전부 삭제 |
 | `GET /feeds/{id}/comments` · `.../replies` | `authorProfileFile` | 작성자의 대표 펫 사진 `FileSummary`. 없으면 `null`. 인라인 `replies`에도 동일 |
-| `POST /feeds` | 게시글 단건 | content 최대 500자. AI 검사 통과 후 저장. 400 AI_CONTENT_BLOCKED 또는 503 AI_CHECK_UNAVAILABLE이면 미저장·독립 검사 로그 보관. 상세 ai-manual-review-and-phone-demo.md |
-| `PATCH /feeds/{feedId}` | 게시글 단건 | 작성자 전용. content/clearContent/visibility 및 mediaTags(기존 사진 ID별 mentions 교체), tagIds(본문 해시태그 연결 교체). 원본 미디어 교체 없음. 상세는 [feed-edit.md](feed-edit.md) |
+| `POST /feeds` | 게시글 단건 | content 최대 500자. `allowComment` 생략 시 true. AI 검사 통과 후 저장. 400 AI_CONTENT_BLOCKED 또는 503 AI_CHECK_UNAVAILABLE이면 미저장·독립 검사 로그 보관. 상세 ai-manual-review-and-phone-demo.md |
+| `PATCH /feeds/{feedId}` | 게시글 단건 | 작성자 전용. content/clearContent/visibility/allowComment 및 mediaTags(기존 사진 ID별 mentions 교체), tagIds(본문 해시태그 연결 교체). `allowComment` 생략 시 기존 유지. 원본 미디어 교체 없음. 상세는 [feed-edit.md](feed-edit.md) |
 | `PATCH /feeds/{feedId}` | 게시글 단건 | content 최대 500자. 작성과 같이 저장 전 동기 검사. 실패하면 원본 유지 |
-| 댓글·답글 작성/수정 | — | content 최대 100자. 즉시 저장·공개하고 DB 작업자가 비동기 검사. 유해 시 숨김/마지막 승인 본문 복구 후 AI_MODERATION 알림. AI 장애는 FAILED 로그·재시도이며 콘텐츠 유지 |
+| Feed 응답 | `allowComment` | 게시글별 댓글 허용. 레거시·미설정 true. false면 작성자 외 댓글·답글 `403` `COMMENT_NOT_ALLOWED` |
+| 댓글·답글 작성/수정 | — | content 최대 100자. 작성은 해당 게시글 `allowComment` 검사(작성자 제외). 즉시 저장·공개하고 DB 작업자가 비동기 검사. 유해 시 숨김/마지막 승인 본문 복구 후 AI_MODERATION 알림. AI 장애는 FAILED 로그·재시도이며 콘텐츠 유지 |
 | `GET /tags/recommend` | `TagResponse[]` | 게시글 내용(q) 기반 해시태그 최대 5. 총 3회 시도 후 실패 시 503 서비스 오류 안내. 정상 빈 결과만 DB 추천으로 보완 |
 | `GET /pets` | `priority` | 작을수록 우선. 목록은 이 순서, 같으면 petId. 유저 프로필 사진은 그중 사진 있는 첫 펫. **로그인한 나의 펫만** |
 | `PATCH /pets/{petId}` | `profileFileId` | 다른 파일로 바꾸거나 `removeProfileFile=true`면 이전 `ultary_file`을 삭제 표시(`is_deleted`, `deleted_at`). 다른 곳에서 쓰는 파일은 유지 |
@@ -96,7 +97,7 @@
 | `GET /notifications` | `unreadCount`, `items` | 알림 페이지. 목록을 준 뒤 그때까지 안 읽은 알림을 읽음 처리. `message`는 서버 문장. 팔로우는 «팔로우를 요청했습니다» 또는 «팔로우했습니다». `following`이 false면 팔로우, true면 취소. `PENDING` 팔로우는 `POST /neighbors/{neighborId}/accept`, 이미 팔로우된 맞팔은 `POST /users/{actorUserNo}/neighbors/request`, 취소는 `DELETE /neighbors/{neighborId}` |
 | `GET /settings/activities` | `items` | 내 활동. 내가 한 좋아요·댓글·답글·팔로우·게시글·스토리. `neighborStatus`가 `PENDING` 또는 `ACCEPTED`면 취소 `DELETE /neighbors/{neighborId}` |
 | `GET /settings/notifications` · `PATCH` | 스위치 10개 | 알림 종류별 켜기. 없으면 전부 켜짐. PATCH는 넣은 필드만. 끈 종류는 알림 목록에서 빠짐 |
-| `GET /settings/privacy` · `PATCH` | 공개 범위 7개 | 비공개 계정, 게시글·스토리 범위, 팔로우 신청·댓글·멘션·태그. 행이 없으면 기본값. PATCH는 넣은 필드만 |
+| `GET /settings/privacy` · `PATCH` | 공개 범위 5개 | 비공개 계정, 게시글·스토리 범위, 멘션·태그. 행이 없으면 기본값. PATCH는 넣은 필드만. 게시글 댓글 허용은 Feed `allowComment` |
 | `GET /users/{userNo}/neighbors?type=` | 배열 | 팔로우·팔로워 목록. `FOLLOW` 팔로우(기본), `FOLLOWER` 팔로워. 응답 `listType`도 같다. 카운트는 `followCount`, `followerCount`. 항목의 `hasStory`, `hasUnviewed`는 조회자 기준 스토리 유무·미열람 상태. 채팅 상대도 이 목록 |
 | `POST /dm/rooms/start` | `room`, `message` | targetUserNo 및 메시지/공유 데이터. 방 생성과 첫 전송을 같은 트랜잭션으로 처리. [상세](dm-first-message.md) |
 | `GET /dm/share-targets` | `items` | 공유 대상. `mode` SHARE/DM/STORY_TAG/FEED_TAG, `q` 닉네임·펫태그 검색(제한 전), `priorityOrder` 앞 3순위 순열. 1~9순위·상세는 [공유 대상](share-targets.md). `userNo`, `nickname`, `petTags`(@ 없음), `pets`(petId·mentionId), `profileFile`, `dmRoomId`, `following`, `followedBy`, `group`, `activeAt` |

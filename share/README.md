@@ -13,7 +13,7 @@ share/
     README.md
     rules.json
   database/
-    schema/mariadb_10_1/    ← 001_init_schema.sql (schema_version 42)
+    schema/mariadb_10_1/    ← 001_init_schema.sql (schema_version 43)
     seed/README.md         ← 개발 데이터·기존 시드 제거 안내
   docs/
     api-memo.md             ← 엔드포인트·도메인 메모
@@ -36,8 +36,7 @@ share/
 
 경로·시각 폴더로 버전 나누지 않는다. git 히스토리 + `CHANGELOG.md`(날짜·시분)가 버전이다.
 
-미커밋 인수인계는 임시 `FRONT.md`(web)·`BACK.md`(api)만 쓴다. (`FROND.md`·`frontend/`·`backend/` 금지.)  
-「share 정리」·커밋 전에 내용을 `docs/`·CHANGELOG로 옮기고 해당 파일을 삭제한다. 양 레포 `share/`는 해시 일치(MISMATCH 0)를 유지한다.
+양 레포 `share/`는 해시 일치(MISMATCH 0)를 유지한다. 임시 인수인계(`FRONT`/`FROND`/`BACK`)는 커밋 전 docs·CHANGELOG로 옮긴 뒤 삭제한다.
 
 ### 이 레포(ultary-web) 문서 구분
 

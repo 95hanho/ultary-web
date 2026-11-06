@@ -1,5 +1,14 @@
 # share CHANGELOG
 
+## 2026-11-06 게시글별 allowComment·privacy 정리·펫삭제 노출
+
+- 계정 `user_privacy.allow_comment` → 게시글 `ultary_feed.allow_comment`. `POST`/`PATCH /feeds`에 `allowComment`(등록 생략 시 true, 수정 생략 시 유지). Feed 응답 포함(레거시·미설정 true). `false`면 작성자 외 댓글·답글 `403` `COMMENT_NOT_ALLOWED`
+- `GET`/`PATCH /settings/privacy`에서 `neighborRequest`·`allowComment` 제거(공개 범위 5개). `NEIGHBOR_REQUEST_CLOSED`·privacy 댓글/팔로우신청 assert 삭제
+- 마이그레이션 `041_feed_allow_comment.sql` (schema **v43**). privacy 컬럼 `neighbor_request`·`allow_comment` DROP
+- `DELETE /pets/{id}` 후: 단독 펫만 있고 전부 삭제된 스토리·피드는 목록·단건에서 숨김(이전 11-05 문구「본문 숨기지 않음」정정)
+- FE: privacy 스위치 제거, compose 「게시글 댓글 허용」, Feed 댓글 아이콘 숨김(`allowComment===false`), 해시태그 요청 카드 hover로 소개 전체 표시
+- 임시 인수인계 `FROND.md`/`BACK.md`는 docs·CHANGELOG로 이전 후 삭제
+
 ## 2026-11-05 게시글 mediaOrder·STORY_TAG 본인 제외
 
 - `PATCH /feeds/{feedId}`: `mediaOrder`(활성 feedMediaId 전체 순열)로 `sortOrder` 재부여. 생략/null이면 유지. 누락·중복·타 글 ID → 400. 원본 `fileId`·`mediaType` 불변

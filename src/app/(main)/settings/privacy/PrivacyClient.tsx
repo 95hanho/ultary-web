@@ -43,8 +43,6 @@ function Switch({
 type PrivacySettings = {
   privateAccount: boolean;
   feedVisibility: FeedVisibility;
-  neighborRequest: boolean;
-  allowComment: boolean;
   allowMention: boolean;
   allowTag: boolean;
 };
@@ -52,8 +50,6 @@ type PrivacySettings = {
 const DEFAULT_PRIVACY: PrivacySettings = {
   privateAccount: false,
   feedVisibility: 'PUBLIC',
-  neighborRequest: true,
-  allowComment: true,
   allowMention: true,
   allowTag: true,
 };
@@ -75,8 +71,6 @@ function readPrivacy(data: unknown): PrivacySettings {
   return {
     privateAccount: readFlag(source.privateAccount) ?? DEFAULT_PRIVACY.privateAccount,
     feedVisibility: parseVisibility(source.feedVisibility) ?? DEFAULT_PRIVACY.feedVisibility,
-    neighborRequest: readFlag(source.neighborRequest) ?? DEFAULT_PRIVACY.neighborRequest,
-    allowComment: readFlag(source.allowComment) ?? DEFAULT_PRIVACY.allowComment,
     allowMention: readFlag(source.allowMention) ?? DEFAULT_PRIVACY.allowMention,
     allowTag: readFlag(source.allowTag) ?? DEFAULT_PRIVACY.allowTag,
   };
@@ -87,8 +81,6 @@ function applyPrivacy(prev: PrivacySettings, data: unknown): PrivacySettings {
   return {
     privateAccount: readFlag(data.privateAccount) ?? prev.privateAccount,
     feedVisibility: parseVisibility(data.feedVisibility) ?? prev.feedVisibility,
-    neighborRequest: readFlag(data.neighborRequest) ?? prev.neighborRequest,
-    allowComment: readFlag(data.allowComment) ?? prev.allowComment,
     allowMention: readFlag(data.allowMention) ?? prev.allowMention,
     allowTag: readFlag(data.allowTag) ?? prev.allowTag,
   };
@@ -196,30 +188,6 @@ export default function PrivacyClient() {
               disabledValues={privacy.privateAccount ? ['PUBLIC'] : undefined}
               onChange={(next) => void patch({ feedVisibility: next })}
             />
-          </li>
-
-          <li className={styles.item}>
-            <div className={styles.itemBody}>
-              <span className={styles.label}>팔로우 신청 받기</span>
-              <Switch
-                checked={privacy.neighborRequest}
-                label="팔로우 신청 받기"
-                disabled={locked}
-                onChange={(next) => void patch({ neighborRequest: next })}
-              />
-            </div>
-          </li>
-
-          <li className={styles.item}>
-            <div className={styles.itemBody}>
-              <span className={styles.label}>게시글 댓글 허용</span>
-              <Switch
-                checked={privacy.allowComment}
-                label="게시글 댓글 허용"
-                disabled={locked}
-                onChange={(next) => void patch({ allowComment: next })}
-              />
-            </div>
           </li>
 
           <li className={styles.item}>

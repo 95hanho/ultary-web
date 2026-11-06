@@ -10,6 +10,8 @@ export type Feed = {
   advertisement?: boolean;
   content: string | null;
   visibility: FeedVisibility;
+  /** 이 게시글 댓글 허용. 없으면 true로 본다 */
+  allowComment?: boolean;
   likeCount: number;
   commentCount: number;
   pinCount: number;

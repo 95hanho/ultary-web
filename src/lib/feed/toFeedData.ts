@@ -133,6 +133,7 @@ export function toFeedData(raw: unknown, fallbackId: string): FeedData {
     tagIds: readTagIds(detail.tagIds),
     likeCount: detail.likeCount ?? 0,
     commentCount: detail.commentCount ?? 0,
+    allowComment: detail.allowComment !== false,
     isFavorite: detail.likedByMe === true,
     isPinned: detail.pinnedByMe === true,
     isSaved: detail.savedByMe === true,

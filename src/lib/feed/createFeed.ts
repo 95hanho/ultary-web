@@ -22,6 +22,8 @@ export type CreateFeedBody = {
   subjectPetIds?: number[];
   content?: string;
   visibility?: 'PUBLIC' | 'NEIGHBORS' | 'PRIVATE';
+  /** 이 게시글 댓글 허용. 기본 true */
+  allowComment?: boolean;
   media: CreateFeedMedia[];
   pets?: Array<{ petId: number; role?: 'TAGGED' | 'COLLABORATOR'; isMain?: boolean }>;
   tagIds?: number[];
@@ -63,8 +65,15 @@ export async function createFeedFromDraft(input: {
   caption: string;
   items: WriteDraftItem[];
   visibility?: CreateFeedBody['visibility'];
+  allowComment?: boolean;
 }): Promise<unknown> {
-  const { caption, items, visibility = 'PUBLIC', subjectPetIds = [] } = input;
+  const {
+    caption,
+    items,
+    visibility = 'PUBLIC',
+    subjectPetIds = [],
+    allowComment = true,
+  } = input;
   if (items.length === 0) throw new Error('미디어가 필요합니다.');
 
   const media: CreateFeedMedia[] = [];
@@ -105,6 +114,7 @@ export async function createFeedFromDraft(input: {
     subjectPetIds,
     content: caption.trim() || undefined,
     visibility,
+    allowComment,
     media,
     pets: pets.length > 0 ? pets : undefined,
   };

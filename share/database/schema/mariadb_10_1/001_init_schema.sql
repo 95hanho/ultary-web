@@ -1,4 +1,5 @@
--- schema_version: 42
+-- schema_version: 43
+-- v43: 게시글별 allow_comment. privacy의 neighbor_request·allow_comment 제거 (041_feed_allow_comment.sql)
 -- v42: 사용자·AI 텍스트 테이블 utf8mb4 (이모지). 040_utf8mb4_user_content.sql
 -- v41: 게시글(피드) content 최대 500자. 댓글·답글 100자 유지 (039_feed_content_max_500.sql)
 -- v40: 관리자 시연 이력 구분·중복 방지 (038_admin_action_log_samples.sql)
@@ -20,7 +21,7 @@
 -- v20: ultary_user.withdrawal_status 에 SUSPENDED, suspended_at. 관리자 회원 정지
 -- v19: ultary_feed_pin(울타리 고정), ultary_feed_save(나만 보는 저장). 구 ultary_feed_store·store_count
 -- v18: ultary_dm_room, ultary_dm_message. 1:1 메시지. 게시글(사진 슬롯)·스토리 공유
--- v17: ultary_user_privacy. 공개 범위. 행이 없으면 비공개 계정 꺼짐, 게시글 전체, 스토리 팔로우 관계, 신청·댓글·멘션·태그 켜짐
+-- v17: ultary_user_privacy. 공개 범위. 행이 없으면 비공개 계정 꺼짐, 게시글 전체, 스토리 팔로우 관계, 멘션·태그 켜짐 (댓글 허용은 v43부터 게시글 단위)
 -- v16: ultary_notification_setting. 알림 종류별 켜기/끄기. 행이 없으면 전부 켜짐
 -- v15: ultary_user.withdrawal_requested_at 제거. 탈퇴는 WITHDRAWN 과 withdrawal_completed_at 만 사용
 -- v14: 알림 집계(팔로우 신청·좋아요·댓글답글·언급·태그·스토리 공감)와 ultary_story_like
@@ -308,6 +309,7 @@ CREATE TABLE `ultary_feed` (
   `user_no` INT(11) NOT NULL COMMENT '피드 작성자',
   `content` VARCHAR(500) NULL DEFAULT NULL COMMENT '본문. 해시태그 텍스트 포함 최대 500자',
   `visibility` ENUM('PUBLIC','NEIGHBORS','PRIVATE') NOT NULL DEFAULT 'PUBLIC' COMMENT 'PUBLIC: 전체 공개, NEIGHBORS: 팔로우 관계 공개, PRIVATE: 나만 보기',
+  `allow_comment` TINYINT(1) NOT NULL DEFAULT 1 COMMENT '1이면 댓글·답글 허용. 끄면 작성자만 가능',
   `like_count` INT(11) NOT NULL DEFAULT 0,
   `comment_count` INT(11) NOT NULL DEFAULT 0,
   `pin_count` INT(11) NOT NULL DEFAULT 0 COMMENT '울타리에 고정한 사람 수',
@@ -630,8 +632,6 @@ CREATE TABLE `ultary_user_privacy` (
   `private_account` TINYINT(1) NOT NULL DEFAULT 0 COMMENT '1이면 전체 공개 게시글·스토리는 조회자가 그 계정을 팔로우할 때만',
   `feed_visibility` ENUM('PUBLIC','NEIGHBORS','PRIVATE') NOT NULL DEFAULT 'PUBLIC' COMMENT '새 게시글 기본 공개 범위',
   `story_visibility` ENUM('PUBLIC','NEIGHBORS','PRIVATE') NOT NULL DEFAULT 'NEIGHBORS' COMMENT '스토리 공개 범위',
-  `neighbor_request` TINYINT(1) NOT NULL DEFAULT 1 COMMENT '팔로우 신청 받기',
-  `allow_comment` TINYINT(1) NOT NULL DEFAULT 1 COMMENT '게시글 댓글·답글 허용',
   `allow_mention` TINYINT(1) NOT NULL DEFAULT 1 COMMENT '댓글·답글 멘션 허용',
   `allow_tag` TINYINT(1) NOT NULL DEFAULT 1 COMMENT '게시글·스토리 태그 허용',
   `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,

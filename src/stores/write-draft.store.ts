@@ -37,6 +37,9 @@ type WriteDraftState = {
   caption: string;
   visibility: FeedVisibility | null;
   setVisibility: (visibility: FeedVisibility) => void;
+  /** 이 게시글 댓글 허용 (게시글 단위) */
+  allowComment: boolean;
+  setAllowComment: (allowComment: boolean) => void;
   editingFeedId: string | null;
   beginEditing: (
     feedId: string,
@@ -44,6 +47,7 @@ type WriteDraftState = {
     caption: string,
     visibility: FeedVisibility,
     subjectPetIds?: number[],
+    allowComment?: boolean,
   ) => void;
   /** 사진 설정에서 보고 있던 장. 작성 화면에서 돌아오면 이 장부터 */
   cropIndex: number;
@@ -67,9 +71,19 @@ export const useWriteDraftStore = create<WriteDraftState>((set) => ({
   caption: '',
   visibility: 'PUBLIC',
   setVisibility: (visibility) => set({ visibility }),
+  allowComment: true,
+  setAllowComment: (allowComment) => set({ allowComment }),
   editingFeedId: null,
-  beginEditing: (feedId, items, caption, visibility, subjectPetIds = []) =>
-    set({ subjectPetIds, editingFeedId: feedId, items, caption, visibility, cropIndex: 0 }),
+  beginEditing: (feedId, items, caption, visibility, subjectPetIds = [], allowComment = true) =>
+    set({
+      subjectPetIds,
+      editingFeedId: feedId,
+      items,
+      caption,
+      visibility,
+      allowComment,
+      cropIndex: 0,
+    }),
   cropIndex: 0,
   setItems: (items) =>
     set((state) => ({
@@ -78,6 +92,7 @@ export const useWriteDraftStore = create<WriteDraftState>((set) => ({
       editingFeedId: null,
       subjectPetIds: state.editingFeedId ? [] : state.subjectPetIds,
       visibility: state.editingFeedId ? 'PUBLIC' : state.visibility,
+      allowComment: state.editingFeedId ? true : state.allowComment,
       caption: state.editingFeedId ? '' : state.caption,
     })),
   reorderItems: (fromIndex, toIndex) =>
@@ -152,6 +167,7 @@ export const useWriteDraftStore = create<WriteDraftState>((set) => ({
       items: [],
       caption: '',
       visibility: 'PUBLIC',
+      allowComment: true,
       cropIndex: 0,
       editingFeedId: null,
     }),

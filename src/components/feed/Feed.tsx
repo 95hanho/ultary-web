@@ -100,6 +100,8 @@ export type FeedData = {
   isSaved?: boolean;
   likeCount?: number;
   commentCount?: number;
+  /** 이 게시글 댓글 허용. 없으면 true */
+  allowComment?: boolean;
   /** 내가 이 글을 신고한 상태. 없으면 null */
   myReport?: MyReport | null;
 };
@@ -156,6 +158,7 @@ export function Feed({
   isSaved = false,
   likeCount = 0,
   commentCount = 0,
+  allowComment = true,
   myReport: myReportFromServer = null,
   showAuthor = true,
   initialMediaIndex = 0,
@@ -258,8 +261,11 @@ export function Feed({
   const tagReqRef = useRef(0);
   const hoverTagRef = useRef<string | null>(null);
   const [commentsOpen, setCommentsOpen] = useResettableState(
-    Boolean((readOnly && (focusCommentId || focusReplyId)) || searchParams.get('comments') === id),
-    [id, searchParams.get('comments')],
+    Boolean(
+      allowComment &&
+        ((readOnly && (focusCommentId || focusReplyId)) || searchParams.get('comments') === id),
+    ),
+    [id, allowComment, searchParams.get('comments')],
   );
   const [shareOpen, setShareOpen] = useState(false);
   const [shareMediaId, setShareMediaId] = useState<number | null>(null);
@@ -922,15 +928,17 @@ export function Feed({
                   </span>
                 </button>
               ) : null}
-              <button
-                type="button"
-                className={clsx(styles.actionBtn, styles.actionPressable, styles.iconOnlyPress)}
-                aria-label={`댓글 ${comments}`}
-                onClick={() => setCommentsOpen(true)}
-              >
-                <Image src={CommentIcon} alt="" width={31} height={31} />
-                <span className={styles.actionCount}>{comments}</span>
-              </button>
+              {allowComment ? (
+                <button
+                  type="button"
+                  className={clsx(styles.actionBtn, styles.actionPressable, styles.iconOnlyPress)}
+                  aria-label={`댓글 ${comments}`}
+                  onClick={() => setCommentsOpen(true)}
+                >
+                  <Image src={CommentIcon} alt="" width={31} height={31} />
+                  <span className={styles.actionCount}>{comments}</span>
+                </button>
+              ) : null}
             </div>
             {!readOnly ? (
               <div className={styles.actionsRight}>
@@ -1184,24 +1192,26 @@ export function Feed({
         />
       ) : null}
 
-      <CommentSheet
-        open={commentsOpen}
-        onClose={() => setCommentsOpen(false)}
-        feedId={id}
-        readOnly={readOnly}
-        comments={previewComments}
-        focusCommentId={focusCommentId}
-        focusReplyId={focusReplyId}
-        portalTarget={readOnly ? previewRoot : undefined}
-        onCommentCreated={() => {
-          setComments((count) => count + 1);
-          adjustMainCommentCount(id, 1);
-        }}
-        onCommentDeleted={() => {
-          setComments((count) => Math.max(0, count - 1));
-          adjustMainCommentCount(id, -1);
-        }}
-      />
+      {allowComment ? (
+        <CommentSheet
+          open={commentsOpen}
+          onClose={() => setCommentsOpen(false)}
+          feedId={id}
+          readOnly={readOnly}
+          comments={previewComments}
+          focusCommentId={focusCommentId}
+          focusReplyId={focusReplyId}
+          portalTarget={readOnly ? previewRoot : undefined}
+          onCommentCreated={() => {
+            setComments((count) => count + 1);
+            adjustMainCommentCount(id, 1);
+          }}
+          onCommentDeleted={() => {
+            setComments((count) => Math.max(0, count - 1));
+            adjustMainCommentCount(id, -1);
+          }}
+        />
+      ) : null}
       {!readOnly ? (
         <ShareMessageSheet
           open={shareOpen}

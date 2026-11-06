@@ -66,6 +66,30 @@ type PhotoDragSession = {
   moved: boolean;
 };
 
+function CommentAllowSwitch({
+  checked,
+  onChange,
+  disabled,
+}: {
+  checked: boolean;
+  onChange: (next: boolean) => void;
+  disabled?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      aria-label="게시글 댓글 허용"
+      disabled={disabled}
+      className={clsx(styles.switch, checked && styles.switchOn)}
+      onClick={() => onChange(!checked)}
+    >
+      <span className={styles.switchThumb} aria-hidden />
+    </button>
+  );
+}
+
 const SUGGEST_LIMIT = 10;
 const SUGGEST_DELAY_MS = 400;
 const RECOMMEND_MIN_PLAIN = 20;
@@ -106,6 +130,8 @@ export default function WriteComposeClient({ editFeedId }: { editFeedId?: string
   const reorderItems = useWriteDraftStore((s) => s.reorderItems);
   const visibility = useWriteDraftStore((s) => s.visibility);
   const setVisibility = useWriteDraftStore((s) => s.setVisibility);
+  const allowComment = useWriteDraftStore((s) => s.allowComment);
+  const setAllowComment = useWriteDraftStore((s) => s.setAllowComment);
   const [visibilityError, setVisibilityError] = useState<{ error: unknown } | null>(null);
   const [defaultVisibility, setDefaultVisibility] = useState<FeedVisibility | null>(null);
   const caption = useWriteDraftStore((s) => s.caption);
@@ -136,6 +162,7 @@ export default function WriteComposeClient({ editFeedId }: { editFeedId?: string
             draft.caption,
             draft.visibility,
             draft.subjectPetIds,
+            draft.allowComment,
           );
       })
       .catch((error: unknown) => {
@@ -552,8 +579,22 @@ export default function WriteComposeClient({ editFeedId }: { editFeedId?: string
     setSubmitting(true);
     try {
       if (editFeedId)
-        await updateFeedFromDraft(editFeedId, caption, items, visibility, subjectPetIds);
-      else await createFeedFromDraft({ caption, items, visibility, subjectPetIds });
+        await updateFeedFromDraft(
+          editFeedId,
+          caption,
+          items,
+          visibility,
+          subjectPetIds,
+          allowComment,
+        );
+      else
+        await createFeedFromDraft({
+          caption,
+          items,
+          visibility,
+          subjectPetIds,
+          allowComment,
+        });
       clear();
       if (editFeedId) {
         const origin = requestFeedEditReturn(editFeedId);
@@ -716,6 +757,14 @@ export default function WriteComposeClient({ editFeedId }: { editFeedId?: string
               {`* 게시글 기본 공개 범위가 ${defaultVisibility === 'NEIGHBORS' ? "'팔로우'로" : "'나만'으로"} 되어있습니다.`}
             </p>
           ) : null}
+          <div className={styles.allowCommentRow}>
+            <span className={styles.allowCommentLabel}>게시글 댓글 허용</span>
+            <CommentAllowSwitch
+              checked={allowComment}
+              disabled={submitting}
+              onChange={setAllowComment}
+            />
+          </div>
         </section>
 
         <section className={styles.section} aria-label="내용">
